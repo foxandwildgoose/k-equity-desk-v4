@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { DATA_LABEL } from "@/data/market";
 import { useMarketIndices } from "@/lib/use-market";
+import { useMarketSnapshot } from "@/lib/use-feed";
+
+const US_LABEL: Record<string, string> = { spx: "SPX", ndx: "NDX", vix: "VIX", tnx: "US10Y", usdkrw: "USD/KRW" };
 import { usePriceColors } from "@/lib/store";
 import { formatPct } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -18,6 +21,8 @@ function statusLabel(ms?: string): string | null {
 export function MarketBar() {
   const colors = usePriceColors();
   const { data, isLoading, isError } = useMarketIndices();
+  const us = useMarketSnapshot(["spx", "ndx", "vix", "tnx", "usdkrw"], { refetchMs: 180_000 });
+  const usRows = (us.data?.rows ?? []).filter((r) => r.price != null);
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const indices = data?.indices ?? [];
@@ -99,6 +104,30 @@ export function MarketBar() {
             </div>
           );
         })}
+        {mounted && usRows.length > 0 && (
+          <div className="flex shrink-0 items-baseline border-l border-border" data-testid="marketbar-us" title="Yahoo Finance 지연 시세">
+            <span className="market-tape-item text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+              US · 지연
+            </span>
+            {usRows.map((r) => {
+              const up = (r.changePct ?? 0) > 0;
+              const down = (r.changePct ?? 0) < 0;
+              return (
+                <div key={r.id} className="market-tape-item flex shrink-0 items-baseline gap-1.5" title={`${r.symbol} · ${r.source}${r.delayMinutes ? ` · 지연 ${r.delayMinutes}분` : " · 지연 시세"}`}>
+                  <span className="text-[10px] font-semibold text-muted-foreground">{US_LABEL[r.id] ?? r.label}</span>
+                  <span className="text-xs font-semibold tabular text-foreground">
+                    {r.price != null ? r.price.toLocaleString("en-US", { maximumFractionDigits: 2, minimumFractionDigits: 2 }) : "—"}
+                  </span>
+                  {r.changePct != null && (
+                    <span className={cn("text-[11px] tabular", up ? colors.up : down ? colors.down : "text-muted-foreground")}>
+                      {formatPct(r.changePct)}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
         <div className="ml-auto shrink-0 px-3 py-2">
           <span className="text-[10px] text-muted-foreground whitespace-nowrap">
             {DATA_LABEL}

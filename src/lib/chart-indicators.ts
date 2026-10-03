@@ -60,6 +60,7 @@ export function bollinger(
 }
 
 export function rsi(closes: number[], period = 14): (number | null)[] {
+  if (!closes.length) return [];
   const out: (number | null)[] = [null];
   let avgGain = 0;
   let avgLoss = 0;
@@ -311,10 +312,30 @@ function pctChange(now: number, ref: number): number {
   return ((now - ref) / ref) * 100;
 }
 
+export type RecentSpan = "3M" | "6M" | "52W" | "all" | "swing";
+
+function recentWindowStart(bars: RangeBar[], from: number, to: number, span: Exclude<RecentSpan, "swing">): number {
+  if (span === "all") return from;
+  const last = bars[to]?.date;
+  const days = span === "3M" ? 92 : span === "6M" ? 183 : 366;
+  const endMs = last ? Date.parse(last.slice(0, 10)) : Number.NaN;
+  if (!Number.isFinite(endMs)) {
+    const n = span === "3M" ? 63 : span === "6M" ? 126 : 252;
+    return Math.max(from, to - n + 1);
+  }
+  const cut = endMs - days * 86_400_000;
+  for (let i = from; i <= to; i++) {
+    const d = Date.parse((bars[i]?.date ?? "").slice(0, 10));
+    if (Number.isFinite(d) && d >= cut) return i;
+  }
+  return from;
+}
+
 /**
- * Desk-style range position vs current price (TradingView visible-range + last swing).
- * Period high/low = extrema of [from, to]. Recent high/low = last confirmed pivot
- * in that window (so a new high on the last few bars is 기간고, not yet 최근고).
+ * Desk-style range position vs current price.
+ * Period high/low = extrema of [from, to].
+ * Recent high/low default to the last confirmed swing. Pass `recentSpan`
+ * (`3M`/`6M`/`52W`/`all`) to use a trailing calendar window instead.
  */
 export function computeRangePosition(
   bars: RangeBar[],
@@ -324,6 +345,7 @@ export function computeRangePosition(
     close?: number;
     pivotLeft?: number;
     pivotRight?: number;
+    recentSpan?: RecentSpan;
   },
 ): RangePositionStats | null {
   if (!bars.length) return null;
@@ -353,45 +375,60 @@ export function computeRangePosition(
     return null;
   }
 
-  const n = to - from + 1;
-  const left =
-    opts?.pivotLeft ?? Math.max(3, Math.min(8, Math.floor(n / 40) || 3));
-  const right = opts?.pivotRight ?? left;
-  const highs: number[] = [];
-  const lows: number[] = [];
-  for (let i = from; i <= to; i++) {
-    highs.push(bars[i]!.high);
-    lows.push(bars[i]!.low);
-  }
-  const piv = findPivots(highs, lows, left, right);
-
-  let recentHighIdx =
-    piv.highIdx.length > 0 ? from + piv.highIdx[piv.highIdx.length - 1]! : periodHighIdx;
-  let recentLowIdx =
-    piv.lowIdx.length > 0 ? from + piv.lowIdx[piv.lowIdx.length - 1]! : periodLowIdx;
-
-  const winStart = from + Math.max(0, n - Math.max(8, Math.floor(n * 0.2)));
-  if (piv.highIdx.length === 0) {
+  const span = opts?.recentSpan ?? "swing";
+  let recentHighIdx = periodHighIdx;
+  let recentLowIdx = periodLowIdx;
+  if (span === "swing") {
+    const n = to - from + 1;
+    const left = opts?.pivotLeft ?? Math.max(3, Math.min(8, Math.floor(n / 40) || 3));
+    const right = opts?.pivotRight ?? left;
+    const highs: number[] = [];
+    const lows: number[] = [];
+    for (let i = from; i <= to; i++) {
+      highs.push(bars[i]!.high);
+      lows.push(bars[i]!.low);
+    }
+    const piv = findPivots(highs, lows, left, right);
+    recentHighIdx = piv.highIdx.length > 0 ? from + piv.highIdx[piv.highIdx.length - 1]! : periodHighIdx;
+    recentLowIdx = piv.lowIdx.length > 0 ? from + piv.lowIdx[piv.lowIdx.length - 1]! : periodLowIdx;
+    const winStart = from + Math.max(0, n - Math.max(8, Math.floor(n * 0.2)));
+    if (piv.highIdx.length === 0) {
+      let h = -Infinity;
+      let hi = winStart;
+      for (let i = winStart; i <= to; i++) {
+        if (bars[i]!.high >= h) {
+          h = bars[i]!.high;
+          hi = i;
+        }
+      }
+      recentHighIdx = hi;
+    }
+    if (piv.lowIdx.length === 0) {
+      let l = Infinity;
+      let li = winStart;
+      for (let i = winStart; i <= to; i++) {
+        if (bars[i]!.low <= l) {
+          l = bars[i]!.low;
+          li = i;
+        }
+      }
+      recentLowIdx = li;
+    }
+  } else {
+    const start = recentWindowStart(bars, from, to, span);
     let h = -Infinity;
-    let hi = winStart;
-    for (let i = winStart; i <= to; i++) {
-      if (bars[i]!.high >= h) {
-        h = bars[i]!.high;
-        hi = i;
-      }
-    }
-    recentHighIdx = hi;
-  }
-  if (piv.lowIdx.length === 0) {
     let l = Infinity;
-    let li = winStart;
-    for (let i = winStart; i <= to; i++) {
-      if (bars[i]!.low <= l) {
-        l = bars[i]!.low;
-        li = i;
+    for (let i = start; i <= to; i++) {
+      const b = bars[i]!;
+      if (b.high >= h) {
+        h = b.high;
+        recentHighIdx = i;
+      }
+      if (b.low <= l) {
+        l = b.low;
+        recentLowIdx = i;
       }
     }
-    recentLowIdx = li;
   }
 
   const recentHigh = bars[recentHighIdx]!.high;
@@ -419,10 +456,100 @@ export function computeRangePosition(
   };
 }
 
+export type RangeMarkerPlan = {
+  role: "high" | "low";
+  /** both = period extreme is the same bar as the recent swing. */
+  scope: "period" | "recent" | "both";
+  idx: number;
+  price: number;
+  date: string | null;
+  /** Signed percent from this level to the current close. */
+  pct: number;
+};
+
+/** One marker per distinct high and low. Recent labels sit near the last price when they differ. */
+export function planRangeMarkers(stats: RangePositionStats): RangeMarkerPlan[] {
+  const highSame = stats.periodHighIdx === stats.recentHighIdx;
+  const lowSame = stats.periodLowIdx === stats.recentLowIdx;
+  const out: RangeMarkerPlan[] = [
+    {
+      role: "high",
+      scope: highSame ? "both" : "period",
+      idx: stats.periodHighIdx,
+      price: stats.periodHigh,
+      date: stats.periodHighDate,
+      pct: stats.fromPeriodHighPct,
+    },
+    {
+      role: "low",
+      scope: lowSame ? "both" : "period",
+      idx: stats.periodLowIdx,
+      price: stats.periodLow,
+      date: stats.periodLowDate,
+      pct: stats.fromPeriodLowPct,
+    },
+  ];
+  if (!highSame) {
+    out.push({
+      role: "high",
+      scope: "recent",
+      idx: stats.recentHighIdx,
+      price: stats.recentHigh,
+      date: stats.recentHighDate,
+      pct: stats.fromRecentHighPct,
+    });
+  }
+  if (!lowSame) {
+    out.push({
+      role: "low",
+      scope: "recent",
+      idx: stats.recentLowIdx,
+      price: stats.recentLow,
+      date: stats.recentLowDate,
+      pct: stats.fromRecentLowPct,
+    });
+  }
+  return out;
+}
+
+/** Canvas copy shared by the price chart and the export chart so the wording cannot drift. */
+export function rangeMarkerText(
+  plan: RangeMarkerPlan,
+  priceText: string,
+  pctText: string,
+): { place: "extreme" | "last"; title: string; pctText: string } {
+  const date = plan.date?.slice(0, 10) ?? "";
+  const place = plan.scope === "recent" ? "last" : "extreme";
+  const head =
+    plan.role === "high"
+      ? plan.scope === "both"
+        ? "기간=최근 고점"
+        : plan.scope === "period"
+          ? "기간고점"
+          : "최근고점"
+      : plan.scope === "both"
+        ? "기간=최근 저점"
+        : plan.scope === "period"
+          ? "기간저점"
+          : "최근저점";
+  const rel =
+    plan.role === "high"
+      ? plan.pct > 0.005
+        ? `돌파 ${pctText}`
+        : plan.scope === "recent"
+          ? `최근고점 대비 ${pctText}`
+          : `최고점대비 ${pctText}`
+      : plan.scope === "recent"
+        ? `최근저점 대비 ${pctText}`
+        : `최저점대비 ${pctText}`;
+  return { place, title: [head, date, priceText].filter(Boolean).join(" "), pctText: rel };
+}
+
 /** Line-series variant (export desk, flow). High = low = close = value. */
 export function computeSeriesRangePosition(
   points: { value: number; date?: string }[],
   close?: number,
+  opts?: { recentSpan?: RecentSpan },
 ): RangePositionStats | null {
   const bars: RangeBar[] = points
     .filter((p) => Number.isFinite(p.value) && p.value !== 0)
@@ -432,7 +559,10 @@ export function computeSeriesRangePosition(
       close: p.value,
       date: p.date,
     }));
-  return computeRangePosition(bars, close != null ? { close } : undefined);
+  return computeRangePosition(bars, {
+    ...(close != null ? { close } : {}),
+    ...(opts?.recentSpan ? { recentSpan: opts.recentSpan } : {}),
+  });
 }
 
 export type StreetTape = {
@@ -910,4 +1040,430 @@ export function detectRsiDivergences(
 
 function rsiOf(closes: number[], period: number): (number | null)[] {
   return rsi(closes, period);
+}
+
+// ── F7.6 extended indicator set (pure; known-value tests in chart-indicators.test.ts) ──
+
+type Series = (number | null)[];
+
+/** Weighted moving average (weights 1..period, newest heaviest). */
+export function wma(values: number[], period: number): Series {
+  const out: Series = [];
+  const denom = (period * (period + 1)) / 2;
+  for (let i = 0; i < values.length; i++) {
+    if (i + 1 < period) {
+      out.push(null);
+      continue;
+    }
+    let s = 0;
+    for (let j = 0; j < period; j++) s += values[i - period + 1 + j]! * (j + 1);
+    out.push(s / denom);
+  }
+  return out;
+}
+
+function wmaSparse(values: Series, period: number): Series {
+  const out: Series = [];
+  const denom = (period * (period + 1)) / 2;
+  for (let i = 0; i < values.length; i++) {
+    if (i + 1 < period) {
+      out.push(null);
+      continue;
+    }
+    let s = 0;
+    let ok = true;
+    for (let j = 0; j < period; j++) {
+      const v = values[i - period + 1 + j];
+      if (v == null) {
+        ok = false;
+        break;
+      }
+      s += v * (j + 1);
+    }
+    out.push(ok ? s / denom : null);
+  }
+  return out;
+}
+
+/** Hull moving average: WMA(2·WMA(n/2) − WMA(n), √n). */
+export function hma(values: number[], period: number): Series {
+  const half = wma(values, Math.max(1, Math.floor(period / 2)));
+  const full = wma(values, period);
+  const diff: Series = values.map((_, i) => (half[i] != null && full[i] != null ? 2 * half[i]! - full[i]! : null));
+  return wmaSparse(diff, Math.max(1, Math.floor(Math.sqrt(period))));
+}
+
+/** True range (first bar: high − low). */
+export function trueRange(highs: number[], lows: number[], closes: number[]): number[] {
+  return highs.map((h, i) =>
+    i === 0 ? h - lows[i]! : Math.max(h - lows[i]!, Math.abs(h - closes[i - 1]!), Math.abs(lows[i]! - closes[i - 1]!)),
+  );
+}
+
+/** Wilder smoothing (RMA): first value = SMA of the first `period`, then (prev·(n−1)+x)/n. */
+export function rma(values: number[], period: number): Series {
+  const out: Series = [];
+  let prev: number | null = null;
+  let sum = 0;
+  for (let i = 0; i < values.length; i++) {
+    if (prev == null) {
+      sum += values[i]!;
+      if (i + 1 === period) {
+        prev = sum / period;
+        out.push(prev);
+      } else out.push(null);
+      continue;
+    }
+    prev = (prev * (period - 1) + values[i]!) / period;
+    out.push(prev);
+  }
+  return out;
+}
+
+/** Keltner channel: EMA(close) ± mult · ATR (Wilder). */
+export function keltner(highs: number[], lows: number[], closes: number[], emaPeriod = 20, atrPeriod = 10, mult = 2): { mid: Series; upper: Series; lower: Series } {
+  const mid = ema(closes, emaPeriod);
+  const a = rma(trueRange(highs, lows, closes), atrPeriod);
+  return {
+    mid,
+    upper: mid.map((m, i) => (m != null && a[i] != null ? m + mult * a[i]! : null)),
+    lower: mid.map((m, i) => (m != null && a[i] != null ? m - mult * a[i]! : null)),
+  };
+}
+
+function rollingMax(values: number[], period: number): Series {
+  return values.map((_, i) => (i + 1 < period ? null : Math.max(...values.slice(i - period + 1, i + 1))));
+}
+
+function rollingMin(values: number[], period: number): Series {
+  return values.map((_, i) => (i + 1 < period ? null : Math.min(...values.slice(i - period + 1, i + 1))));
+}
+
+/** Donchian channel: highest high / lowest low over `period`, mid = average. */
+export function donchian(highs: number[], lows: number[], period = 20): { upper: Series; lower: Series; mid: Series } {
+  const upper = rollingMax(highs, period);
+  const lower = rollingMin(lows, period);
+  return { upper, lower, mid: upper.map((u, i) => (u != null && lower[i] != null ? (u + lower[i]!) / 2 : null)) };
+}
+
+/**
+ * Ichimoku. `spanA`/`spanB` are plotted `displacement` bars ahead: index i
+ * holds the value computed at i − displacement (no bars are projected past
+ * the last real bar). `chikou` at i is close[i + displacement].
+ */
+export function ichimoku(highs: number[], lows: number[], closes: number[], tenkanP = 9, kijunP = 26, spanBP = 52, displacement = 26) {
+  const mid = (p: number) => {
+    const hi = rollingMax(highs, p);
+    const lo = rollingMin(lows, p);
+    return hi.map((h, i) => (h != null && lo[i] != null ? (h + lo[i]!) / 2 : null));
+  };
+  const tenkan = mid(tenkanP);
+  const kijun = mid(kijunP);
+  const rawB = mid(spanBP);
+  const rawA: Series = tenkan.map((t, i) => (t != null && kijun[i] != null ? (t + kijun[i]!) / 2 : null));
+  const shift = (s: Series): Series => s.map((_, i) => (i - displacement >= 0 ? s[i - displacement]! : null));
+  const chikou: Series = closes.map((_, i) => (i + displacement < closes.length ? closes[i + displacement]! : null));
+  return { tenkan, kijun, spanA: shift(rawA), spanB: shift(rawB), chikou };
+}
+
+/** Parabolic SAR (Wilder): step/max acceleration. First value at index 1. */
+export function parabolicSar(highs: number[], lows: number[], step = 0.02, maxStep = 0.2): Series {
+  const n = highs.length;
+  const out: Series = new Array(n).fill(null);
+  if (n < 2) return out;
+  let up = highs[1]! + lows[1]! >= highs[0]! + lows[0]!;
+  let sar = up ? lows[0]! : highs[0]!;
+  let ep = up ? highs[1]! : lows[1]!;
+  let af = step;
+  out[1] = sar;
+  for (let i = 2; i < n; i++) {
+    sar = sar + af * (ep - sar);
+    if (up) {
+      sar = Math.min(sar, lows[i - 1]!, lows[i - 2]!);
+      if (lows[i]! < sar) {
+        up = false;
+        sar = ep;
+        ep = lows[i]!;
+        af = step;
+      } else if (highs[i]! > ep) {
+        ep = highs[i]!;
+        af = Math.min(af + step, maxStep);
+      }
+    } else {
+      sar = Math.max(sar, highs[i - 1]!, highs[i - 2]!);
+      if (highs[i]! > sar) {
+        up = true;
+        sar = ep;
+        ep = highs[i]!;
+        af = step;
+      } else if (lows[i]! < ep) {
+        ep = lows[i]!;
+        af = Math.min(af + step, maxStep);
+      }
+    }
+    out[i] = sar;
+  }
+  return out;
+}
+
+/** Supertrend (ATR Wilder). direction 1 = up (line below price), −1 = down. */
+export function supertrend(highs: number[], lows: number[], closes: number[], period = 10, mult = 3): { value: Series; direction: (1 | -1 | null)[] } {
+  const a = rma(trueRange(highs, lows, closes), period);
+  const value: Series = [];
+  const direction: (1 | -1 | null)[] = [];
+  let fu = 0;
+  let fl = 0;
+  let dir: 1 | -1 = 1;
+  let started = false;
+  for (let i = 0; i < closes.length; i++) {
+    if (a[i] == null) {
+      value.push(null);
+      direction.push(null);
+      continue;
+    }
+    const hl2 = (highs[i]! + lows[i]!) / 2;
+    const bu = hl2 + mult * a[i]!;
+    const bl = hl2 - mult * a[i]!;
+    if (!started) {
+      fu = bu;
+      fl = bl;
+      dir = closes[i]! >= hl2 ? 1 : -1;
+      started = true;
+    } else {
+      const pc = closes[i - 1]!;
+      fu = bu < fu || pc > fu ? bu : fu;
+      fl = bl > fl || pc < fl ? bl : fl;
+      if (dir === -1 && closes[i]! > fu) dir = 1;
+      else if (dir === 1 && closes[i]! < fl) dir = -1;
+    }
+    value.push(dir === 1 ? fl : fu);
+    direction.push(dir);
+  }
+  return { value, direction };
+}
+
+/** Anchored VWAP from `anchor` (inclusive); null before the anchor. */
+export function anchoredVwap(highs: number[], lows: number[], closes: number[], volumes: number[], anchor: number): Series {
+  const out: Series = [];
+  let pv = 0;
+  let v = 0;
+  for (let i = 0; i < closes.length; i++) {
+    if (i < anchor) {
+      out.push(null);
+      continue;
+    }
+    const vol = Math.max(volumes[i]!, 0);
+    pv += ((highs[i]! + lows[i]! + closes[i]!) / 3) * vol;
+    v += vol;
+    out.push(v > 0 ? pv / v : null);
+  }
+  return out;
+}
+
+/** On-balance volume (starts at 0). */
+export function obv(closes: number[], volumes: number[]): number[] {
+  const out: number[] = [];
+  let acc = 0;
+  for (let i = 0; i < closes.length; i++) {
+    if (i > 0) {
+      if (closes[i]! > closes[i - 1]!) acc += volumes[i]!;
+      else if (closes[i]! < closes[i - 1]!) acc -= volumes[i]!;
+    }
+    out.push(acc);
+  }
+  return out;
+}
+
+export interface VolumeProfile {
+  rows: { low: number; high: number; volume: number }[];
+  poc: number | null;
+  vah: number | null;
+  val: number | null;
+}
+
+/**
+ * Volume profile over the given bars: each bar's volume is spread evenly over
+ * the rows its high–low range touches. POC = middle of the max-volume row;
+ * value area grows from the POC toward the larger neighbour until `valueArea`.
+ */
+export function volumeProfile(
+  bars: { high: number; low: number; volume: number; close?: number }[],
+  rowCount = 24,
+  valueArea = 0.7,
+  basis: "volume" | "turnover" = "volume",
+): VolumeProfile {
+  if (!bars.length) return { rows: [], poc: null, vah: null, val: null };
+  const lo = Math.min(...bars.map((b) => b.low));
+  const hi = Math.max(...bars.map((b) => b.high));
+  const span = hi - lo;
+  const n = span > 0 ? rowCount : 1;
+  const size = span > 0 ? span / n : 1;
+  const rows = Array.from({ length: n }, (_, i) => ({ low: lo + i * size, high: lo + (i + 1) * size, volume: 0 }));
+  for (const b of bars) {
+    const px = basis === "turnover" ? (b.close ?? (b.high + b.low) / 2) : 1;
+    const v = Math.max(b.volume, 0) * (basis === "turnover" ? Math.max(px, 0) : 1);
+    if (!v) continue;
+    const a = span > 0 ? Math.min(n - 1, Math.floor((b.low - lo) / size)) : 0;
+    const z = span > 0 ? Math.min(n - 1, Math.floor((Math.max(b.high, b.low) - lo) / size)) : 0;
+    const share = v / (z - a + 1);
+    for (let r = a; r <= z; r++) rows[r]!.volume += share;
+  }
+  let pocIdx = 0;
+  for (let i = 1; i < n; i++) if (rows[i]!.volume > rows[pocIdx]!.volume) pocIdx = i;
+  const total = rows.reduce((s, r) => s + r.volume, 0);
+  let lowI = pocIdx;
+  let highI = pocIdx;
+  let acc = rows[pocIdx]!.volume;
+  while (total > 0 && acc / total < valueArea && (lowI > 0 || highI < n - 1)) {
+    const below = lowI > 0 ? rows[lowI - 1]!.volume : -1;
+    const above = highI < n - 1 ? rows[highI + 1]!.volume : -1;
+    if (above >= below) acc += rows[++highI]!.volume;
+    else acc += rows[--lowI]!.volume;
+  }
+  return { rows, poc: (rows[pocIdx]!.low + rows[pocIdx]!.high) / 2, vah: rows[highI]!.high, val: rows[lowI]!.low };
+}
+
+/** Stochastic RSI: %K = SMA(k) of the stochastic of RSI, %D = SMA(d) of %K. */
+export function stochRsi(closes: number[], rsiPeriod = 14, stochPeriod = 14, kSmooth = 3, dSmooth = 3): { k: Series; d: Series } {
+  const r = rsi(closes, rsiPeriod);
+  const raw: Series = r.map((v, i) => {
+    if (v == null || i + 1 < stochPeriod) return null;
+    const win = r.slice(i - stochPeriod + 1, i + 1);
+    if (win.some((x) => x == null)) return null;
+    const hh = Math.max(...(win as number[]));
+    const ll = Math.min(...(win as number[]));
+    return hh - ll > 0 ? ((v - ll) / (hh - ll)) * 100 : null;
+  });
+  const smooth = (s: Series, p: number): Series =>
+    s.map((_, i) => {
+      if (i + 1 < p) return null;
+      const win = s.slice(i - p + 1, i + 1);
+      return win.some((x) => x == null) ? null : (win as number[]).reduce((a, b) => a + b, 0) / p;
+    });
+  const k = smooth(raw, kSmooth);
+  return { k, d: smooth(k, dSmooth) };
+}
+
+/** ADX / +DI / −DI (Wilder). */
+export function adx(highs: number[], lows: number[], closes: number[], period = 14): { adx: Series; plusDi: Series; minusDi: Series } {
+  const n = highs.length;
+  const pdm: number[] = [0];
+  const mdm: number[] = [0];
+  for (let i = 1; i < n; i++) {
+    const up = highs[i]! - highs[i - 1]!;
+    const dn = lows[i - 1]! - lows[i]!;
+    pdm.push(up > dn && up > 0 ? up : 0);
+    mdm.push(dn > up && dn > 0 ? dn : 0);
+  }
+  const tr = trueRange(highs, lows, closes);
+  // Wilder sums start at bar 1 (bar 0 has no directional movement).
+  const sm = (xs: number[]) => {
+    const s = rma(xs.slice(1), period);
+    return [null, ...s] as Series;
+  };
+  const atrS = sm(tr);
+  const pS = sm(pdm);
+  const mS = sm(mdm);
+  const plusDi: Series = atrS.map((a, i) => (a != null && a > 0 && pS[i] != null ? (100 * pS[i]!) / a : null));
+  const minusDi: Series = atrS.map((a, i) => (a != null && a > 0 && mS[i] != null ? (100 * mS[i]!) / a : null));
+  const dx: Series = plusDi.map((p, i) => {
+    const m = minusDi[i];
+    if (p == null || m == null) return null;
+    return p + m > 0 ? (100 * Math.abs(p - m)) / (p + m) : 0;
+  });
+  const firstDx = dx.findIndex((v) => v != null);
+  const adxOut: Series = new Array(n).fill(null);
+  if (firstDx >= 0) {
+    const tail = rma(dx.slice(firstDx) as number[], period);
+    tail.forEach((v, j) => (adxOut[firstDx + j] = v));
+  }
+  return { adx: adxOut, plusDi, minusDi };
+}
+
+/** Commodity channel index (mean deviation, 0.015 constant). */
+export function cci(highs: number[], lows: number[], closes: number[], period = 20): Series {
+  const tp = closes.map((c, i) => (highs[i]! + lows[i]! + c) / 3);
+  const m = sma(tp, period);
+  return tp.map((v, i) => {
+    if (m[i] == null) return null;
+    let md = 0;
+    for (let j = i - period + 1; j <= i; j++) md += Math.abs(tp[j]! - m[i]!);
+    md /= period;
+    return md > 0 ? (v - m[i]!) / (0.015 * md) : 0;
+  });
+}
+
+/** Money flow index. */
+export function mfi(highs: number[], lows: number[], closes: number[], volumes: number[], period = 14): Series {
+  const tp = closes.map((c, i) => (highs[i]! + lows[i]! + c) / 3);
+  return tp.map((_, i) => {
+    if (i < period) return null;
+    let pos = 0;
+    let neg = 0;
+    for (let j = i - period + 1; j <= i; j++) {
+      const flow = tp[j]! * volumes[j]!;
+      if (tp[j]! > tp[j - 1]!) pos += flow;
+      else if (tp[j]! < tp[j - 1]!) neg += flow;
+    }
+    if (neg === 0) return pos === 0 ? 50 : 100;
+    return 100 - 100 / (1 + pos / neg);
+  });
+}
+
+/** Williams %R (−100…0). */
+export function williamsR(highs: number[], lows: number[], closes: number[], period = 14): Series {
+  const hh = rollingMax(highs, period);
+  const ll = rollingMin(lows, period);
+  return closes.map((c, i) => (hh[i] != null && ll[i] != null && hh[i]! - ll[i]! > 0 ? ((hh[i]! - c) / (hh[i]! - ll[i]!)) * -100 : null));
+}
+
+export type PivotKind = "classic" | "fibonacci" | "camarilla";
+export interface PivotLevels {
+  p: number;
+  r1: number;
+  r2: number;
+  r3: number;
+  s1: number;
+  s2: number;
+  s3: number;
+}
+
+/** Pivot points from the previous period's high/low/close. */
+export function pivotPoints(high: number, low: number, close: number, kind: PivotKind = "classic"): PivotLevels {
+  const p = (high + low + close) / 3;
+  const r = high - low;
+  if (kind === "fibonacci") {
+    return { p, r1: p + 0.382 * r, r2: p + 0.618 * r, r3: p + r, s1: p - 0.382 * r, s2: p - 0.618 * r, s3: p - r };
+  }
+  if (kind === "camarilla") {
+    return { p, r1: close + (r * 1.1) / 12, r2: close + (r * 1.1) / 6, r3: close + (r * 1.1) / 4, s1: close - (r * 1.1) / 12, s2: close - (r * 1.1) / 6, s3: close - (r * 1.1) / 4 };
+  }
+  return { p, r1: 2 * p - low, r2: p + r, r3: high + 2 * (p - low), s1: 2 * p - high, s2: p - r, s3: low - 2 * (high - p) };
+}
+
+/** Rolling N-bar high/low (default 252 = 52 weeks of daily bars), using bars available so far. */
+export function highLowN(highs: number[], lows: number[], lookback = 252): { high: Series; low: Series } {
+  return {
+    high: highs.map((_, i) => Math.max(...highs.slice(Math.max(0, i - lookback + 1), i + 1))),
+    low: lows.map((_, i) => Math.min(...lows.slice(Math.max(0, i - lookback + 1), i + 1))),
+  };
+}
+
+export interface OhlcLike {
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+}
+
+/** Heikin-Ashi transform (pure). */
+export function heikinAshi<T extends OhlcLike>(bars: readonly T[]): T[] {
+  const out: T[] = [];
+  for (let i = 0; i < bars.length; i++) {
+    const b = bars[i]!;
+    const close = (b.open + b.high + b.low + b.close) / 4;
+    const open = i === 0 ? (b.open + b.close) / 2 : (out[i - 1]!.open + out[i - 1]!.close) / 2;
+    out.push({ ...b, open, close, high: Math.max(b.high, open, close), low: Math.min(b.low, open, close) });
+  }
+  return out;
 }

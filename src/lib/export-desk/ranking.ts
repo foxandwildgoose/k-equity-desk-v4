@@ -86,7 +86,7 @@ export function resolvePointInTimeTop100(
 ): TopNMember[] {
   const eligible = snapshots
     .filter((s) => s.date <= asOf)
-    .sort((a, b) => b.date.localeCompare(a.date));
+    .sort((a, b) => b.date.localeCompare(a.date)); // ked-allow-string-date-sort: single-format time series
   return eligible[0]?.members ?? [];
 }
 

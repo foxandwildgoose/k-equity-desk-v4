@@ -100,6 +100,8 @@ function EtfDetailPage() {
     data && "officialWeightSum" in data ? data.officialWeightSum : null;
   const officialCount =
     data && "officialCount" in data ? data.officialCount : 0;
+  const weightBasis =
+    data && "weightBasis" in data ? data.weightBasis : officialCount > 0 ? "official" : "none";
   const quotedCount =
     data && "quotedCount" in data ? data.quotedCount : 0;
   const fmt =
@@ -280,6 +282,8 @@ function EtfDetailPage() {
           <TradingChart
             code={normalizeKrTicker(etf?.code ?? code)}
             market="KOSPI"
+            instrument="etf"
+            name={etf?.nameKo}
           />
         </section>
       ) : null}
@@ -313,17 +317,25 @@ function EtfDetailPage() {
         </div>
         <div className="desk-card desk-card-gold p-4">
           <div className="text-sm text-muted-foreground">
-            {officialCount > 0 ? "공식 비중 합계" : "편입 비중 합계"}
+            {weightBasis === "official"
+              ? "공식 비중 합계"
+              : weightBasis === "live"
+                ? "실시간 시가 비중 합계"
+                : "편입 비중 합계"}
           </div>
           <div className="mt-1 text-xl font-semibold tabular">
-            {officialWeightSum != null && (officialCount > 0 || holdings.some((h) => h.weight != null))
+            {officialWeightSum != null && weightBasis !== "none"
               ? formatWeight(officialWeightSum)
               : "—"}
           </div>
           <div className="text-sm text-muted-foreground">
-            {officialCount > 0
-              ? `공식 NAV 비중 ${officialCount}/${holdings.length || 0} · 높은 비중 순`
-              : "공식 NAV 비중 없음 · 추정 비중은 표시하지 않음"}
+            {!data
+              ? "비중 확인 중"
+              : weightBasis === "official"
+                ? `공식 NAV 비중 ${officialCount}/${holdings.length || 0} · 높은 비중 순`
+                : weightBasis === "live"
+                  ? "수량 × 조회된 현재가 · 공식 NAV가 아닐 때 · 높은 비중 순"
+                  : "공식 NAV 비중 없음 · 전 종목 시세가 없으면 비중을 만들지 않음"}
           </div>
         </div>
         <div className="desk-card desk-card-indigo p-4">
@@ -424,7 +436,9 @@ function EtfDetailPage() {
             <table className="w-full min-w-[820px] text-base">
               <thead className="bg-muted/40 text-sm text-muted-foreground">
                 <tr className="text-left">
-                  <th className="px-4 py-3 font-medium">비중</th>
+                  <th className="px-4 py-3 font-medium">
+                    {weightBasis === "live" ? "시가 비중" : "비중"}
+                  </th>
                   <th className="px-4 py-3 font-medium">구분</th>
                   <th className="px-4 py-3 font-medium">종목</th>
                   <th className="px-4 py-3 font-medium text-right">현재가</th>
@@ -487,6 +501,9 @@ function EtfDetailPage() {
                             >
                               {formatWeight(w)}
                             </div>
+                            {row.weightSource === "live" ? (
+                              <div className="text-[10px] text-muted-foreground">시가 · 수량×현재가</div>
+                            ) : null}
                             {w > 0 && barBase > 0 && (
                               <div className="mt-1 h-1 w-full rounded bg-muted">
                                 <div
@@ -499,7 +516,7 @@ function EtfDetailPage() {
                             )}
                           </div>
                         ) : (
-                          <span className="text-muted-foreground" title="운용사 미공시">
+                          <span className="text-muted-foreground" title="공식 비중 없음 · 시세 부족으로 시가 비중도 계산하지 않음">
                             —
                           </span>
                         )}

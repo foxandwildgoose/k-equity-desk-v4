@@ -23,6 +23,10 @@ import {
   type Time,
 } from "lightweight-charts";
 import { Loader2 } from "lucide-react";
+import { ChartShell } from "@/components/charts/core/ChartShell";
+import { proChartOptions } from "@/components/charts/core/create-pro-chart";
+import { readChartTheme } from "@/components/charts/core/theme";
+import { exportChartPng, exportRowsCsv } from "@/components/charts/core/chrome";
 
 export type ChartViewMode = "price" | "per" | "fwdPer" | "evEbitda" | "evSales" | "band";
 export type ValuationMode = Exclude<ChartViewMode, "price">;
@@ -156,6 +160,7 @@ function WeeklyPriceChart({ code }: { code: string }) {
   const q = useValuationSeries(code, true);
   const [range, setRange] = useState<RangeId>("5y");
   const [fault, setFault] = useState<string | null>(null);
+  const [api, setApi] = useState<IChartApi | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const view = useMemo(() => {
     const pack = q.data;
@@ -170,20 +175,11 @@ function WeeklyPriceChart({ code }: { code: string }) {
     let chart: IChartApi | null = null;
     try {
       chart = createChart(el, {
-        autoSize: true,
-        layout: {
-          background: { color: "transparent" },
-          textColor: "#94a3b8",
-          fontSize: 11,
-          attributionLogo: false,
-        },
-        grid: {
-          vertLines: { color: "rgba(148,163,184,0.08)" },
-          horzLines: { color: "rgba(148,163,184,0.08)" },
-        },
+        ...proChartOptions(readChartTheme(), view.currency === "USD" ? "US" : "KR"),
+        // Series keep their own currency formatters (no global price formatter).
+        localization: { locale: "ko-KR" },
         crosshair: { mode: CrosshairMode.Normal },
-        rightPriceScale: { borderColor: "rgba(148,163,184,0.18)" },
-        timeScale: { borderColor: "rgba(148,163,184,0.18)" },
+        timeScale: { timeVisible: false },
       });
       const line = chart.addSeries(LineSeries, {
         color: "#e2e8f0",
@@ -204,7 +200,11 @@ function WeeklyPriceChart({ code }: { code: string }) {
       return;
     }
     const live = chart;
-    return () => live.remove();
+    setApi(live);
+    return () => {
+      setApi(null);
+      live.remove();
+    };
   }, [view, points.length, range]);
 
   return (
@@ -243,7 +243,16 @@ function WeeklyPriceChart({ code }: { code: string }) {
           {view?.note ?? "주가 시계열이 없습니다."}
         </p>
       ) : (
-        <div ref={wrapRef} className="h-[520px] w-full" />
+        <ChartShell
+          title="수정주가 · 주봉"
+          status={{ source: view?.source ? `Yahoo 수정종가 · ${view.source}` : "Yahoo 수정종가", mode: `주봉 · ${view?.currency ?? ""}`, asOfLabel: view?.window.to ?? null }}
+          onExportPng={() => exportChartPng(api, view?.currency === "USD" ? "US" : "KR", code, "weekly-price")}
+          onExportCsv={() => exportRowsCsv(api, points.map((p) => ({ time: p.date.slice(0, 10), price: p.price })), [{ name: "adj_close", get: (r) => r.price }], view?.currency === "USD" ? "US" : "KR", code, "weekly-price")}
+          height={520}
+          testId="weekly-price-chart"
+        >
+          <div ref={wrapRef} className="absolute inset-0" />
+        </ChartShell>
       )}
     </section>
   );
@@ -262,6 +271,7 @@ function MultipleChart({
   const [hover, setHover] = useState<Hover | null>(null);
   const [showAvg, setShowAvg] = useState(true);
   const [logScale, setLogScale] = useState(false);
+  const [api, setApi] = useState<IChartApi | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
 
   const view = useMemo(() => {
@@ -347,17 +357,9 @@ function MultipleChart({
     let chart: IChartApi | null = null;
     try {
       chart = createChart(el, {
-        autoSize: true,
-        layout: {
-          background: { color: "transparent" },
-          textColor: "#94a3b8",
-          fontSize: 11,
-          attributionLogo: false,
-        },
-        grid: {
-          vertLines: { color: "rgba(148,163,184,0.08)" },
-          horzLines: { color: "rgba(148,163,184,0.08)" },
-        },
+        ...proChartOptions(readChartTheme(), view.currency === "USD" ? "US" : "KR"),
+        // Multiples (e.g. 12.3×) keep per-series formatters — no global price formatter.
+        localization: { locale: "ko-KR" },
         crosshair: {
           mode: CrosshairMode.Normal,
           vertLine: { color: "rgba(148,163,184,0.45)", labelBackgroundColor: "#0f172a" },
@@ -367,9 +369,7 @@ function MultipleChart({
           borderColor: "rgba(148,163,184,0.18)",
           mode: logScale ? PriceScaleMode.Logarithmic : PriceScaleMode.Normal,
         },
-        timeScale: { borderColor: "rgba(148,163,184,0.18)", rightOffset: 6 },
-        handleScroll: { mouseWheel: true, pressedMouseMove: true },
-        handleScale: { mouseWheel: true, pinch: true, axisPressedMouseMove: true },
+        timeScale: { borderColor: "rgba(148,163,184,0.18)", rightOffset: 6, timeVisible: false },
       });
 
       const quote = (v: number) => fmtQuote(v, view.currency);
@@ -597,14 +597,9 @@ function MultipleChart({
       return;
     }
     const live = chart;
-    const ro = new ResizeObserver(() => {
-      if (el.clientWidth > 0) {
-        live.applyOptions({ width: el.clientWidth, height: el.clientHeight });
-      }
-    });
-    ro.observe(el);
+    setApi(live);
     return () => {
-      ro.disconnect();
+      setApi(null);
       live.remove();
     };
   }, [view, mode, layout, defined, fault, active, showAvg, logScale]);
@@ -710,7 +705,26 @@ function MultipleChart({
                 : "선택한 구간의 배수 고점·저점 대비. 가격 차트와 같은 위치 지표입니다."
             }
           />
-          <div className="relative">
+          <ChartShell
+            title={TITLES[mode]}
+            status={{ source: view?.source ? `${view.source} · Yahoo 수정주가` : "네이버 기업정보 · Yahoo", mode: `주간 · ${layout === "price" ? `가격(${view?.currency})` : "배수"}`, asOfLabel: view?.window.to ?? null }}
+            onExportPng={() => exportChartPng(api, view?.currency === "USD" ? "US" : "KR", code, `valuation-${mode}`)}
+            onExportCsv={() =>
+              exportRowsCsv(
+                api,
+                plotted.map((p) => ({ time: p.date.slice(0, 10), value: p.value, mult: multiplePlotted.find((m) => m.date === p.date)?.value ?? null })),
+                [
+                  { name: layout === "price" ? "price" : mode, get: (r) => r.value },
+                  ...(multiplePlotted.length ? [{ name: "multiple", get: (r: { mult: number | null }) => r.mult }] : []),
+                ],
+                view?.currency === "USD" ? "US" : "KR",
+                code,
+                `valuation-${mode}`,
+              )
+            }
+            height={520}
+            testId="valuation-history-chart"
+          >
             {hover && (
               <div className="pointer-events-none absolute left-3 top-2 z-10 rounded-md border border-border bg-background/90 px-2 py-1.5 text-[11px] shadow-sm">
                 <div className="font-semibold tabular">{hover.date}</div>
@@ -722,8 +736,8 @@ function MultipleChart({
                 ))}
               </div>
             )}
-            <div ref={wrapRef} className="h-[520px] w-full" />
-          </div>
+            <div ref={wrapRef} className="absolute inset-0" />
+          </ChartShell>
           <StreetTapeRow
             tape={tape}
             formatValue={valueFmt}

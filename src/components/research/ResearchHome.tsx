@@ -14,6 +14,24 @@ import {
   type OfficialReport,
 } from "@/lib/us-official-parse";
 import { cn } from "@/lib/utils";
+import { sortOfficialNewestFirst } from "@/lib/feed/mappers";
+import { OriginTierBadge, PublicResearchNote, UsScopeBanner } from "@/components/research/UsResearchKit";
+import { PageDisclaimer } from "@/components/feed/PageDisclaimer";
+
+type Period = "7" | "30" | "90" | "all";
+const PERIODS: { id: Period; label: string }[] = [
+  { id: "7", label: "최근 7일" },
+  { id: "30", label: "최근 30일" },
+  { id: "90", label: "최근 90일" },
+  { id: "all", label: "전체" },
+];
+
+/** Period filter (F4.3, default 최근 30일). Undated cards stay (sorted last). */
+function inPeriod(r: OfficialReport, period: Period): boolean {
+  if (period === "all" || !r.publishedAt) return true;
+  const t = Date.parse(r.publishedAt.length === 10 ? `${r.publishedAt}T12:00:00Z` : r.publishedAt);
+  return Number.isNaN(t) || t >= Date.now() - Number(period) * 86_400_000;
+}
 
 type Chip = "all" | "filings" | "earnings" | "macro" | "industry" | "analyst" | "saved";
 
@@ -34,6 +52,8 @@ export function ResearchHome({ initialTicker }: { initialTicker?: string }) {
   const [q, setQ] = useState(initialTicker ?? "");
   const [chip, setChip] = useState<Chip>("all");
   const [lookup, setLookup] = useState(initialTicker?.trim().toUpperCase() ?? "");
+  const [period, setPeriod] = useState<Period>("30");
+  const within = (list: OfficialReport[]) => sortOfficialNewestFirst(list.filter((r) => inPeriod(r, period)));
 
   const featured = useMemo(() => {
     const rows: OfficialReport[] = [];
@@ -45,7 +65,7 @@ export function ResearchHome({ initialTicker }: { initialTicker?: string }) {
     push(universe.data?.featuredFiling);
     const earn = (universe.data?.earnings ?? []).find((r) => r.summaryStatus === "document-extract");
     push(earn);
-    return rows.slice(0, 8);
+    return sortOfficialNewestFirst(rows).slice(0, 8);
   }, [policy.data, universe.data]);
 
   const pool = useMemo(() => {
@@ -56,11 +76,13 @@ export function ResearchHome({ initialTicker }: { initialTicker?: string }) {
       ...(universe.data?.earnings ?? []),
     ];
     const seen = new Set<string>();
-    return rows.filter((r) => {
-      if (seen.has(r.id)) return false;
-      seen.add(r.id);
-      return true;
-    });
+    return sortOfficialNewestFirst(
+      rows.filter((r) => {
+        if (seen.has(r.id)) return false;
+        seen.add(r.id);
+        return true;
+      }),
+    );
   }, [policy.data, universe.data]);
 
   const filtered = useMemo(() => {
@@ -91,11 +113,14 @@ export function ResearchHome({ initialTicker }: { initialTicker?: string }) {
         </p>
         <p className="mt-3 max-w-3xl text-xs leading-relaxed text-muted-foreground">{RESEARCH_DISCLAIMER}</p>
         <p className="max-w-3xl text-xs text-muted-foreground">{RESEARCH_DISCLAIMER_KO}</p>
+        <PageDisclaimer className="mt-1" />
         <p className="mt-2 text-xs tabular text-muted-foreground">
           {policy.data ? `Policy updated ${new Date(policy.data.fetchedAt).toLocaleString("en-US")}` : "Policy not loaded yet"}
           {universe.data ? ` · Filings updated ${new Date(universe.data.fetchedAt).toLocaleString("en-US")}` : ""}
         </p>
       </header>
+
+      <UsScopeBanner />
 
       <form
         className="flex flex-col gap-2 sm:flex-row"
@@ -139,6 +164,22 @@ export function ResearchHome({ initialTicker }: { initialTicker?: string }) {
         ))}
       </div>
 
+      <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="기간">
+        <span className="text-xs text-muted-foreground">기간</span>
+        {PERIODS.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            aria-pressed={period === p.id}
+            onClick={() => setPeriod(p.id)}
+            className={cn("min-h-9 rounded-md border px-2.5 text-xs", period === p.id ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card")}
+          >
+            {p.label}
+          </button>
+        ))}
+        <span className="ml-1 text-[11px] text-muted-foreground">모든 목록 최신순 · 날짜 없는 카드는 맨 뒤</span>
+      </div>
+
       {(policy.isLoading || universe.isLoading) && (
         <p className="inline-flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="size-4 animate-spin" />
@@ -176,22 +217,23 @@ export function ResearchHome({ initialTicker }: { initialTicker?: string }) {
       {showEditorial ? (
         <>
           <Section title="Featured this week" ko="이번 주 문서. 받아 온 것만 표시합니다.">
-            <Grid reports={featured} saved={saved} />
+            <Grid reports={within(featured)} saved={saved} />
           </Section>
           <Calendar events={policy.data?.calendar ?? []} />
           <Section title="Company filings" ko="NVDA, AAPL, MSFT, AMZN, GOOGL, META의 최근 SEC 제출.">
-            <Grid reports={(universe.data?.filings ?? []).filter((r) => r.kind === "10-Q" || r.kind === "10-K")} saved={saved} />
+            <Grid reports={within((universe.data?.filings ?? []).filter((r) => r.kind === "10-Q" || r.kind === "10-K"))} saved={saved} />
           </Section>
           <Section title="Earnings" ko="실적 8-K와, 받아 온 경우 Exhibit 99.">
-            <Grid reports={universe.data?.earnings ?? []} saved={saved} />
+            <Grid reports={within(universe.data?.earnings ?? [])} saved={saved} />
           </Section>
           <Section title="Macro and policy" ko="연준, BEA, BLS.">
-            <Grid reports={policy.data?.macro ?? []} saved={saved} />
+            <Grid reports={within(policy.data?.macro ?? [])} saved={saved} />
           </Section>
           <Section title="Industry" ko="공식 페이지에서 산업이 제목에 있는 자료만.">
-            <Grid reports={policy.data?.industry ?? []} saved={saved} />
+            <Grid reports={within(policy.data?.industry ?? [])} saved={saved} />
           </Section>
           <Hubs hubs={policy.data?.hubs ?? []} paid={policy.data?.paidNote} />
+          <PublicResearchNote />
         </>
       ) : null}
 
@@ -214,7 +256,7 @@ export function ResearchHome({ initialTicker }: { initialTicker?: string }) {
           {filtered.length === 0 ? (
             <p className="text-sm text-muted-foreground">No retrieved report matches this filter.</p>
           ) : (
-            <Grid reports={filtered} saved={saved} />
+            <Grid reports={within(filtered)} saved={saved} />
           )}
         </Section>
       ) : null}
@@ -238,7 +280,9 @@ export function ResearchHome({ initialTicker }: { initialTicker?: string }) {
 function Section({ title, ko, children }: { title: string; ko: string; children: ReactNode }) {
   return (
     <section>
-      <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
+      <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+        <OriginTierBadge tier="OFFICIAL" /> {title}
+      </h2>
       <p className="mb-3 text-xs text-muted-foreground">{ko}</p>
       {children}
     </section>
@@ -257,7 +301,7 @@ function Grid({
   }
   return (
     <div className="grid gap-3 lg:grid-cols-2">
-      {reports.map((r) => (
+      {sortOfficialNewestFirst(reports).map((r) => (
         <OfficialReportCard key={r.id} report={r} compact saved={saved.has(r.id)} onToggleSave={saved.toggle} />
       ))}
     </div>

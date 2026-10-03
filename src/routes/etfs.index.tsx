@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { useEtfListingNews, useEtfMarket } from "@/lib/use-market";
+import { useEtfMarket } from "@/lib/use-market";
+import { EtfNewsDesk } from "@/components/etf/EtfNewsDesk";
 import { ETF_BUCKET_HINT, ETF_BUCKET_LABEL, type EtfMarketBucket } from "@/data/etfs";
-import { formatIsoDate, formatPct, formatPrice, relativeTime } from "@/lib/format";
+import { formatIsoDate, formatPct, formatPrice } from "@/lib/format";
 import { usePriceColors } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { matchesSearchQuery, rankByQuery } from "@/lib/search-match";
@@ -18,7 +19,6 @@ import {
   Search,
   AlertTriangle,
   Newspaper,
-  ExternalLink,
 } from "lucide-react";
 
 export const Route = createFileRoute("/etfs/")({
@@ -37,7 +37,7 @@ const BUCKETS: EtfMarketBucket[] = [
   "bond",
 ];
 
-type DeskTab = EtfMarketBucket | "new-news";
+type DeskTab = EtfMarketBucket | "etf-news";
 type SortKey = "default" | "listed-new" | "price-low" | "volume-high" | "market-sum-high";
 
 function EtfIndexPage() {
@@ -46,7 +46,7 @@ function EtfIndexPage() {
   const [qDebounced, setQDebounced] = useState("");
   const [sort, setSort] = useState<SortKey>("default");
   const colors = usePriceColors();
-  const isNews = tab === "new-news";
+  const isNews = tab === "etf-news";
   const bucket: EtfMarketBucket = isNews ? "new" : tab;
   const isNew = tab === "new";
 
@@ -66,8 +66,6 @@ function EtfIndexPage() {
     limit: bucket === "all" ? 200 : 150,
     enabled: !isNews,
   });
-
-  const newsQ = useEtfListingNews({ enabled: isNews });
 
   const etfs = useMemo(() => {
     const raw = data?.etfs ?? [];
@@ -118,15 +116,6 @@ function EtfIndexPage() {
     return rows;
   }, [data?.etfs, q, sort]);
 
-  const news = useMemo(() => {
-    const raw = newsQ.data?.items ?? [];
-    const needle = q.trim();
-    if (!needle) return raw;
-    return raw.filter((n) =>
-      matchesSearchQuery(needle, [n.title, n.source, n.matchedName, n.matchedCode]),
-    );
-  }, [newsQ.data?.items, q]);
-
   const stats = data?.stats;
 
   return (
@@ -138,8 +127,8 @@ function EtfIndexPage() {
           ETF 데스크
         </h1>
         <p className="page-lead">
-          한국거래소 상장 ETF. 신규상장 뉴스 탭은 상장·상장예정 기사를 최신순으로
-          모읍니다. 상장 전에 구성 테마를 먼저 볼 수 있습니다.
+          한국거래소 상장 ETF. ETF 뉴스 탭은 신규 상장·상장 예정·상장폐지·자금 흐름·퇴직연금
+          기사를 최신순으로 모으고, 기사 속 ETF를 실시간 목록과 맞춰 보여줍니다.
         </p>
         {stats && !isNews && (
           <div className="mt-3 flex flex-wrap gap-2">
@@ -179,11 +168,12 @@ function EtfIndexPage() {
           </button>
           <button
             type="button"
-            onClick={() => setTab("new-news")}
+            onClick={() => setTab("etf-news")}
             className={cn("seg-tab", isNews ? "seg-tab-on" : "")}
+            data-testid="etf-news-tab"
           >
             <Newspaper className="size-3 text-desk-gold" />
-            신규상장 뉴스
+            ETF 뉴스
           </button>
           {(["all", "theme", "us", "bond"] as const).map((b) => (
             <button
@@ -196,20 +186,22 @@ function EtfIndexPage() {
             </button>
           ))}
         </div>
+        {!isNews && (
         <div className="relative w-full sm:w-72">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder={isNews ? "상장 뉴스 제목·운용사…" : "방산소부장 · AI데이터센터 · 바이오…"}
+            placeholder="방산소부장 · AI데이터센터 · 바이오…"
             className="h-10 pl-9 text-sm"
           />
           {q.trim() && (
             <p className="mt-1.5 text-xs text-muted-foreground">
-              “{q.trim()}” 검색 {isNews ? news.length : etfs.length}건
+              “{q.trim()}” 검색 {etfs.length}건
             </p>
           )}
         </div>
+        )}
         {!isNews && (
           <div className="flex flex-wrap items-center gap-1">
             <span className="text-[10px] font-semibold text-muted-foreground mr-1">정렬</span>
@@ -258,77 +250,12 @@ function EtfIndexPage() {
       <p className="text-xs text-muted-foreground flex items-start gap-1.5">
         <AlertTriangle className="size-3.5 shrink-0 mt-0.5 text-desk-copper" />
         {isNews
-          ? "국내 언론의 ETF 신규 상장·상장예정 기사입니다. 제목을 누르면 원문이 열립니다."
+          ? "국내 언론의 ETF 기사입니다. 제목을 누르면 원문이 새 창에서 열립니다."
           : (data?.note ?? ETF_BUCKET_HINT[bucket])}
       </p>
 
       {isNews ? (
-        <section className="desk-card desk-card-gold overflow-hidden">
-          {(newsQ.isLoading || newsQ.isFetching) && news.length === 0 && (
-            <div className="flex items-center gap-2 px-4 py-10 text-sm text-muted-foreground">
-              <Loader2 className="size-4 animate-spin" /> 신규 상장 뉴스 수신…
-            </div>
-          )}
-          {newsQ.isError && (
-            <p className="px-4 py-8 text-sm text-price-down">뉴스 조회에 실패했습니다.</p>
-          )}
-          {news.length === 0 && !newsQ.isLoading ? (
-            <p className="px-4 py-10 text-center text-sm text-muted-foreground">
-              조건에 맞는 상장 뉴스가 없습니다.
-            </p>
-          ) : (
-            <ul className="divide-y divide-border">
-              {news.map((n) => (
-                <li key={n.id} className="hover:bg-muted/25 px-4 py-3.5">
-                  <div className="flex flex-col gap-1.5 sm:flex-row sm:items-start sm:gap-4">
-                    <div className="sm:w-36 shrink-0 text-xs tabular text-muted-foreground">
-                      <div className="font-semibold text-foreground/80">
-                        {formatIsoDate(n.datetime)}
-                      </div>
-                      <div>{relativeTime(n.datetime)}</div>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {n.stage === "scheduled" && (
-                          <Badge className="chip-copper border-0 text-[10px]">상장예정</Badge>
-                        )}
-                        {n.stage === "listed" && (
-                          <Badge className="chip-gold border-0 text-[10px]">신규상장</Badge>
-                        )}
-                        <span className="text-[11px] text-muted-foreground">{n.source}</span>
-                      </div>
-                      <a
-                        href={n.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-1 block text-[15px] font-semibold leading-snug hover:underline"
-                      >
-                        {n.title}
-                      </a>
-                      {n.matchedName && n.matchedCode && (
-                        <Link
-                          to="/etfs/$code"
-                          params={{ code: n.matchedCode }}
-                          className="mt-1.5 inline-block text-xs text-primary hover:underline"
-                        >
-                          편입 보기 · {n.matchedName}
-                        </Link>
-                      )}
-                    </div>
-                    <a
-                      href={n.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-primary min-h-8"
-                    >
-                      원문 <ExternalLink className="size-3.5" />
-                    </a>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+        <EtfNewsDesk embedded />
       ) : (
         <>
           {(isLoading || isFetching) && etfs.length === 0 && (

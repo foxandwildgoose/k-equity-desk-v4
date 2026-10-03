@@ -15,6 +15,7 @@ import { PriceChange, PriceValue } from "@/components/stocks/PriceChange";
 import { StockMiniRow } from "@/components/stocks/StockTable";
 import { ResearchDeskPanel } from "@/components/stocks/ResearchDesk";
 import { DecisionSnapshot } from "@/components/dashboard/DecisionSnapshot";
+import { DashboardBriefCards } from "@/components/dashboard/BriefCards";
 import { Panel } from "@/components/layout/DeskLayout";
 import { Badge } from "@/components/ui/badge";
 import type { LiveQuote } from "@/server/naver-market";
@@ -107,10 +108,15 @@ export function Dashboard() {
   const { data, isLoading, isError, dataUpdatedAt } = useMarketQuotes();
   // Secondary desks load after first paint so quote tape wins the race
   const [deferSecondary, setDeferSecondary] = useState(false);
+  // The route chunk hydrates after the shell, whose queries may already have
+  // settled; keep the SSR text until mounted to avoid a hydration mismatch.
+  const [mounted, setMounted] = useState(false);
   useEffect(() => {
+    setMounted(true);
     const id = window.setTimeout(() => setDeferSecondary(true), 150);
     return () => window.clearTimeout(id);
   }, []);
+  const showLoading = isLoading || !mounted;
   const researchQ = useResearchDesk({ enabled: deferSecondary });
   const etfQ = useEtfMarket({
     bucket: "retirement",
@@ -140,8 +146,6 @@ export function Dashboard() {
     return [...map.values()];
   }, [data?.quotes, extra.data?.quotes]);
   const { gainers, losers } = marketMoversFromQuotes(quotes, 6);
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
 
   const watched = watchlist
     .map((c) => {
@@ -218,7 +222,7 @@ export function Dashboard() {
               </span>
             )}
           </div>
-          {isError && (
+          {mounted && isError && (
             <span className="text-[11px] text-price-down">
               시세 조회 실패 — 자동 재시도
             </span>
@@ -240,12 +244,16 @@ export function Dashboard() {
         quotes={quotes}
         research={researchQ.data?.industry ?? []}
         liveConnected={liveStatus.connected}
+        liveReconnecting={Boolean(liveStatus.enabled && liveStatus.reconnecting)}
         snapshotAgeMs={
           mounted && dataUpdatedAt > 0 ? Date.now() - dataUpdatedAt : null
         }
       />
       </div>
 
+      <div className="area-brief">
+        <DashboardBriefCards enabled={deferSecondary} />
+      </div>
 
       <Panel
         className="area-etf"
@@ -371,7 +379,7 @@ export function Dashboard() {
           </Link>
           <Link
             to="/research"
-            search={{ tab: "market" }}
+            search={{ tab: "invest" }}
             className="group flex items-start gap-2.5 rounded-lg border border-border bg-muted/15 px-3 py-2.5 hover:bg-muted/35 transition-colors"
           >
             <LineChart className="size-4 mt-0.5 text-muted-foreground group-hover:text-foreground" />
@@ -526,7 +534,7 @@ export function Dashboard() {
         </h2>
         <div className="flex flex-col gap-0.5">
           {gainers.length === 0 ? (
-            <p className="empty-state">{isLoading ? "로딩 중…" : "데이터 없음"}</p>
+            <p className="empty-state">{showLoading ? "로딩 중…" : "데이터 없음"}</p>
           ) : (
             gainers.map((st) => <StockMiniRow key={st.code} stock={st} />)
           )}
@@ -538,7 +546,7 @@ export function Dashboard() {
         </h2>
         <div className="flex flex-col gap-0.5">
           {losers.length === 0 ? (
-            <p className="empty-state">{isLoading ? "로딩 중…" : "데이터 없음"}</p>
+            <p className="empty-state">{showLoading ? "로딩 중…" : "데이터 없음"}</p>
           ) : (
             losers.map((st) => <StockMiniRow key={st.code} stock={st} />)
           )}

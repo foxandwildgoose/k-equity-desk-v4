@@ -1,106 +1,106 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useResearchDesk } from "@/lib/use-market";
-import { ResearchDeskPanel } from "@/components/stocks/ResearchDesk";
-import { DATA_LABEL } from "@/data/market";
-import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "lucide-react";
+import type { SectorId } from "@/data/types";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { PageDisclaimer } from "@/components/feed/PageDisclaimer";
+import { KrResearchDesk } from "@/components/research/KrResearchDesk";
+import { UsResearchDesk } from "@/components/stocks/UsResearchDesk";
+import { PublicResearchNote, StreetMovesTable, UsScopeBanner } from "@/components/research/UsResearchKit";
+import { UsResearchBriefing } from "@/components/research/UsResearchBriefing";
+import { useStreetUniverse, useUsOfficialUniverse, useUsStreet } from "@/lib/use-market";
+import type { ResearchTab } from "@/lib/use-research";
+import { cn } from "@/lib/utils";
 
 type ResearchSearch = {
-  tab?: "industry" | "market" | "economy" | "featured";
-  sector?: import("@/data/types").SectorId;
+  tab?: ResearchTab;
+  sector?: SectorId;
   market?: "kr" | "us";
 };
+
+const TABS: ResearchTab[] = ["all", "company", "industry", "invest", "economy", "debenture", "market"];
 
 export const Route = createFileRoute("/research")({
   component: ResearchPage,
   validateSearch: (s: Record<string, unknown>): ResearchSearch => {
-    const tab = s.tab;
     const market = s.market === "us" || s.market === "kr" ? s.market : undefined;
-    const sector = typeof s.sector === "string" ? (s.sector as ResearchSearch["sector"]) : undefined;
-    if (
-      tab === "industry" ||
-      tab === "market" ||
-      tab === "economy" ||
-      tab === "featured"
-    ) {
-      return { tab, sector, market };
-    }
-    return { tab: "industry", sector, market };
+    const sector = typeof s.sector === "string" ? (s.sector as SectorId) : undefined;
+    // Back-compat: old `featured` → company, old `market` (시황·전략) → invest.
+    const raw = s.tab === "featured" ? "company" : s.tab;
+    const tab = TABS.includes(raw as ResearchTab) ? (raw as ResearchTab) : undefined;
+    return { tab, sector, market };
   },
-  head: () => ({
-    meta: [{ title: "리서치 데스크 · Korea Equity Command Center" }],
-  }),
+  head: () => ({ meta: [{ title: "리서치 데스크 · Korea Equity Command Center" }] }),
 });
+
+function MarketSwitch({ market }: { market: "kr" | "us" }) {
+  return (
+    <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1" role="tablist" aria-label="시장">
+      {(
+        [
+          ["kr", "한국 주식"],
+          ["us", "미국 주식"],
+        ] as const
+      ).map(([id, label]) => (
+        <Link
+          key={id}
+          to="/research"
+          search={{ market: id }}
+          role="tab"
+          aria-selected={market === id}
+          className={cn(
+            "flex min-h-9 items-center justify-center rounded-md px-2.5 text-[12px] font-semibold",
+            market === id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          {label}
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+function UsResearchMode() {
+  const universe = useStreetUniverse();
+  const street = useUsStreet(undefined, { symbols: universe });
+  const official = useUsOfficialUniverse();
+  return (
+    <div className="space-y-3">
+      <UsScopeBanner />
+      <UsResearchBriefing street={street.data} official={official.data} />
+      <StreetMovesTable pack={street.data} />
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_280px]">
+        <UsResearchDesk />
+        <div className="space-y-3">
+          <div className="rounded-lg border border-border p-3 text-[11px]">
+            <div className="mb-1 font-semibold">OFFICIAL 공식 원문</div>
+            <p className="text-muted-foreground">SEC 공시·연준·BEA·BLS 원문 카드는 공식 원문 페이지에 있습니다.</p>
+            <Link to="/us-research" className="mt-1 inline-flex min-h-8 items-center font-semibold text-primary hover:underline">
+              공식 원문 열기 →
+            </Link>
+          </div>
+          <PublicResearchNote />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function ResearchPage() {
   const { tab, sector, market } = Route.useSearch();
-  const navigate = Route.useNavigate();
-  const { data, isLoading, isError, dataUpdatedAt } = useResearchDesk();
-
+  const m = market === "us" ? "us" : "kr";
   return (
-    <div className="flex flex-col gap-5">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight md:text-2xl">
-            리서치 데스크
-          </h1>
-          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            한국 주식은 산업·시황·경제 리포트, 미국 주식은 월가·투자은행이 공개한 등급과 기사입니다.
-            공식 SEC·연준 원문은{" "}
-            <Link to="/us-research" className="text-primary underline">
-              Research
-            </Link>
-            에 있습니다.
-          </p>
-        </div>
-        <div className="flex flex-col items-end gap-1">
-          {isLoading && (
-            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-              <Loader2 className="size-3 animate-spin" /> 리서치 수신
-            </span>
-          )}
-          {dataUpdatedAt > 0 && (
-            <span className="text-[10px] text-muted-foreground tabular">
-              갱신 {new Date(dataUpdatedAt).toLocaleTimeString("ko-KR")}
-            </span>
-          )}
-          <Badge variant="outline" className="text-[10px] font-normal">
-            {DATA_LABEL}
-          </Badge>
-        </div>
-      </header>
-
-      {isError && (
-        <p className="text-sm text-price-down">
-          리서치 조회에 실패했습니다. 잠시 후 자동 재시도됩니다.
-        </p>
-      )}
-
-      <ResearchDeskPanel
-        pack={
-          data
-            ? {
-                industry: data.industry,
-                market: data.market,
-                economy: data.economy,
-                featured: data.featured,
-              }
-            : null
+    <div className="page-stack">
+      <PageHeader
+        kicker={m === "us" ? "US Research Briefing · 미국 리서치" : "KR Research Briefing · 한국 리서치"}
+        title="리서치 데스크"
+        lead={
+          m === "us"
+            ? "공식 문서, 공개 리서치, 공개된 등급·목표가 변경과 관련 기사만 원문으로 연결합니다. 모든 목록은 최신순입니다."
+            : "네이버 리서치 v2(실패 시 레거시)의 기업·산업·시황/전략·경제·채권·데일리 리포트를 최신순으로 보여줍니다. 요약은 원문 발췌이며 PDF·리서치 페이지로 바로 연결됩니다."
         }
-        loading={isLoading}
-        defaultTab={tab ?? "industry"}
-        defaultSector={sector}
-        defaultMarket={market === "us" ? "US" : "KR"}
-        onMarketChange={(next) => {
-          void navigate({
-            search: (prev) => ({
-              ...prev,
-              market: next === "US" ? "us" : "kr",
-            }),
-          });
-        }}
-        showHeader={false}
       />
+      <PageDisclaimer />
+      <MarketSwitch market={m} />
+      {m === "us" ? <UsResearchMode /> : <KrResearchDesk defaultTab={tab ?? "all"} defaultSector={sector} />}
     </div>
   );
 }

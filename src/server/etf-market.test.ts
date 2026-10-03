@@ -41,6 +41,8 @@ test("issuer PDF weights are not replaced by a qty×price rescale", () => {
   assert.match(src, /fetchKodexOfficialHoldings/);
   assert.match(src, /issuerHoldingsFamily/);
   assert.match(src, /family === "plus" \? fetchPlusOfficialHoldings/);
+  assert.match(src, /fetchHanaroOfficialHoldings/);
+  assert.match(src, /family === "hanaro"/);
   assert.doesNotMatch(src, /krw \/ sum/);
   assert.doesNotMatch(src, /cu-value/);
 });

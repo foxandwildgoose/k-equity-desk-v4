@@ -3,10 +3,8 @@ import type { FlowDay } from "@/server/naver-market";
 import { usePriceColors, useAppStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import {
-  createChart,
   HistogramSeries,
   LineSeries,
-  CrosshairMode,
   type IChartApi,
   type ISeriesApi,
   type Time,
@@ -14,6 +12,10 @@ import {
   type LogicalRange,
 } from "lightweight-charts";
 import { computeRangePosition } from "@/lib/chart-indicators";
+import { ChartShell } from "@/components/charts/core/ChartShell";
+import { createProChart } from "@/components/charts/core/create-pro-chart";
+import { readChartTheme } from "@/components/charts/core/theme";
+import { exportChartPng, exportRowsCsv } from "@/components/charts/core/chrome";
 import { RangePositionStrip } from "@/components/stocks/RangePositionStrip";
 import {
   Users,
@@ -350,6 +352,7 @@ export function InvestorFlow({
   }, [slice, stats]);
 
   const wrapRef = useRef<HTMLDivElement>(null);
+  const [chartApi, setChartApi] = useState<IChartApi | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const histRefs = useRef<Partial<Record<FlowKey, ISeriesApi<"Histogram">>>>(
     {},
@@ -362,46 +365,12 @@ export function InvestorFlow({
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
-    const chart = createChart(el, {
-      autoSize: true,
-      layout: {
-        background: { color: "transparent" },
-        textColor: "#94a3b8",
-        fontSize: 11,
-        attributionLogo: false,
-      },
-      grid: {
-        vertLines: { color: "rgba(148,163,184,0.08)" },
-        horzLines: { color: "rgba(148,163,184,0.08)" },
-      },
-      crosshair: { mode: CrosshairMode.Normal },
-      rightPriceScale: {
-        borderColor: "rgba(148,163,184,0.15)",
-        scaleMargins: { top: 0.1, bottom: 0.15 },
-      },
-      leftPriceScale: {
-        visible: true,
-        borderColor: "rgba(148,163,184,0.15)",
-        scaleMargins: { top: 0.1, bottom: 0.15 },
-      },
-      timeScale: {
-        borderColor: "rgba(148,163,184,0.15)",
-        rightOffset: 4,
-        barSpacing: 10,
-        minBarSpacing: 3,
-      },
-      handleScroll: {
-        mouseWheel: true,
-        pressedMouseMove: true,
-        horzTouchDrag: true,
-        vertTouchDrag: true,
-      },
-      handleScale: {
-        axisPressedMouseMove: { time: true, price: true },
-        mouseWheel: true,
-        pinch: true,
-        axisDoubleClickReset: true,
-      },
+    const chart = createProChart(el, readChartTheme(), "KR");
+    chart.applyOptions({
+      localization: { locale: "ko-KR", priceFormatter: (v: number) => Math.round(v).toLocaleString("ko-KR") },
+      rightPriceScale: { scaleMargins: { top: 0.1, bottom: 0.15 } },
+      leftPriceScale: { visible: true, borderColor: "rgba(148,163,184,0.15)", scaleMargins: { top: 0.1, bottom: 0.15 } },
+      timeScale: { rightOffset: 4, barSpacing: 10, minBarSpacing: 3, timeVisible: false },
     });
 
     for (const s of SERIES) {
@@ -451,14 +420,10 @@ export function InvestorFlow({
       setHover(d ?? null);
     };
     chart.subscribeCrosshairMove(onCross);
-
-    const ro = new ResizeObserver(() => {
-      chart.applyOptions({ width: el.clientWidth, height: el.clientHeight });
-    });
-    ro.observe(el);
+    setChartApi(chart);
 
     return () => {
-      ro.disconnect();
+      setChartApi(null);
       chart.remove();
       chartRef.current = null;
     };
@@ -764,10 +729,34 @@ export function InvestorFlow({
             caption="선택 구간 종가 기준 · 기간 고/저는 절대 최고·최저, 최근 고/저는 확인된 스윙."
           />
 
-          {/* Interactive chart */}
-          <div className="relative" style={{ height: chartH }}>
+          {/* Interactive chart (F7.16: shared chart core + chrome) */}
+          <ChartShell
+            title={mode === "daily" ? "주체별 일별 순매수 (주)" : "주체별 누적 순매수 (주)"}
+            status={days.length ? { source: source || "네이버 증권", mode: `${slice.length}거래일 · 수량(주) · 좌축 종가`, asOfLabel: last?.date ? `${last.date.slice(0, 10)} (일별 집계)` : null } : null}
+            onExportPng={days.length ? () => exportChartPng(chartApi, "KR", "FLOW", `investor-flow-${mode}`) : undefined}
+            onExportCsv={
+              days.length
+                ? () =>
+                    exportRowsCsv(
+                      chartApi,
+                      slice.map((d) => ({ ...d, time: d.date.slice(0, 10) })),
+                      [
+                        { name: "foreign", get: (r) => r.foreign },
+                        { name: "institution", get: (r) => r.institution },
+                        { name: "individual", get: (r) => r.individual },
+                        { name: "close", get: (r) => r.close },
+                      ],
+                      "KR",
+                      "FLOW",
+                      `investor-flow-${mode}`,
+                    )
+                : undefined
+            }
+            height={chartH}
+            testId="investor-flow-chart"
+          >
             <div ref={wrapRef} className="absolute inset-0" />
-          </div>
+          </ChartShell>
           <div
             role="separator"
             onMouseDown={onHeightDown}

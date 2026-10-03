@@ -418,7 +418,7 @@ export function parseBandMonthPrices(json: unknown): MonthPrice[] {
     seen.add(date);
     out.push({ date, price: y });
   }
-  out.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  out.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)); // ked-allow-string-date-sort: single-format time series
   return out;
 }
 
@@ -513,7 +513,7 @@ export function parseYahooSplits(json: unknown): SplitEvent[] {
       factor: numerator / denominator,
     });
   }
-  out.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  out.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)); // ked-allow-string-date-sort: single-format time series
   return out;
 }
 
@@ -539,7 +539,7 @@ export function parseYahooAdjCloses(json: unknown): MonthPrice[] {
     seen.add(date);
     out.push({ date, price: px });
   }
-  out.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  out.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)); // ked-allow-string-date-sort: single-format time series
   return out;
 }
 
@@ -1000,7 +1000,7 @@ export function buildValuationPack(input: {
       seen.add(m.date);
       return true;
     })
-    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)); // ked-allow-string-date-sort: single-format time series
 
   if (!annuals.length || !months.length) {
     return emptyValuationPack(

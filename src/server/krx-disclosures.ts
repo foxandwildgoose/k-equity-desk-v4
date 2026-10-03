@@ -9,6 +9,7 @@
  * KIND is attempted first for "today" feed; when KIND is unavailable from this
  * environment we still ship DART + KOSCOM (Naver) with honest source labels.
  */
+import { sortDisclosuresNewestFirst } from "@/lib/feed/mappers";
 import { UNIVERSE } from "@/data/universe";
 import { decodeHtmlEntities } from "@/lib/readable-text";
 
@@ -130,9 +131,11 @@ const SOURCE_LABEL: Record<DisclosureSource, string> = {
 };
 
 function toIsoDateTime(date: string, time?: string): string {
-  // date: 2026.08.10 or 2026-08-10
+  // date: 2026.08.10 or 2026-08-10. Without a time the value stays date-only
+  // (`YYYY-MM-DD`) so no fake 00:00 is ever displayed or sorted on.
   const d = date.replace(/\./g, "-");
-  const tm = time && /^\d{2}:\d{2}/.test(time) ? `${time}:00` : "00:00:00";
+  if (!time || !/^\d{2}:\d{2}/.test(time)) return d;
+  const tm = time.length === 5 ? `${time}:00` : time.slice(0, 8);
   return `${d}T${tm}+09:00`;
 }
 
@@ -226,16 +229,16 @@ export async function fetchKindTodayDisclosures(): Promise<{
     for (const tr of html.match(/<tr[\s\S]*?<\/tr>/gi) ?? []) {
       const acpt =
         tr.match(/acptno=(\d{14})/i)?.[1] ??
-        tr.match(/openDisclsViewer\(['\"]?(\d{14})/i)?.[1];
+        tr.match(/openDisclsViewer\(['"]?(\d{14})/i)?.[1];
       const title =
         stripTags(
-          tr.match(/class=['\"][^\"]*first[^\"]*['\"][^>]*>([\s\S]*?)<\//i)?.[1] ??
+          tr.match(/class=['"][^"]*first[^"]*['"][^>]*>([\s\S]*?)<\//i)?.[1] ??
             tr.match(/<a[^>]*>([\s\S]*?)<\/a>/i)?.[1] ??
             "",
         ) || "";
       if (!title || title.length < 2) continue;
       const company = stripTags(
-        tr.match(/class=['\"][^\"]*second[^\"]*['\"][^>]*>([\s\S]*?)<\//i)?.[1] ??
+        tr.match(/class=['"][^"]*second[^"]*['"][^>]*>([\s\S]*?)<\//i)?.[1] ??
           "",
       );
       const time = tr.match(/(\d{2}:\d{2}(?::\d{2})?)/)?.[1];
@@ -289,11 +292,11 @@ function parseDartTableRows(html: string): KrxDisclosureItem[] {
       /webOnly">(유가증권시장|코스닥시장|코넥스시장|기타법인)<\/span>/,
     )?.[1];
     const corp = tr.match(
-      /openCorpInfoNew\(['\"](\d+)['\"][\s\S]*?>\s*([^<\n]+)/,
+      /openCorpInfoNew\(['"](\d+)['"][\s\S]*?>\s*([^<\n]+)/,
     );
     const titleM =
       tr.match(/rcpNo=\d{14}[^"]*"[^>]*>([\s\S]*?)<\/a>/) ??
-      tr.match(/openReportViewer(?:Main)?\(['\"]\d+['\"]\);[^>]*>([\s\S]*?)<\/a>/);
+      tr.match(/openReportViewer(?:Main)?\(['"]\d+['"]\);[^>]*>([\s\S]*?)<\/a>/);
     const title = stripTags(titleM?.[1] ?? "");
     if (!title) continue;
 
@@ -305,9 +308,8 @@ function parseDartTableRows(html: string): KrxDisclosureItem[] {
     items.push({
       id: `dart-${rcp}`,
       title,
-      datetime: date
-        ? toIsoDateTime(date, time)
-        : new Date().toISOString(),
+      // Unknown date stays empty (sorted last, shown as 날짜 미상) — never "now".
+      datetime: date ? toIsoDateTime(date, time) : "",
       author: "DART",
       code,
       nameKo,
@@ -430,6 +432,7 @@ export async function fetchKrxDisclosureDesk(opts?: {
   };
   dart: KrxDisclosureItem[];
   koscom: KrxDisclosureItem[];
+  all: KrxDisclosureItem[];
   fetchedAt: string;
 }> {
   const scan =
@@ -462,10 +465,7 @@ export async function fetchKrxDisclosureDesk(opts?: {
     ),
   ]);
 
-  const koscom = koscomBundles
-    .flat()
-    .sort((a, b) => (a.datetime < b.datetime ? 1 : -1))
-    .slice(0, 80);
+  const koscom = sortDisclosuresNewestFirst(koscomBundles.flat()).slice(0, 80);
 
   return {
     kind: {
@@ -476,6 +476,8 @@ export async function fetchKrxDisclosureDesk(opts?: {
     },
     dart,
     koscom,
+    /** KIND + KOSCOM + DART merged, newest first via the shared kernel (D1e). */
+    all: sortDisclosuresNewestFirst([...koscom, ...dart, ...kindPack.items]),
     fetchedAt: new Date().toISOString(),
   };
 }
@@ -500,9 +502,7 @@ export async function fetchStockDisclosureBundle(
     fetchKindStatus(),
   ]);
 
-  const items = [...koscom, ...dart].sort((a, b) =>
-    a.datetime < b.datetime ? 1 : -1,
-  );
+  const items = sortDisclosuresNewestFirst([...koscom, ...dart]);
 
   return { items, dart, koscom, kindStatus };
 }

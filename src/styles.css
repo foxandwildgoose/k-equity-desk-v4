@@ -561,6 +561,7 @@ button, a, [role="button"] {
   grid-template-areas:
     "head"
     "snap"
+    "brief"
     "etf"
     "us"
     "research"
@@ -575,6 +576,7 @@ button, a, [role="button"] {
     grid-template-areas:
       "head head head head head head head head head head head head"
       "snap snap snap snap snap snap snap snap snap snap snap snap"
+      "brief brief brief brief brief brief brief brief brief brief brief brief"
       "etf etf etf etf etf etf us us us us us us"
       "research research research research research research research research research research research research"
       "watch watch watch watch watch watch watch watch watch watch watch watch"
@@ -584,6 +586,7 @@ button, a, [role="button"] {
 }
 .area-head { grid-area: head; }
 .area-snap { grid-area: snap; }
+.area-brief { grid-area: brief; min-width: 0; }
 .area-etf { grid-area: etf; min-width: 0; }
 .area-us { grid-area: us; min-width: 0; }
 .area-research { grid-area: research; }

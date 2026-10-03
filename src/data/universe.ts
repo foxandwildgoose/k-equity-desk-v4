@@ -142,7 +142,7 @@ export const UNIVERSE: UniverseItem[] = [
   { code: "277810", nameKo: "레인보우로보틱스", nameEn: "Rainbow Robotics", sectorId: "robotics", market: "KOSDAQ" },
   { code: "108490", nameKo: "로보티즈", nameEn: "Robotis", sectorId: "robotics", market: "KOSDAQ" },
   { code: "090360", nameKo: "로보스타", nameEn: "Robostar", sectorId: "robotics", market: "KOSDAQ" },
-  { code: "466100", nameKo: "클로봇", nameEn: "CLOi Bot", sectorId: "robotics", market: "KOSDAQ" },
+  { code: "466100", nameKo: "클로봇", nameEn: "CLOBOT", sectorId: "robotics", market: "KOSDAQ" },
   { code: "454910", nameKo: "두산로보틱스", nameEn: "Doosan Robotics", sectorId: "robotics", market: "KOSPI" },
   { code: "099320", nameKo: "쎄트렉아이", nameEn: "Satrec Initiative", sectorId: "defense", market: "KOSDAQ" },
   { code: "058610", nameKo: "에스피지", nameEn: "SPG", sectorId: "robotics", market: "KOSDAQ" },

@@ -26,7 +26,8 @@ import { normalizeKrTicker } from "@/lib/infer-sector";
 
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
-const SEC_UA = "KoreaEquityDesk research@example.com";
+/** SEC fair-access UA (D7). Placeholder only when SEC_USER_AGENT is unset. */
+const secUa = () => process.env.SEC_USER_AGENT?.trim() || "KoreaEquityDesk research@example.com";
 
 const cache = new Map<string, { at: number; data: ValuationPack }>();
 const CACHE_REV = "us-street-5";
@@ -195,7 +196,7 @@ async function loadKorea(code: string): Promise<ValuationPack> {
 async function loadTickerMap(): Promise<Map<string, number>> {
   if (tickerMap) return tickerMap;
   const got = await getText("https://www.sec.gov/files/company_tickers.json", {
-    "User-Agent": SEC_UA,
+    "User-Agent": secUa(),
     Accept: "application/json",
   });
   const map = new Map<string, number>();
@@ -272,7 +273,7 @@ async function loadUs(symbol: string): Promise<ValuationPack> {
   }
   const cikText = String(cik).padStart(10, "0");
   const got = await getText(`https://data.sec.gov/api/xbrl/companyfacts/CIK${cikText}.json`, {
-    "User-Agent": SEC_UA,
+    "User-Agent": secUa(),
     Accept: "application/json",
   });
   if (!got) {

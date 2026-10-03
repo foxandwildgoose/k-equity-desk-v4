@@ -10,17 +10,27 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ChartRouteImport } from './routes/chart'
 import { Route as DisclosuresRouteImport } from './routes/disclosures'
 import { Route as EtfsRouteImport } from './routes/etfs'
 import { Route as ExportDeskRouteImport } from './routes/export-desk'
 import { Route as ResearchRouteImport } from './routes/research'
+import { Route as RoboticsRouteImport } from './routes/robotics'
 import { Route as UsLinkRouteImport } from './routes/us-link'
 import { Route as UsResearchRouteImport } from './routes/us-research'
 import { Route as WatchlistRouteImport } from './routes/watchlist'
+import { Route as ApiFeedRouteImport } from './routes/api.feed'
 import { Route as ApiMarketStreamRouteImport } from './routes/api.market-stream'
+import { Route as ApiWireRouteImport } from './routes/api.wire'
 import { Route as EtfsIndexRouteImport } from './routes/etfs.index'
 import { Route as EtfsCodeRouteImport } from './routes/etfs.$code'
 import { Route as IndustrySectorIdRouteImport } from './routes/industry.$sectorId'
+import { Route as NewsIndexRouteImport } from './routes/news.index'
+import { Route as NewsEtfRouteImport } from './routes/news.etf'
+import { Route as NewsKrRouteImport } from './routes/news.kr'
+import { Route as NewsUsRouteImport } from './routes/news.us'
+import { Route as SettingsAlertsRouteImport } from './routes/settings.alerts'
+import { Route as StatusSourcesRouteImport } from './routes/status.sources'
 import { Route as StockTickerRouteImport } from './routes/stock.$ticker'
 import { Route as UsResearchIndexRouteImport } from './routes/us-research.index'
 import { Route as UsResearchReportIdRouteImport } from './routes/us-research.$reportId'
@@ -29,6 +39,11 @@ import { Route as UsSymbolRouteImport } from './routes/us.$symbol'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChartRoute = ChartRouteImport.update({
+  id: '/chart',
+  path: '/chart',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DisclosuresRoute = DisclosuresRouteImport.update({
@@ -51,6 +66,11 @@ const ResearchRoute = ResearchRouteImport.update({
   path: '/research',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RoboticsRoute = RoboticsRouteImport.update({
+  id: '/robotics',
+  path: '/robotics',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const UsLinkRoute = UsLinkRouteImport.update({
   id: '/us-link',
   path: '/us-link',
@@ -66,9 +86,19 @@ const WatchlistRoute = WatchlistRouteImport.update({
   path: '/watchlist',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiFeedRoute = ApiFeedRouteImport.update({
+  id: '/api/feed',
+  path: '/api/feed',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiMarketStreamRoute = ApiMarketStreamRouteImport.update({
   id: '/api/market-stream',
   path: '/api/market-stream',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiWireRoute = ApiWireRouteImport.update({
+  id: '/api/wire',
+  path: '/api/wire',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EtfsIndexRoute = EtfsIndexRouteImport.update({
@@ -84,6 +114,36 @@ const EtfsCodeRoute = EtfsCodeRouteImport.update({
 const IndustrySectorIdRoute = IndustrySectorIdRouteImport.update({
   id: '/industry/$sectorId',
   path: '/industry/$sectorId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NewsIndexRoute = NewsIndexRouteImport.update({
+  id: '/news/',
+  path: '/news/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NewsEtfRoute = NewsEtfRouteImport.update({
+  id: '/news/etf',
+  path: '/news/etf',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NewsKrRoute = NewsKrRouteImport.update({
+  id: '/news/kr',
+  path: '/news/kr',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NewsUsRoute = NewsUsRouteImport.update({
+  id: '/news/us',
+  path: '/news/us',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsAlertsRoute = SettingsAlertsRouteImport.update({
+  id: '/settings/alerts',
+  path: '/settings/alerts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StatusSourcesRoute = StatusSourcesRouteImport.update({
+  id: '/status/sources',
+  path: '/status/sources',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StockTickerRoute = StockTickerRouteImport.update({
@@ -109,125 +169,195 @@ const UsSymbolRoute = UsSymbolRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/chart': typeof ChartRoute
   '/disclosures': typeof DisclosuresRoute
   '/etfs': typeof EtfsRouteWithChildren
   '/export-desk': typeof ExportDeskRoute
   '/research': typeof ResearchRoute
+  '/robotics': typeof RoboticsRoute
   '/us-link': typeof UsLinkRoute
   '/us-research': typeof UsResearchRouteWithChildren
   '/watchlist': typeof WatchlistRoute
+  '/api/feed': typeof ApiFeedRoute
   '/api/market-stream': typeof ApiMarketStreamRoute
+  '/api/wire': typeof ApiWireRoute
   '/etfs/$code': typeof EtfsCodeRoute
   '/industry/$sectorId': typeof IndustrySectorIdRoute
+  '/news/etf': typeof NewsEtfRoute
+  '/news/kr': typeof NewsKrRoute
+  '/news/us': typeof NewsUsRoute
+  '/settings/alerts': typeof SettingsAlertsRoute
+  '/status/sources': typeof StatusSourcesRoute
   '/stock/$ticker': typeof StockTickerRoute
   '/us-research/$reportId': typeof UsResearchReportIdRoute
   '/us/$symbol': typeof UsSymbolRoute
   '/etfs/': typeof EtfsIndexRoute
+  '/news/': typeof NewsIndexRoute
   '/us-research/': typeof UsResearchIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/chart': typeof ChartRoute
   '/disclosures': typeof DisclosuresRoute
   '/export-desk': typeof ExportDeskRoute
   '/research': typeof ResearchRoute
+  '/robotics': typeof RoboticsRoute
   '/us-link': typeof UsLinkRoute
   '/watchlist': typeof WatchlistRoute
+  '/api/feed': typeof ApiFeedRoute
   '/api/market-stream': typeof ApiMarketStreamRoute
+  '/api/wire': typeof ApiWireRoute
   '/etfs/$code': typeof EtfsCodeRoute
   '/industry/$sectorId': typeof IndustrySectorIdRoute
+  '/news/etf': typeof NewsEtfRoute
+  '/news/kr': typeof NewsKrRoute
+  '/news/us': typeof NewsUsRoute
+  '/settings/alerts': typeof SettingsAlertsRoute
+  '/status/sources': typeof StatusSourcesRoute
   '/stock/$ticker': typeof StockTickerRoute
   '/us-research/$reportId': typeof UsResearchReportIdRoute
   '/us/$symbol': typeof UsSymbolRoute
   '/etfs': typeof EtfsIndexRoute
+  '/news': typeof NewsIndexRoute
   '/us-research': typeof UsResearchIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/chart': typeof ChartRoute
   '/disclosures': typeof DisclosuresRoute
   '/etfs': typeof EtfsRouteWithChildren
   '/export-desk': typeof ExportDeskRoute
   '/research': typeof ResearchRoute
+  '/robotics': typeof RoboticsRoute
   '/us-link': typeof UsLinkRoute
   '/us-research': typeof UsResearchRouteWithChildren
   '/watchlist': typeof WatchlistRoute
+  '/api/feed': typeof ApiFeedRoute
   '/api/market-stream': typeof ApiMarketStreamRoute
+  '/api/wire': typeof ApiWireRoute
   '/etfs/$code': typeof EtfsCodeRoute
   '/industry/$sectorId': typeof IndustrySectorIdRoute
+  '/news/etf': typeof NewsEtfRoute
+  '/news/kr': typeof NewsKrRoute
+  '/news/us': typeof NewsUsRoute
+  '/settings/alerts': typeof SettingsAlertsRoute
+  '/status/sources': typeof StatusSourcesRoute
   '/stock/$ticker': typeof StockTickerRoute
   '/us-research/$reportId': typeof UsResearchReportIdRoute
   '/us/$symbol': typeof UsSymbolRoute
   '/etfs/': typeof EtfsIndexRoute
+  '/news/': typeof NewsIndexRoute
   '/us-research/': typeof UsResearchIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/chart'
     | '/disclosures'
     | '/etfs'
     | '/export-desk'
     | '/research'
+    | '/robotics'
     | '/us-link'
     | '/us-research'
     | '/watchlist'
+    | '/api/feed'
     | '/api/market-stream'
+    | '/api/wire'
     | '/etfs/$code'
     | '/industry/$sectorId'
+    | '/news/etf'
+    | '/news/kr'
+    | '/news/us'
+    | '/settings/alerts'
+    | '/status/sources'
     | '/stock/$ticker'
     | '/us-research/$reportId'
     | '/us/$symbol'
     | '/etfs/'
+    | '/news/'
     | '/us-research/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/chart'
     | '/disclosures'
     | '/export-desk'
     | '/research'
+    | '/robotics'
     | '/us-link'
     | '/watchlist'
+    | '/api/feed'
     | '/api/market-stream'
+    | '/api/wire'
     | '/etfs/$code'
     | '/industry/$sectorId'
+    | '/news/etf'
+    | '/news/kr'
+    | '/news/us'
+    | '/settings/alerts'
+    | '/status/sources'
     | '/stock/$ticker'
     | '/us-research/$reportId'
     | '/us/$symbol'
     | '/etfs'
+    | '/news'
     | '/us-research'
   id:
     | '__root__'
     | '/'
+    | '/chart'
     | '/disclosures'
     | '/etfs'
     | '/export-desk'
     | '/research'
+    | '/robotics'
     | '/us-link'
     | '/us-research'
     | '/watchlist'
+    | '/api/feed'
     | '/api/market-stream'
+    | '/api/wire'
     | '/etfs/$code'
     | '/industry/$sectorId'
+    | '/news/etf'
+    | '/news/kr'
+    | '/news/us'
+    | '/settings/alerts'
+    | '/status/sources'
     | '/stock/$ticker'
     | '/us-research/$reportId'
     | '/us/$symbol'
     | '/etfs/'
+    | '/news/'
     | '/us-research/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ChartRoute: typeof ChartRoute
   DisclosuresRoute: typeof DisclosuresRoute
   EtfsRoute: typeof EtfsRouteWithChildren
   ExportDeskRoute: typeof ExportDeskRoute
   ResearchRoute: typeof ResearchRoute
+  RoboticsRoute: typeof RoboticsRoute
   UsLinkRoute: typeof UsLinkRoute
   UsResearchRoute: typeof UsResearchRouteWithChildren
   WatchlistRoute: typeof WatchlistRoute
+  ApiFeedRoute: typeof ApiFeedRoute
   ApiMarketStreamRoute: typeof ApiMarketStreamRoute
+  ApiWireRoute: typeof ApiWireRoute
   IndustrySectorIdRoute: typeof IndustrySectorIdRoute
+  NewsEtfRoute: typeof NewsEtfRoute
+  NewsKrRoute: typeof NewsKrRoute
+  NewsUsRoute: typeof NewsUsRoute
+  SettingsAlertsRoute: typeof SettingsAlertsRoute
+  StatusSourcesRoute: typeof StatusSourcesRoute
   StockTickerRoute: typeof StockTickerRoute
   UsSymbolRoute: typeof UsSymbolRoute
+  NewsIndexRoute: typeof NewsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -237,6 +367,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/chart': {
+      id: '/chart'
+      path: '/chart'
+      fullPath: '/chart'
+      preLoaderRoute: typeof ChartRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/disclosures': {
@@ -267,6 +404,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResearchRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/robotics': {
+      id: '/robotics'
+      path: '/robotics'
+      fullPath: '/robotics'
+      preLoaderRoute: typeof RoboticsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/us-link': {
       id: '/us-link'
       path: '/us-link'
@@ -288,11 +432,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WatchlistRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/feed': {
+      id: '/api/feed'
+      path: '/api/feed'
+      fullPath: '/api/feed'
+      preLoaderRoute: typeof ApiFeedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/market-stream': {
       id: '/api/market-stream'
       path: '/api/market-stream'
       fullPath: '/api/market-stream'
       preLoaderRoute: typeof ApiMarketStreamRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/wire': {
+      id: '/api/wire'
+      path: '/api/wire'
+      fullPath: '/api/wire'
+      preLoaderRoute: typeof ApiWireRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/etfs/': {
@@ -314,6 +472,48 @@ declare module '@tanstack/react-router' {
       path: '/industry/$sectorId'
       fullPath: '/industry/$sectorId'
       preLoaderRoute: typeof IndustrySectorIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/news/': {
+      id: '/news/'
+      path: '/news'
+      fullPath: '/news/'
+      preLoaderRoute: typeof NewsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/news/etf': {
+      id: '/news/etf'
+      path: '/news/etf'
+      fullPath: '/news/etf'
+      preLoaderRoute: typeof NewsEtfRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/news/kr': {
+      id: '/news/kr'
+      path: '/news/kr'
+      fullPath: '/news/kr'
+      preLoaderRoute: typeof NewsKrRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/news/us': {
+      id: '/news/us'
+      path: '/news/us'
+      fullPath: '/news/us'
+      preLoaderRoute: typeof NewsUsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/alerts': {
+      id: '/settings/alerts'
+      path: '/settings/alerts'
+      fullPath: '/settings/alerts'
+      preLoaderRoute: typeof SettingsAlertsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/status/sources': {
+      id: '/status/sources'
+      path: '/status/sources'
+      fullPath: '/status/sources'
+      preLoaderRoute: typeof StatusSourcesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/stock/$ticker': {
@@ -375,17 +575,27 @@ const UsResearchRouteWithChildren = UsResearchRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ChartRoute: ChartRoute,
   DisclosuresRoute: DisclosuresRoute,
   EtfsRoute: EtfsRouteWithChildren,
   ExportDeskRoute: ExportDeskRoute,
   ResearchRoute: ResearchRoute,
+  RoboticsRoute: RoboticsRoute,
   UsLinkRoute: UsLinkRoute,
   UsResearchRoute: UsResearchRouteWithChildren,
   WatchlistRoute: WatchlistRoute,
+  ApiFeedRoute: ApiFeedRoute,
   ApiMarketStreamRoute: ApiMarketStreamRoute,
+  ApiWireRoute: ApiWireRoute,
   IndustrySectorIdRoute: IndustrySectorIdRoute,
+  NewsEtfRoute: NewsEtfRoute,
+  NewsKrRoute: NewsKrRoute,
+  NewsUsRoute: NewsUsRoute,
+  SettingsAlertsRoute: SettingsAlertsRoute,
+  StatusSourcesRoute: StatusSourcesRoute,
   StockTickerRoute: StockTickerRoute,
   UsSymbolRoute: UsSymbolRoute,
+  NewsIndexRoute: NewsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

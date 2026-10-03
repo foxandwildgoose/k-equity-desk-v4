@@ -15,25 +15,75 @@ import {
   Flag,
   Ship,
   Landmark,
+  Newspaper,
+  Globe2,
+  LineChart,
+  Activity,
+  Bot,
+  PieChart,
+  BellRing,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 
-const NAV: Array<{
+type NavItem = {
   to: string;
   label: string;
   icon: typeof LayoutDashboard;
   exact?: boolean;
   tone?: string;
-}> = [
-  { to: "/", label: "대시보드", icon: LayoutDashboard, exact: true },
-  { to: "/etfs", label: "퇴직연금 ETF", icon: Layers, tone: "text-desk-gold" },
-  { to: "/us-link", label: "미국 연계", icon: Flag, tone: "text-desk-teal" },
-  { to: "/us-research", label: "Research", icon: Landmark, tone: "text-desk-gold" },
-  { to: "/export-desk", label: "수출 × KOSPI", icon: Ship, tone: "text-desk-gold" },
-  { to: "/research", label: "리서치 데스크", icon: Library },
-  { to: "/disclosures", label: "주요 공시", icon: FileText },
-  { to: "/watchlist", label: "관심종목", icon: Star },
+  search?: Record<string, string>;
+};
+
+/** Grouped navigation (F10.1). Every pre-existing URL keeps working. */
+export const NAV_GROUPS: { id: string; label: string; items: NavItem[] }[] = [
+  {
+    id: "kr",
+    label: "한국",
+    items: [
+      { to: "/", label: "대시보드", icon: LayoutDashboard, exact: true },
+      { to: "/news/kr", label: "한국 뉴스", icon: Newspaper },
+      { to: "/research", label: "리서치 데스크", icon: Library, search: { market: "kr" } },
+      { to: "/etfs", label: "퇴직연금 ETF", icon: Layers, tone: "text-desk-gold" },
+      { to: "/news/etf", label: "ETF 뉴스", icon: PieChart },
+      { to: "/disclosures", label: "주요 공시", icon: FileText },
+      { to: "/export-desk", label: "수출 × KOSPI", icon: Ship, tone: "text-desk-gold" },
+    ],
+  },
+  {
+    id: "us",
+    label: "미국",
+    items: [
+      { to: "/news/us", label: "미국 뉴스", icon: Globe2 },
+      { to: "/research", label: "미국 리서치", icon: LineChart, search: { market: "us" } },
+      { to: "/us-research", label: "공식 원문", icon: Landmark, tone: "text-desk-gold" },
+      { to: "/us-link", label: "미국 연계", icon: Flag, tone: "text-desk-teal" },
+    ],
+  },
+  {
+    id: "themes",
+    label: "테마",
+    items: [{ to: "/robotics", label: "로봇", icon: Bot, tone: "text-desk-teal" }],
+  },
+  {
+    id: "tools",
+    label: "도구",
+    items: [
+      { to: "/watchlist", label: "관심종목", icon: Star },
+      { to: "/settings/alerts", label: "알림 설정", icon: BellRing },
+      { to: "/status/sources", label: "소스 상태", icon: Activity },
+    ],
+  },
 ];
+
+function isActive(item: NavItem, pathname: string, search: Record<string, unknown>): boolean {
+  const pathHit = item.exact ? pathname === item.to : pathname === item.to || pathname.startsWith(`${item.to}/`);
+  if (!pathHit) return false;
+  if (item.to === "/research") {
+    const market = search.market === "us" ? "us" : "kr";
+    return (item.search?.market ?? "kr") === market;
+  }
+  return true;
+}
 
 export function Sidebar({
   onNavigate,
@@ -43,6 +93,7 @@ export function Sidebar({
   className?: string;
 }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const search = useRouterState({ select: (s) => s.location.search as Record<string, unknown> });
   const focusMode = useAppStore((s) => s.focusMode);
   const setFocusMode = useAppStore((s) => s.setFocusMode);
   const colors = usePriceColors();
@@ -80,30 +131,31 @@ export function Sidebar({
         </Link>
       </div>
 
-      <nav className="px-2 py-2.5 space-y-0.5">
-        <div className="px-2.5 pb-1.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-white/35">
-          Workspace
-        </div>
-        {NAV.map((item) => {
-          const active = item.exact
-            ? pathname === item.to
-            : pathname === item.to || pathname.startsWith(`${item.to}/`);
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.to}
-              to={item.to}
-              onClick={onNavigate}
-              className={cn(
-                "nav-item",
-                active ? "nav-item-active" : "nav-item-idle",
-              )}
-            >
-              <Icon className={cn("size-3.5 shrink-0", item.tone || "opacity-80")} />
-              {item.label}
-            </Link>
-          );
-        })}
+      <nav className="px-2 py-2 space-y-2" aria-label="주 메뉴">
+        {NAV_GROUPS.map((group) => (
+          <div key={group.id} className="space-y-0.5">
+            <div className="px-2.5 pb-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-white/35">
+              {group.label}
+            </div>
+            {group.items.map((item) => {
+              const active = isActive(item, pathname, search);
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={`${item.to}-${item.label}`}
+                  to={item.to}
+                  search={item.search as never}
+                  onClick={onNavigate}
+                  className={cn("nav-item", active ? "nav-item-active" : "nav-item-idle")}
+                  aria-current={active ? "page" : undefined}
+                >
+                  <Icon className={cn("size-3.5 shrink-0", item.tone || "opacity-80")} />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
       </nav>
 
       <div className="mx-2.5 my-1.5 rounded-md border border-white/[0.08] bg-white/[0.04] px-2.5 py-2">
@@ -130,8 +182,10 @@ export function Sidebar({
         <div className="space-y-0.5">
           {sectors.map((s) => {
             const stats = sectorStatsFromQuotes(s.id, quotes);
-            const to = `/industry/${s.id}`;
-            const active = pathname === to || pathname.startsWith(`${to}/`);
+            // F6.9: the robotics sector row opens the robotics section.
+            const robotics = s.id === "robotics";
+            const to = robotics ? "/robotics" : `/industry/${s.id}`;
+            const active = pathname === to || pathname.startsWith(`${to}/`) || (robotics && pathname.startsWith("/industry/robotics"));
             const up = stats.avgChangePct > 0;
             const color =
               !stats.count || stats.avgChangePct === 0
@@ -139,18 +193,13 @@ export function Sidebar({
                 : up
                   ? colors.up
                   : colors.down;
-            return (
-              <Link
-                key={s.id}
-                to="/industry/$sectorId"
-                params={{ sectorId: s.id }}
-                onClick={onNavigate}
-                className={cn(
-                  "nav-item justify-between",
-                  active ? "nav-item-active" : "nav-item-idle",
-                  s.id === "us-linked" && !active && "ring-1 ring-desk-gold/35",
-                )}
-              >
+            const cls = cn(
+              "nav-item justify-between",
+              active ? "nav-item-active" : "nav-item-idle",
+              s.id === "us-linked" && !active && "ring-1 ring-desk-gold/35",
+            );
+            const body = (
+              <>
                 <span className="truncate text-[13px]">
                   {s.id === "us-linked" ? (
                     <span className="text-desk-gold mr-1">★</span>
@@ -160,6 +209,15 @@ export function Sidebar({
                 <span className={cn("text-[11px] tabular shrink-0 font-medium font-mono", color)}>
                   {stats.count ? formatPct(stats.avgChangePct) : "—"}
                 </span>
+              </>
+            );
+            return robotics ? (
+              <Link key={s.id} to="/robotics" onClick={onNavigate} className={cls} data-sector-link="robotics">
+                {body}
+              </Link>
+            ) : (
+              <Link key={s.id} to="/industry/$sectorId" params={{ sectorId: s.id }} onClick={onNavigate} className={cls}>
+                {body}
               </Link>
             );
           })}

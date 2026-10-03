@@ -175,6 +175,7 @@ export function StockTable({
                         <Sparkline
                           data={st.sparkline}
                           changePct={st.changePct}
+                          label={`${st.nameKo} 최근 ${st.sparkline.length}개 시세 추이 (네이버 시세)`}
                         />
                       ) : (
                         <span className="text-[10px] text-muted-foreground">

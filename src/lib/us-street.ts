@@ -1,3 +1,5 @@
+import { compareNewestFirst } from "./feed/sort.ts";
+import { zonedParts, zonedWallToUtcMs } from "./feed/time.ts";
 /**
  * Public Wall Street feeds. Broker PDFs are paywalled, so this module only
  * keeps ratings and headlines that the source page actually published.
@@ -12,6 +14,11 @@ export type UsStreetNote = {
   rating: string;
   target: string | null;
   date: string;
+  /** ISO instant from the Finviz event timestamp (UTC). */
+  publishedAt: string | null;
+  precision: "second" | "minute" | "day" | "unknown";
+  /** Row order on the symbol's Finviz page (higher = listed earlier = newer). */
+  seq?: number;
   summary: string;
   pageUrl: string;
   sourceLabel: string;
@@ -24,6 +31,9 @@ export type UsHeadline = {
   source: string;
   url: string;
   when: string;
+  /** Parsed from Finviz `when` (ET wall time). Null when the page gave no time. */
+  publishedAt: string | null;
+  precision: "second" | "minute" | "day" | "unknown";
 };
 
 export type UsConsensus = {
@@ -93,6 +103,44 @@ function isoDate(seconds: number): string | null {
   return d.toISOString().slice(0, 10);
 }
 
+/** Finviz event timestamp → ISO; midnight-UTC stamps are day-precision. */
+export function finvizEventTime(seconds: number): { iso: string | null; precision: UsStreetNote["precision"] } {
+  if (!Number.isFinite(seconds) || seconds < 1_000_000_000) return { iso: null, precision: "unknown" };
+  if (seconds % 86_400 === 0) {
+    const day = new Date(seconds * 1000).toISOString().slice(0, 10);
+    return { iso: `${day}T12:00:00.000Z`, precision: "day" };
+  }
+  return { iso: new Date(seconds * 1000).toISOString(), precision: "second" };
+}
+
+const MONTHS: Record<string, number> = { Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6, Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12 };
+
+/**
+ * Finviz news `when` → ISO. Formats: `Today 09:35AM`, `Yesterday 04:10PM`,
+ * `Sep-24-26 08:00AM` (ET wall time). Unknown → null.
+ */
+export function parseFinvizWhen(when: string, now = Date.now()): { iso: string | null; precision: UsHeadline["precision"] } {
+  const m = when.trim().match(/^(Today|Yesterday|([A-Z][a-z]{2})-(\d{2})-(\d{2}))\s+(\d{1,2}):(\d{2})(AM|PM)$/);
+  if (!m) return { iso: null, precision: "unknown" };
+  let h = Number(m[5]) % 12;
+  if (m[7] === "PM") h += 12;
+  const mi = Number(m[6]);
+  let y: number;
+  let mo: number;
+  let d: number;
+  if (m[1] === "Today" || m[1] === "Yesterday") {
+    const p = zonedParts(now - (m[1] === "Yesterday" ? 86_400_000 : 0), "America/New_York");
+    [y, mo, d] = [p.y, p.m, p.d];
+  } else {
+    mo = MONTHS[m[2]!] ?? 0;
+    d = Number(m[3]);
+    y = 2000 + Number(m[4]);
+    if (!mo) return { iso: null, precision: "unknown" };
+  }
+  const ms = zonedWallToUtcMs(y, mo, d, h, mi, 0, "America/New_York");
+  return Number.isFinite(ms) ? { iso: new Date(ms).toISOString(), precision: "minute" } : { iso: null, precision: "unknown" };
+}
+
 export function parseFinvizRatings(html: string, symbol: string): UsStreetNote[] {
   const ticker = symbol.trim().toUpperCase();
   const re = /"dateTimestamp":(\d+),"eventType":"chartEvent\/ratings","ratings":(\[[\s\S]*?\])\}/g;
@@ -101,6 +149,7 @@ export function parseFinvizRatings(html: string, symbol: string): UsStreetNote[]
   for (const match of html.matchAll(re)) {
     const date = isoDate(Number(match[1]));
     if (!date) continue;
+    const when = finvizEventTime(Number(match[1]));
     let rows: { action?: string; analyst?: string; rating?: string; targetPrice?: string }[] = [];
     try {
       rows = JSON.parse(match[2]!) as typeof rows;
@@ -126,17 +175,40 @@ export function parseFinvizRatings(html: string, symbol: string): UsStreetNote[]
         rating: rating || "—",
         target,
         date,
+        publishedAt: when.iso,
+        precision: when.precision,
+        seq: 0,
         summary: `${broker}가 등급을 ${actionKo(action)}했습니다. 표시된 등급은 ${rating || "미기재"}입니다.${targetBit} 증권사 PDF 원문은 공개되어 있지 않습니다.`,
         pageUrl: `https://finviz.com/quote.ashx?t=${encodeURIComponent(ticker)}`,
         sourceLabel: "Finviz 공개 등급 테이블",
       });
     }
   }
-  out.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : a.symbol.localeCompare(b.symbol)));
-  return out;
+  // Page order is Finviz's own newest-first order; keep it as a same-day tie-break.
+  out.forEach((n, i) => (n.seq = out.length - i));
+  return sortNotesNewestFirst(out);
 }
 
-export function parseFinvizHeadlines(html: string, symbol: string): UsHeadline[] {
+function noteKey(n: UsStreetNote) {
+  return { id: n.id, publishedAt: n.publishedAt, precision: n.precision, seq: n.seq, sourceTier: 3 as const };
+}
+
+/** D1c: notes newest first by event time (kernel), not by ticker. */
+export function sortNotesNewestFirst(notes: readonly UsStreetNote[]): UsStreetNote[] {
+  return [...notes].sort((a, b) => compareNewestFirst(noteKey(a), noteKey(b)));
+}
+
+/** D1c: headlines newest first across symbols (kernel), before any cap. */
+export function sortHeadlinesNewestFirst(items: readonly UsHeadline[]): UsHeadline[] {
+  return [...items].sort((a, b) =>
+    compareNewestFirst(
+      { id: a.id, publishedAt: a.publishedAt, precision: a.precision, sourceTier: 3 },
+      { id: b.id, publishedAt: b.publishedAt, precision: b.precision, sourceTier: 3 },
+    ),
+  );
+}
+
+export function parseFinvizHeadlines(html: string, symbol: string, now = Date.now()): UsHeadline[] {
   const ticker = symbol.trim().toUpperCase();
   const re = /<a class="tab-link-news" href="(https?:[^"]+)"[^>]*>([\s\S]*?)<\/a>/g;
   const out: UsHeadline[] = [];
@@ -149,13 +221,16 @@ export function parseFinvizHeadlines(html: string, symbol: string): UsHeadline[]
     seen.add(url);
     const before = html.slice(Math.max(0, match.index! - 280), match.index);
     const when = before.match(/((?:Today|Yesterday)\s+\d{1,2}:\d{2}[AP]M|[A-Z][a-z]{2}-\d{2}-\d{2}\s+\d{1,2}:\d{2}[AP]M)/)?.[1] ?? "";
+    const parsed = when ? parseFinvizWhen(when, now) : { iso: null, precision: "unknown" as const };
     out.push({
       id: `${ticker}|${url}`,
       symbol: ticker,
       title,
       source: "기사",
       url,
-      when: when || ticker,
+      when: when || "시각 미상",
+      publishedAt: parsed.iso,
+      precision: parsed.precision,
     });
     if (out.length >= 6) break;
   }
@@ -278,9 +353,24 @@ async function getText(url: string, headers: HeadersInit): Promise<string | null
   }
 }
 
-let cache: { rev: string; at: number; data: UsStreetPack } | null = null;
-const TTL_MS = 30 * 60 * 1000;
-const CACHE_REV = "entities-2";
+const packCache = new Map<string, { rev: string; at: number; data: UsStreetPack }>();
+const TTL_MS = 20 * 60 * 1000;
+const CACHE_REV = "kernel-3";
+/** At most 3 symbol pages load at once (F4.5 load control). */
+const MAX_CONCURRENT = 3;
+
+async function mapLimit<T, R>(items: readonly T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = new Array(items.length);
+  let next = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (next < items.length) {
+      const i = next++;
+      out[i] = await fn(items[i]!);
+    }
+  });
+  await Promise.all(workers);
+  return out;
+}
 
 type SymbolPage = {
   notes: UsStreetNote[];
@@ -288,8 +378,21 @@ type SymbolPage = {
   consensus: UsConsensus | null;
 };
 
+const pageCache = new Map<string, { at: number; data: SymbolPage }>();
+
 async function loadSymbolPage(symbol: string): Promise<SymbolPage> {
   const ticker = symbol.trim().toUpperCase();
+  const hit = pageCache.get(ticker);
+  if (hit && Date.now() - hit.at < TTL_MS) return hit.data;
+  const data = await loadSymbolPageUncached(ticker);
+  if (data.notes.length || data.consensus || data.headlines.length) {
+    pageCache.set(ticker, { at: Date.now(), data });
+    if (pageCache.size > 120) pageCache.delete(pageCache.keys().next().value!);
+  }
+  return data;
+}
+
+async function loadSymbolPageUncached(ticker: string): Promise<SymbolPage> {
   const [html, target] = await Promise.all([
     getText(`https://finviz.com/quote.ashx?t=${encodeURIComponent(ticker)}`, {
       "User-Agent": UA,
@@ -318,11 +421,9 @@ async function loadSymbolPage(symbol: string): Promise<SymbolPage> {
 }
 
 function packFromPages(pages: SymbolPage[], emptyNote: string): UsStreetPack {
-  const notes = pages
-    .flatMap((page) => page.notes)
-    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : a.symbol.localeCompare(b.symbol)))
-    .slice(0, 60);
-  const headlines = pages.flatMap((page) => page.headlines).slice(0, 40);
+  const notes = sortNotesNewestFirst(pages.flatMap((page) => page.notes)).slice(0, 60);
+  // Chronological across symbols before the cap, so newer headlines for later symbols survive.
+  const headlines = sortHeadlinesNewestFirst(pages.flatMap((page) => page.headlines)).slice(0, 40);
   const consensus = pages.flatMap((page) => (page.consensus ? [page.consensus] : []));
   return {
     notes,
@@ -352,11 +453,26 @@ export async function fetchUsStreetSymbol(symbol: string): Promise<UsStreetPack>
   return data;
 }
 
-export async function fetchUsStreetPack(): Promise<UsStreetPack> {
+function validTicker(t: string): boolean {
+  return /^[A-Z][A-Z0-9.]{0,9}$/.test(t) && !t.startsWith(".") && !t.endsWith(".");
+}
+
+/**
+ * Desk pack for a ticker set (default: US_STREET_SYMBOLS). Callers pass the
+ * first 12 of usWatchlist ∪ US_STREET_SYMBOLS ∪ robotics US names (F4.5);
+ * pages load 3 at a time and are cached for 20 minutes.
+ */
+export async function fetchUsStreetPack(symbols: readonly string[] = US_STREET_SYMBOLS): Promise<UsStreetPack> {
+  const list = [...new Set(symbols.map((x) => x.trim().toUpperCase()).filter(validTicker))].slice(0, 12);
+  const key = list.join(",");
   const now = Date.now();
-  if (cache && cache.rev === CACHE_REV && now - cache.at < TTL_MS) return cache.data;
-  const pages = await Promise.all(US_STREET_SYMBOLS.map((symbol) => loadSymbolPage(symbol)));
+  const hit = packCache.get(key);
+  if (hit && hit.rev === CACHE_REV && now - hit.at < TTL_MS) return hit.data;
+  const pages = await mapLimit(list, MAX_CONCURRENT, (symbol) => loadSymbolPage(symbol));
   const data = packFromPages(pages, "월가 공개 피드를 받지 못했습니다. 등급을 추정해 채우지 않습니다.");
-  if (data.notes.length || data.consensus.length) cache = { rev: CACHE_REV, at: now, data };
+  if (data.notes.length || data.consensus.length) {
+    packCache.set(key, { rev: CACHE_REV, at: now, data });
+    if (packCache.size > 20) packCache.delete(packCache.keys().next().value!);
+  }
   return data;
 }

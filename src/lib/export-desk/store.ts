@@ -160,7 +160,7 @@ export const useExportDeskStore = create<ExportDeskState>()(
         const map = new Map(get().indexImported.map((r) => [r.date, r]));
         for (const r of rows) map.set(r.date, r);
         set({
-          indexImported: [...map.values()].sort((a, b) => a.date.localeCompare(b.date)),
+          indexImported: [...map.values()].sort((a, b) => a.date.localeCompare(b.date)), // ked-allow-string-date-sort: single-format time series
           logs: [log, ...get().logs].slice(0, 80),
         });
       },

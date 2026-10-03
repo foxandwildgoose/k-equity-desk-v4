@@ -1,3 +1,4 @@
+import { formatAbsoluteTime, parseSourceTime } from "@/lib/feed/time";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { DisclosureItem } from "@/server/naver-market";
@@ -15,14 +16,9 @@ import { FileText, ExternalLink, Loader2 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { isDigitTicker, isEtfTicker, normalizeKrTicker } from "@/lib/infer-sector";
 
-function fmtTime(iso: string): string {
-  try {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return iso;
-    return d.toLocaleString("ko-KR");
-  } catch {
-    return iso;
-  }
+function fmtTime(raw: string): string {
+  const t = parseSourceTime(raw, { zone: "Asia/Seoul" });
+  return formatAbsoluteTime({ publishedAt: t.iso, precision: t.precision });
 }
 
 function sourceBadgeClass(source?: string): string {

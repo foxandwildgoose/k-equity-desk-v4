@@ -7,8 +7,8 @@
       "status": 200,
       "title": "대시보드 · Korea Equity Command Center",
       "hasCanvas": false,
-      "bodyTextLen": 2342,
-      "bodyTextHash": "2b22bc850f17c3b866701d151c284b6617d1635623f3c5057c49601ff5b6d589",
+      "bodyTextLen": 2602,
+      "bodyTextHash": "7070f20a6d9f48c976577e021a99188a8eaeb7be3af2d9ac38b038e3c1dfa1e2",
       "bodyTextPrefix": "지수 수신 중… 실시간: KIS Open API · KRX WebSocket(설정 시) · 백업: 네이버 금융 스냅",
       "horizontalOverflow": false,
       "consoleErrors": [],
@@ -21,8 +21,8 @@
       "status": 200,
       "title": "대시보드 · Korea Equity Command Center",
       "hasCanvas": false,
-      "bodyTextLen": 2066,
-      "bodyTextHash": "a209cc647b2a1f23bf940fc99da2c8ca9ad5d670bb60156bba1b2dbefa7cd95d",
+      "bodyTextLen": 2275,
+      "bodyTextHash": "07fa89b5e600ae35dd962eee90ba141a3ff58ef9062d20449fd3f42b44d3760a",
       "bodyTextPrefix": "KX Equity COMMAND 실시간: KIS Open API · KRX WebSocket(설정 시) · 백업: ",
       "horizontalOverflow": false,
       "consoleErrors": [],
@@ -37,7 +37,6 @@
   "verdictFile": "/workspace/screenshots/app-builder-built.json",
   "divergesFromBaseline": true,
   "baselineReasons": [
-    "desktop: body text replaced (similar length, page start changed)",
-    "mobile: body text replaced (similar length, page start changed)"
+    "desktop: body text replaced (similar length, page start changed)"
   ]
 }

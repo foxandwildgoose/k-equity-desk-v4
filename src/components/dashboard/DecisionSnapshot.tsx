@@ -12,11 +12,14 @@ export function DecisionSnapshot({
   quotes,
   research,
   liveConnected,
+  liveReconnecting = false,
   snapshotAgeMs,
 }: {
   quotes: LiveQuote[];
   research: ResearchReport[];
   liveConnected: boolean;
+  /** EventSource is re-opening (server closes streams after ≤ 240 s). */
+  liveReconnecting?: boolean;
   snapshotAgeMs: number | null;
 }) {
   const colors = usePriceColors();
@@ -48,7 +51,7 @@ export function DecisionSnapshot({
           "inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-semibold",
           liveConnected ? "bg-price-up/15 text-price-up" : "bg-muted text-muted-foreground",
         )}>
-          <Radio className="size-3" /> {liveConnected ? "KIS·KRX LIVE" : "스냅샷 모드"}
+          <Radio className="size-3" /> {liveConnected ? "KIS·KRX LIVE" : ready && liveReconnecting ? "재연결 중" : "스냅샷 모드"}
         </span>
       </div>
 

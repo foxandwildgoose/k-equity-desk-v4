@@ -36,9 +36,11 @@ Node.js 22 필요.
 
 ```bash
 npm install
-cp .env.example .env   # 선택: KIS Open API 키
 npm run dev
 ```
+
+환경 변수는 파일(.env)을 만들지 말고 셸 `export` 또는 배포 플랫폼 설정으로 넣습니다.
+전체 목록과 미설정 시 동작은 [`docs/upgrade/ENVIRONMENT.md`](docs/upgrade/ENVIRONMENT.md)를 보세요.
 
 기본 주소: `http://localhost:8080`
 
@@ -49,11 +51,17 @@ npm run build
 
 ## 환경 변수
 
-| 변수 | 용도 |
-|---|---|
-| `KIS_APP_KEY` / `KIS_APP_SECRET` | 한국투자증권 Open API 실시간 시세 (없으면 네이버 스냅샷) |
+모든 변수는 서버 전용이며 선택 사항입니다(없으면 기능이 자동으로 축소됩니다).
+표·기본값·미설정 시 동작: **[`docs/upgrade/ENVIRONMENT.md`](docs/upgrade/ENVIRONMENT.md)**
+(KIS, `SEC_USER_AGENT`, `FINNHUB_API_KEY`, `NEWS_BLOOMBERG_ENABLED`, 선택 AI 브리핑 등).
 
-`VITE_` 접두사를 붙이지 마세요. 브라우저로 키가 노출됩니다.
+`VITE_` 접두사를 붙이지 마세요. 브라우저로 키가 노출됩니다. 저장소에 `.env` 파일을 만들지 않습니다.
+
+## 소스 검증
+
+외부 소스(네이버·한경·Bloomberg RSS·연준·SEC·Google 뉴스 등)는 `src/server/feeds/registry.ts`에
+등록되어 있습니다. `npm run verify:sources`는 소스마다 작은 GET 1회를 보내
+`docs/upgrade/SOURCES_STATUS.md`를 갱신합니다. 앱의 `/status/sources` 화면에서 상태를 볼 수 있습니다.
 
 ## 디렉터리
 

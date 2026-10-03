@@ -38,9 +38,8 @@ function DisclosuresPage() {
   const dart = data?.dart ?? [];
   const koscom = data?.koscom ?? [];
 
-  const all = [...koscom, ...dart, ...(kind?.items ?? [])].sort((a, b) =>
-    a.datetime < b.datetime ? 1 : -1,
-  );
+  // Server merges and sorts with the shared kernel (D1e).
+  const all = data?.all ?? [];
 
   const list =
     tab === "koscom"

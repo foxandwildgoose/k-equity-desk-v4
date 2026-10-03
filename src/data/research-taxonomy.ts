@@ -75,14 +75,35 @@ export const RESEARCH_SECTOR_RULES: ResearchSectorRule[] = [
   { sectorId: "consumer", label: "소비재·유통", keywords: ["소비", "유통", "화장품", "음식료", "식품", "면세", "리테일", "K-뷰티"], naverUpjongs: ["유통", "음식료", "화장품", "홈쇼핑", "섬유의류"] },
   { sectorId: "construction", label: "건설·부동산", keywords: ["건설", "주택", "분양", "부동산", "PF", "플랜트"], naverUpjongs: ["건설", "건자재"] },
   { sectorId: "steel", label: "철강·금속", keywords: ["철강", "강판", "철광석", "금속", "알루미늄", "구리", "비철"], naverUpjongs: ["철강금속"] },
-  { sectorId: "robotics", label: "로봇·AI", keywords: ["로봇", "자동화", "스마트팩토리", "AI", "인공지능", "협동로봇"], naverUpjongs: ["기계", "IT", "소프트웨어"] },
+  // F6.8: robot-specific terms only. Bare "AI"/"인공지능" counts only together with a robot term.
+  { sectorId: "robotics", label: "로봇·AI", keywords: ["로봇", "로보틱스", "휴머노이드", "협동로봇", "산업용 로봇", "물류로봇", "AMR", "서비스로봇", "감속기", "액추에이터", "서보", "모션제어", "피지컬 AI", "physical AI", "embodied", "robot", "robotics", "humanoid", "cobot"], naverUpjongs: ["기계", "IT", "소프트웨어"] },
   { sectorId: "defense", label: "방산·항공우주", keywords: ["방산", "국방", "항공우주", "위성", "미사일", "유도무기", "전투기"], naverUpjongs: ["기계"] },
 ];
+
+/** Robot terms that must be present for bare "AI"/"인공지능" to count as robotics (F6.8). */
+export const ROBOT_TERMS = RESEARCH_SECTOR_RULES.find((r) => r.sectorId === "robotics")!.keywords;
+
+const LATIN_ROBOT = /^[a-z ]+$/i;
+
+function hasTerm(normalized: string, keyword: string): boolean {
+  const k = keyword.toLowerCase();
+  if (LATIN_ROBOT.test(keyword) && keyword.length <= 5) {
+    // Short Latin terms (AMR, robot, cobot) match on word boundaries only.
+    return new RegExp(`(^|[^a-z])${k.replace(/ /g, "\\s")}($|[^a-z])`).test(normalized);
+  }
+  return normalized.includes(k);
+}
+
+/** Robotics iff a robot-specific term appears (bare AI/인공지능 alone never qualifies). */
+export function isRoboticsText(text: string): boolean {
+  const normalized = text.toLowerCase();
+  return ROBOT_TERMS.some((k) => hasTerm(normalized, k));
+}
 
 export function classifyResearchSectors(text: string): SectorId[] {
   const normalized = text.toLowerCase();
   return RESEARCH_SECTOR_RULES.filter((rule) =>
-    rule.keywords.some((keyword) => normalized.includes(keyword.toLowerCase())),
+    rule.sectorId === "robotics" ? isRoboticsText(text) : rule.keywords.some((keyword) => normalized.includes(keyword.toLowerCase())),
   ).map((rule) => rule.sectorId);
 }
 

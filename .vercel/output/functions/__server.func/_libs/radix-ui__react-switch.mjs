@@ -1,8 +1,8 @@
 import { o as __toESM } from "../_runtime.mjs";
 import { u as require_react } from "./@floating-ui/react-dom+[...].mjs";
-import { a as createContextScope, o as useComposedRefs, s as require_jsx_runtime } from "./@radix-ui/react-collection+[...].mjs";
+import { n as createContextScope, o as useComposedRefs, s as require_jsx_runtime } from "./@radix-ui/react-collection+[...].mjs";
 import { t as composeEventHandlers } from "./radix-ui__primitive.mjs";
-import { m as useControllableState, p as Primitive } from "./@radix-ui/react-dialog+[...].mjs";
+import { f as Primitive, p as useControllableState } from "./@radix-ui/react-dialog+[...].mjs";
 import { a as useSize } from "./@radix-ui/react-popper+[...].mjs";
 //#region node_modules/@radix-ui/react-switch/dist/index.mjs
 var import_react = /* @__PURE__ */ __toESM(require_react(), 1);

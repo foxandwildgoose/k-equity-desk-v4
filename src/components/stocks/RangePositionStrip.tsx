@@ -35,14 +35,14 @@ const CELLS: {
     label: "최근 고점 대비 하락",
     sub: "recentHigh",
     date: "recentHighDate",
-    hint: "확인된 최근 스윙 고점 대비 현재가",
+    hint: "최근 고저 창의 고점 대비 현재가. 가격 차트 기본은 52주, 툴바에서 스윙으로 바꿀 수 있음",
   },
   {
     key: "fromRecentLowPct",
     label: "최근 저점 대비 상승",
     sub: "recentLow",
     date: "recentLowDate",
-    hint: "확인된 최근 스윙 저점 대비 현재가",
+    hint: "최근 고저 창의 저점 대비 현재가. 가격 차트 기본은 52주",
   },
 ];
 
@@ -70,6 +70,16 @@ export function RangePositionStrip({
           const pct = stats[c.key];
           const px = stats[c.sub];
           const dt = stats[c.date];
+          const label =
+            c.key === "fromRecentHighPct" && pct > 0.005
+              ? "최근 고점 돌파"
+              : c.key === "fromPeriodHighPct" && pct > 0.005
+                ? "구간 고점 돌파"
+                : c.key === "fromRecentLowPct" && pct < -0.005
+                  ? "최근 저점 이탈"
+                  : c.key === "fromPeriodLowPct" && pct < -0.005
+                    ? "구간 저점 이탈"
+                    : c.label;
           const tone =
             pct > 0.005 ? colors.up : pct < -0.005 ? colors.down : "text-muted-foreground";
           return (
@@ -79,7 +89,7 @@ export function RangePositionStrip({
               className={cn("bg-card min-w-0", compact ? "px-2.5 py-1.5" : "px-3 py-2")}
             >
               <div className="text-[10px] font-semibold tracking-wide text-muted-foreground">
-                {c.label}
+                {label}
               </div>
               <div
                 className={cn(

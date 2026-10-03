@@ -120,7 +120,7 @@ export function OfficialReportCard({
         </ul>
       ) : null}
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        <OriginalLink url={report.url} />
+        <OriginalLink url={report.url} label={report.badge === "Earnings release" ? "Exhibit 99 원문" : "원문"} />
         {report.pdfUrl ? <OriginalLink url={report.pdfUrl} label="PDF" /> : null}
         {report.indexUrl ? <OriginalLink url={report.indexUrl} label="Filing index" /> : null}
         {onToggleSave ? (

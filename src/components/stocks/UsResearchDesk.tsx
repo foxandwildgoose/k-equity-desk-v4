@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { useUsStreet } from "@/lib/use-market";
+import { useStreetUniverse, useUsStreet } from "@/lib/use-market";
+import { OriginTierBadge } from "@/components/research/UsResearchKit";
+import { TimeStamp } from "@/components/feed/TimeStamp";
 import {
   originalUrlForNote,
   safeExternalUrl,
-  US_STREET_SYMBOLS,
   type UsConsensus,
   type UsHeadline,
   type UsStreetNote,
@@ -64,7 +65,8 @@ export function UsResearchDesk({
   compact?: boolean;
 }) {
   const locked = symbol?.trim().toUpperCase() || "";
-  const query = useUsStreet(locked || undefined);
+  const universe = useStreetUniverse();
+  const query = useUsStreet(locked || undefined, { symbols: universe });
   const pack = query.data;
   const [ticker, setTicker] = useState(locked || "all");
   const [broker, setBroker] = useState("all");
@@ -137,7 +139,7 @@ export function UsResearchDesk({
                 전체
               </FilterChip>
             )}
-            {(locked ? [locked] : US_STREET_SYMBOLS).map((item) => (
+            {(locked ? [locked] : universe).map((item) => (
               <FilterChip key={item} active={ticker === item || locked === item} onClick={() => setTicker(item)}>
                 {item}
               </FilterChip>
@@ -203,6 +205,7 @@ export function UsResearchDesk({
                       className="w-full px-3 py-2.5 text-left hover:bg-muted/35"
                     >
                       <div className="flex items-center gap-1.5">
+                        <OriginTierBadge tier="STREET" />
                         <span className="text-xs font-semibold">{row.symbol}</span>
                         <Badge variant="outline" className="text-[10px]">
                           Nasdaq
@@ -249,6 +252,7 @@ export function UsResearchDesk({
                         className="w-full px-3 py-3 text-left hover:bg-muted/35"
                       >
                         <div className="flex flex-wrap items-center gap-1.5">
+                          <OriginTierBadge tier="STREET" />
                           <Badge variant="outline" className="text-[10px]">
                             {note.symbol}
                           </Badge>
@@ -266,7 +270,9 @@ export function UsResearchDesk({
                           >
                             차트
                           </Link>
-                          <span className="ml-auto text-[10px] tabular text-muted-foreground">{note.date}</span>
+                          <span className="ml-auto text-[10px] text-muted-foreground">
+                            <TimeStamp publishedAt={note.publishedAt} precision={note.precision} tz="ET" withEt />
+                          </span>
                         </div>
                         <div className="mt-2 border-l-2 border-foreground/20 pl-2.5">
                           <div className="text-[10px] font-semibold text-muted-foreground">핵심요약</div>
@@ -322,13 +328,17 @@ export function UsResearchDesk({
                         onClick={() => setActive({ kind: "headline", item })}
                         className="flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-muted/35"
                       >
-                        <Badge variant="outline" className="mt-0.5 text-[10px]">
-                          {item.symbol}
-                        </Badge>
+                        <span className="mt-0.5 flex shrink-0 flex-col items-start gap-1">
+                          <OriginTierBadge tier="NEWS" />
+                          <Badge variant="outline" className="text-[10px]">
+                            {item.symbol}
+                          </Badge>
+                        </span>
                         <span className="min-w-0 flex-1">
                           <span className="block text-[12px] leading-snug">{plain(item.title)}</span>
                           <span className="mt-0.5 block text-[10px] text-muted-foreground">
-                            {href ? hostOf(href) : "원문"} · {item.when}
+                            {href ? hostOf(href) : "원문"} ·{" "}
+                            {item.publishedAt ? <TimeStamp publishedAt={item.publishedAt} precision={item.precision} tz="ET" withEt /> : item.when}
                           </span>
                         </span>
                       </button>

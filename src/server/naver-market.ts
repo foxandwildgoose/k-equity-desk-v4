@@ -9,6 +9,7 @@ import { detectKrMarket, normalizeKrTicker, isKrTicker, inferSectorId } from "@/
 import { yahooUsSymbol } from "@/lib/valuation-series";
 import { classifyResearchSectors } from "@/data/research-taxonomy";
 import { buildResearchExecutiveSummary } from "@/lib/research-utils";
+import { sortReportsNewestFirst } from "@/lib/feed/mappers";
 
 const UA =
   "Mozilla/5.0 (compatible; KoreaEquityCommand/1.0; +https://x.ai) AppleWebKit/537.36";
@@ -139,6 +140,13 @@ export interface ResearchReport {
   /** Origin of the listing row */
   sourceKind?: "naver" | "hankyung";
   sourceLabel?: string;
+  /** stock.naver.com research v2 type (company|industry|invest|economy|debenture|market). */
+  v2Type?: "market" | "company" | "industry" | "invest" | "economy" | "debenture";
+  /** Where the extractive summary came from. */
+  summarySource?: "preview" | "detail" | "pdf-text" | "none";
+  /** Only when an older same-broker/same-ticker report was actually fetched (F2.5). */
+  prevTargetPrice?: number;
+  prevRating?: string;
 }
 
 export interface NewsItem {
@@ -578,7 +586,7 @@ function bucketMinuteBars(
   }
   const grouped: typeof raw = [];
   for (const [key, chunk] of [...buckets.entries()].sort(([a], [b]) =>
-    a.localeCompare(b),
+    a.localeCompare(b), // ked-allow-string-date-sort: single-format time series
   )) {
     const first = chunk[0]!;
     const last = chunk[chunk.length - 1]!;
@@ -755,6 +763,10 @@ async function fetchMinuteOhlc(
 
 type YahooChartResult = {
   timestamp?: number[];
+  events?: {
+    dividends?: Record<string, { amount?: number; date?: number }>;
+    splits?: Record<string, { date?: number; numerator?: number; denominator?: number; splitRatio?: string }>;
+  };
   indicators?: {
     quote?: {
       open?: (number | null)[];
@@ -829,11 +841,11 @@ function parseUsYahooBars(
   return raw;
 }
 
-async function fetchYahooChart(symbol: string, interval: string, range: string): Promise<YahooChartResult | null> {
+async function fetchYahooChart(symbol: string, interval: string, range: string, opts: { prePost?: boolean; events?: boolean } = {}): Promise<YahooChartResult | null> {
   for (const host of ["query1", "query2"]) {
     try {
       const data = await getJson<{ chart?: { result?: YahooChartResult[] } }>(
-        `https://${host}.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=${interval}&range=${range}&includeAdjustedClose=true&includePrePost=false`,
+        `https://${host}.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=${interval}&range=${range}&includeAdjustedClose=true&includePrePost=${opts.prePost ? "true" : "false"}${opts.events ? "&events=div%2Csplits" : ""}`,
       );
       const result = data.chart?.result?.[0];
       if (result?.timestamp?.length) return result;
@@ -844,13 +856,35 @@ async function fetchYahooChart(symbol: string, interval: string, range: string):
   return null;
 }
 
+/** Dividends / splits from the Yahoo chart `events` block (F7.10); only what the response carries. */
+export interface ChartEvents {
+  dividends: { date: string; amount: number }[];
+  splits: { date: string; ratio: string }[];
+}
+
+function parseYahooEvents(result: YahooChartResult): ChartEvents | undefined {
+  const ev = result.events;
+  if (!ev) return undefined;
+  const day = (sec: number | undefined) => (typeof sec === "number" ? wallClock(sec, false) : "");
+  const dividends = Object.values(ev.dividends ?? {})
+    .filter((d) => typeof d.amount === "number" && d.amount > 0 && typeof d.date === "number")
+    .map((d) => ({ date: day(d.date), amount: d.amount! }))
+    .filter((d) => d.date);
+  const splits = Object.values(ev.splits ?? {})
+    .filter((d) => typeof d.date === "number" && (d.splitRatio || (d.numerator && d.denominator)))
+    .map((d) => ({ date: day(d.date), ratio: d.splitRatio ?? `${d.numerator}:${d.denominator}` }))
+    .filter((d) => d.date);
+  return { dividends, splits };
+}
+
 /** Split-adjusted US OHLC. Prices stay in dollars (not rounded to a won). */
 async function fetchUsOhlc(opts: {
   code: string;
   interval: ChartInterval;
   minuteSize?: MinuteSize;
   range?: string;
-}): Promise<{ bars: OhlcBar[]; source: string }> {
+  prePost?: boolean;
+}): Promise<{ bars: OhlcBar[]; source: string; events?: ChartEvents }> {
   const symbol = yahooUsSymbol(opts.code);
   if (!symbol) return { bars: [], source: "us-invalid" };
   const interval = opts.interval;
@@ -873,8 +907,10 @@ async function fetchUsOhlc(opts: {
     range = opts.range ?? "5y";
   }
 
-  const result = await fetchYahooChart(symbol, yahooInterval, range);
+  const prePost = interval === "minute" && Boolean(opts.prePost);
+  const result = await fetchYahooChart(symbol, yahooInterval, range, { prePost, events: interval === "day" || interval === "week" });
   if (!result) return { bars: [], source: "us-yahoo-empty" };
+  const events = parseYahooEvents(result);
   let raw = parseUsYahooBars(result, interval === "minute");
   if (interval === "minute" && bucket > 1) raw = bucketMinuteBars(raw, bucket);
   if (!raw.length) return { bars: [], source: "us-ohlc-empty" };
@@ -888,7 +924,7 @@ async function fetchUsOhlc(opts: {
       byYear.set(y, list);
     }
     const yearly: typeof raw = [];
-    for (const [y, list] of [...byYear.entries()].sort()) {
+    for (const [y, list] of [...byYear.entries()].sort()) { // ked-allow-string-date-sort: single-format time series
       const first = list[0]!;
       const last = list[list.length - 1]!;
       yearly.push({
@@ -905,7 +941,7 @@ async function fetchUsOhlc(opts: {
     raw = yearly;
   }
 
-  return { bars: withMas(raw, { round: false }), source: `yahoo-us-${symbol}-${yahooInterval}` };
+  return { bars: withMas(raw, { round: false }), source: `yahoo-us-${symbol}-${yahooInterval}${prePost ? "-prepost" : ""}`, events };
 }
 
 // ── OHLC ────────────────────────────────────────────────────────────────
@@ -916,7 +952,8 @@ export async function fetchOhlc(opts: {
   interval: ChartInterval;
   minuteSize?: MinuteSize;
   range?: string;
-}): Promise<{ bars: OhlcBar[]; source: string }> {
+  prePost?: boolean;
+}): Promise<{ bars: OhlcBar[]; source: string; events?: ChartEvents }> {
   const { code, market, interval } = opts;
   if (market === "US") {
     return fetchUsOhlc({
@@ -924,6 +961,7 @@ export async function fetchOhlc(opts: {
       interval,
       minuteSize: opts.minuteSize,
       range: opts.range,
+      prePost: opts.prePost,
     });
   }
 
@@ -1025,7 +1063,7 @@ export async function fetchOhlc(opts: {
       byYear.set(y, list);
     }
     const yearly: typeof raw = [];
-    for (const [y, list] of [...byYear.entries()].sort()) {
+    for (const [y, list] of [...byYear.entries()].sort()) { // ked-allow-string-date-sort: single-format time series
       const first = list[0]!;
       const last = list[list.length - 1]!;
       yearly.push({
@@ -1181,7 +1219,7 @@ export async function fetchInvestorFlow(
       };
     })
     .filter((d): d is NonNullable<typeof d> => d != null)
-    .sort((a, b) => a.date.localeCompare(b.date));
+    .sort((a, b) => a.date.localeCompare(b.date)); // ked-allow-string-date-sort: single-format time series
 
   return { days, source };
 }
@@ -1339,8 +1377,8 @@ async function enrichReports(
     head.map(async (r) => {
       const api = await enrichFromApiDetail(r.researchId, r.category);
       let rating = r.rating ?? api.rating;
-      let targetPrice = r.targetPrice ?? api.targetPrice;
-      let pdfUrl = r.pdfUrl ?? api.pdfUrl;
+      const targetPrice = r.targetPrice ?? api.targetPrice;
+      const pdfUrl = r.pdfUrl ?? api.pdfUrl;
       let preview = r.preview;
 
       if (api.previewExtra && (!preview || preview.length < api.previewExtra.length)) {
@@ -1404,7 +1442,7 @@ export async function fetchCategoryResearch(
         for (const e of extra) {
           if (!seen.has(e.researchId)) list.push(e);
         }
-        list = list.sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, limit);
+        list = sortReportsNewestFirst(list).slice(0, limit);
       } catch {
         /* optional */
       }
@@ -1435,51 +1473,23 @@ export async function fetchResearchPack(code: string): Promise<{
   return { company, industry, market, economy };
 }
 
-/** Market-wide research desk — no stock required */
+/**
+ * Market-wide legacy research desk (fallback path only). The former fixed
+ * 7-stock "featured" list is gone (D6/AT-18): company research now pages the
+ * full v2 category (`src/server/research-v2.ts`).
+ */
 export async function fetchResearchDesk(): Promise<{
   industry: ResearchReport[];
   market: ResearchReport[];
   economy: ResearchReport[];
   featured: ResearchReport[];
 }> {
-  const FEATURED = [
-    "005930",
-    "000660",
-    "373220",
-    "034020",
-    "005380",
-    "207940",
-    "009540",
-  ];
-
-  const [industry, market, economy, ...featuredLists] = await Promise.all([
-    fetchCategoryResearch("industry", 80).catch(() => [] as ResearchReport[]),
-    fetchCategoryResearch("market", 50).catch(() => [] as ResearchReport[]),
+  const [industry, market, economy] = await Promise.all([
+    fetchCategoryResearch("industry", 40).catch(() => [] as ResearchReport[]),
+    fetchCategoryResearch("market", 40).catch(() => [] as ResearchReport[]),
     fetchCategoryResearch("economy", 40).catch(() => [] as ResearchReport[]),
-    ...FEATURED.map((code) =>
-      getJson<NaverResearchRow[]>(
-        `https://m.stock.naver.com/api/research/stock/${code}`,
-      )
-        .then((rows) =>
-          (rows ?? []).slice(0, 2).map((r) => mapResearchRow(r, "company")),
-        )
-        .catch(() => [] as ResearchReport[]),
-    ),
   ]);
-
-  const featuredRaw = featuredLists.flat();
-  const featured = await enrichReports(
-    featuredRaw
-      .sort((a, b) => (a.date < b.date ? 1 : -1))
-      .filter(
-        (r, i, arr) =>
-          arr.findIndex((x) => x.researchId === r.researchId) === i,
-      )
-      .slice(0, 16),
-    10,
-  );
-
-  return { industry, market, economy, featured };
+  return { industry, market, economy, featured: [] };
 }
 
 /** Deep research detail — used on PDF/원문 click & detail sheet open (not list path). */
@@ -1547,7 +1557,7 @@ export async function fetchResearchPdf(
 
 // ── News ────────────────────────────────────────────────────────────────
 
-export async function fetchNews(code: string): Promise<NewsItem[]> {
+export async function fetchNews(code: string, page = 1): Promise<NewsItem[]> {
   const data = await getJson<
     {
       items?: {
@@ -1562,7 +1572,7 @@ export async function fetchNews(code: string): Promise<NewsItem[]> {
         mobileNewsUrl?: string;
       }[];
     }[]
-  >(`https://m.stock.naver.com/api/news/stock/${code}?pageSize=20&page=1`);
+  >(`https://m.stock.naver.com/api/news/stock/${code}?pageSize=20&page=${Math.max(1, Math.min(page, 20))}`);
 
   const items: NewsItem[] = [];
   for (const group of data ?? []) {

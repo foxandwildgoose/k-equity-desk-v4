@@ -10,10 +10,13 @@ function uniqueCodes(codes: string[]) {
     .slice(0, 40);
 }
 
+/** Stream status + `reconnecting` while EventSource re-opens (F8.6). */
+export type MarketStreamStatus = KisStreamStatus & { reconnecting?: boolean };
+
 export function useMarketStream(codes: string[]) {
   const queryClient = useQueryClient();
   const normalized = useMemo(() => uniqueCodes(codes), [codes.join(",")]);
-  const [status, setStatus] = useState<KisStreamStatus>({
+  const [status, setStatus] = useState<MarketStreamStatus>({
     enabled: false,
     connected: false,
     provider: "kis",
@@ -25,8 +28,10 @@ export function useMarketStream(codes: string[]) {
     const es = new EventSource(`/api/market-stream?codes=${encodeURIComponent(normalized.join(","))}`);
 
     const onStatus = (event: MessageEvent<string>) => {
-      try { setStatus(JSON.parse(event.data) as KisStreamStatus); } catch { /* ignore */ }
+      try { setStatus({ ...(JSON.parse(event.data) as KisStreamStatus), reconnecting: false }); } catch { /* ignore */ }
     };
+    // Server closes after ≤ 240 s with `retry: 3000`; the browser reconnects.
+    const onReconnect = () => setStatus((s) => ({ ...s, connected: false, reconnecting: true, message: "재연결 중" }));
     const onTrade = (event: MessageEvent<string>) => {
       let trade: KisRealtimeTrade;
       try { trade = JSON.parse(event.data) as KisRealtimeTrade; } catch { return; }
@@ -117,7 +122,9 @@ export function useMarketStream(codes: string[]) {
 
     es.addEventListener("status", onStatus as EventListener);
     es.addEventListener("trade", onTrade as EventListener);
-    es.onerror = () => setStatus((s) => ({ ...s, connected: false, message: "실시간 스트림 재연결 중" }));
+    es.addEventListener("reconnect", onReconnect);
+    es.onopen = () => setStatus((s) => ({ ...s, reconnecting: false }));
+    es.onerror = () => setStatus((s) => ({ ...s, connected: false, reconnecting: true, message: "재연결 중" }));
 
     return () => es.close();
   }, [normalized.join(","), queryClient]);

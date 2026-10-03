@@ -6,6 +6,8 @@ import {
   compareBollingerAndPercentile,
   computeRangePosition,
   computeSeriesRangePosition,
+  planRangeMarkers,
+  rangeMarkerText,
   detectMacdCrosses,
   detectRsiDivergences,
   disparity,
@@ -88,6 +90,56 @@ test("visible slice [from,to] uses only that window for extrema", () => {
 test("empty or invalid bars return null", () => {
   assert.equal(computeRangePosition([]), null);
   assert.equal(computeRangePosition([bar(0, 0, 0, "2026-01-01")]), null);
+});
+
+test("planRangeMarkers uses one label when the period extreme is the recent extreme", () => {
+  const bars = [
+    bar(100, 80, 90, "2026-01-01"),
+    bar(110, 85, 100, "2026-01-02"),
+    bar(140, 100, 140, "2026-01-03"),
+  ];
+  const s = computeRangePosition(bars, { recentSpan: "all" });
+  assert.ok(s);
+  const marks = planRangeMarkers(s);
+  assert.equal(marks.length, 2);
+  assert.equal(marks[0]!.scope, "both");
+  assert.equal(marks[1]!.scope, "both");
+  const text = rangeMarkerText(marks[0]!, "140", "+0.00%");
+  assert.equal(text.place, "extreme");
+  assert.match(text.title, /기간=최근 고점/);
+});
+
+test("planRangeMarkers keeps a separate recent swing when it is not the period high", () => {
+  const highs = [10, 12, 14, 16, 18, 16, 14, 12, 15, 17, 19, 21, 22];
+  const lows = [9, 11, 13, 15, 17, 15, 13, 11, 14, 16, 18, 20, 21];
+  const closes = [10, 12, 14, 16, 17, 15, 13, 12, 15, 17, 19, 21, 22];
+  const bars = highs.map((h, i) => bar(h, lows[i]!, closes[i]!, `2026-01-${String(i + 1).padStart(2, "0")}`));
+  const s = computeRangePosition(bars, { pivotLeft: 2, pivotRight: 2 });
+  assert.ok(s);
+  const highsMarks = planRangeMarkers(s).filter((m) => m.role === "high");
+  assert.equal(highsMarks.length, 2);
+  const recent = highsMarks.find((m) => m.scope === "recent");
+  assert.ok(recent);
+  assert.equal(recent.price, 18);
+  const text = rangeMarkerText(recent, "18", "+22.22%");
+  assert.equal(text.place, "last");
+  assert.match(text.pctText, /^돌파 /);
+});
+
+test("recentSpan 52W ignores an older period high", () => {
+  const s = computeRangePosition(
+    [
+      bar(500, 400, 450, "2024-01-01"),
+      bar(130, 100, 120, "2026-08-01"),
+      bar(140, 110, 135, "2026-09-01"),
+    ],
+    { recentSpan: "52W" },
+  );
+  assert.ok(s);
+  assert.equal(s.periodHigh, 500);
+  assert.equal(s.recentHigh, 140);
+  assert.equal(s.periodHighIdx, 0);
+  assert.notEqual(s.recentHighIdx, s.periodHighIdx);
 });
 
 test("computeSeriesRangePosition maps a line onto the same stats", () => {
@@ -225,4 +277,133 @@ test("hidden bullish is a higher price low with a lower RSI", () => {
   assert.ok(hidden, `expected hidden bullish, got ${found.map((item) => item.kind).join(",") || "none"}`);
   assert.ok(hidden.price2 > hidden.price1);
   assert.ok(hidden.rsi2 < hidden.rsi1);
+});
+
+// ── AT-35: extended indicators — known values from an independent textbook
+// reference implementation (values rounded to 1e-6). ──
+import {
+  adx,
+  anchoredVwap,
+  cci,
+  donchian,
+  heikinAshi,
+  highLowN,
+  hma,
+  ichimoku,
+  keltner,
+  mfi,
+  obv,
+  parabolicSar,
+  pivotPoints,
+  stochRsi,
+  supertrend,
+  volumeProfile,
+  williamsR,
+  wma,
+} from "./chart-indicators.ts";
+
+// synthetic fixture (format sample), not market data
+const FH = [10, 11, 12, 11.5, 12.5, 13, 12.8, 13.5, 14, 13.6, 14.2, 15, 14.8, 15.5, 16, 15.2, 15.8, 16.5, 17, 16.4];
+const FL = [9, 9.8, 10.9, 10.6, 11.4, 12.1, 11.9, 12.6, 13.1, 12.8, 13.3, 14.1, 13.9, 14.6, 15.1, 14.4, 14.9, 15.6, 16.1, 15.5];
+const FC = [9.5, 10.9, 11.5, 11, 12.2, 12.7, 12.1, 13.2, 13.8, 13, 14, 14.8, 14.2, 15.3, 15.4, 14.8, 15.6, 16.3, 16.2, 15.8];
+const FV = [100, 120, 90, 110, 130, 150, 80, 160, 170, 90, 140, 180, 100, 190, 200, 120, 150, 210, 160, 130];
+
+function close6(actual: (number | null)[], expected: (number | null)[], label: string) {
+  assert.equal(actual.length, expected.length, `${label} length`);
+  actual.forEach((a, i) => {
+    const e = expected[i];
+    if (e == null) assert.equal(a, null, `${label}[${i}]`);
+    else assert.ok(a != null && Math.abs(a - e) < 1e-5, `${label}[${i}] ${a} ≠ ${e}`);
+  });
+}
+
+test("AT-35 WMA / HMA known values", () => {
+  close6(wma([1, 2, 3], 3), [null, null, 14 / 6], "wma small");
+  close6(wma(FC, 5).slice(-3), [15.626667, 15.866667, 15.913333], "wma5");
+  close6(hma(FC, 9).slice(-3), [15.870741, 16.205185, 16.339259], "hma9");
+});
+
+test("AT-35 Keltner / Donchian / Ichimoku", () => {
+  close6(keltner(FH, FL, FC, 5, 4, 2).upper.slice(-3), [17.443518, 17.645017, 17.642015], "keltner upper");
+  const d = donchian(FH, FL, 5);
+  close6(d.upper.slice(-1), [17], "donchian upper");
+  close6(d.lower.slice(-1), [14.4], "donchian lower");
+  close6(d.mid.slice(-1), [15.7], "donchian mid");
+  const ich = ichimoku(FH, FL, FC, 3, 5, 7, 2);
+  // tenkan(3) at last = (max(16.5,17,16.4)+min(15.6,16.1,15.5))/2
+  close6(ich.tenkan.slice(-1), [(17 + 15.5) / 2], "tenkan");
+  assert.equal(ich.spanA[1], null, "spans shifted forward, never before data");
+  assert.equal(ich.chikou[FC.length - 1], null, "no future close for chikou at the end");
+  assert.equal(ich.chikou[0], FC[2]);
+});
+
+test("AT-35 Parabolic SAR / Supertrend", () => {
+  close6(parabolicSar(FH, FL).slice(-4), [14.152931, 14.4, 14.82, 15.256], "sar");
+  const st = supertrend(FH, FL, FC, 5, 2);
+  close6(st.value.slice(-3), [14.030041, 14.574033, 14.574033], "supertrend");
+  assert.deepEqual(st.direction.slice(-3), [1, 1, 1]);
+});
+
+test("AT-35 VWAP family / OBV / MFI", () => {
+  assert.deepEqual(obv(FC, FV).slice(-3), [1390, 1230, 1100]);
+  const av = anchoredVwap(FH, FL, FC, FV, 5);
+  assert.equal(av[4], null, "nothing before the anchor");
+  close6(av.slice(5, 8), [12.6, 12.484058, 12.736752], "anchored vwap");
+  close6(mfi(FH, FL, FC, FV, 5).slice(-3), [86.799792, 86.553943, 68.436182], "mfi5");
+});
+
+test("AT-35 oscillators: CCI, Williams %R, ADX/DMI, Stoch RSI", () => {
+  close6(cci(FH, FL, FC, 5).slice(-3), [141.025641, 103.386809, 21.390374], "cci5");
+  close6(williamsR(FH, FL, FC, 5).slice(-3), [-9.52381, -30.769231, -46.153846], "willr5");
+  const a = adx(FH, FL, FC, 5);
+  close6(a.adx.slice(-2), [63.433369, 57.377827], "adx");
+  close6(a.plusDi.slice(-2), [49.543244, 40.369947], "+di");
+  close6(a.minusDi.slice(-2), [9.72206, 20.265774], "-di");
+  const s = stochRsi(FC, 5, 5, 3, 3);
+  close6(s.k.slice(-2), [80.965756, 61.454743], "stochrsi k");
+  close6(s.d.slice(-2), [60.094362, 65.450144], "stochrsi d");
+});
+
+test("AT-35 pivot points (classic / fibonacci / camarilla) and 52-week levels", () => {
+  const c = pivotPoints(110, 90, 105, "classic");
+  close6([c.p, c.r1, c.r2, c.r3, c.s1, c.s2, c.s3], [101.666667, 113.333333, 121.666667, 133.333333, 93.333333, 81.666667, 73.333333], "classic");
+  const f = pivotPoints(110, 90, 105, "fibonacci");
+  close6([f.r1, f.s2], [109.306667, 89.306667], "fib");
+  const m = pivotPoints(110, 90, 105, "camarilla");
+  close6([m.r1, m.s3], [106.833333, 99.5], "camarilla");
+  const hl = highLowN(FH, FL, 5);
+  close6(hl.high.slice(-1), [17], "52w high (lookback 5)");
+  close6(hl.low.slice(0, 1), [9], "uses bars available so far");
+});
+
+test("AT-35 volume profile POC / VAH / VAL", () => {
+  // synthetic fixture (format sample), not market data
+  const vp = volumeProfile(
+    [
+      { high: 10, low: 8, volume: 100 },
+      { high: 12, low: 10, volume: 300 },
+      { high: 11, low: 9, volume: 50 },
+    ],
+    4,
+    0.7,
+  );
+  close6(vp.rows.map((r) => r.volume), [33.333333, 50, 200, 166.666667], "rows");
+  assert.equal(vp.poc, 10.5);
+  assert.equal(vp.vah, 12);
+  assert.equal(vp.val, 10);
+});
+
+test("AT-35 Heikin-Ashi transform", () => {
+  const opens = [FC[0]! - 0.3, ...FC.slice(0, -1)];
+  const bars = FC.map((c, i) => ({ open: opens[i]!, high: FH[i]!, low: FL[i]!, close: c, date: `d${i}` }));
+  const ha = heikinAshi(bars).slice(-2);
+  close6([ha[0]!.open, ha[0]!.close, ha[0]!.high, ha[0]!.low], [15.561837, 16.4, 17, 15.561837], "ha[-2]");
+  close6([ha[1]!.open, ha[1]!.close, ha[1]!.high, ha[1]!.low], [15.980919, 15.975, 16.4, 15.5], "ha[-1]");
+  assert.equal(ha[1]!.date, "d19", "other fields preserved");
+});
+
+test("RSI of an empty series is empty (no phantom point)", async () => {
+  const { rsi } = await import("./chart-indicators.ts");
+  assert.deepEqual(rsi([], 14), []);
+  assert.equal(rsi([1, 2, 3], 14).length, 3);
 });

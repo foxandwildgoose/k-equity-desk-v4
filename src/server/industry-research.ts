@@ -11,6 +11,7 @@ import {
 import { buildResearchExecutiveSummary } from "@/lib/research-utils";
 import { decodeHtmlEntities } from "@/lib/readable-text";
 import type { ResearchReport } from "@/server/naver-market";
+import { sortReportsNewestFirst } from "@/lib/feed/mappers";
 
 const UA =
   "Mozilla/5.0 (compatible; KoreaEquityCommand/1.0; +https://x.ai) AppleWebKit/537.36";
@@ -205,7 +206,7 @@ function dedupe(list: ResearchReport[]): ResearchReport[] {
     seen.add(key);
     out.push(r);
   }
-  return out.sort((a, b) => b.date.localeCompare(a.date));
+  return sortReportsNewestFirst(out);
 }
 
 export async function fetchIndustryResearchBySector(

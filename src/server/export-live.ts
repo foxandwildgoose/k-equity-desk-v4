@@ -43,6 +43,8 @@ interface MonthSnap {
 
 interface DiskCache {
   months: Record<string, MonthSnap>;
+  /** Periods the preview API returned as an empty dataset (not a transport error). */
+  empty?: string[];
   destinations?: { period: string; rows: DestinationRow[] };
   updatedAt: string;
 }
@@ -102,24 +104,20 @@ async function writeFredCache(id: string, rows: FredPoint[]): Promise<void> {
   }
 }
 
-async function comtrade(params: Record<string, string>): Promise<Record<string, unknown>[]> {
+async function comtrade(params: Record<string, string>): Promise<{ rows: Record<string, unknown>[]; definitiveEmpty: boolean }> {
   const qs = new URLSearchParams(params);
   const url = `${COMTRADE}?${qs.toString()}`;
-  const res = await fetch(url, {
-    headers: { "User-Agent": "Mozilla/5.0 KoreaExportDesk/1.0", Accept: "application/json" },
-  });
+  const pull = async () =>
+    fetch(url, { headers: { "User-Agent": "Mozilla/5.0 KoreaExportDesk/1.0", Accept: "application/json" } });
+  let res = await pull();
   if (res.status === 429) {
     await new Promise((r) => setTimeout(r, 1600));
-    const retry = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0 KoreaExportDesk/1.0", Accept: "application/json" },
-    });
-    if (!retry.ok) return [];
-    const j = (await retry.json()) as { data?: Record<string, unknown>[] };
-    return j.data ?? [];
+    res = await pull();
   }
-  if (!res.ok) return [];
+  if (!res.ok) return { rows: [], definitiveEmpty: false };
   const j = (await res.json()) as { data?: Record<string, unknown>[] };
-  return j.data ?? [];
+  const rows = j.data ?? [];
+  return { rows, definitiveEmpty: rows.length === 0 };
 }
 
 function yyyymm(d: Date): string {
@@ -162,10 +160,27 @@ function snapFromRows(periodYm: string, rows: Record<string, unknown>[]): MonthS
 
 async function readCache(): Promise<DiskCache> {
   try {
-    const raw = await readFile(CACHE_PATH, "utf8");
-    return JSON.parse(raw) as DiskCache;
+    const raw = JSON.parse(await readFile(CACHE_PATH, "utf8")) as {
+      months?: unknown;
+      empty?: unknown;
+      destinations?: DiskCache["destinations"];
+      updatedAt?: unknown;
+    };
+    const months: Record<string, MonthSnap> = {};
+    if (raw.months && typeof raw.months === "object" && !Array.isArray(raw.months)) {
+      for (const [k, v] of Object.entries(raw.months as Record<string, MonthSnap>)) {
+        if (v && typeof v === "object" && v.byCode && typeof v.byCode === "object") months[k] = v;
+      }
+    }
+    const empty = Array.isArray(raw.empty) ? raw.empty.filter((x): x is string => typeof x === "string") : [];
+    return {
+      months,
+      empty,
+      destinations: raw.destinations,
+      updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : "",
+    };
   } catch {
-    return { months: {}, updatedAt: "" };
+    return { months: {}, empty: [], updatedAt: "" };
   }
 }
 
@@ -180,28 +195,39 @@ async function writeCache(c: DiskCache): Promise<void> {
 
 async function ensureComtrade(cache: DiskCache, maxCalls: number): Promise<number> {
   let used = 0;
+  let attempts = 0;
   const now = new Date();
   const start = new Date(Date.UTC(now.getUTCFullYear() - 3, now.getUTCMonth(), 1));
   const wanted = monthList(start, now).reverse();
-  for (const ym of wanted) {
-    if (used >= maxCalls) break;
+  const empty = new Set(cache.empty ?? []);
+  const have = Object.keys(cache.months).length;
+  const step = have === 0 ? 3 : 1;
+  for (let i = 0; i < wanted.length; i += step) {
+    const ym = wanted[i]!;
+    if (used >= maxCalls || attempts >= 14) break;
     const key = toDash(ym);
     if (cache.months[key] && Object.keys(cache.months[key]!.byCode).length > 10) continue;
-    const rows = await comtrade({
+    if (empty.has(key)) continue;
+    attempts += 1;
+    const { rows, definitiveEmpty } = await comtrade({
       reporterCode: "410",
       period: ym,
       flowCode: "X",
       partnerCode: "0",
     });
+    if (!rows.length) {
+      if (definitiveEmpty) empty.add(key);
+      continue;
+    }
     used += 1;
-    if (!rows.length) continue;
     cache.months[key] = snapFromRows(ym, rows);
   }
+  cache.empty = [...empty];
   if (!cache.destinations && used < maxCalls) {
     const latest = Object.keys(cache.months).sort().at(-1);
     if (latest) {
       const ym = latest.replace("-", "");
-      const rows = await comtrade({
+      const { rows } = await comtrade({
         reporterCode: "410",
         period: ym,
         flowCode: "X",
@@ -224,15 +250,14 @@ async function ensureComtrade(cache: DiskCache, maxCalls: number): Promise<numbe
         .filter((r) => r.valueUsd > 0)
         .sort((a, b) => b.valueUsd - a.valueUsd)
         .slice(0, 18);
-      cache.destinations = { period: latest, rows: dests };
+      if (dests.length) cache.destinations = { period: latest, rows: dests };
     }
   }
-  // semiconductor heading (HS 8542) for latest missing months
   const latest = Object.keys(cache.months).sort().at(-1);
   if (latest && used < maxCalls) {
     const snap = cache.months[latest]!;
     if (snap.byCode["8542"] == null) {
-      const rows = await comtrade({
+      const { rows } = await comtrade({
         reporterCode: "410",
         period: latest.replace("-", ""),
         flowCode: "X",
@@ -298,11 +323,11 @@ export const getLiveTradeBundle = createServerFn({ method: "GET" }).handler(asyn
   try {
     await Promise.race([
       (async () => {
-        await ensureComtrade(cache, 2);
+        await ensureComtrade(cache, 4);
         cache.updatedAt = new Date().toISOString();
         await writeCache(cache);
       })(),
-      new Promise((resolve) => setTimeout(resolve, 7000)),
+      new Promise((resolve) => setTimeout(resolve, 12_000)),
     ]);
   } catch (e) {
     notes.push(`Comtrade: ${String(e)}`);

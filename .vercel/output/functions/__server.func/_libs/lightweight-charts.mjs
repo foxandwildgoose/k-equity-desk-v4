@@ -7620,6 +7620,309 @@ var ye = {
 	},
 	mb: (t, i) => new Ce(t, i)
 };
+function Ae(t, i, n, s, e) {
+	const { context: r, horizontalPixelRatio: h, verticalPixelRatio: a } = i;
+	r.lineTo(e._t * h, t * a), r.lineTo(s._t * h, t * a), r.closePath(), r.fillStyle = n, r.fill();
+}
+var Le = class extends R {
+	constructor() {
+		super(...arguments), this.rt = null;
+	}
+	ht(t) {
+		this.rt = t;
+	}
+	et(t) {
+		if (null === this.rt) return;
+		const { ot: i, lt: n, Cb: s, ct: e, Gt: r, yb: h } = this.rt, l = this.rt.Lb ?? (this.rt.zb ? 0 : t.mediaSize.height);
+		if (null === n) return;
+		const o = t.context;
+		o.lineCap = "butt", o.lineJoin = "round", o.lineWidth = e, a(o, r), o.lineWidth = 1, ue(t, i, h, n, s, this.Ob.bind(this), Ae.bind(null, l));
+	}
+};
+var ze = class {
+	Nb(t, i) {
+		const n = this.Fb, { Wb: s, Hb: e, Ub: r, $b: h, Lb: a, jb: l, qb: o } = i;
+		if (void 0 === this.Yb || void 0 === n || n.Wb !== s || n.Hb !== e || n.Ub !== r || n.$b !== h || n.Lb !== a || n.jb !== l || n.qb !== o) {
+			const { verticalPixelRatio: n } = t, _ = a || l > 0 ? n : 1, u = l * _, c = o === t.bitmapSize.height ? o : o * _, d = (a ?? 0) * _, f = t.context.createLinearGradient(0, u, 0, c);
+			if (f.addColorStop(0, s), null != a) {
+				const t = ni((d - u) / (c - u), 0, 1);
+				f.addColorStop(t, e), f.addColorStop(t, r);
+			}
+			f.addColorStop(1, h), this.Yb = f, this.Fb = i;
+		}
+		return this.Yb;
+	}
+};
+var Oe = class extends Le {
+	constructor() {
+		super(...arguments), this.Kb = new ze();
+	}
+	Ob(t, i) {
+		const n = this.rt;
+		return this.Kb.Nb(t, {
+			Wb: i.dh,
+			Hb: i.fh,
+			Ub: i.ph,
+			$b: i.mh,
+			Lb: n.Lb,
+			jb: n.jb ?? 0,
+			qb: n.qb ?? t.bitmapSize.height
+		});
+	}
+};
+var Ne = class extends me {
+	constructor() {
+		super(...arguments), this.Gb = new ze();
+	}
+	kb(t, i) {
+		const n = this.rt;
+		return this.Gb.Nb(t, {
+			Wb: i._h,
+			Hb: i._h,
+			Ub: i.uh,
+			$b: i.uh,
+			Lb: n.Lb,
+			jb: n.jb ?? 0,
+			qb: n.qb ?? t.bitmapSize.height
+		});
+	}
+};
+var Fe = class {
+	constructor(t, i, n, s) {
+		this.Zb = t, this.Xb = i, this.Jb = n, this.Qb = s;
+	}
+	st(t, i, n) {
+		this.Zb.st(t, i, n), !this.Jb() || i && this.Qb() || this.Xb.st(t, i, n);
+	}
+};
+var We = class {
+	constructor(t, i) {
+		this.Xb = t, this.tS = i;
+	}
+	Tt() {
+		return this.tS() ? this.Xb : null;
+	}
+};
+var He = class extends xe {
+	constructor(t, i) {
+		super(t, i), this.iS = new Oe(), this.nS = new Ne(), this.sS = new We(this.nS, (() => this.Jb())), this.eS = [this], this.rS = [this.sS], this.hS = {
+			Za: this.eS,
+			qa: this.rS
+		}, this.Vg = new Fe(this.iS, this.nS, (() => this.Jb()), (() => this.le.N().hoveredSeriesOnTop));
+	}
+	Ga() {
+		return this.hS;
+	}
+	Rb(t, i, n) {
+		return {
+			...this.Tb(t, i),
+			...n.Sh(t)
+		};
+	}
+	Ng() {
+		const t = this.ae.Lt();
+		if (null === t) return;
+		const i = this.ae.N(), n = this.ae.Ft().Nt(i.baseValue.price, t.Wt), s = this.le.Et().ml();
+		if (null === this.Tg || 0 === this.kg.length) return;
+		let e, r;
+		if (i.relativeGradient) {
+			e = this.kg[this.Tg.from].ut, r = this.kg[this.Tg.from].ut;
+			for (let t = this.Tg.from; t < this.Tg.to; t++) {
+				const i = this.kg[t];
+				i.ut < e && (e = i.ut), i.ut > r && (r = i.ut);
+			}
+		}
+		this.iS.ht({
+			ot: this.kg,
+			ct: i.lineWidth,
+			Gt: i.lineStyle,
+			yb: i.lineType,
+			Lb: n,
+			jb: e,
+			qb: r,
+			zb: !1,
+			lt: this.Tg,
+			Cb: s
+		}), this.nS.ht({
+			ot: this.kg,
+			ct: i.lineWidth,
+			Gt: i.lineStyle,
+			yb: i.lineVisible ? i.lineType : void 0,
+			Pb: i.pointMarkersVisible ? i.pointMarkersRadius || i.lineWidth / 2 + 2 : void 0,
+			Lb: n,
+			jb: e,
+			qb: r,
+			lt: this.Tg,
+			Cb: s
+		});
+	}
+	Jb() {
+		return this.ae.It() && null !== this.Tg && this.aS();
+	}
+	aS() {
+		const t = this.ae.N();
+		return t.lineVisible || t.pointMarkersVisible;
+	}
+};
+var Ue = {
+	type: "Baseline",
+	isBuiltIn: !0,
+	defaultOptions: {
+		baseValue: {
+			type: "price",
+			price: 0
+		},
+		relativeGradient: !1,
+		topFillColor1: "rgba(38, 166, 154, 0.28)",
+		topFillColor2: "rgba(38, 166, 154, 0.05)",
+		topLineColor: "rgba(38, 166, 154, 1)",
+		bottomFillColor1: "rgba(239, 83, 80, 0.05)",
+		bottomFillColor2: "rgba(239, 83, 80, 0.28)",
+		bottomLineColor: "rgba(239, 83, 80, 1)",
+		lineWidth: 3,
+		lineStyle: 0,
+		lineType: 0,
+		lineVisible: !0,
+		crosshairMarkerVisible: !0,
+		crosshairMarkerRadius: 4,
+		crosshairMarkerBorderColor: "",
+		crosshairMarkerBorderWidth: 2,
+		crosshairMarkerBackgroundColor: "",
+		lastPriceAnimation: 0,
+		pointMarkersVisible: !1
+	},
+	mb: (t, i) => new He(t, i)
+};
+var $e = class extends Le {
+	constructor() {
+		super(...arguments), this.Kb = new ze();
+	}
+	Ob(t, i) {
+		return this.Kb.Nb(t, {
+			Wb: i.ah,
+			Hb: "",
+			Ub: "",
+			$b: i.oh,
+			jb: this.rt?.jb ?? 0,
+			qb: t.bitmapSize.height
+		});
+	}
+};
+var je = class extends xe {
+	constructor(t, i) {
+		super(t, i), this.lS = new $e(), this.Xb = new we(), this.sS = new We(this.Xb, (() => this.Jb())), this.eS = [this], this.rS = [this.sS], this.hS = {
+			Za: this.eS,
+			qa: this.rS
+		}, this.Vg = new Fe(this.lS, this.Xb, (() => this.Jb()), (() => this.le.N().hoveredSeriesOnTop));
+	}
+	Ga() {
+		return this.hS;
+	}
+	Rb(t, i, n) {
+		return {
+			...this.Tb(t, i),
+			...n.Sh(t)
+		};
+	}
+	Ng() {
+		const t = this.ae.N();
+		if (null === this.Tg || 0 === this.kg.length) return;
+		let i;
+		if (t.relativeGradient) {
+			i = this.kg[this.Tg.from].ut;
+			for (let t = this.Tg.from; t < this.Tg.to; t++) {
+				const n = this.kg[t];
+				n.ut < i && (i = n.ut);
+			}
+		}
+		this.lS.ht({
+			yb: t.lineType,
+			ot: this.kg,
+			Gt: t.lineStyle,
+			ct: t.lineWidth,
+			Lb: null,
+			jb: i,
+			zb: t.invertFilledArea,
+			lt: this.Tg,
+			Cb: this.le.Et().ml()
+		}), this.Xb.ht({
+			yb: t.lineVisible ? t.lineType : void 0,
+			ot: this.kg,
+			Gt: t.lineStyle,
+			ct: t.lineWidth,
+			lt: this.Tg,
+			Cb: this.le.Et().ml(),
+			Pb: t.pointMarkersVisible ? t.pointMarkersRadius || t.lineWidth / 2 + 2 : void 0
+		});
+	}
+	Jb() {
+		return this.ae.It() && null !== this.Tg && this.aS();
+	}
+	aS() {
+		const t = this.ae.N();
+		return t.lineVisible || t.pointMarkersVisible;
+	}
+};
+var qe = {
+	type: "Area",
+	isBuiltIn: !0,
+	defaultOptions: {
+		topColor: "rgba( 46, 220, 135, 0.4)",
+		bottomColor: "rgba( 40, 221, 100, 0)",
+		invertFilledArea: !1,
+		relativeGradient: !1,
+		lineColor: "#33D778",
+		lineStyle: 0,
+		lineWidth: 3,
+		lineType: 0,
+		lineVisible: !0,
+		crosshairMarkerVisible: !0,
+		crosshairMarkerRadius: 4,
+		crosshairMarkerBorderColor: "",
+		crosshairMarkerBorderWidth: 2,
+		crosshairMarkerBackgroundColor: "",
+		lastPriceAnimation: 0,
+		pointMarkersVisible: !1
+	},
+	mb: (t, i) => new je(t, i)
+};
+var Ye = class extends R {
+	constructor() {
+		super(...arguments), this.qt = null, this.oS = 0, this._S = 0;
+	}
+	ht(t) {
+		this.qt = t;
+	}
+	et({ context: t, horizontalPixelRatio: i, verticalPixelRatio: n }) {
+		if (null === this.qt || 0 === this.qt.Un.length || null === this.qt.lt) return;
+		if (this.oS = this.uS(i), this.oS >= 2) Math.max(1, Math.floor(i)) % 2 != this.oS % 2 && this.oS--;
+		this._S = this.qt.cS ? Math.min(this.oS, Math.floor(i)) : this.oS;
+		let s = null;
+		const e = this._S <= this.oS && this.qt.ml >= Math.floor(1.5 * i);
+		for (let r = this.qt.lt.from; r < this.qt.lt.to; ++r) {
+			const h = this.qt.Un[r];
+			s !== h.sh && (t.fillStyle = h.sh, s = h.sh);
+			const a = Math.floor(.5 * this._S), l = Math.round(h._t * i), o = l - a, _ = this._S, u = o + _ - 1, c = Math.min(h.n_, h.s_), d = Math.max(h.n_, h.s_), f = Math.round(c * n) - a, p = Math.round(d * n) + a, v = Math.max(p - f, this._S);
+			t.fillRect(o, f, _, v);
+			const m = Math.ceil(1.5 * this.oS);
+			if (e) {
+				if (this.qt.dS) {
+					const i = l - m;
+					let s = Math.max(f, Math.round(h.i_ * n) - a), e = s + _ - 1;
+					e > f + v - 1 && (e = f + v - 1, s = e - _ + 1), t.fillRect(i, s, o - i, e - s + 1);
+				}
+				const i = l + m;
+				let s = Math.max(f, Math.round(h.e_ * n) - a), e = s + _ - 1;
+				e > f + v - 1 && (e = f + v - 1, s = e - _ + 1), t.fillRect(u + 1, s, i - u, e - s + 1);
+			}
+		}
+	}
+	uS(t) {
+		return Math.max(Math.floor(t), Math.floor(function(t, i) {
+			return Math.floor(.3 * t * i);
+		}(u(this.qt).ml, t)));
+	}
+};
 var Ke = class extends Ds {
 	constructor(t, i) {
 		super(t, i, !1);
@@ -7650,6 +7953,38 @@ var Ke = class extends Ds {
 		const t = this.ae.Sa();
 		this.kg = this.ae.Ua().Bh().map(((i) => this.Rb(i.$n, i, t)));
 	}
+};
+var Ge = class extends Ke {
+	constructor() {
+		super(...arguments), this.Vg = new Ye();
+	}
+	Rb(t, i, n) {
+		return {
+			...this.fS(t, i, n),
+			...n.Sh(t)
+		};
+	}
+	Ng() {
+		const t = this.ae.N();
+		this.Vg.ht({
+			Un: this.kg,
+			ml: this.le.Et().ml(),
+			dS: t.openVisible,
+			cS: t.thinBars,
+			lt: this.Tg
+		});
+	}
+};
+var Ze = {
+	type: "Bar",
+	isBuiltIn: !0,
+	defaultOptions: {
+		upColor: "#26a69a",
+		downColor: "#ef5350",
+		openVisible: !0,
+		thinBars: !0
+	},
+	mb: (t, i) => new Ge(t, i)
 };
 var Xe = class extends R {
 	constructor() {
@@ -8245,4 +8580,4 @@ function Nr(t, i, n) {
 }
 ({ ...e });
 //#endregion
-export { bi as a, nr as c, Qe as i, ye as l, K as n, h as o, Nr as r, le as s, $i as t };
+export { Wi as a, h as c, qe as d, ye as f, Ue as i, le as l, Nr as n, Ze as o, Qe as r, bi as s, K as t, nr as u };

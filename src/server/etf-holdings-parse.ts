@@ -21,6 +21,121 @@ export function krCodeFromIsin(isin: string | null | undefined): string | null {
   return m ? asKrCode(m[1]) : null;
 }
 
+/** NH-Amundi HANARO fund list: ticker → product uid. */
+export function parseHanaroFundCatalog(html: string): Map<string, string> {
+  const map = new Map<string, string>();
+  const re =
+    /href="\/fund\/([A-F0-9]+)"[^>]*class="baseInfo"([\s\S]{0,2500}?)종목코드<\/dt>\s*<dd>([0-9A-Z]{6})<\/dd>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html))) {
+    const uid = m[1]!;
+    const ticker = m[3]!.toUpperCase();
+    if (uid && ticker) map.set(ticker, uid);
+  }
+  return map;
+}
+
+/** Default PDF date on a HANARO product page (`2026.09.23` → `2026-09-23`). */
+export function parseHanaroPdfDate(html: string): string | null {
+  const m = /id="pdfDate"[\s\S]{0,800}?value="(\d{4})\.(\d{2})\.(\d{2})"/.exec(html);
+  if (!m) return null;
+  return `${m[1]}-${m[2]}-${m[3]}`;
+}
+
+/**
+ * HANARO `/api/v1/fund/{uid}/get-fund-holdings-list` HTML rows.
+ * Column order: index, ISIN/code, name, quantity, eval KRW, weight %.
+ * `설정현금액` is the CU total (always 100%), not a holding.
+ */
+export function parseHanaroHoldingsHtml(html: string, asOf: string | null): ParsedCuRow[] {
+  const rows: ParsedCuRow[] = [];
+  const re = /<tr\b[^>]*>[\s\S]*?<\/tr>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html))) {
+    const cells = [...m[0].matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi)].map((x) =>
+      stripHtml(x[1] ?? ""),
+    );
+    if (cells.length < 6) continue;
+    const codeRaw = (cells[1] ?? "").toUpperCase();
+    const nameKo = cells[2] ?? "";
+    if (!nameKo || isCuNotionalName(nameKo)) continue;
+    const isin = /^[A-Z]{2}[A-Z0-9]{10}$/.test(codeRaw) ? codeRaw : null;
+    rows.push({
+      nameKo,
+      weight: officialNum(cells[5] ?? ""),
+      quantity: officialNum(cells[3] ?? ""),
+      asOf,
+      code: krCodeFromIsin(isin),
+      isin,
+    });
+  }
+  return rows;
+}
+
+export type LiveWeightRow = {
+  nameKo: string;
+  weight: number | null;
+  weightSource: "official" | "live" | null;
+  quantity: number | null;
+  isCash: boolean;
+  isBond: boolean;
+  isFuture: boolean;
+  quote: { price: number; currency: "KRW" | "USD" } | null;
+};
+
+/**
+ * Quantity × retrieved price, only when every holding can be valued.
+ * Does not run if any official NAV weight is already present.
+ * A bond, future, or unquoted name blocks the whole basket so an equity
+ * sleeve is never stretched to 100% (IBK 0238C0).
+ */
+export function fillLiveMarketWeights<T extends LiveWeightRow>(
+  rows: T[],
+  usdKrw: number,
+): { rows: T[]; published: boolean } {
+  if (rows.some((row) => row.weightSource === "official" && row.weight != null)) {
+    return { rows, published: false };
+  }
+  if (!rows.length) return { rows, published: false };
+
+  const values: number[] = [];
+  for (const row of rows) {
+    const value = liveHoldingValueKrw(row, usdKrw);
+    if (value == null) return { rows, published: false };
+    values.push(value);
+  }
+  const total = values.reduce((sum, value) => sum + value, 0);
+  if (!(Math.abs(total) > 0)) return { rows, published: false };
+  return {
+    published: true,
+    rows: rows.map((row, i) => ({
+      ...row,
+      weight: (values[i]! / total) * 100,
+      weightSource: "live" as const,
+    })),
+  };
+}
+
+function liveHoldingValueKrw(row: LiveWeightRow, usdKrw: number): number | null {
+  if (isCuNotionalName(row.nameKo)) return null;
+  if (row.isCash) {
+    if (row.quantity == null || !Number.isFinite(row.quantity)) return null;
+    if (/달러|USD|외화/i.test(row.nameKo)) {
+      if (!(usdKrw > 0)) return null;
+      return row.quantity * usdKrw;
+    }
+    return row.quantity;
+  }
+  if (row.isBond || row.isFuture) return null;
+  const price = row.quote?.price;
+  if (price == null || !(price > 0) || row.quantity == null || !Number.isFinite(row.quantity)) {
+    return null;
+  }
+  const fx = row.quote?.currency === "USD" ? usdKrw : 1;
+  if (!(fx > 0)) return null;
+  return row.quantity * price * fx;
+}
+
 /** CU notional / NAV header row — not a portfolio holding. */
 export function isCuNotionalName(name: string): boolean {
   return /설정현금액|설정단위/.test(name);
@@ -228,7 +343,7 @@ export function chooseOfficialBasket<
   };
 }
 
-export type IssuerHoldingsFamily = "kodex" | "ibk" | "plus" | "other";
+export type IssuerHoldingsFamily = "kodex" | "ibk" | "plus" | "hanaro" | "other";
 
 /** Which issuer PDF to request. Never guesses a family from a holding name. */
 export function issuerHoldingsFamily(
@@ -242,6 +357,9 @@ export function issuerHoldingsFamily(
   }
   if (/^IBK\b/i.test(name) || /IBK자산운용|아이비케이/.test(house)) return "ibk";
   if (/^PLUS\b/i.test(name) || (/한화/.test(house) && /PLUS/i.test(name))) return "plus";
+  if (/^HANARO\b/i.test(name) || /NH-?\s*Amundi|NH아문디|엔에이치아문디/i.test(house)) {
+    return "hanaro";
+  }
   return "other";
 }
 

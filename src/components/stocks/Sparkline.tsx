@@ -8,12 +8,15 @@ export function Sparkline({
   width = 72,
   height = 28,
   className,
+  label,
 }: {
   data: number[];
   changePct?: number;
   width?: number;
   height?: number;
   className?: string;
+  /** Accessible description (name, period, source). */
+  label?: string;
 }) {
   const colors = usePriceColors();
   const up = (changePct ?? (data[data.length - 1]! - data[0]!)) >= 0;
@@ -45,8 +48,10 @@ export function Sparkline({
       height={height}
       viewBox={`0 0 ${width} ${height}`}
       className={cn("shrink-0", up ? colors.up : colors.down, className)}
-      aria-hidden
+      role="img"
+      aria-label={label ?? `가격 추이 ${data.length}개 점${changePct != null ? `, 등락 ${changePct >= 0 ? "+" : ""}${changePct.toFixed(2)}%` : ""}`}
     >
+      <title>{label ?? `가격 추이 (${data.length}개 점)`}</title>
       <path
         d={path}
         fill="none"

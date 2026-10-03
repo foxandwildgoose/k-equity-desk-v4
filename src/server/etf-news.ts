@@ -1,9 +1,21 @@
 /**
- * New-listing ETF news — Google News RSS (no API key).
- * Goal: surface listing / listing-scheduled stories before the product is already on the tape.
+ * KR ETF news (F5).
+ *
+ * - `/news/etf` and the `/etfs` "ETF 뉴스" tab read `GET /api/feed?group=etf`:
+ *   registry sources `ETF_NEWS_SOURCE_IDS` (GN topic + issuer-brand queries,
+ *   Hankyung finance filtered by ETF keywords, Naver news search `query=ETF`),
+ *   post-processed by `enrichEtfStory` (stage/theme/brand + live-list match).
+ * - `fetchEtfListingNews` (listing / listing-scheduled only) is kept for the
+ *   existing `getEtfListingNews` server fn; its stage and matching rules now
+ *   live in `src/lib/etf-news.ts` so both paths share one implementation.
  */
 import { fetchGoogleNewsRss } from "@/server/us-link-feed";
 import { fetchAllEtfs, type LiveEtfRow } from "@/server/etf-market";
+import { etfStageOf, matchEtf } from "@/lib/etf-news";
+import { compareNewestFirst } from "@/lib/feed/sort";
+import { parseSourceTime } from "@/lib/feed/time";
+
+export const ETF_NEWS_SOURCE_IDS = ["gn-etf-kr", "gn-etf-brands", "hankyung-finance", "naver-news-search-etf"] as const;
 
 export type EtfListingNewsItem = {
   id: string;
@@ -25,13 +37,8 @@ const QUERIES = [
 ];
 
 function stageOf(title: string): EtfListingNewsItem["stage"] {
-  if (/상장\s*예정|상장예고|예고|다음주 상장|금주 상장|28일 상장|일 상장 예정/.test(title)) {
-    return "scheduled";
-  }
-  if (/신규\s*상장|상장했|상장한|유가증권시장 상장|신규상장/.test(title)) {
-    return "listed";
-  }
-  return "other";
+  const st = etfStageOf(title);
+  return st === "listed" || st === "scheduled" ? st : "other";
 }
 
 function isListingStory(title: string): boolean {
@@ -41,28 +48,13 @@ function isListingStory(title: string): boolean {
   return /상장|출시|신규상장|상장예정|상장 예고/.test(t);
 }
 
-function matchEtf(title: string, etfs: LiveEtfRow[]): LiveEtfRow | undefined {
-  const compact = title.replace(/\s+/g, "");
-  let best: LiveEtfRow | undefined;
-  let bestLen = 0;
-  for (const e of etfs) {
-    const name = e.nameKo.replace(/\s+/g, "");
-    if (name.length < 4) continue;
-    if (compact.includes(name) && name.length > bestLen) {
-      best = e;
-      bestLen = name.length;
-    }
-  }
-  return best;
-}
-
 export async function fetchEtfListingNews(limit = 40): Promise<{
   items: EtfListingNewsItem[];
   fetchedAt: string;
   queries: string[];
 }> {
   const rssPromise = Promise.all(
-    QUERIES.map((q) => fetchGoogleNewsRss(q, 18, "ko").catch(() => [])),
+    QUERIES.map((q) => fetchGoogleNewsRss(q, 18, "ko", "gn-etf-kr").catch(() => [])),
   );
   const etfPromise = fetchAllEtfs().catch(() => [] as LiveEtfRow[]);
   const rssLists = await rssPromise;
@@ -94,14 +86,15 @@ export async function fetchEtfListingNews(limit = 40): Promise<{
     }
   }
 
-  items.sort((a, b) => {
-    const ta = Date.parse(a.datetime) || 0;
-    const tb = Date.parse(b.datetime) || 0;
-    return tb - ta;
-  });
+  const ranked = items
+    .map((it) => {
+      const t = parseSourceTime(it.datetime, { zone: "UTC" });
+      return { it, key: { id: it.id, publishedAt: t.iso, precision: t.precision, sourceTier: 3 as const } };
+    })
+    .sort((a, b) => compareNewestFirst(a.key, b.key));
 
   return {
-    items: items.slice(0, limit),
+    items: ranked.map((r) => r.it).slice(0, limit),
     fetchedAt: new Date().toISOString(),
     queries: QUERIES,
   };

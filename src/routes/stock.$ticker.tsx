@@ -4,6 +4,7 @@ import { getUniverseItem } from "@/data/stocks";
 import { SECTOR_BY_ID } from "@/data/sectors";
 import { PriceChange, PriceValue } from "@/components/stocks/PriceChange";
 import { TradingChart } from "@/components/stocks/TradingChart";
+import { annotatePrevTargets } from "@/lib/research/naver-v2";
 import { BrokerReports } from "@/components/stocks/BrokerReports";
 import { InvestorFlow } from "@/components/stocks/InvestorFlow";
 import { LiveNews } from "@/components/stocks/LiveNews";
@@ -225,7 +226,7 @@ function StockPage() {
                 </p>
               )}
               <p className="mt-1 text-[10px] text-muted-foreground">
-                {quote.marketStatus || "시세"} · {liveStatus.connected || quote.source === "kis-krx-websocket" ? "KIS·KRX 실시간" : "네이버 스냅샷"}
+                {quote.marketStatus || "시세"} · {liveStatus.connected || quote.source === "kis-krx-websocket" ? "KIS·KRX 실시간" : liveStatus.enabled && liveStatus.reconnecting ? "재연결 중 · 네이버 스냅샷" : "네이버 스냅샷"}
                 {dataUpdatedAt
                   ? ` · ${new Date(dataUpdatedAt).toLocaleTimeString("ko-KR")}`
                   : ""}
@@ -251,10 +252,12 @@ function StockPage() {
       <TradingChart
         code={meta.code}
         market={meta.market}
+        name={meta.nameKo}
         eventMarkers={(disclosures ?? []).slice(0, 40).map((d) => ({
           time: d.datetime?.slice(0, 10) ?? "",
           title: d.title,
         }))}
+        researchMarkers={researchTpMarkers(research ?? [])}
       />
 
       <ValuationBandChart
@@ -343,6 +346,7 @@ function StockPage() {
             news={news ?? []}
             disclosures={disclosures ?? []}
             title={`${meta.nameKo}`}
+            code={meta.code}
           />
         </div>
       </div>
@@ -357,4 +361,26 @@ function Stat({ label, value }: { label: string; value: string }) {
       <div className="mt-0.5 text-sm font-semibold tabular">{value}</div>
     </div>
   );
+}
+
+/**
+ * F7.10 research overlay: target-price changes only where the prior
+ * same-broker target was actually fetched (annotated rows); otherwise a
+ * plain "리포트" marker with the rating.
+ */
+function researchTpMarkers(reports: { date: string; broker: string; targetPrice?: number; prevTargetPrice?: number }[]) {
+  return annotatePrevTargets(reports)
+    .slice(0, 40)
+    .filter((r) => /^\d{4}-\d{2}-\d{2}/.test(r.date))
+    .map((r) => {
+      const up = r.targetPrice != null && r.prevTargetPrice != null && r.targetPrice > r.prevTargetPrice;
+      const down = r.targetPrice != null && r.prevTargetPrice != null && r.targetPrice < r.prevTargetPrice;
+      return {
+        time: r.date.slice(0, 10),
+        text: up ? `TP↑ ${r.broker}` : down ? `TP↓ ${r.broker}` : `리포트 ${r.broker}`,
+        position: "belowBar" as const,
+        shape: up ? ("arrowUp" as const) : down ? ("arrowDown" as const) : ("square" as const),
+        color: up ? "#2dd4bf" : down ? "#fb7185" : "#94a3b8",
+      };
+    });
 }

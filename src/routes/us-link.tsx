@@ -1,3 +1,4 @@
+import { formatItemTime, parseSourceTime } from "@/lib/feed/time";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useUsLinkDesk, useQuoteMap } from "@/lib/use-market";
@@ -41,19 +42,10 @@ type Tab =
   | "names"
   | "news";
 
-function fmtTime(iso: string): string {
-  try {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return iso.slice(0, 16);
-    return d.toLocaleString("ko-KR", {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    return iso;
-  }
+function fmtTime(raw: string): string {
+  const t = parseSourceTime(raw, { zone: "Asia/Seoul" });
+  if (!t.iso) return raw ? "날짜 미상" : "상시 링크";
+  return formatItemTime({ publishedAt: t.iso, precision: t.precision });
 }
 
 function kindLabel(kind: UsLiveArticle["kind"]): string {

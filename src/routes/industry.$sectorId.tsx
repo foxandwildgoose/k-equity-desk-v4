@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { SECTOR_BY_ID } from "@/data/sectors";
 import {
@@ -34,10 +35,15 @@ export const Route = createFileRoute("/industry/$sectorId")({
 function IndustryPage() {
   const { sectorId } = Route.useParams();
   const sector = SECTOR_BY_ID[sectorId];
-  const { data, isLoading } = useMarketQuotes();
+  const { data, isLoading: queryLoading } = useMarketQuotes();
   const colors = usePriceColors();
+  // The route chunk can hydrate after the shell's quote query settled; render
+  // the SSR state until mounted so server and first client render match.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   if (!sector) throw notFound();
-  const quotes = data?.quotes ?? [];
+  const isLoading = queryLoading || !mounted;
+  const quotes = mounted ? (data?.quotes ?? []) : [];
   const universe = getStocksBySector(sectorId as SectorId);
   const stocks = universe.map((u) => {
     const q = quotes.find((x) => x.code === u.code);
@@ -140,6 +146,16 @@ function IndustryPage() {
           </p>
           <Link to="/us-link" className="text-xs font-medium text-primary hover:underline shrink-0">
             미국 연계 데스크 →
+          </Link>
+        </div>
+      )}
+      {sectorId === "robotics" && (
+        <div className="desk-card desk-card-gold p-3 flex flex-wrap items-center justify-between gap-2" data-testid="robotics-crosslink">
+          <p className="text-sm text-muted-foreground max-w-xl">
+            로봇 기업 시세·시장 동향·정책·리서치·로봇 ETF는 로봇 섹션에서 한 번에 봅니다.
+          </p>
+          <Link to="/robotics" className="inline-flex min-h-9 items-center text-xs font-medium text-primary hover:underline shrink-0">
+            로봇 섹션 열기 →
           </Link>
         </div>
       )}

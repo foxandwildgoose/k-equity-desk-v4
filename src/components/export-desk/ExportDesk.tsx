@@ -51,7 +51,9 @@ import { resolveRegionalCapability } from "@/lib/export-desk/taxonomy";
 import { importTradeCsv, type ImporterId } from "@/lib/export-desk/parse-import";
 import { useExportMacro, useIndustryMonthlyPrices, useKospiCapQuotes } from "@/lib/export-desk/use-macro";
 import { useLiveTrade } from "@/lib/export-desk/use-live";
-import { ExportDualChart } from "@/components/export-desk/ExportDualChart";
+import { ExportAmountChart, ExportDualChart } from "@/components/export-desk/ExportDualChart";
+import { ChartFrame } from "@/components/charts/core/ChartFrame";
+import { chartExportName } from "@/lib/charts/tools";
 import { hsName, proxyForKey } from "@/lib/export-desk/hs-map";
 import type { TradeObservation } from "@/lib/export-desk/parse-import";
 import { cn } from "@/lib/utils";
@@ -342,6 +344,8 @@ function TotalPanel() {
   const demo = useExportDeskStore((s) => s.demoMode);
   const exports = useExportSeries("TOTAL");
   const macro = useExportMacro();
+  // D9: hook hoisted out of JSX (was called behind `demo && …`).
+  const allObservations = useAllObservations();
   const kospiMonth = useMemo(
     () =>
       resampleDailyToMonthEnd(
@@ -401,6 +405,8 @@ function TotalPanel() {
 
   const last = chart.filter((r) => r.exp != null).at(-1);
   const lastK = chart.filter((r) => r.kospi != null).at(-1);
+  const totalSource =
+    demo && !allObservations.some((o) => o.categoryId === "TOTAL" && o.sourceFile !== "DEMO") ? "DEMO" : last ? "FRED/OECD XTEXVA01KRM667S" : "대기";
 
   return (
     <section className="desk-card desk-card-navy p-4 space-y-4">
@@ -475,17 +481,14 @@ function TotalPanel() {
                     : "수출=100"
             }
             bName={settings.chartMode === "growth" ? "KOSPI YoY" : settings.chartMode === "absolute" ? "KOSPI" : "KOSPI=100"}
+            source={`수출 ${totalSource} · KOSPI ${macro.data?.source ?? "—"}`}
+            asOf={macro.data?.fetchedAt ?? null}
+            mode={settings.chartMode === "growth" ? "월간 · 전년 대비 %" : settings.chartMode === "absolute" ? "월간 · 수출 USD(좌) / KOSPI(우)" : settings.chartMode === "krw" ? "월간 · 원화 환산" : "월간 · 기준=100"}
           />
         </div>
       )}
       <Provenance
-        source={
-          demo && !useAllObservations().some((o) => o.categoryId === "TOTAL" && o.sourceFile !== "DEMO")
-            ? "DEMO"
-            : last
-              ? "FRED/OECD XTEXVA01KRM667S"
-              : "대기"
-        }
+        source={totalSource}
         period={`${chart[0]?.period ?? "—"} ~ ${chart.at(-1)?.period ?? "—"}`}
         ingested={macro.data?.fetchedAt ?? "—"}
         taxonomy={getCore20().taxonomyVersion}
@@ -569,18 +572,72 @@ function EmptyExport() {
 }
 
 function Core20Panel({ onOpen }: { onOpen: (cat: string) => void }) {
-  const items = getCore20().items as { key: string; ko: string; en: string; subItems: string[] }[];
+  const allItems = getCore20().items as { key: string; ko: string; en: string; subItems: string[]; addedIn2026Revision?: boolean }[];
+  const [rev, setRev] = useState<"20" | "15">("20");
+  const [focus, setFocus] = useState("semiconductors");
+  const [picked, setPicked] = useState<string[]>(["semiconductors", "automobiles", "ships", "petroleum_products"]);
+  const items = rev === "20" ? allItems : allItems.filter((it) => !it.addedIn2026Revision);
   const lang = useExportDeskStore((s) => s.lang);
   const all = useAllObservations();
   const exposures = useExportDeskStore((s) => s.exposures);
   const settings = useExportDeskStore((s) => s.settings);
   const live = useLiveTrade();
+  const totals = all.filter((o) => o.categoryId === "TOTAL");
+  const amountSeries = items
+    .filter((it) => picked.includes(it.key))
+    .map((it) => ({
+      id: it.key,
+      name: lang === "en" ? it.en : it.ko,
+      points: all
+        .filter((o) => o.categoryId === it.key && Number.isFinite(o.valueUsd) && o.valueUsd > 0)
+        .sort((a, b) => a.period.localeCompare(b.period))
+        .map((o) => ({ time: o.period, value: o.valueUsd / 1e9 })),
+    }))
+    .filter((s) => s.points.length >= 2);
+  const focusId = amountSeries.some((s) => s.id === focus) ? focus : (amountSeries[0]?.id ?? focus);
+
+  function togglePick(key: string) {
+    setPicked((cur) => {
+      if (cur.includes(key)) return cur.filter((k) => k !== key);
+      if (cur.length >= 6) return cur;
+      return [...cur, key];
+    });
+    setFocus(key);
+  }
+
   return (
     <div className="space-y-3">
+      <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+        <div className="mb-1 flex flex-wrap items-center gap-1.5">
+          <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 font-medium text-emerald-300">확정 · UN Comtrade HS</span>
+          <span className="rounded bg-amber-500/15 px-1.5 py-0.5 font-medium text-amber-200">MOTIE 속보 미연결</span>
+          <span className="rounded bg-amber-500/15 px-1.5 py-0.5 font-medium text-amber-200">관세청 API 키 없음</span>
+          <span className="rounded border border-border px-1.5 py-0.5">MTI-2026 · 2026-06-01</span>
+        </div>
+        2026 MTI 개정으로 15대에서 20대로 늘었습니다. 구/신 토글은 품목 목록만 바꿉니다. 금액은 만들지 않습니다.
+        표시 금액은 HS 근사이며 MOTIE MTI 잠정치가 아닙니다. HS 85를 반도체로 대체하지 않습니다. 매핑이 없거나 관측이 없으면 N/A.
+        부분 품목 합을 총수출 100%로 늘려 맞추지 않습니다.
+      </div>
+      <div className="flex flex-wrap gap-1">
+        <button type="button" className={cn("h-8 rounded-md px-2 text-xs", rev === "20" ? "bg-desk-gold/20 text-desk-gold" : "bg-muted text-muted-foreground")} onClick={() => setRev("20")}>
+          신 20대
+        </button>
+        <button type="button" className={cn("h-8 rounded-md px-2 text-xs", rev === "15" ? "bg-desk-gold/20 text-desk-gold" : "bg-muted text-muted-foreground")} onClick={() => setRev("15")}>
+          구 15대
+        </button>
+        <span className="self-center text-[11px] text-muted-foreground">
+          표시 {items.length} · Comtrade {live.data?.comtradeLatestPeriod ?? "N/A"} · 캐시 {live.data?.comtradeMonthsCached ?? 0}개월
+        </span>
+      </div>
+      {amountSeries.length > 0 ? (
+        <ExportAmountChart series={amountSeries} focusId={focusId} source="UN Comtrade preview HS" asOf={live.data?.source.fetchedAt ?? null} />
+      ) : (
+        <div className="rounded-lg border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
+          {live.isLoading ? "HS 품목 시계열 수집 중" : "선택한 품목에 그릴 Comtrade 관측이 없습니다. 금액을 채우지 않습니다."}
+        </div>
+      )}
       <p className="text-xs text-muted-foreground">
-        숫자는 UN Comtrade HS 근사입니다 (MOTIE 20대 MTI가 아님). 품목 시차{" "}
-        {live.data?.comtradeLatestPeriod ?? "N/A"} · 캐시 {live.data?.comtradeMonthsCached ?? 0}개월.
-        카드를 누르면 해당 산업 × Top 100 주가 오버레이로 이동합니다.
+        최대 6개 오버레이. 카드를 누르면 산업 × 주가 비교로 이동합니다. 고저 마커는 포커스 품목(마지막에 고른 항목)에만 그립니다.
       </p>
     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
       {items.map((it) => {
@@ -591,33 +648,49 @@ function Core20Panel({ onOpen }: { onOpen: (cat: string) => void }) {
         const prev = series.find((s) => s.period === addMonths(last?.period, -12));
         const yoy =
           last && prev && prev.valueUsd ? ((last.valueUsd / prev.valueUsd - 1) * 100).toFixed(1) : "N/A";
+        const total = last ? totals.find((t) => t.period === last.period) : undefined;
+        const share = last && total && total.valueUsd > 0 ? (last.valueUsd / total.valueUsd) * 100 : null;
         const mapped = exposures.filter((e) => e.exportCategoryId === it.key && e.active !== false);
         const verified = mapped.filter((e) => e.mappingConfidence >= settings.minConfidence);
         const proxy = proxyForKey(it.key);
+        const on = picked.includes(it.key);
         return (
-          <button
-            key={it.key}
-            type="button"
-            onClick={() => onOpen(it.key)}
-            className="desk-card desk-card-teal p-3 text-left"
-          >
-            <div className="text-sm font-semibold">{lang === "en" ? it.en : it.ko}</div>
-            <div className="mt-1 text-lg tabular font-semibold">
-              {last ? formatUsdBn(last.valueUsd) : "N/A"}
+          <div key={it.key} className={cn("desk-card desk-card-teal p-3 text-left", on && "ring-1 ring-desk-gold/50")}>
+            <button type="button" onClick={() => onOpen(it.key)} className="w-full text-left">
+            <div className="flex items-start justify-between gap-2">
+              <div className="text-sm font-semibold">{lang === "en" ? it.en : it.ko}</div>
+              {it.addedIn2026Revision && <span className="text-[10px] text-desk-gold">2026 신설</span>}
             </div>
-            <div className="text-[11px] text-muted-foreground">YoY {yoy}</div>
+            <div className="mt-1 text-lg tabular font-semibold">
+              {last ? formatUsdBn(last.valueUsd) : proxy ? "N/A" : "HS 없음"}
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              YoY {yoy}
+              {share != null ? ` · FRED 총수출 대비 ${share.toFixed(1)}% (정의 상이)` : " · 비중 N/A"}
+            </div>
             <div className="mt-2 flex flex-wrap gap-1">
               <Badge variant="outline" className="text-[10px]">
-                매핑 {verified.length}/{mapped.length}
+                {proxy ? "확정 HS" : "HS 없음"}
               </Badge>
               <Badge variant="outline" className="text-[10px]">
-                {proxy ? proxy.label : "HS 없음"}
+                {proxy ? proxy.label : "N/A"}
+              </Badge>
+              <Badge variant="outline" className="text-[10px]">
+                매핑 {verified.length}/{mapped.length}
               </Badge>
             </div>
             {it.subItems.length > 0 && (
               <div className="mt-2 text-[11px] text-muted-foreground">{it.subItems.join(" · ")}</div>
             )}
-          </button>
+            </button>
+            <button
+              type="button"
+              className="mt-2 text-[11px] text-desk-gold hover:underline"
+              onClick={() => togglePick(it.key)}
+            >
+              {on ? "오버레이에서 빼기" : picked.length >= 6 ? "오버레이 6개 가득 참" : "오버레이에 넣기"}
+            </button>
+          </div>
         );
       })}
     </div>
@@ -659,10 +732,10 @@ function AllIndustriesPanel({ onOpen }: { onOpen: (cat: string) => void }) {
     return rows.sort((a, b) => b.value - a.value);
   }, [observations, q, onlyMapped, exposures, core]);
 
-  const bar = cats
-    .filter((c) => c.id.startsWith("hs2:") && c.value > 0)
-    .slice(0, 15)
-    .map((c) => ({ name: c.name.replace(/ \(HS.*$/, ""), value: c.value / 1e9, id: c.id }));
+  const barRows = cats.filter((c) => c.id.startsWith("hs2:") && c.value > 0).slice(0, 15);
+  const bar = barRows.map((c) => ({ name: c.name.replace(/ \(HS.*$/, ""), value: c.value / 1e9, id: c.id }));
+  const barAsOf = barRows.reduce((m, c) => (c.period > m ? c.period : m), ""); // ked-allow-string-date-sort: single-format time series
+  const barSources = [...new Set(observations.filter((o) => barRows.some((c) => c.id === o.categoryId)).map((o) => o.sourceFile))].slice(0, 2).join(", ");
 
   return (
     <section className="desk-card p-4">
@@ -674,16 +747,32 @@ function AllIndustriesPanel({ onOpen }: { onOpen: (cat: string) => void }) {
         </label>
       </div>
       {bar.length > 0 && (
-        <div className="h-[260px] mb-4">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={bar} layout="vertical" margin={{ left: 80 }}>
-              <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-              <XAxis type="number" tick={{ fontSize: 10 }} unit="bn" />
-              <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={76} />
-              <Tooltip formatter={(v: number) => `$${Number(v).toFixed(1)}bn`} />
-              <Bar dataKey="value" fill="#d4a017" name="수출 $bn" onClick={(d) => onOpen(String((d as { id?: string }).id))} />
-            </BarChart>
-          </ResponsiveContainer>
+        <div className="mb-4">
+          <ChartFrame
+            title="수출 상위 품목 (HS 2단위, 품목별 최신월)"
+            unit="USD bn"
+            source={barSources || "수출 관측값"}
+            asOf={barAsOf || null}
+            ariaLabel={`수출 상위 ${bar.length}개 품목 막대 차트: ${bar.slice(0, 5).map((b) => `${b.name} ${b.value.toFixed(1)}bn`).join(", ")}`}
+            pngName={chartExportName("KR", "EXPORT", "top-hs2", "png", Date.now())}
+            csv={() => ({
+              text: ["id,name,period,value_usd_bn", ...barRows.map((c) => `${c.id},"${c.name.replace(/"/g, "'")}",${c.period},${(c.value / 1e9).toFixed(3)}`)].join("\n"),
+              filename: chartExportName("KR", "EXPORT", "top-hs2", "csv", Date.now()),
+            })}
+            testId="export-top-bar"
+          >
+            <div className="h-[260px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={bar} layout="vertical" margin={{ left: 80 }} accessibilityLayer>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                  <XAxis type="number" tick={{ fontSize: 10 }} unit="bn" />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={76} />
+                  <Tooltip formatter={(v: number) => `$${Number(v).toFixed(1)}bn`} />
+                  <Bar dataKey="value" fill="#d4a017" name="수출 $bn" onClick={(d) => onOpen(String((d as { id?: string }).id))} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </ChartFrame>
         </div>
       )}
       <div className="overflow-auto max-h-[520px] scroll-thin">
@@ -1179,6 +1268,10 @@ function QaPanel() {
     <section className="desk-card p-4 space-y-3">
       <h2 className="text-lg font-semibold">데이터 품질 / 출처</h2>
       <ul className="text-xs space-y-1 text-muted-foreground">
+        <li>· 총수출·총수입: FRED/OECD 월간 (XTEXVA01KRM667S, XTIMVA01KRM667S). 통관 속보가 아닙니다.</li>
+        <li>· 품목: UN Comtrade HS 공개 프리뷰. MTI 코드가 아니며 HS 85를 반도체로 쓰지 않습니다.</li>
+        <li>· 산업부 월간 수출입 동향(잠정)과 관세청 data.go.kr API는 서비스 키가 없어 미연결입니다. 없는 금액은 N/A입니다.</li>
+        <li>· 2026-06-01 MTI 개정: 15대→20대. 구 15대 토글은 2026년 신설 5개 품목을 목록에서만 뺍니다.</li>
         {(live.data?.notes ?? []).map((n) => (
           <li key={n}>· {n}</li>
         ))}

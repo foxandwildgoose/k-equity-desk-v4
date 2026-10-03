@@ -638,6 +638,20 @@ function getNextPageParam(options, { pages, pageParams }) {
 function getPreviousPageParam(options, { pages, pageParams }) {
 	return pages.length > 0 ? options.getPreviousPageParam?.(pages[0], pages, pageParams[0], pageParams) : void 0;
 }
+/**
+* Checks if there is a next page.
+*/
+function hasNextPage(options, data) {
+	if (!data) return false;
+	return getNextPageParam(options, data) != null;
+}
+/**
+* Checks if there is a previous page.
+*/
+function hasPreviousPage(options, data) {
+	if (!data || !options.getPreviousPageParam) return false;
+	return getPreviousPageParam(options, data) != null;
+}
 //#endregion
 //#region node_modules/@tanstack/query-core/build/modern/query.js
 var Query = class extends Removable {
@@ -1341,6 +1355,61 @@ function isStale(query, options) {
 	return resolveQueryValue(options.enabled, query) !== false && query.isStaleByTime(resolveQueryValue(options.staleTime, query));
 }
 //#endregion
+//#region node_modules/@tanstack/query-core/build/modern/infiniteQueryObserver.js
+var InfiniteQueryObserver = class extends QueryObserver {
+	constructor(client, options) {
+		super(client, options);
+	}
+	bindMethods() {
+		super.bindMethods();
+		this.fetchNextPage = this.fetchNextPage.bind(this);
+		this.fetchPreviousPage = this.fetchPreviousPage.bind(this);
+	}
+	setOptions(options) {
+		options._type = "infinite";
+		super.setOptions(options);
+	}
+	getOptimisticResult(options) {
+		options._type = "infinite";
+		return super.getOptimisticResult(options);
+	}
+	fetchNextPage(options) {
+		return this.fetch({
+			...options,
+			meta: { fetchMore: { direction: "forward" } }
+		});
+	}
+	fetchPreviousPage(options) {
+		return this.fetch({
+			...options,
+			meta: { fetchMore: { direction: "backward" } }
+		});
+	}
+	createResult(query, options) {
+		const { state } = query;
+		const parentResult = super.createResult(query, options);
+		const { isFetching, isRefetching, isError, isRefetchError } = parentResult;
+		const fetchDirection = state.fetchMeta?.fetchMore?.direction;
+		const isFetchNextPageError = isError && fetchDirection === "forward";
+		const isFetchingNextPage = isFetching && fetchDirection === "forward";
+		const isFetchPreviousPageError = isError && fetchDirection === "backward";
+		const isFetchingPreviousPage = isFetching && fetchDirection === "backward";
+		return {
+			...parentResult,
+			fetchNextPage: this.fetchNextPage,
+			fetchPreviousPage: this.fetchPreviousPage,
+			hasNextPage: hasNextPage(options, state.data),
+			hasPreviousPage: hasPreviousPage(options, state.data),
+			isFetchNextPageError,
+			isFetchingNextPage,
+			isFetchPreviousPageError,
+			isFetchingPreviousPage,
+			isRefetchError: isRefetchError && !isFetchNextPageError && !isFetchPreviousPageError,
+			isRefetching: isRefetching && !isFetchingNextPage && !isFetchingPreviousPage
+		};
+	}
+};
+//#endregion
 //#region node_modules/@tanstack/query-core/build/modern/mutation.js
 var Mutation = class extends Removable {
 	#client;
@@ -1664,6 +1733,116 @@ var MutationCache = class extends Subscribable {
 function scopeFor(mutation) {
 	return mutation.options.scope?.id;
 }
+//#endregion
+//#region node_modules/@tanstack/query-core/build/modern/mutationObserver.js
+var MutationObserver = class extends Subscribable {
+	#client;
+	#currentResult = void 0;
+	#currentMutation;
+	#mutateOptions;
+	constructor(client, options) {
+		super();
+		this.#client = client;
+		this.setOptions(options);
+		this.bindMethods();
+		this.#updateResult();
+	}
+	bindMethods() {
+		this.mutate = this.mutate.bind(this);
+		this.reset = this.reset.bind(this);
+	}
+	setOptions(options) {
+		const prevOptions = this.options;
+		this.options = this.#client.defaultMutationOptions(options);
+		if (!shallowEqualObjects(this.options, prevOptions)) this.#client.getMutationCache().notify({
+			type: "observerOptionsUpdated",
+			mutation: this.#currentMutation,
+			observer: this
+		});
+		if (prevOptions?.mutationKey && this.options.mutationKey && hashKey(prevOptions.mutationKey) !== hashKey(this.options.mutationKey)) this.reset();
+		else if (this.#currentMutation?.state.status === "pending") this.#currentMutation.setOptions(this.options);
+	}
+	onSubscribe() {
+		if (this.listeners.size === 1 && this.#currentMutation) {
+			this.#currentMutation.addObserver(this);
+			this.#updateResult();
+		}
+	}
+	onUnsubscribe() {
+		if (!this.hasListeners()) this.#currentMutation?.removeObserver(this);
+	}
+	onMutationUpdate(action) {
+		this.#updateResult();
+		this.#notify(action);
+	}
+	getCurrentResult() {
+		return this.#currentResult;
+	}
+	reset() {
+		this.#currentMutation?.removeObserver(this);
+		this.#currentMutation = void 0;
+		this.#updateResult();
+		this.#notify();
+	}
+	mutate(variables, options) {
+		this.#mutateOptions = options;
+		this.#currentMutation?.removeObserver(this);
+		this.#currentMutation = this.#client.getMutationCache().build(this.#client, this.options);
+		this.#currentMutation.addObserver(this);
+		return this.#currentMutation.execute(variables);
+	}
+	#updateResult() {
+		const state = this.#currentMutation?.state ?? getDefaultState();
+		this.#currentResult = {
+			...state,
+			isPending: state.status === "pending",
+			isSuccess: state.status === "success",
+			isError: state.status === "error",
+			isIdle: state.status === "idle",
+			mutate: this.mutate,
+			reset: this.reset
+		};
+	}
+	#notify(action) {
+		notifyManager.batch(() => {
+			if (this.#mutateOptions && this.hasListeners()) {
+				const variables = this.#currentResult.variables;
+				const onMutateResult = this.#currentResult.context;
+				const context = {
+					client: this.#client,
+					meta: this.options.meta,
+					mutationKey: this.options.mutationKey
+				};
+				if (action?.type === "success") {
+					try {
+						this.#mutateOptions.onSuccess?.(action.data, variables, onMutateResult, context);
+					} catch (e) {
+						Promise.reject(e);
+					}
+					try {
+						this.#mutateOptions.onSettled?.(action.data, null, variables, onMutateResult, context);
+					} catch (e) {
+						Promise.reject(e);
+					}
+				} else if (action?.type === "error") {
+					try {
+						this.#mutateOptions.onError?.(action.error, variables, onMutateResult, context);
+					} catch (e) {
+						Promise.reject(e);
+					}
+					try {
+						this.#mutateOptions.onSettled?.(void 0, action.error, variables, onMutateResult, context);
+					} catch (e) {
+						Promise.reject(e);
+					}
+				}
+			}
+			this.listeners.forEach((listener) => {
+				listener(this.#currentResult);
+			});
+		});
+	}
+};
 //#endregion
 //#region node_modules/@tanstack/query-core/build/modern/queryCache.js
 var QueryCache = class extends Subscribable {
@@ -2031,4 +2210,4 @@ var QueryClient = class {
 	}
 };
 //#endregion
-export { shouldThrowError as a, noop as i, QueryObserver as n, notifyManager as r, QueryClient as t };
+export { notifyManager as a, QueryObserver as i, MutationObserver as n, noop as o, InfiniteQueryObserver as r, shouldThrowError as s, QueryClient as t };

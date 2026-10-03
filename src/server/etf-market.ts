@@ -13,6 +13,9 @@ import {
   compareHoldingsByWeight,
   issuerHoldingsFamily,
   matchIbkProductId,
+  parseHanaroFundCatalog,
+  parseHanaroHoldingsHtml,
+  parseHanaroPdfDate,
   parseIbkPdfRows,
   parseKodexPdfRows,
   type IbkPdfItem,
@@ -758,7 +761,7 @@ export interface EtfHoldingRow {
   nameKo: string;
   /** Official NAV weight only. Never estimated. */
   weight: number | null;
-  weightSource: "official" | null;
+  weightSource: "official" | "live" | null;
   quantity: number | null;
   asOf: string | null;
   code: string | null;
@@ -854,6 +857,13 @@ function formatYmd(raw: string | null | undefined): string | null {
   return raw;
 }
 
+function usClassHint(name: string): string | null {
+  if (/\bCLASS\s*C\b|\bCL\s*C\b/i.test(name)) return "class c";
+  if (/\bCLASS\s*A\b|\bCL\s*A\b/i.test(name)) return "class a";
+  if (/\bCLASS\s*B\b|\bCL\s*B\b/i.test(name)) return "class b";
+  return null;
+}
+
 function searchQueriesForName(name: string): string[] {
   const raw = name.trim();
   const cleaned = raw
@@ -939,12 +949,16 @@ export async function resolveHoldingName(nameKo: string): Promise<NameHit | null
           it.isEtf &&
           /^[0-9A-Za-z]{6}$/.test(String(it.code ?? "")),
       );
+      const usaItems = items.filter(
+        (it) => it.nationCode === "USA" && Boolean(it.reutersCode || it.code),
+      );
+      const hint = usClassHint(key);
+      const hinted = hint
+        ? usaItems.find((it) => (it.name ?? "").toLowerCase().includes(hint))
+        : undefined;
       const us =
-        items.find(
-          (it) =>
-            it.nationCode === "USA" &&
-            Boolean(it.reutersCode || it.code),
-        ) ??
+        hinted ??
+        usaItems[0] ??
         items.find(
           (it) =>
             it.nationCode &&
@@ -1459,6 +1473,74 @@ async function fetchIbkOfficialHoldings(etfName: string): Promise<{
   };
 }
 
+const hanaroCatalogCache: { at: number; map: Map<string, string> } = {
+  at: 0,
+  map: new Map(),
+};
+const HANARO_CATALOG_TTL_MS = 6 * 60 * 60_000;
+
+async function fetchHanaroText(url: string, referer: string): Promise<string> {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 12_000);
+  try {
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent": UA,
+        Accept: "text/html,*/*",
+        Referer: referer,
+      },
+      signal: ctrl.signal,
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.text();
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+async function hanaroFundUid(ticker: string): Promise<string | null> {
+  const now = Date.now();
+  if (hanaroCatalogCache.map.size > 0 && now - hanaroCatalogCache.at < HANARO_CATALOG_TTL_MS) {
+    return hanaroCatalogCache.map.get(ticker) ?? null;
+  }
+  const map = new Map<string, string>();
+  for (let page = 1; page <= 12; page++) {
+    const html = await fetchHanaroText(
+      `https://www.hanaroetf.com/api/v1/fund/get-fund-search-list?pageNo=${page}`,
+      "https://www.hanaroetf.com/fund/fund-list",
+    );
+    const chunk = parseHanaroFundCatalog(html);
+    if (chunk.size === 0) break;
+    for (const [code, uid] of chunk) map.set(code, uid);
+    if (chunk.size < 10) break;
+  }
+  if (map.size === 0) return null;
+  hanaroCatalogCache.at = now;
+  hanaroCatalogCache.map = map;
+  return map.get(ticker) ?? null;
+}
+
+async function fetchHanaroOfficialHoldings(ticker: string): Promise<{
+  rows: CuRow[];
+  asOf: string | null;
+  issuerUrl: string;
+} | null> {
+  const uid = await hanaroFundUid(ticker);
+  if (!uid) return null;
+  const pageUrl = `https://www.hanaroetf.com/fund/${encodeURIComponent(uid)}`;
+  const [listHtml, pageHtml] = await Promise.all([
+    fetchHanaroText(
+      `https://www.hanaroetf.com/api/v1/fund/${encodeURIComponent(uid)}/get-fund-holdings-list?baseDate=`,
+      pageUrl,
+    ),
+    fetchHanaroText(pageUrl, "https://www.hanaroetf.com/fund/fund-list").catch(() => ""),
+  ]);
+  const asOf = parseHanaroPdfDate(pageHtml);
+  const rows = parseHanaroHoldingsHtml(listHtml, asOf);
+  if (!rows.length) return null;
+  return { rows, asOf, issuerUrl: pageUrl };
+}
+
 const kodexCatalogCache: { at: number; map: Map<string, string> } = {
   at: 0,
   map: new Map(),
@@ -1537,11 +1619,12 @@ async function buildEtfHoldings(code: string): Promise<HoldingsBundle> {
     fetchEtfIdentity(c),
   ]);
   const family = issuerHoldingsFamily(identity.name, identity.issuer);
-  const [naverRows, plusPack, ibkPack, kodexPack] = await Promise.all([
+  const [naverRows, plusPack, ibkPack, kodexPack, hanaroPack] = await Promise.all([
     fetchNaverEtfAssetTable(c).catch(() => [] as CuRow[]),
     family === "plus" ? fetchPlusOfficialHoldings(c).catch(() => null) : Promise.resolve(null),
     family === "ibk" ? fetchIbkOfficialHoldings(identity.name).catch(() => null) : Promise.resolve(null),
     family === "kodex" ? fetchKodexOfficialHoldings(c).catch(() => null) : Promise.resolve(null),
+    family === "hanaro" ? fetchHanaroOfficialHoldings(c).catch(() => null) : Promise.resolve(null),
   ]);
 
   const chosen = chooseOfficialBasket([
@@ -1554,6 +1637,18 @@ async function buildEtfHoldings(code: string): Promise<HoldingsBundle> {
             priority: 100,
             issuerUrl: kodexPack.issuerUrl,
             asOf: kodexPack.asOf,
+          },
+        ]
+      : []),
+    ...(hanaroPack
+      ? [
+          {
+            rows: hanaroPack.rows,
+            source: `NH-Amundi HANARO 일별 PDF (${hanaroPack.asOf ?? "기준일 확인"})`,
+            sourceKind: "issuer-pdf" as const,
+            priority: 100,
+            issuerUrl: hanaroPack.issuerUrl,
+            asOf: hanaroPack.asOf,
           },
         ]
       : []),

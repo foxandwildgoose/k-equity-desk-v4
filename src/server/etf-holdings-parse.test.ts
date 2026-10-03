@@ -8,6 +8,10 @@ import {
   issuerHoldingsFamily,
   krCodeFromIsin,
   matchIbkProductId,
+  parseHanaroFundCatalog,
+  parseHanaroHoldingsHtml,
+  parseHanaroPdfDate,
+  fillLiveMarketWeights,
   parseIbkPdfRows,
   parseKodexPdfRows,
   parseRiseFundCdFromFinder,
@@ -250,6 +254,7 @@ test("issuer family and IBK name match the legal catalog title", () => {
     "ibk",
   );
   assert.equal(issuerHoldingsFamily("KODEX 200", "삼성자산운용"), "kodex");
+  assert.equal(issuerHoldingsFamily("HANARO 미국에이전틱AI TOP2+", "NH-Amundi자산운용"), "hanaro");
   assert.equal(issuerHoldingsFamily("TIGER 미국나스닥100", "미래에셋자산운용"), "other");
   assert.equal(
     matchIbkProductId("IBK 한미대표기업TOP2+채권혼합50액티브", [
@@ -259,3 +264,67 @@ test("issuer family and IBK name match the legal catalog title", () => {
     14,
   );
 });
+
+test("HANARO PDF drops the CU notional row and keeps US NAV weights", () => {
+  const html = `
+    <tr><td>1</td><td>CASH00000001</td><th>설정현금액</th><td>527,001,759</td><td>527,001,759</td><td>100.0</td></tr>
+    <tr><td>2</td><td>US5949181045</td><th>Microsoft Corp</th><td>179</td><td>121,293,437</td><td>23.02</td></tr>
+    <tr><td>3</td><td>KR7005930003</td><th>삼성전자</th><td>10</td><td>1,000</td><td>73.84</td></tr>
+    <tr><td>4</td><td>KRD010010001</td><th>원화예금</th><td>1,000</td><td>1,000</td><td>3.14</td></tr>
+  `;
+  const rows = parseHanaroHoldingsHtml(html, "2026-09-23");
+  assert.equal(rows.some((r) => r.nameKo === "설정현금액"), false);
+  assert.equal(rows.find((r) => r.nameKo === "Microsoft Corp")!.weight, 23.02);
+  assert.equal(rows.find((r) => r.nameKo === "Microsoft Corp")!.isin, "US5949181045");
+  assert.equal(rows.find((r) => r.nameKo === "Microsoft Corp")!.code, null);
+  assert.equal(rows.find((r) => r.nameKo === "삼성전자")!.code, "005930");
+  const chosen = chooseOfficialBasket([
+    { rows, source: "HANARO", sourceKind: "issuer-pdf", priority: 100, asOf: "2026-09-23" },
+  ]);
+  assert.equal(chosen.weightsPublished, true);
+  assert.equal(chosen.rows.find((r) => r.nameKo === "Microsoft Corp")!.weight, 23.02);
+});
+
+test("HANARO catalog and PDF date", () => {
+  const html = `<a href="/fund/E5B1094831A64EB6" class="baseInfo"><dt>종목코드</dt><dd>0227L0</dd></a>
+    <input id="pdfDate" value="2026.09.23" />`;
+  assert.equal(parseHanaroFundCatalog(html).get("0227L0"), "E5B1094831A64EB6");
+  assert.equal(parseHanaroPdfDate(html), "2026-09-23");
+});
+
+test("live market weights need a fully priced basket and never replace official NAV", () => {
+  const base = {
+    isBond: false,
+    isFuture: false,
+    quote: { price: 100, currency: "USD" as const },
+  };
+  const live = fillLiveMarketWeights(
+    [
+      { ...base, nameKo: "Microsoft Corp", weight: null, weightSource: null, quantity: 2, isCash: false },
+      { ...base, nameKo: "원화예금", weight: null, weightSource: null, quantity: 1000, isCash: true, quote: null },
+    ],
+    1400,
+  );
+  assert.equal(live.published, true);
+  assert.equal(live.rows[0]!.weightSource, "live");
+  const msft = (2 * 100 * 1400) / (2 * 100 * 1400 + 1000) * 100;
+  assert.ok(Math.abs(live.rows[0]!.weight! - msft) < 1e-9);
+
+  const blocked = fillLiveMarketWeights(
+    [
+      { ...base, nameKo: "삼성전자", weight: null, weightSource: null, quantity: 10, isCash: false, quote: { price: 70000, currency: "KRW" } },
+      { ...base, nameKo: "국고채", weight: null, weightSource: null, quantity: 5, isCash: false, isBond: true, quote: null },
+    ],
+    1400,
+  );
+  assert.equal(blocked.published, false);
+  assert.equal(blocked.rows.every((r) => r.weight == null), true);
+
+  const official = fillLiveMarketWeights(
+    [{ ...base, nameKo: "Microsoft Corp", weight: 23.02, weightSource: "official" as const, quantity: 2, isCash: false }],
+    1400,
+  );
+  assert.equal(official.published, false);
+  assert.equal(official.rows[0]!.weight, 23.02);
+});
+

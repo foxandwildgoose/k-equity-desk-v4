@@ -36,6 +36,8 @@ import {
   type EtfAssetClass,
 } from "@/server/etf-market";
 import { UNIVERSE } from "@/data/universe";
+import { fillLiveMarketWeights } from "@/server/etf-holdings-parse";
+import { sortDisclosuresNewestFirst, sortTimedNewestFirst } from "@/lib/feed/mappers";
 import { inferSectorId, detectKrMarket, normalizeKrTicker, isKrTicker } from "@/lib/infer-sector";
 import { US_LINKED_CODES, US_POLICY_BRIEFS } from "@/data/us-link";
 import { fetchUsLinkLiveFeeds } from "@/server/us-link-feed";
@@ -162,6 +164,9 @@ export const getStockBundle = createServerFn({ method: "GET" })
       market: (uni?.market ?? "KOSPI") as "KOSPI" | "KOSDAQ",
     };
 
+    const v2CompanyP = import("@/server/research-v2")
+      .then((m) => m.fetchResearchV2List({ type: "company", itemCodes: [code], size: 30 }))
+      .catch(() => null);
     const [basic, quotes, flow, researchPack, news, discBundle] =
       await Promise.all([
         fetchStockBasic(code).catch(() => null),
@@ -232,6 +237,11 @@ export const getStockBundle = createServerFn({ method: "GET" })
       if (basic.marketStatus) quote.marketStatus = basic.marketStatus;
     }
 
+    // F2.1: v2 company list first (full, paged source); legacy list as fallback.
+    const v2Company = await v2CompanyP;
+    if (v2Company && v2Company.path === "v2" && v2Company.reports.length) {
+      researchPack.company = v2Company.reports;
+    }
     const payload = {
       meta,
       quote,
@@ -239,7 +249,7 @@ export const getStockBundle = createServerFn({ method: "GET" })
       flow,
       research: researchPack.company,
       researchPack,
-      news,
+      news: sortTimedNewestFirst(news),
       disclosures,
       disclosureMeta: {
         kind: discBundle.kindStatus,
@@ -278,6 +288,8 @@ export const getChartData = createServerFn({ method: "GET" })
         ])
         .optional(),
       range: z.string().max(12).optional(),
+      /** US intraday: include pre/post-market bars (F7.13). */
+      prePost: z.boolean().optional(),
     }),
   )
   .handler(async ({ data }) => {
@@ -288,6 +300,7 @@ export const getChartData = createServerFn({ method: "GET" })
         interval: data.interval,
         minuteSize: data.minuteSize,
         range: data.range,
+        prePost: data.prePost,
       });
     }
     const code = normalizeKrTicker(data.code);
@@ -308,13 +321,18 @@ export const getValuationSeries = createServerFn({ method: "GET" })
   });
 
 export const getUsStreet = createServerFn({ method: "GET" })
-  .validator(z.object({ symbol: z.string().trim().max(12).optional() }))
+  .validator(
+    z.object({
+      symbol: z.string().trim().max(12).optional(),
+      symbols: z.array(z.string().trim().regex(/^[A-Za-z][A-Za-z0-9.]{0,9}$/)).max(12).optional(),
+    }),
+  )
   .handler(async ({ data }) => {
     const { emptyUsStreetPack, fetchUsStreetPack, fetchUsStreetSymbol } = await import("@/lib/us-street");
     const symbol = data.symbol?.trim();
     try {
       if (symbol) return await fetchUsStreetSymbol(symbol);
-      return await fetchUsStreetPack();
+      return await fetchUsStreetPack(data.symbols?.length ? data.symbols : undefined);
     } catch {
       return emptyUsStreetPack("월가 공개 피드를 받지 못했습니다. 등급을 추정해 채우지 않습니다.");
     }
@@ -383,6 +401,19 @@ export const getDisclosureDetail = createServerFn({ method: "GET" })
     fetchDisclosureDetail(normalizeKrTicker(data.code), data.disclosureId),
   );
 
+/** F1.4: per-stock Naver news page N (newest first via the kernel), for 더 보기. */
+export const getStockNews = createServerFn({ method: "GET" })
+  .validator(z.object({ code: z.string().regex(/^[0-9A-Z]{6}$/), page: z.number().int().min(1).max(20) }))
+  .handler(async ({ data }) => {
+    const code = normalizeKrTicker(data.code);
+    try {
+      const items = await fetchNews(code, data.page);
+      return { items: sortTimedNewestFirst(items), page: data.page, hasMore: items.length >= 20, error: null as string | null, fetchedAt: new Date().toISOString() };
+    } catch (err) {
+      return { items: [] as NewsItem[], page: data.page, hasMore: false, error: err instanceof Error ? err.message.slice(0, 120) : "error", fetchedAt: new Date().toISOString() };
+    }
+  });
+
 export const getMarketIndices = createServerFn({ method: "GET" }).handler(
   async () => {
     const now = Date.now();
@@ -409,9 +440,7 @@ export const getMarketIndices = createServerFn({ method: "GET" }).handler(
 export const getScanDisclosures = createServerFn({ method: "GET" }).handler(
   async () => {
     const desk = await fetchKrxDisclosureDesk();
-    const merged = [...desk.koscom, ...desk.dart]
-      .sort((a, b) => (a.datetime < b.datetime ? 1 : -1))
-      .slice(0, 100);
+    const merged = sortDisclosuresNewestFirst([...desk.koscom, ...desk.dart]).slice(0, 100);
     return merged.map((d) => ({
       id: d.id,
       title: d.title,
@@ -553,6 +582,7 @@ export const getEtfBundle = createServerFn({ method: "GET" })
         source: "공식 편입내역 없음",
         sourceKind: "none" as const,
         officialCount: 0,
+        issuerUrl: null as string | null,
       })),
     ]);
     if (!detail.etf) return { error: "not_found" as const };
@@ -618,7 +648,7 @@ export const getEtfBundle = createServerFn({ method: "GET" })
       qmap[rc] = q;
     }
 
-    const holdings = holdingPack.holdings.map((h) => {
+    const holdingsWithQuotes = holdingPack.holdings.map((h) => {
       const q =
         (h.code && qmap[h.code]) ||
         (h.reutersCode && qmap[h.reutersCode]) ||
@@ -652,10 +682,13 @@ export const getEtfBundle = createServerFn({ method: "GET" })
           : null,
       };
     });
+    const live = fillLiveMarketWeights(holdingsWithQuotes, usdKrw);
+    const holdings = live.rows;
 
     const sleeveMap = new Map<EtfAssetClass, number>();
     for (const h of holdings) {
-      if (h.weight == null || h.weightSource !== "official") continue;
+      if (h.weight == null) continue;
+      if (h.weightSource !== "official" && h.weightSource !== "live") continue;
       sleeveMap.set(h.assetClass, (sleeveMap.get(h.assetClass) ?? 0) + h.weight);
     }
     const allocation = [...sleeveMap.entries()]
@@ -667,6 +700,9 @@ export const getEtfBundle = createServerFn({ method: "GET" })
       .sort((a, b) => Math.abs(b.weight) - Math.abs(a.weight));
     const officialWeightSum = allocation.reduce((s, a) => s + a.weight, 0);
     const officialCount = holdings.filter((h) => h.weightSource === "official").length;
+    const liveCount = holdings.filter((h) => h.weightSource === "live").length;
+    const weightBasis: "official" | "live" | "none" =
+      officialCount > 0 ? "official" : liveCount > 0 ? "live" : "none";
     const quotedCount = holdings.filter((h) => h.quote && h.quote.price > 0).length;
 
     const hasOfficialBasket = holdings.length > 0;
@@ -685,11 +721,15 @@ export const getEtfBundle = createServerFn({ method: "GET" })
 
     const missingOfficial = holdings.filter((h) => h.weight == null).length;
     const themeNote = hasOfficialBasket
-      ? `비중은 운용사·KRX 공식 공시만 사용합니다(추정 없음). 출처: ${holdingPack.source}. 국내 시세는 KRX(네이버 중계), 해외 시세는 네이버 해외주식입니다. 채권·선물·현금은 지분 시세가 없어 ISIN·수량을 표시합니다.${
-          missingOfficial
-            ? ` 공식 비중이 없는 ${missingOfficial}개 종목은 — 로 둡니다.`
-            : ""
-        }`
+      ? weightBasis === "official"
+        ? `비중은 운용사·KRX 공식 공시만 사용합니다(추정 없음). 출처: ${holdingPack.source}. 국내 시세는 KRX(네이버 중계), 해외 시세는 네이버 해외주식입니다. 채권·선물·현금은 지분 시세가 없어 ISIN·수량을 표시합니다.${
+            missingOfficial
+              ? ` 공식 비중이 없는 ${missingOfficial}개 종목은 — 로 둡니다.`
+              : ""
+          }`
+        : weightBasis === "live"
+          ? `공식 NAV 비중이 없어, 편입 수량 × 조회된 실시간 시세(달러는 원/달러)로 시가 비중을 냈습니다. 가격이 비거나 채권·선물이 있으면 일부만 100%로 늘리지 않습니다. 출처: ${holdingPack.source}.`
+          : `출처: ${holdingPack.source}. 공식 NAV 비중도, 전 종목을 시세로 나눌 수도 없어 비중은 — 입니다. 국내 시세는 KRX(네이버 중계), 해외 시세는 네이버 해외주식입니다.`
       : "공식 편입내역을 받지 못해 테마 매핑으로 대체합니다. 비중은 표시하지 않습니다.";
 
     return {
@@ -706,8 +746,11 @@ export const getEtfBundle = createServerFn({ method: "GET" })
       holdingsAsOf: holdingPack.asOf,
       holdingsSource: holdingPack.source,
       holdingsSourceKind: holdingPack.sourceKind,
+      holdingsIssuerUrl: holdingPack.issuerUrl ?? null,
       holdingsCount: holdings.length,
       officialCount,
+      liveCount,
+      weightBasis,
       officialWeightSum,
       quotedCount,
       krEquityCount: holdings.filter((h) => h.isKoreanEquity).length,
@@ -769,3 +812,45 @@ export const getUsOfficialReport = createServerFn({ method: "GET" })
     return fetchUsOfficialReport(data.id);
   });
 
+
+// ── KR research v2 (F2) ────────────────────────────────────────────────
+const V2_TYPES = ["market", "company", "industry", "invest", "economy", "debenture"] as const;
+
+export const getResearchV2 = createServerFn({ method: "GET" })
+  .validator(
+    z.object({
+      type: z.enum(V2_TYPES),
+      index: z.number().int().min(0).max(200).default(0),
+      size: z.number().int().min(1).max(50).default(20),
+      itemCodes: z.array(z.string().regex(/^[0-9A-Z]{6}$/)).max(10).optional(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const { fetchResearchV2List } = await import("@/server/research-v2");
+    return fetchResearchV2List({ type: data.type, index: data.index, size: data.size, itemCodes: data.itemCodes });
+  });
+
+export const getResearchV2Detail = createServerFn({ method: "GET" })
+  .validator(
+    z.object({
+      type: z.enum(V2_TYPES),
+      nid: z.number().int().positive(),
+      itemCode: z.string().regex(/^[0-9A-Z]{6}$/).optional(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const { fetchResearchV2Detail } = await import("@/server/research-v2");
+    return fetchResearchV2Detail(data.type, data.nid, data.itemCode);
+  });
+
+export const resolveResearchOriginal = createServerFn({ method: "GET" })
+  .validator(z.object({ type: z.enum(V2_TYPES), nid: z.number().int().positive() }))
+  .handler(async ({ data }) => {
+    const { resolveResearchOriginal: resolve } = await import("@/server/research-v2");
+    return resolve(data.type, data.nid);
+  });
+
+export const getResearchBriefing = createServerFn({ method: "GET" }).handler(async () => {
+  const { fetchResearchBriefing } = await import("@/server/research-v2");
+  return fetchResearchBriefing();
+});

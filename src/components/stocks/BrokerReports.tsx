@@ -1,23 +1,17 @@
 import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import type { ResearchReport, ResearchCategory } from "@/server/naver-market";
-import {
-  fetchResearchDeepDetail,
-  mergeResearchDeep,
-  openResearchPdfUrl,
-} from "@/lib/research-deep";
 import { latestReportPerBroker, median, reportHasInvestmentView } from "@/lib/research-utils";
+import { reportDay, sortReportsNewestFirst } from "@/lib/feed/mappers";
+import { annotatePrevTargets } from "@/lib/research/naver-v2";
+import { ResearchCard } from "@/components/research/ResearchCard";
+import { ResearchDetailSheet } from "@/components/research/ResearchDetailSheet";
 
 const CONSENSUS_MAX_AGE_DAYS = 180;
 import { formatPrice } from "@/lib/format";
 import { usePriceColors } from "@/lib/store";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
-import { ReadableClamp } from "@/components/ui/ReadableProse";
-import { toReadableDoc } from "@/lib/readable-text";
-import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { ExternalLink, FileText, Loader2, ChevronRight, Factory, LineChart, Globe2, Building2 } from "lucide-react";
+import { FileText, Loader2, Factory, LineChart, Globe2, Building2 } from "lucide-react";
 
 type Pack = {
   company: ResearchReport[];
@@ -51,7 +45,8 @@ function RatingBadge({ rating }: { rating?: string }) {
 
 function reportList(pack: Pack, tab: ResearchCategory) {
   const raw = pack[tab];
-  const sorted = [...raw].sort((a, b) => b.date.localeCompare(a.date));
+  // Kernel order + Δ% only from fetched same-broker/same-ticker priors (F2.5).
+  const sorted = annotatePrevTargets(sortReportsNewestFirst(raw));
   // Company view is intentionally signal-only. Unrated notes no longer dilute the decision panel.
   return tab === "company" ? sorted.filter(reportHasInvestmentView) : sorted;
 }
@@ -70,8 +65,6 @@ export function BrokerReports({
   const data: Pack = pack ?? { company: companyReports ?? [], industry: [], market: [], economy: [] };
   const [tab, setTab] = useState<ResearchCategory>("company");
   const [active, setActive] = useState<ResearchReport | null>(null);
-  const [pdfLoading, setPdfLoading] = useState(false);
-  const [deepLoading, setDeepLoading] = useState(false);
   const colors = usePriceColors();
 
   const list = useMemo(() => reportList(data, tab).slice(0, 30), [data, tab]);
@@ -82,7 +75,10 @@ export function BrokerReports({
     const cutoffStr = cutoff.toISOString().slice(0, 10);
 
     const latestAll = latestReportPerBroker(data.company);
-    const latest = latestAll.filter((r) => !r.date || r.date >= cutoffStr);
+    const latest = latestAll.filter((r) => {
+      const day = reportDay(r);
+      return !day || day >= cutoffStr;
+    });
     const staleDropped = latestAll.length - latest.length;
     const views = latest.filter(reportHasInvestmentView);
     const rated = views.filter((r) => r.rating);
@@ -103,7 +99,7 @@ export function BrokerReports({
       ? Math.round(targets.reduce((sum, x) => sum + x, 0) / targets.length)
       : null;
     const upside = med && currentPrice > 0 ? ((med / currentPrice) - 1) * 100 : null;
-    const asOf = views.map((r) => r.date).sort().at(-1) ?? null;
+    const asOf = sortReportsNewestFirst(views)[0]?.date ?? null;
 
     return {
       brokerCount: latest.length,
@@ -116,46 +112,12 @@ export function BrokerReports({
       low: targets[0] ?? null,
       high: targets[targets.length - 1] ?? null,
       upside,
-      rows: views.sort((a, b) => b.date.localeCompare(a.date)),
+      rows: sortReportsNewestFirst(views),
       staleDropped,
       maxAgeDays: CONSENSUS_MAX_AGE_DAYS,
       asOf,
     };
   }, [data.company, currentPrice]);
-
-  async function openDetail(report: ResearchReport) {
-    setActive(report);
-    setDeepLoading(true);
-    try {
-      const deep = await fetchResearchDeepDetail(report);
-      setActive((prev) =>
-        prev && prev.researchId === report.researchId
-          ? mergeResearchDeep(prev, deep)
-          : prev,
-      );
-    } catch {
-      /* keep shallow fields */
-    } finally {
-      setDeepLoading(false);
-    }
-  }
-
-  async function openPdf(report: ResearchReport) {
-    setPdfLoading(true);
-    try {
-      // Always deep-resolve so missing list-level PDF/TP get filled
-      const deep = await fetchResearchDeepDetail(report);
-      const merged = mergeResearchDeep(report, deep);
-      setActive((prev) =>
-        prev && prev.researchId === report.researchId ? merged : prev,
-      );
-      openResearchPdfUrl(merged.pdfUrl || merged.pageUrl);
-    } catch {
-      openResearchPdfUrl(report.pdfUrl || report.pageUrl);
-    } finally {
-      setPdfLoading(false);
-    }
-  }
 
   return (
     <section className="rounded-xl border border-border bg-card overflow-hidden">
@@ -208,7 +170,7 @@ export function BrokerReports({
         {tab !== "company" && (
           <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
             <span>{tab === "industry" ? "해당 종목 산업 키워드와 매칭된 리포트" : "전 시장 공통 리서치 피드"}</span>
-            <Link to="/research" search={{ tab }} className="text-primary hover:underline">리서치 데스크 →</Link>
+            <Link to="/research" search={{ tab: tab === "market" ? "invest" : tab }} className="text-primary hover:underline">리서치 데스크 →</Link>
           </div>
         )}
 
@@ -218,22 +180,7 @@ export function BrokerReports({
               {loading ? "리포트 수신 중…" : "현재 조건에서 표시할 리포트가 없습니다."}
             </li>
           ) : list.map((r) => (
-            <li key={`${r.category}-${r.researchId}`} className="rounded-lg border border-border bg-background/40 overflow-hidden">
-              <button type="button" onClick={() => void openDetail(r)} className="w-full px-3 py-3 text-left hover:bg-muted/30">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <Badge variant="outline" className="text-[10px]">{r.categoryLabel}</Badge>
-                  <span className="text-xs font-medium">{r.broker}</span>
-                  <RatingBadge rating={r.rating} />
-                  {r.targetPrice != null && r.targetPrice > 0 && <span className="text-[11px] font-semibold tabular">TP {formatPrice(r.targetPrice)}</span>}
-                  <span className="ml-auto text-[10px] tabular text-muted-foreground">{r.date}</span>
-                </div>
-                <div className="mt-1 text-sm font-medium leading-snug">{r.title}</div>
-                <div className="mt-2 rounded-md bg-muted/35 px-2.5 py-2">
-                  <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">핵심요약</div>
-                  <ReadableClamp raw={r.summary || r.preview || r.title} lines={3} className="mt-1" />
-                </div>
-              </button>
-            </li>
+            <ResearchCard key={`${r.v2Type ?? r.category}-${r.researchId}`} report={r} onDetail={setActive} />
           ))}
         </ul>
 
@@ -249,53 +196,7 @@ export function BrokerReports({
         )}
       </div>
 
-      <Sheet open={!!active} onOpenChange={(o) => !o && setActive(null)}>
-        <SheetContent side="right" className="w-full max-w-lg overflow-y-auto scroll-thin p-0">
-          {active && <>
-            <SheetHeader className="sticky top-0 z-10 border-b border-border bg-card">
-              <SheetTitle className="pr-6 text-base leading-snug">{active.title}</SheetTitle>
-              <SheetDescription asChild><div className="flex flex-wrap items-center gap-2 text-xs"><span className="font-medium text-foreground">{active.broker}</span><span>{active.date}</span><RatingBadge rating={active.rating} />{deepLoading && <span className="inline-flex items-center gap-1 text-muted-foreground"><Loader2 className="size-3 animate-spin" /> 원문 상세 조회</span>}</div></SheetDescription>
-            </SheetHeader>
-            <div className="space-y-4 px-4 py-4">
-              <div className="flex flex-wrap gap-2">
-                <Button size="sm" className="gap-1.5" disabled={pdfLoading || deepLoading} onClick={() => void openPdf(active)}>{pdfLoading ? <Loader2 className="size-3.5 animate-spin" /> : <ExternalLink className="size-3.5" />} PDF / 원문</Button>
-                {active.pageUrl && (
-                  <Button asChild size="sm" variant="outline">
-                    <a href={active.pageUrl} target="_blank" rel="noopener noreferrer">리서치 페이지 원문</a>
-                  </Button>
-                )}
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="rounded-lg border border-border bg-muted/25 p-3">
-                  <div className="text-[10px] text-muted-foreground">투자의견</div>
-                  <div className="mt-1 min-h-6">
-                    {active.rating ? <RatingBadge rating={active.rating} /> : (
-                      <span className="text-xs text-muted-foreground">{deepLoading ? "조회 중…" : "원문에 의견 없음/미추출"}</span>
-                    )}
-                  </div>
-                </div>
-                <div className="rounded-lg border border-border bg-muted/25 p-3">
-                  <div className="text-[10px] text-muted-foreground">목표주가</div>
-                  <div className="mt-1 text-lg font-semibold tabular min-h-7">
-                    {active.targetPrice ? formatPrice(active.targetPrice) : (
-                      <span className="text-xs font-normal text-muted-foreground">{deepLoading ? "조회 중…" : "—"}</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-              <div className="rounded-lg border border-border bg-muted/20 p-3">
-                <h3 className="text-sm font-semibold">핵심요약</h3>
-                <div className="mt-2 space-y-3 text-base leading-[1.75] text-pretty text-foreground/95">
-                  {toReadableDoc(active.summary || active.preview || active.title, { extractHints: false }).paragraphs.map((p, i) => (
-                    <p key={i}>{p}</p>
-                  ))}
-                </div>
-              </div>
-              <p className="text-[10px] text-muted-foreground">목록은 빠르게 표시하고, 상세·PDF 클릭 시 네이버 리서치 API·원문 페이지에서 목표가·의견·PDF를 깊게 조회합니다. 최종 판단은 PDF 원문과 공시를 교차 확인하세요.</p>
-            </div>
-          </>}
-        </SheetContent>
-      </Sheet>
+      <ResearchDetailSheet report={active} onClose={() => setActive(null)} onOpenReport={setActive} />
     </section>
   );
 }

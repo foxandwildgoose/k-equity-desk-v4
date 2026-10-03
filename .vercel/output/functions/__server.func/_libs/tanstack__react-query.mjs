@@ -1,7 +1,7 @@
 import { o as __toESM } from "../_runtime.mjs";
 import { u as require_react } from "./@floating-ui/react-dom+[...].mjs";
 import { s as require_jsx_runtime } from "./@radix-ui/react-collection+[...].mjs";
-import { a as shouldThrowError, i as noop, n as QueryObserver, r as notifyManager } from "./tanstack__query-core.mjs";
+import { a as notifyManager, i as QueryObserver, n as MutationObserver, o as noop, r as InfiniteQueryObserver, s as shouldThrowError } from "./tanstack__query-core.mjs";
 //#region node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js
 var import_react = /* @__PURE__ */ __toESM(require_react(), 1);
 var import_jsx_runtime = require_jsx_runtime();
@@ -118,4 +118,28 @@ function useQuery(options, queryClient) {
 	return useBaseQuery(options, QueryObserver, queryClient);
 }
 //#endregion
-export { QueryClientProvider as n, useQueryClient as r, useQuery as t };
+//#region node_modules/@tanstack/react-query/build/modern/useMutation.js
+function useMutation(options, queryClient) {
+	const client = useQueryClient(queryClient);
+	const [observer] = import_react.useState(() => new MutationObserver(client, options));
+	import_react.useEffect(() => {
+		observer.setOptions(options);
+	}, [observer, options]);
+	const result = import_react.useSyncExternalStore(import_react.useCallback((onStoreChange) => observer.subscribe(notifyManager.batchCalls(onStoreChange)), [observer]), () => observer.getCurrentResult(), () => observer.getCurrentResult());
+	const mutate = import_react.useCallback((...args) => {
+		observer.mutate(args[0], args[1]).catch(noop);
+	}, [observer]);
+	if (result.error && shouldThrowError(observer.options.throwOnError, [result.error])) throw result.error;
+	return {
+		...result,
+		mutate,
+		mutateAsync: result.mutate
+	};
+}
+//#endregion
+//#region node_modules/@tanstack/react-query/build/modern/useInfiniteQuery.js
+function useInfiniteQuery(options, queryClient) {
+	return useBaseQuery(options, InfiniteQueryObserver, queryClient);
+}
+//#endregion
+export { useQueryClient as a, QueryClientProvider as i, useMutation as n, useQuery as r, useInfiniteQuery as t };

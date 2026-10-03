@@ -273,7 +273,7 @@ export function fxRateForPeriod(
   if (!ym) return null;
   const sorted = [...series]
     .filter((r) => r.value > 0 && r.date)
-    .sort((a, b) => a.date.localeCompare(b.date));
+    .sort((a, b) => a.date.localeCompare(b.date)); // ked-allow-string-date-sort: single-format time series
   if (!sorted.length) return spot && spot > 0 ? spot : null;
   const exact = sorted.find((r) => r.date.slice(0, 7) === ym);
   if (exact) return exact.value;
@@ -286,9 +286,9 @@ export function alignByReleaseDate<T extends { period: string; releasedAt?: stri
   rows: T[],
   mode: "OBSERVATION" | "RELEASE",
 ): T[] {
-  if (mode === "OBSERVATION") return [...rows].sort((a, b) => a.period.localeCompare(b.period));
+  if (mode === "OBSERVATION") return [...rows].sort((a, b) => a.period.localeCompare(b.period)); // ked-allow-string-date-sort: single-format time series
   return [...rows].sort((a, b) =>
-    (a.releasedAt ?? a.period).localeCompare(b.releasedAt ?? b.period),
+    (a.releasedAt ?? a.period).localeCompare(b.releasedAt ?? b.period), // ked-allow-string-date-sort: single-format time series
   );
 }
 

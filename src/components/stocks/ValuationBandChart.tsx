@@ -6,14 +6,17 @@ import { useChartData } from "@/lib/use-market";
 import { computeRangePosition } from "@/lib/chart-indicators";
 import { RangePositionStrip } from "@/components/stocks/RangePositionStrip";
 import {
-  createChart,
   LineSeries,
-  CrosshairMode,
   type IChartApi,
   type ISeriesApi,
+  type SeriesType,
   type Time,
   type IPriceLine,
 } from "lightweight-charts";
+import { ChartShell } from "@/components/charts/core/ChartShell";
+import { createProChart } from "@/components/charts/core/create-pro-chart";
+import { readChartTheme } from "@/components/charts/core/theme";
+import { exportChartPng, exportRowsCsv, RangePresets, ScaleToggle, useChartChrome } from "@/components/charts/core/chrome";
 import { Loader2, LineChart } from "lucide-react";
 
 type Metric = "per" | "pbr" | "psr";
@@ -149,38 +152,15 @@ export function ValuationBandChart({
   const upperRef = useRef<ISeriesApi<"Line"> | null>(null);
   const lowerRef = useRef<ISeriesApi<"Line"> | null>(null);
   const linesRef = useRef<IPriceLine[]>([]);
+  const [chartApi, setChartApi] = useState<IChartApi | null>(null);
 
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
-    const chart = createChart(el, {
-      autoSize: true,
-      layout: {
-        background: { color: "transparent" },
-        textColor: "#94a3b8",
-        fontSize: 11,
-        attributionLogo: false,
-      },
-      grid: {
-        vertLines: { color: "rgba(148,163,184,0.08)" },
-        horzLines: { color: "rgba(148,163,184,0.08)" },
-      },
-      crosshair: { mode: CrosshairMode.Normal },
-      rightPriceScale: {
-        borderColor: "rgba(148,163,184,0.15)",
-        scaleMargins: { top: 0.08, bottom: 0.08 },
-      },
-      timeScale: {
-        borderColor: "rgba(148,163,184,0.15)",
-        rightOffset: 4,
-        barSpacing: 6,
-      },
-      handleScroll: { mouseWheel: true, pressedMouseMove: true },
-      handleScale: {
-        axisPressedMouseMove: { time: true, price: true },
-        mouseWheel: true,
-        pinch: true,
-      },
+    const chart = createProChart(el, readChartTheme(), "KR");
+    chart.applyOptions({
+      rightPriceScale: { scaleMargins: { top: 0.08, bottom: 0.08 } },
+      timeScale: { rightOffset: 4, barSpacing: 6, timeVisible: false },
     });
     priceRef.current = chart.addSeries(LineSeries, {
       color: "#22d3ee",
@@ -215,14 +195,9 @@ export function ValuationBandChart({
       priceLineVisible: false,
     });
     chartRef.current = chart;
-    const ro = new ResizeObserver(() => {
-      if (el.clientWidth > 0) {
-        chart.applyOptions({ width: el.clientWidth, height: el.clientHeight });
-      }
-    });
-    ro.observe(el);
+    setChartApi(chart);
     return () => {
-      ro.disconnect();
+      setChartApi(null);
       chart.remove();
       chartRef.current = null;
       priceRef.current = null;
@@ -303,6 +278,14 @@ export function ValuationBandChart({
     () => computeRangePosition(bars, { close: lastClose }),
     [bars, lastClose],
   );
+
+  const { legend, hud } = useChartChrome(chartApi, [
+    { id: "price", label: "주가", color: "#22d3ee", api: priceRef.current as ISeriesApi<SeriesType> | null, format: (v) => formatPrice(Math.round(v)) },
+    { id: "mid", label: `기준 ${midUse}×`, color: "#facc15", api: midRef.current as ISeriesApi<SeriesType> | null, format: (v) => formatPrice(Math.round(v)) },
+    { id: "upper", label: `상단 ${hiM}×`, color: "#fb7185", api: upperRef.current as ISeriesApi<SeriesType> | null, format: (v) => formatPrice(Math.round(v)) },
+    { id: "lower", label: `하단 ${loM}×`, color: "#c084fc", api: lowerRef.current as ISeriesApi<SeriesType> | null, format: (v) => formatPrice(Math.round(v)) },
+  ]);
+  const csvRows = useMemo(() => bars.filter((b) => b.close > 0 && b.date).map((b) => ({ time: b.date.slice(0, 10), close: b.close })), [bars]);
 
   return (
     <section className="desk-card desk-card-gold overflow-hidden">
@@ -470,8 +453,40 @@ export function ValuationBandChart({
         caption="주가 차트 구간 기준 · 기간 고/저는 절대 최고·최저, 최근 고/저는 확인된 스윙."
       />
 
-      <div className="relative">
-        <div ref={wrapRef} className="h-[300px] md:h-[340px] w-full" />
+      <ChartShell
+        title={`${METRICS.find((m) => m.id === metric)?.label} 밴드 · ${fundLabel}`}
+        toolbar={
+          <>
+            <RangePresets chart={chartApi} first={csvRows[0]?.time} last={csvRows.at(-1)?.time} />
+            <ScaleToggle chart={chartApi} allowed={["normal", "log"]} />
+          </>
+        }
+        hud={hud}
+        legend={legend}
+        status={bars.length ? { source: own.data?.source ? `${own.data.source} · 펀더멘털 네이버` : "Yahoo/네이버 · 펀더멘털 네이버", mode: `일봉 종가 · 밴드 = ${fundLabel} × 배수`, updatedAt: own.dataUpdatedAt || null } : null}
+        onExportPng={bars.length ? () => exportChartPng(chartApi, "KR", code ?? "", `band-${metric}`) : undefined}
+        onExportCsv={
+          bars.length
+            ? () =>
+                exportRowsCsv(
+                  chartApi,
+                  csvRows,
+                  [
+                    { name: "close", get: (r) => r.close },
+                    { name: `mid_${midUse}x`, get: () => (fund > 0 ? Math.round(fund * midUse) : null) },
+                    { name: `upper_${hiM}x`, get: () => (fund > 0 ? Math.round(fund * hiM) : null) },
+                    { name: `lower_${loM}x`, get: () => (fund > 0 ? Math.round(fund * loM) : null) },
+                  ],
+                  "KR",
+                  code ?? "",
+                  `band-${metric}`,
+                )
+            : undefined
+        }
+        height={340}
+        testId="valuation-band-chart"
+      >
+        <div ref={wrapRef} className="absolute inset-0" />
         {loading && bars.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground bg-card/70">
             <Loader2 className="size-4 animate-spin mr-2" /> 차트 로딩…
@@ -489,7 +504,7 @@ export function ValuationBandChart({
               : `${fundLabel}가 없어 밴드를 계산할 수 없습니다.`}
           </div>
         )}
-      </div>
+      </ChartShell>
 
       <div className="border-t border-border px-3 py-2 text-[11px] text-muted-foreground leading-relaxed">
         <span className="font-semibold text-sky-300">시안 실선</span> = 종가 ·{" "}

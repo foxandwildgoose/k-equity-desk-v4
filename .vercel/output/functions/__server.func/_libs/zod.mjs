@@ -604,7 +604,8 @@ var string$1 = (params) => {
 	return new RegExp(`^${regex}$`);
 };
 var integer = /^-?\d+$/;
-var number$1 = /^-?\d+(?:\.\d+)?$/;
+var number$2 = /^-?\d+(?:\.\d+)?$/;
+var boolean$1 = /^(?:true|false)$/i;
 var lowercase = /^[^A-Z]*$/;
 var uppercase = /^[^a-z]*$/;
 //#endregion
@@ -1381,7 +1382,7 @@ var $ZodJWT = /*@__PURE__*/ $constructor("$ZodJWT", (inst, def) => {
 });
 var $ZodNumber = /*@__PURE__*/ $constructor("$ZodNumber", (inst, def) => {
 	$ZodType.init(inst, def);
-	inst._zod.pattern = inst._zod.bag.pattern ?? number$1;
+	inst._zod.pattern = inst._zod.bag.pattern ?? number$2;
 	inst._zod.parse = (payload, _ctx) => {
 		if (def.coerce) try {
 			payload.value = Number(payload.value);
@@ -1402,6 +1403,24 @@ var $ZodNumber = /*@__PURE__*/ $constructor("$ZodNumber", (inst, def) => {
 var $ZodNumberFormat = /*@__PURE__*/ $constructor("$ZodNumberFormat", (inst, def) => {
 	$ZodCheckNumberFormat.init(inst, def);
 	$ZodNumber.init(inst, def);
+});
+var $ZodBoolean = /*@__PURE__*/ $constructor("$ZodBoolean", (inst, def) => {
+	$ZodType.init(inst, def);
+	inst._zod.pattern = boolean$1;
+	inst._zod.parse = (payload, _ctx) => {
+		if (def.coerce) try {
+			payload.value = Boolean(payload.value);
+		} catch (_) {}
+		const input = payload.value;
+		if (typeof input === "boolean") return payload;
+		payload.issues.push({
+			expected: "boolean",
+			code: "invalid_type",
+			input,
+			inst
+		});
+		return payload;
+	};
 });
 var $ZodUnknown = /*@__PURE__*/ $constructor("$ZodUnknown", (inst, def) => {
 	$ZodType.init(inst, def);
@@ -2443,12 +2462,28 @@ function _number(Class, params) {
 	});
 }
 // @__NO_SIDE_EFFECTS__
+function _coercedNumber(Class, params) {
+	return new Class({
+		type: "number",
+		coerce: true,
+		checks: [],
+		...normalizeParams(params)
+	});
+}
+// @__NO_SIDE_EFFECTS__
 function _int(Class, params) {
 	return new Class({
 		type: "number",
 		check: "number_format",
 		abort: false,
 		format: "safeint",
+		...normalizeParams(params)
+	});
+}
+// @__NO_SIDE_EFFECTS__
+function _boolean(Class, params) {
+	return new Class({
+		type: "boolean",
 		...normalizeParams(params)
 	});
 }
@@ -3001,6 +3036,9 @@ var numberProcessor = (schema, ctx, _json, _params) => {
 		} else json.exclusiveMaximum = exclusiveMaximum;
 	} else if (typeof maximum === "number") json.maximum = maximum;
 	if (typeof multipleOf === "number") json.multipleOf = multipleOf;
+};
+var booleanProcessor = (_schema, _ctx, json, _params) => {
+	json.type = "boolean";
 };
 var neverProcessor = (_schema, _ctx, json, _params) => {
 	json.not = {};
@@ -3642,7 +3680,7 @@ var ZodNumber = /*@__PURE__*/ $constructor("ZodNumber", (inst, def) => {
 	inst.isFinite = true;
 	inst.format = bag.format ?? null;
 });
-function number(params) {
+function number$1(params) {
 	return /* @__PURE__ */ _number(ZodNumber, params);
 }
 var ZodNumberFormat = /*@__PURE__*/ $constructor("ZodNumberFormat", (inst, def) => {
@@ -3651,6 +3689,14 @@ var ZodNumberFormat = /*@__PURE__*/ $constructor("ZodNumberFormat", (inst, def) 
 });
 function int(params) {
 	return /* @__PURE__ */ _int(ZodNumberFormat, params);
+}
+var ZodBoolean = /*@__PURE__*/ $constructor("ZodBoolean", (inst, def) => {
+	$ZodBoolean.init(inst, def);
+	ZodType.init(inst, def);
+	inst._zod.processJSONSchema = (ctx, json, params) => booleanProcessor(inst, ctx, json, params);
+});
+function boolean(params) {
+	return /* @__PURE__ */ _boolean(ZodBoolean, params);
 }
 var ZodUnknown = /*@__PURE__*/ $constructor("ZodUnknown", (inst, def) => {
 	$ZodUnknown.init(inst, def);
@@ -4010,4 +4056,9 @@ function superRefine(fn, params) {
 	return /* @__PURE__ */ _superRefine(fn, params);
 }
 //#endregion
-export { object as a, number as i, array as n, string as o, literal as r, union as s, _enum as t };
+//#region node_modules/zod/v4/classic/coerce.js
+function number(params) {
+	return /* @__PURE__ */ _coercedNumber(ZodNumber, params);
+}
+//#endregion
+export { literal as a, string as c, boolean as i, union as l, _enum as n, number$1 as o, array as r, object as s, number as t };

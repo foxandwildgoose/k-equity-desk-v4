@@ -6,6 +6,7 @@ import { useMarketQuotes, useQuotesByCodes } from "@/lib/use-market";
 import { inferSectorId } from "@/lib/infer-sector";
 import { Button } from "@/components/ui/button";
 import { Star } from "lucide-react";
+import { KeywordWatchEditor, UsWatchEditor } from "@/components/feed/WatchEditors";
 
 export const Route = createFileRoute("/watchlist")({
   component: WatchlistPage,
@@ -87,6 +88,11 @@ function WatchlistPage() {
       ) : (
         <StockTable stocks={stocks} />
       )}
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <UsWatchEditor />
+        <KeywordWatchEditor />
+      </div>
     </div>
   );
 }
