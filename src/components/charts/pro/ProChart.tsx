@@ -39,7 +39,7 @@ import { Input } from "@/components/ui/input";
 import { ChartShell, type LegendItem } from "@/components/charts/core/ChartShell";
 import { useChartTheme } from "@/components/charts/core/theme";
 import { useProChart } from "@/components/charts/core/create-pro-chart";
-import { downloadCanvasPng, downloadCsv } from "@/components/charts/core/export";
+import { composeChartPng, downloadCanvasPng, downloadCsv } from "@/components/charts/core/export";
 import type { ChartSync } from "@/components/charts/core/sync";
 import { formatChartPercent, formatChartPrice, formatChartVolume, priceFormatFor, type KrxInstrument } from "@/components/charts/core/formatters";
 import { RangePositionStrip } from "@/components/stocks/RangePositionStrip";
@@ -81,7 +81,7 @@ import {
   CHART_TYPES,
   defaultLayout,
   loadChartState,
-  migrateLegacyOnce,
+  migrateLegacyDrawings,
   saveChartState,
   type ChartLayoutState,
   type ChartScale,
@@ -107,6 +107,14 @@ import type { ChartEvents, ChartInterval, MinuteSize, OhlcBar } from "@/server/n
 import type { FeedItem } from "@/lib/feed/types";
 import type { PriceAlert } from "@/lib/store-migrate";
 import { cn } from "@/lib/utils";
+import { useHtsPanes, ensureHtsPanes } from "./useHtsPanes";
+import { HtsSettingsPanel } from "./HtsSettingsPanel";
+import { ProfileDetails } from "./ProfileDetails";
+import { defaultHtsSettings, hasSavedHtsSettings, loadHtsSettings, saveHtsSettings, htsSettingsKey, HTS_PANEL_ORDER, profileToCsv, type HtsProfileSettings, type ProfileMetadata } from "@/lib/charts/hts-settings";
+import { pricePanePoint, periodEndDay, profileRangeBars } from "@/lib/charts/hts-layout";
+import { alignChartFlow, emptyChartFlow, FLOW_METRICS, type FlowRequest } from "@/lib/charts/hts-flow";
+import { chartReplayInstant, flowToCsv } from "@/lib/charts/hts-flow-export";
+import { useChartFlow } from "@/lib/use-chart-flow";
 
 type Tool = "cursor" | DrawingType | "avwap-anchor" | "replay-pick";
 
@@ -123,6 +131,14 @@ export interface ProChartProps {
   market: "KR" | "US";
   instrument?: KrxInstrument;
   name?: string;
+  exchange?: string;
+  currency?: "KRW" | "USD";
+  quantityUnit?: "주" | "좌";
+  layoutScope?: string;
+  profileBars?: OhlcBar[];
+  profileSource?: string;
+  indicatorBars?: OhlcBar[];
+  priceBasisNote?: string;
   bars: OhlcBar[];
   interval: ChartInterval;
   minuteSize?: MinuteSize;
@@ -204,69 +220,6 @@ function CompareLoader({ sym, interval, minuteSize, range, onBars }: { sym: stri
 }
 
 const COMPARE_COLORS = ["#e879f9", "#84cc16", "#f97316"];
-const VP_KEY = "ked:vp:v1";
-const VP_WIDTH = { thin: 0.1, mid: 0.14, wide: 0.18 } as const;
-
-type VpPrefs = {
-  enabled: boolean;
-  preset: "hide" | "ref" | "emph";
-  rows: number;
-  basis: "volume" | "turnover";
-  showVa: boolean;
-  showPoc: boolean;
-  width: keyof typeof VP_WIDTH;
-  opacity: number;
-  visibleOnly: boolean;
-  rangeOn: boolean;
-  recentSpan: RecentSpan;
-};
-
-const DEFAULT_VP: VpPrefs = {
-  enabled: true,
-  preset: "ref",
-  rows: 24,
-  basis: "volume",
-  showVa: true,
-  showPoc: true,
-  width: "thin",
-  opacity: 0.22,
-  visibleOnly: false,
-  rangeOn: true,
-  recentSpan: "52W",
-};
-
-function readVpPrefs(): VpPrefs | null {
-  try {
-    const raw = typeof window === "undefined" ? null : window.localStorage.getItem(VP_KEY);
-    if (!raw) return null;
-    const p = JSON.parse(raw) as Partial<VpPrefs>;
-    const rows = [16, 24, 32, 48].includes(Number(p.rows)) ? Number(p.rows) : DEFAULT_VP.rows;
-    const width = p.width === "mid" || p.width === "wide" || p.width === "thin" ? p.width : DEFAULT_VP.width;
-    const recentSpan: RecentSpan =
-      p.recentSpan === "3M" || p.recentSpan === "6M" || p.recentSpan === "52W" || p.recentSpan === "all" || p.recentSpan === "swing"
-        ? p.recentSpan
-        : DEFAULT_VP.recentSpan;
-    return {
-      ...DEFAULT_VP,
-      ...p,
-      rows,
-      width,
-      recentSpan,
-      opacity: Number.isFinite(p.opacity) ? Math.min(0.4, Math.max(0.12, Number(p.opacity))) : DEFAULT_VP.opacity,
-      basis: p.basis === "turnover" ? "turnover" : "volume",
-      preset: p.preset === "hide" || p.preset === "emph" || p.preset === "ref" ? p.preset : DEFAULT_VP.preset,
-    };
-  } catch {
-    return null;
-  }
-}
-
-function applyVpPreset(preset: VpPrefs["preset"], prev: VpPrefs): VpPrefs {
-  if (preset === "hide") return { ...prev, preset, enabled: false };
-  if (preset === "emph") return { ...prev, preset, enabled: true, width: "wide", opacity: 0.32 };
-  return { ...prev, preset: "ref", enabled: true, width: "thin", opacity: 0.22 };
-}
-
 /**
  * Pro chart (F7 Tier A): chart types + scales, indicator catalog, drawing
  * tools with undo/redo, compare overlay, event overlays, alerts, bar replay,
@@ -287,57 +240,74 @@ export function ProChart(props: ProChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chart = useProChart(containerRef, theme, market);
   const fmt = useCallback((p: number) => formatChartPrice(p, market, rawBars[rawBars.length - 1]?.close), [market, rawBars]);
-  const [vp, setVp] = useState<VpPrefs>(DEFAULT_VP);
-  const [vpHydrated, setVpHydrated] = useState(false);
+  const instrument = props.instrument ?? "stock";
+  const scope = useMemo(() => ({ market, instrument, code, interval: intervalKey, layout: props.layoutScope ?? "detail" }), [market, instrument, code, intervalKey, props.layoutScope]);
+  const scopeKey = htsSettingsKey(scope);
+  const [hts, setHts] = useState(() => defaultHtsSettings(market, instrument));
+  const [legacyNotice, setLegacyNotice] = useState(false);
+  const [htsLoaded, setHtsLoaded] = useState<string | null>(null);
   useEffect(() => {
-    const saved = readVpPrefs();
-    if (saved) setVp(saved);
-    else if (window.matchMedia("(max-width: 767px)").matches) setVp((v) => ({ ...v, enabled: false, preset: "hide" }));
-    setVpHydrated(true);
-  }, []);
+    if (!props.instrument) return;
+    const storage = safeStorage();
+    const hadScoped = storage ? hasSavedHtsSettings(storage, scope) : false;
+    const loaded = storage ? loadHtsSettings(storage, scope) : defaultHtsSettings(market, instrument);
+    const oldLayout = storage && scope.layout === "detail" ? loadChartState(storage, market, code, intervalKey) : null;
+    const oldRsi = oldLayout?.indicators.find((i) => i.id === "rsi");
+    if (!hadScoped && oldRsi && Number.isFinite(Number(oldRsi.params.period))) loaded.rsiPeriod = Math.max(2, Math.min(200, Number(oldRsi.params.period)));
+    setLegacyNotice(Boolean(!hadScoped && oldLayout));
+    setHts(loaded);
+    setHtsLoaded(scopeKey);
+  }, [scope, scopeKey, market, instrument, code, intervalKey, props.instrument]);
   useEffect(() => {
-    if (!vpHydrated) return;
-    try {
-      window.localStorage.setItem(VP_KEY, JSON.stringify(vp));
-    } catch {
-      /* private mode */
-    }
-  }, [vp, vpHydrated]);
+    if (htsLoaded !== scopeKey || !props.instrument) return;
+    const storage = safeStorage();
+    if (storage) saveHtsSettings(storage, scope, hts);
+  }, [scope, scopeKey, htsLoaded, hts, props.instrument]);
+  useEffect(() => {
+    if (htsLoaded === scopeKey && !hts.trustStartDate && rawBars[0]) setHts((prev) => ({ ...prev, trustStartDate: rawBars[0]!.date.slice(0, 10) }));
+  }, [rawBars, htsLoaded, scopeKey, hts.trustStartDate]);
+  const htsAllowed = market === "KR" || instrument === "etf" || instrument === "etn";
+  const htsEnabled = htsAllowed && hts.enabled;
+  const pricePaneIndex = htsEnabled ? 1 : 0;
+  const vp = hts.profile;
+  const setVp = (update: (old: HtsProfileSettings) => HtsProfileSettings) => setHts((old) => ({ ...old, profile: update(old.profile) }));
+  const quantityUnit = props.quantityUnit ?? "주";
+  const currency = props.currency ?? (market === "KR" ? "KRW" : "USD");
 
   // ── Layout state (persisted per market/code/interval) ─────────────────
-  const [layout, setLayout] = useState<ChartLayoutState>(() => defaultLayout(defaultIndicators(market), chartPrefs.chartType, chartPrefs.scale));
+  const [layout, setLayout] = useState<ChartLayoutState>(() => defaultLayout(defaultIndicators(market).filter((i) => !htsAllowed || i.id !== "macd"), chartPrefs.chartType, chartPrefs.scale));
   const [history, dispatch] = useReducer(drawingReducer, undefined, () => initHistory());
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
-  const layoutKey = `${market}:${code}:${intervalKey}`;
+  const persistenceInterval = `${intervalKey}:${instrument}:${props.layoutScope ?? "detail"}`;
+  const layoutKey = `${market}:${code}:${persistenceInterval}`;
   useEffect(() => {
     const store = safeStorage();
-    const saved = store ? loadChartState(store, market, code, intervalKey) : null;
-    const next = saved ?? defaultLayout(defaultIndicators(market), chartPrefs.chartType, chartPrefs.scale);
+    const saved = store ? loadChartState(store, market, code, persistenceInterval) ?? (scope.layout === "detail" ? loadChartState(store, market, code, intervalKey) : null) : null;
+    const next = saved ?? defaultLayout(defaultIndicators(market).filter((i) => !htsAllowed || i.id !== "macd"), chartPrefs.chartType, chartPrefs.scale);
     setLayout(next);
     dispatch({ type: "reset", items: next.drawings });
     setLoadedKey(layoutKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layoutKey]);
   useEffect(() => {
-    if (loadedKey !== layoutKey) return;
+    if (loadedKey !== layoutKey || !props.instrument) return;
     const store = safeStorage();
     if (!store) return;
-    const t = setTimeout(() => saveChartState(store, market, code, intervalKey, { ...layout, drawings: history.items }), 250);
+    const t = setTimeout(() => saveChartState(store, market, code, persistenceInterval, { ...layout, drawings: history.items }), 250);
     return () => clearTimeout(t);
-  }, [layout, history.items, loadedKey, layoutKey, market, code, intervalKey]);
+  }, [layout, history.items, loadedKey, layoutKey, market, code, persistenceInterval, props.instrument]);
 
-  // One-time migration of legacy `ke-chart-draw:{code}` (KR daily).
+  // Copy legacy drawings into this detail scope, keeping all original storage intact.
   useEffect(() => {
-    if (market !== "KR" || interval !== "day" || !rawBars.length || loadedKey !== layoutKey) return;
+    if (market !== "KR" || interval !== "day" || scope.layout !== "detail" || !props.instrument || !rawBars.length || loadedKey !== layoutKey) return;
     const store = safeStorage();
     if (!store) return;
-    const n = migrateLegacyOnce(store, code, rawBars.map((b) => barTimeOf(b.date, market)), { ...layout, drawings: history.items });
-    if (n > 0) {
-      const next = loadChartState(store, market, code, intervalKey);
-      if (next) dispatch({ type: "reset", items: next.drawings });
-    }
+    const migrated = migrateLegacyDrawings(store.getItem(`ke-chart-draw:${code}`), rawBars.map((b) => barTimeOf(b.date, market)));
+    const ids = new Set(history.items.map((d) => d.id));
+    const added = migrated.drawings.filter((d) => !ids.has(d.id));
+    if (added.length) dispatch({ type: "reset", items: [...history.items, ...added] });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rawBars, loadedKey, layoutKey]);
+  }, [rawBars, loadedKey, layoutKey, props.instrument]);
 
   // ── Replay ─────────────────────────────────────────────────────────────
   const replayable = interval === "day" || interval === "week";
@@ -358,7 +328,10 @@ export function ProChart(props: ProChartProps) {
   const bars = useMemo(() => capBars(replaySlice(rawBars, replay ? replay.cursor : null)), [rawBars, replay]);
   const times = useMemo(() => bars.map((b) => barTimeOf(b.date, market)), [bars, market]);
   const timeIndex = useMemo(() => new Map(times.map((t, i) => [t, i])), [times]);
-  const version = `${bars.length}|${bars[0]?.date ?? ""}|${bars[bars.length - 1]?.date ?? ""}|${bars[bars.length - 1]?.close ?? ""}`;
+  // Identity and every input field participate: a volume correction must invalidate cached indicators.
+  const version = useMemo(() => `${market}:${code}:${intervalKey}:${props.source}:${JSON.stringify(bars)}`, [market, code, intervalKey, props.source, bars]);
+  const renderedIndicators = layout.indicators.filter((i) => !htsEnabled || (i.id !== "rsi" && i.id !== "volume"));
+  const extraCount = renderedIndicators.filter((i) => i.visible && INDICATOR_BY_ID.get(i.id)?.pane === "separate" && INDICATOR_BY_ID.get(i.id)?.render === "series").length;
   const catalogBars = useMemo<CatalogBars>(
     () => ({
       open: bars.map((b) => b.open),
@@ -402,15 +375,16 @@ export function ProChart(props: ProChartProps) {
 
   useEffect(() => {
     if (!chart) return;
+    if (htsEnabled) ensureHtsPanes(chart, extraCount);
     const type = layout.chartType;
     const pf = priceFormatFor(market, rawBars[rawBars.length - 1]?.close);
     const common = { priceFormat: pf, priceLineVisible: true, lastValueVisible: true } as const;
     let s: ISeriesApi<SeriesType>;
-    if (type === "line") s = chart.addSeries(LineSeries, { ...common, color: theme.text, lineWidth: 2 });
-    else if (type === "area") s = chart.addSeries(AreaSeries, { ...common, lineColor: "#38bdf8", topColor: "rgba(56,189,248,0.28)", bottomColor: "rgba(56,189,248,0.02)" });
+    if (type === "line") s = chart.addSeries(LineSeries, { ...common, color: theme.text, lineWidth: 2 }, pricePaneIndex);
+    else if (type === "area") s = chart.addSeries(AreaSeries, { ...common, lineColor: "#38bdf8", topColor: "rgba(56,189,248,0.28)", bottomColor: "rgba(56,189,248,0.02)" }, pricePaneIndex);
     else if (type === "baseline")
-      s = chart.addSeries(BaselineSeries, { ...common, baseValue: { type: "price", price: rawBars[0]?.close ?? 0 }, topLineColor: upColor, bottomLineColor: downColor, topFillColor1: `${upColor}33`, bottomFillColor2: `${downColor}33` });
-    else if (type === "bars") s = chart.addSeries(BarSeries, { ...common, upColor, downColor, thinBars: false });
+      s = chart.addSeries(BaselineSeries, { ...common, baseValue: { type: "price", price: rawBars[0]?.close ?? 0 }, topLineColor: upColor, bottomLineColor: downColor, topFillColor1: `${upColor}33`, bottomFillColor2: `${downColor}33` }, pricePaneIndex);
+    else if (type === "bars") s = chart.addSeries(BarSeries, { ...common, upColor, downColor, thinBars: false }, pricePaneIndex);
     else
       s = chart.addSeries(CandlestickSeries, {
         ...common,
@@ -420,7 +394,7 @@ export function ProChart(props: ProChartProps) {
         borderDownColor: downColor,
         wickUpColor: upColor,
         wickDownColor: downColor,
-      });
+      }, pricePaneIndex);
     mainRef.current = s;
     s.attachPrimitive(sessionPrim.current);
     s.attachPrimitive(vpPrim.current);
@@ -443,7 +417,7 @@ export function ProChart(props: ProChartProps) {
       mainRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chart, layout.chartType, upColor, downColor, market]);
+  }, [chart, layout.chartType, upColor, downColor, market, pricePaneIndex]);
 
   // Main data.
   useEffect(() => {
@@ -456,7 +430,6 @@ export function ProChart(props: ProChartProps) {
     } else {
       s.setData(src.map((b, i) => ({ time: times[i] as Time, open: b.open, high: b.high, low: b.low, close: b.close })));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mainEpoch, bars, times, layout.chartType]);
 
   // Fit once per dataset key.
@@ -466,9 +439,9 @@ export function ProChart(props: ProChartProps) {
     const key = `${layoutKey}|${props.range ?? ""}|${props.minuteSize ?? ""}`;
     if (fittedKey.current === key) return;
     fittedKey.current = key;
-    const n = rawBars.length;
+    const n = bars.length;
     chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, n - (interval === "minute" ? 160 : 180)), to: n + 4 });
-  }, [chart, rawBars.length, layoutKey, props.range, props.minuteSize, interval]);
+  }, [chart, bars.length, rawBars.length, layoutKey, props.range, props.minuteSize, interval]);
 
   // ── Compare overlay (F7.8) ─────────────────────────────────────────────
   const [compare, setCompare] = useState<string[]>([]);
@@ -487,41 +460,43 @@ export function ProChart(props: ProChartProps) {
     compare.forEach((sym, i) => {
       let s = map.get(sym);
       if (!s) {
-        s = chart.addSeries(LineSeries, { color: COMPARE_COLORS[i % 3], lineWidth: 2, priceLineVisible: false, lastValueVisible: true, title: sym.split(":")[1] });
+        s = chart.addSeries(LineSeries, { color: COMPARE_COLORS[i % 3], lineWidth: 2, priceLineVisible: false, lastValueVisible: true, title: sym.split(":")[1] }, pricePaneIndex);
         map.set(sym, s);
       }
+      s.moveToPane(pricePaneIndex);
       const other = (compareBars[sym] ?? []).map((b) => ({ time: barTimeOf(b.date, sym.startsWith("US") ? "US" : "KR"), close: b.close }));
       const aligned = alignByTime(times, other);
       s.setData(times.map((t, j) => (aligned[j] == null ? { time: t as Time } : { time: t as Time, value: aligned[j]! })));
     });
     compareActive.current = compare.length > 0;
-  }, [chart, compare, compareBars, times, mainEpoch]);
+  }, [chart, compare, compareBars, times, mainEpoch, pricePaneIndex]);
 
   // Price scale mode (compare forces % from first visible bar).
   useEffect(() => {
     if (!chart) return;
-    chart.priceScale("right").applyOptions({ mode: compare.length ? PriceScaleMode.Percentage : SCALE_MODE[layout.scale] });
-  }, [chart, layout.scale, compare.length, mainEpoch]);
+    chart.priceScale("right", pricePaneIndex).applyOptions({ mode: compare.length ? PriceScaleMode.Percentage : SCALE_MODE[layout.scale] });
+  }, [chart, layout.scale, compare.length, mainEpoch, pricePaneIndex]);
 
   // ── Indicator series ───────────────────────────────────────────────────
   const indSeries = useRef(new Map<string, { series: Map<string, ISeriesApi<SeriesType>>; lines: IPriceLine[] }>());
   const pivotLines = useRef<IPriceLine[]>([]);
-  const structureKey = JSON.stringify(layout.indicators.map((i) => [i.uid, i.id, i.visible, i.color, i.params]));
+  const structureKey = JSON.stringify([htsEnabled, renderedIndicators.map((i) => [i.uid, i.id, i.visible, i.color, i.params])]);
   useEffect(() => {
     if (!chart) return;
     const store = indSeries.current;
     for (const [, v] of store) for (const s of v.series.values()) chart.removeSeries(s);
     store.clear();
-    for (let i = chart.panes().length - 1; i >= 1; i--) {
+    if (htsEnabled) ensureHtsPanes(chart, extraCount);
+    for (let i = chart.panes().length - 1; !htsEnabled && i >= 1; i--) {
       const pane = chart.panes()[i];
       if (pane && pane.getSeries().length === 0) chart.removePane(i);
     }
-    let pane = 1;
-    layout.indicators.forEach((inst, idx) => {
+    let pane = htsEnabled ? 5 : 1;
+    renderedIndicators.forEach((inst, idx) => {
       if (!inst.visible) return;
       const def = INDICATOR_BY_ID.get(inst.id);
       if (!def || def.render !== "series") return;
-      const paneIndex = def.pane === "separate" ? pane++ : 0;
+      const paneIndex = def.pane === "separate" ? pane++ : pricePaneIndex;
       const color = inst.color ?? PALETTE[idx % PALETTE.length]!;
       const series = new Map<string, ISeriesApi<SeriesType>>();
       const lines: IPriceLine[] = [];
@@ -555,8 +530,10 @@ export function ProChart(props: ProChartProps) {
     });
     const panes = chart.panes();
     // Main pane keeps most of the height; each indicator pane gets one share.
-    panes[0]?.setStretchFactor(Math.max(3, panes.length));
-    for (let i = 1; i < panes.length; i++) panes[i]?.setStretchFactor(1);
+    if (!htsEnabled) {
+      panes[0]?.setStretchFactor(Math.max(3, panes.length));
+      for (let i = 1; i < panes.length; i++) panes[i]?.setStretchFactor(1);
+    }
     setIndEpoch((e) => e + 1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chart, structureKey, market]);
@@ -571,7 +548,7 @@ export function ProChart(props: ProChartProps) {
       for (const [key, s] of entry.series) {
         const arr = v[key] ?? [];
         if (inst.id === "volume" && key === "v") {
-          s.setData(bars.map((b, i) => ({ time: times[i] as Time, value: b.volume, color: b.close >= b.open ? `${upColor}88` : `${downColor}88` })));
+          s.setData(bars.map((b, i) => b.volumeValid === false ? { time: times[i] as Time } : { time: times[i] as Time, value: b.volume, color: b.close >= b.open ? `${upColor}88` : `${downColor}88` }));
         } else if (key === "hist") {
           s.setData(times.map((t, i) => { const x = arr[i]; return x == null ? { time: t as Time } : { time: t as Time, value: x, color: x >= 0 ? `${upColor}99` : `${downColor}99` }; }));
         } else {
@@ -581,6 +558,18 @@ export function ProChart(props: ProChartProps) {
       }
     }
   }, [values, indEpoch, bars, times, layout.indicators, upColor, downColor]);
+
+  useEffect(() => {
+    const visible = !htsEnabled || !hts.collapsed.price;
+    mainRef.current?.applyOptions({ visible });
+    for (const series of compareSeries.current.values()) series.applyOptions({ visible });
+    for (const instance of renderedIndicators) {
+      if (INDICATOR_BY_ID.get(instance.id)?.pane !== "overlay") continue;
+      for (const series of indSeries.current.get(instance.uid)?.series.values() ?? []) series.applyOptions({ visible });
+    }
+    // Series identities are tracked by their construction epochs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [htsEnabled, hts.collapsed.price, mainEpoch, indEpoch, compare]);
 
   // Pivots (price lines from the previous bar) + volume profile (visible window).
   const [visible, setVisible] = useState<{ from: number; to: number } | null>(null);
@@ -598,48 +587,70 @@ export function ProChart(props: ProChartProps) {
       }
     }
   }, [mainEpoch, layout.indicators, bars]);
-  useEffect(() => {
-    const catalog = layout.indicators.find((i) => i.id === "vprofile" && i.visible);
-    const builtin = vp.enabled;
-    if (!builtin && !catalog) {
-      vpPrim.current.set(null);
-      return;
-    }
+  const catalogProfile = layout.indicators.find((i) => i.id === "vprofile" && i.visible);
+  const profileInput = useMemo(() => {
     const w = visibleWindow(bars.length, visible);
-    const slice = builtin && !vp.visibleOnly ? bars : bars.slice(w.from, w.to + 1);
-    if (slice.length < 30) {
-      vpPrim.current.set(null);
-      return;
-    }
-    const profile = volumeProfile(
-      slice,
-      builtin ? vp.rows : Number(catalog?.params.rows ?? 24),
-      builtin ? 0.7 : Number(catalog?.params.va ?? 0.7),
-      builtin ? vp.basis : "volume",
-    );
-    const narrow = typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
-    const ratio = narrow ? Math.min(VP_WIDTH[vp.width], 0.08) : VP_WIDTH[vp.width];
-    vpPrim.current.set(profile);
-    vpPrim.current.setStyle({
-      widthRatio: builtin ? ratio : 0.1,
-      opacity: builtin ? vp.opacity : 0.22,
-      showVa: builtin ? vp.showVa : true,
-      showPoc: builtin ? vp.showPoc : true,
-      hoverPrice: null,
+    const from = bars[w.from]?.date;
+    const to = bars[w.to]?.date;
+    if ((vp.enabled ? vp.rangeMode : "visible") === "visible" && (!from || !to || w.from > w.to)) return [];
+    const loaded = props.profileBars?.length ? props.profileBars : bars;
+    return profileRangeBars(loaded, {
+      mode: vp.enabled ? vp.rangeMode : "visible",
+      visibleFrom: from, visibleTo: to ? periodEndDay(to, interval) : undefined,
+      fixedFrom: vp.startDate, fixedTo: vp.endDate,
+      replayTo: replay && bars.at(-1) ? periodEndDay(bars.at(-1)!.date, interval) : undefined,
     });
-  }, [layout.indicators, bars, visible, vp, mainEpoch]);
+  }, [bars, props.profileBars, visible, vp.enabled, vp.rangeMode, vp.startDate, vp.endDate, replay, interval]);
+  const vpProfile = useMemo(() => !vp.enabled && !catalogProfile ? null : volumeProfile(profileInput,
+    vp.enabled ? vp.rows : Number(catalogProfile?.params.rows ?? 10),
+    vp.enabled ? 0.7 : Number(catalogProfile?.params.va ?? 0.7), vp.enabled ? vp.basis : "volume"),
+  [profileInput, vp.enabled, vp.rows, vp.basis, catalogProfile]);
+  const profileMetadata: ProfileMetadata = {
+    market, instrument, code, name: props.name, quantityUnit, currency,
+    source: props.profileBars?.length ? props.profileSource ?? props.source : props.source,
+    asOf: profileInput.at(-1)?.date ?? null,
+    fetchedAt: props.updatedAt ? new Date(props.updatedAt).toISOString() : null,
+    sourceResolution: props.profileBars?.length ? "day" : interval,
+    rangeMode: vp.enabled ? vp.rangeMode : "visible", actualFrom: profileInput[0]?.date ?? null, actualTo: profileInput.at(-1)?.date ?? null,
+    requestedFrom: vp.rangeMode === "fixed" ? vp.startDate : undefined,
+    requestedTo: vp.rangeMode === "fixed" ? vp.endDate : undefined,
+    adjustment: props.priceBasisNote ?? "제공처 수정주가·거래량 조정 계약 미확인", estimated: true,
+    adjustmentWarning: "OHLCV 가격대 겹침 배분 추정치 · 실제 체결가격별 거래량 아님",
+  };
+  const profileDescription = `${vp.rangeMode === "visible" ? "보이는 구간" : vp.rangeMode === "fixed" ? "고정 구간" : "로드 전체"} · ${profileInput[0]?.date ?? "—"}~${profileInput.at(-1)?.date ?? "—"} · ${profileMetadata.sourceResolution} · ${vp.basis === "volume" ? quantityUnit : currency} · 추정`;
+  useEffect(() => {
+    vpPrim.current.set(vpProfile);
+    vpPrim.current.setStyle({ widthRatio: vp.widthRatio, opacity: vp.opacity, color: vp.color,
+      showVa: vp.showVa, showPoc: vp.showPoc, showLabels: vp.showLabels,
+      unit: vp.basis === "volume" ? quantityUnit : currency, estimated: true,
+      labelColor: theme.text, backgroundColor: theme.background, currentPrice: bars.at(-1)?.close ?? null });
+  }, [vpProfile, vp, quantityUnit, currency, theme, bars, mainEpoch]);
+  const flowRequest = useMemo<FlowRequest>(() => ({ code, market, instrument, exchange: props.exchange ?? (market === "KR" ? "KRX" : "US"),
+    currency, quantityUnit, from: hts.trustStartDate && hts.trustStartDate < (rawBars[0]?.date.slice(0, 10) ?? "") ? hts.trustStartDate : rawBars[0]?.date.slice(0, 10) ?? "",
+    to: rawBars.at(-1) ? periodEndDay(rawBars.at(-1)!.date, interval).slice(0, 10) : "", interval }),
+  [code, market, instrument, props.exchange, currency, quantityUnit, hts.trustStartDate, rawBars, interval]);
+  const flowQuery = useChartFlow(flowRequest, htsEnabled && Boolean(props.instrument) && htsLoaded === scopeKey && Boolean(hts.trustStartDate));
+  const flow = useMemo(() => flowQuery.data ?? emptyChartFlow(flowRequest, flowQuery.isError ? "데이터 요청 실패 · 재시도 필요" : props.instrument ? "데이터 확인 중" : "상품 유형 확인 중"), [flowQuery.data, flowQuery.isError, flowRequest, props.instrument]);
+  const replayAt = replay && bars.at(-1) ? chartReplayInstant(periodEndDay(bars.at(-1)!.date, interval).slice(0, 10), market) : undefined;
+  const alignedFlow = useMemo(() => alignChartFlow(flow, { dates: bars.map((b) => b.date.slice(0, 10)), interval,
+    cumulativeStart: hts.trustStartDate, investmentTrustMode: hts.trustMode,
+    expectedDailyDates: (props.profileBars ?? (interval === "day" ? rawBars : [])).map((b) => b.date.slice(0, 10)),
+    replayAt,
+  }), [flow, bars, interval, hts.trustStartDate, hts.trustMode, props.profileBars, rawBars, replayAt]);
 
   // Visible range tracking.
   const onVisibleRangeRef = useRef(props.onVisibleRange);
   onVisibleRangeRef.current = props.onVisibleRange;
   useEffect(() => {
     if (!chart) return;
+    let timer: ReturnType<typeof setTimeout>;
     const h = (r: { from: number; to: number } | null) => {
-      setVisible(r ? { from: r.from, to: r.to } : null);
+      clearTimeout(timer);
+      timer = setTimeout(() => setVisible(r ? { from: r.from, to: r.to } : null), 60);
       onVisibleRangeRef.current?.(r ? { from: r.from, to: r.to } : null);
     };
     chart.timeScale().subscribeVisibleLogicalRangeChange(h);
-    return () => chart.timeScale().unsubscribeVisibleLogicalRangeChange(h);
+    return () => { clearTimeout(timer); chart.timeScale().unsubscribeVisibleLogicalRangeChange(h); };
   }, [chart]);
 
   // Crosshair / time sync (F7.4).
@@ -705,10 +716,10 @@ export function ProChart(props: ProChartProps) {
   const [selected, setSelected] = useState<string | null>(null);
   const [dragging, setDragging] = useState<Drawing | null>(null);
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
-  useEffect(() => {
-    const price = hoverIdx != null ? bars[hoverIdx]?.close ?? null : null;
-    vpPrim.current.setStyle({ hoverPrice: price });
-  }, [hoverIdx, bars, mainEpoch]);
+  const htsPanes = useHtsPanes({ chart, enabled: htsEnabled, settings: hts, onSettings: setHts,
+    container: containerRef, extraCount, bars, indicatorBars: props.indicatorBars, times,
+    flow, aligned: alignedFlow, hoverIndex: hoverIdx, theme, upColor, downColor,
+    quantityUnit, source: props.source, profileDescription, interval });
   const [pendingAvwap, setPendingAvwap] = useState<string | null>(null);
   const shown = useMemo(() => (dragging ? history.items.map((d) => (d.id === dragging.id ? dragging : d)) : history.items), [history.items, dragging]);
 
@@ -728,25 +739,39 @@ export function ProChart(props: ProChartProps) {
   const stateRef = useRef({ pending, magnet, bars, times, timeIndex, history, selected, newsByBar, pendingAvwap });
   stateRef.current = { pending, magnet, bars, times, timeIndex, history, selected, newsByBar, pendingAvwap };
 
+  const toPricePoint = useCallback((x: number, y: number) => {
+    if (htsEnabled && hts.collapsed.price) return null;
+    const container = containerRef.current;
+    const pane = chart?.panes()[pricePaneIndex];
+    const element = pane?.getHTMLElement();
+    if (!chart || !container || !element || !pane) return null;
+    const outer = container.getBoundingClientRect();
+    const rect = element.getBoundingClientRect();
+    return pricePanePoint(x, y, { left: chart.priceScale("left", pricePaneIndex).width(), top: rect.top - outer.top,
+      width: chart.timeScale().width(), height: pane.getHeight() });
+  }, [chart, pricePaneIndex, htsEnabled, hts.collapsed.price]);
+
   const anchorAt = useCallback(
-    (x: number, y: number, t: Time | undefined): Anchor | null => {
+    (x: number, y: number, t: Time | undefined, paneLocal = false): Anchor | null => {
       const s = mainRef.current;
       if (!s || !chart) return null;
+      const point = paneLocal ? { x, y } : toPricePoint(x, y);
+      if (!point) return null;
       const st = stateRef.current;
       let time = t as string | number | undefined;
       if (time === undefined) {
-        const lg = chart.timeScale().coordinateToLogical(x);
+        const lg = chart.timeScale().coordinateToLogical(point.x);
         if (lg == null) return null;
         time = st.times[Math.max(0, Math.min(st.times.length - 1, Math.round(lg)))];
       }
       if (time === undefined) return null;
-      const raw = s.coordinateToPrice(y);
+      const raw = s.coordinateToPrice(point.y);
       if (raw == null) return null;
       const idx = st.timeIndex.get(time);
       const bar = idx != null ? st.bars[idx] : undefined;
       return { t: time, p: snapPrice(raw, { market, instrument: props.instrument, magnet: st.magnet, bar }) };
     },
-    [chart, market, props.instrument],
+    [chart, market, props.instrument, toPricePoint],
   );
 
   useEffect(() => {
@@ -756,9 +781,11 @@ export function ProChart(props: ProChartProps) {
       const idx = param.time != null ? st.timeIndex.get(param.time as string | number) : undefined;
       setHoverIdx(idx ?? null);
       props.onHover?.(idx != null ? st.bars[idx]! : null);
+      const inPrice = param.paneIndex === pricePaneIndex;
+      vpPrim.current.setStyle({ hoverPrice: inPrice && param.point ? mainRef.current?.coordinateToPrice(param.point.y) ?? null : null });
       const cur = toolRef.current;
-      if (cur === "cursor" || cur === "replay-pick" || cur === "avwap-anchor" || !param.point || !st.pending.length) return;
-      const a = anchorAt(param.point.x, param.point.y, param.time);
+      if (!inPrice || cur === "cursor" || cur === "replay-pick" || cur === "avwap-anchor" || !param.point || !st.pending.length) return;
+      const a = anchorAt(param.point.x, param.point.y, param.time, true);
       if (a) setPreview(newDrawing(cur, [...st.pending, a], "preview"));
     };
     chart.subscribeCrosshairMove(onMove);
@@ -775,12 +802,17 @@ export function ProChart(props: ProChartProps) {
    */
   const handleClick = useCallback(
     (x: number, y: number) => {
+      const point = toPricePoint(x, y);
+      if (!point) return;
       const st = stateRef.current;
       const cur = toolRef.current;
       const a = anchorAt(x, y, undefined);
       if (cur === "replay-pick") {
         const idx = a ? st.timeIndex.get(a.t) : undefined;
-        if (idx != null) setReplay({ cursor: idx, playing: false, speed: 1 });
+        if (idx != null) {
+          const rawIndex = rawBars.findIndex((bar) => bar.date === st.bars[idx]?.date);
+          if (rawIndex >= 0) setReplay({ cursor: rawIndex, playing: false, speed: 1 });
+        }
         setTool("cursor");
         return;
       }
@@ -794,7 +826,7 @@ export function ProChart(props: ProChartProps) {
         return;
       }
       if (cur === "cursor") {
-        const hit = drawingPrim.current.hit(x, y);
+        const hit = drawingPrim.current.hit(point.x, point.y);
         if (hit) return setSelected(hit.id);
         setSelected(null);
         if (a && st.newsByBar.has(a.t)) setNewsList(st.newsByBar.get(a.t)!);
@@ -811,7 +843,7 @@ export function ProChart(props: ProChartProps) {
         setTool("cursor");
       } else setPending(next);
     },
-    [anchorAt],
+    [anchorAt, toPricePoint, rawBars],
   );
 
   // Drag selected drawing / handle (pointer events on the container).
@@ -829,7 +861,9 @@ export function ProChart(props: ProChartProps) {
       press = local(e);
       if (toolRef.current !== "cursor") return;
       const { x, y } = local(e);
-      const hit = drawingPrim.current.hit(x, y);
+      const point = toPricePoint(x, y);
+      if (!point) return;
+      const hit = drawingPrim.current.hit(point.x, point.y);
       if (!hit) return;
       const d = stateRef.current.history.items.find((i) => i.id === hit.id);
       if (!d || d.locked) {
@@ -895,7 +929,7 @@ export function ProChart(props: ProChartProps) {
       el.removeEventListener("pointerup", up);
       el.removeEventListener("pointercancel", up);
     };
-  }, [chart, anchorAt, handleClick]);
+  }, [chart, anchorAt, handleClick, toPricePoint]);
 
   const cancelTool = () => {
     setTool("cursor");
@@ -983,8 +1017,9 @@ export function ProChart(props: ProChartProps) {
   };
 
   // ── Toolbar actions ────────────────────────────────────────────────────
-  const [panel, setPanel] = useState<null | "indicators" | "objects" | "alerts">(null);
+  const [panel, setPanel] = useState<null | "indicators" | "objects" | "alerts" | "hts">(null);
   const [compareInput, setCompareInput] = useState("");
+  const htsTriggerRef = useRef<HTMLButtonElement | null>(null);
   const setType = (t: ChartType) => {
     setLayout((l) => ({ ...l, chartType: t }));
     setChartPrefs({ chartType: t });
@@ -1020,19 +1055,31 @@ export function ProChart(props: ProChartProps) {
   // ── Export (F7.2) ──────────────────────────────────────────────────────
   const exportPng = () => {
     if (!chart) return;
-    downloadCanvasPng(chart.takeScreenshot(true, false), chartExportName(market, code, intervalKey, "png", Date.now()));
+    downloadCanvasPng(composeChartPng(chart.takeScreenshot(true, false), [
+      `${props.name ?? code} · ${market} ${code} · ${intervalKey} · ${props.source}`,
+      `매물대 ${profileDescription} · 합계 ${vpProfile?.totalValue ?? 0} · ${vpProfile?.method ?? "자료 없음"}`,
+      ...(htsEnabled ? [`RSI(${hts.rsiPeriod}) ${hts.signalMethod.toUpperCase()}(${hts.signalPeriod}) · 투신 ${hts.trustMode} 시작 ${hts.trustStartDate}`] : []),
+      ...htsPanes.summaries.filter(() => htsEnabled).map((item) => `${item.title}: ${item.value} ${item.unit} · ${item.status} · ${item.asOf} · ${item.source}`),
+      profileMetadata.adjustment,
+    ]), chartExportName(market, code, intervalKey, "png", Date.now()));
   };
   const exportCsv = () => {
     const w = visibleWindow(bars.length, visible);
-    const rows = bars.slice(w.from, w.to + 1).map((b, i) => ({ time: times[w.from + i]!, open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume }));
-    const extra: { name: string; values: (number | null)[] }[] = [];
-    for (const inst of layout.indicators) {
+    const rows = bars.slice(w.from, w.to + 1).map((b, i) => ({ time: times[w.from + i]!, open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volumeValid === false ? null : b.volume }));
+    const extra: { name: string; values: (number | null)[] }[] = [{ name: "volume_valid", values: bars.slice(w.from, w.to + 1).map((b) => b.volumeValid === false ? 0 : 1) }];
+    for (const inst of renderedIndicators) {
       const v = values.get(inst.uid);
       const def = INDICATOR_BY_ID.get(inst.id);
-      if (!v || !def || inst.id === "volume") continue;
+      if (!inst.visible || !v || !def || inst.id === "volume") continue;
       for (const o of def.outputs) extra.push({ name: `${instanceLabel(inst)}${def.outputs.length > 1 ? `.${o.key}` : ""}`, values: (v[o.key] ?? []).slice(w.from, w.to + 1) });
     }
-    downloadCsv(barsToCsv(rows, extra), chartExportName(market, code, intervalKey, "csv", Date.now()));
+    if (htsEnabled) {
+      extra.push({ name: `RSI(${hts.rsiPeriod})`, values: htsPanes.rsiData.rsi.slice(w.from, w.to + 1) }, { name: `${hts.signalMethod.toUpperCase()}(${hts.signalPeriod})`, values: htsPanes.rsiData.signal.slice(w.from, w.to + 1) });
+      for (const period of [5, 20, 60] as const) extra.push({ name: `VolumeSMA${period}`, values: htsPanes.averages[period].slice(w.from, w.to + 1) });
+      for (const id of FLOW_METRICS) extra.push({ name: id, values: alignedFlow[id].points.slice(w.from, w.to + 1).map((p) => p.value) });
+    }
+    const flowRows = flowToCsv(flow, alignedFlow, replayAt, { trustMode: hts.trustMode, cumulativeStart: hts.trustStartDate });
+    downloadCsv(`${barsToCsv(rows, extra)}\r\n\r\n${(vpProfile ? profileToCsv(vpProfile, profileMetadata) : "profile,status\r\n,disabled")}\r\n\r\ntrustMode,${hts.trustMode}\r\ncumulativeStart,${hts.trustStartDate}\r\n${flowRows}`, chartExportName(market, code, intervalKey, "csv", Date.now()));
   };
 
   // ── HUD + legend ───────────────────────────────────────────────────────
@@ -1040,7 +1087,7 @@ export function ProChart(props: ProChartProps) {
   const hb = bars[hi];
   const prevClose = hi > 0 ? bars[hi - 1]?.close : undefined;
   const legend: LegendItem[] = [
-    ...layout.indicators.map((inst) => {
+    ...renderedIndicators.map((inst) => {
       const def = INDICATOR_BY_ID.get(inst.id);
       const v = values.get(inst.uid);
       const first = def?.outputs[0]?.key;
@@ -1102,14 +1149,6 @@ export function ProChart(props: ProChartProps) {
     prim.set(marks, lastTime, lastPrice);
   }, [vp.rangeOn, rangeStats, times, bars, fmt, upColor, downColor, mainEpoch]);
 
-  const vpProfile = useMemo(() => {
-    if (!vp.enabled || bars.length < 30) return null;
-    const w = visibleWindow(bars.length, visible);
-    const slice = vp.visibleOnly ? bars.slice(w.from, w.to + 1) : bars;
-    if (slice.length < 30) return null;
-    return volumeProfile(slice, vp.rows, 0.7, vp.basis);
-  }, [vp.enabled, vp.visibleOnly, vp.rows, vp.basis, bars, visible]);
-
   const hud = hb ? (
     <div className="flex flex-wrap items-center gap-x-2 tabular" data-testid="chart-ohlc">
       <span className="text-muted-foreground">{hb.date}</span>
@@ -1118,7 +1157,7 @@ export function ProChart(props: ProChartProps) {
       <span>L {fmt(hb.low)}</span>
       <span style={{ color: hb.close >= hb.open ? upColor : downColor }}>C {fmt(hb.close)}</span>
       {prevClose ? <span style={{ color: hb.close >= prevClose ? upColor : downColor }}>{formatChartPercent(((hb.close - prevClose) / prevClose) * 100)}</span> : null}
-      <span className="text-muted-foreground">V {formatChartVolume(hb.volume, market)}</span>
+      <span className="text-muted-foreground">V {hb.volumeValid === false ? "— (거래량 결측)" : formatChartVolume(hb.volume, market)}</span>
       {rangeStats ? <RangeHud stats={rangeStats} up={upColor} down={downColor} /> : null}
       {vpProfile?.poc != null && (
         <span className="text-muted-foreground">
@@ -1200,84 +1239,7 @@ export function ProChart(props: ProChartProps) {
         <option value="all">최근=전체</option>
         <option value="swing">최근 스윙</option>
       </select>
-      <details className="relative" data-testid="vp-menu">
-        <summary className={cn(btn(vp.enabled), "cursor-pointer list-none")}>매물대 {vp.enabled ? "ON" : "OFF"}</summary>
-        <div className="absolute left-0 top-9 z-30 flex w-56 flex-col gap-1.5 rounded-md border border-border bg-card p-2 text-[11px] shadow-lg">
-          <div className="flex gap-1">
-            {(["hide", "ref", "emph"] as const).map((p) => (
-              <button key={p} type="button" className={btn(vp.preset === p)} onClick={() => setVp((v) => applyVpPreset(p, v))}>
-                {p === "hide" ? "숨김" : p === "ref" ? "참고" : "강조"}
-              </button>
-            ))}
-          </div>
-          <label className="flex items-center justify-between gap-2">
-            빈
-            <select
-              value={vp.rows}
-              onChange={(e) => setVp((v) => ({ ...v, rows: Number(e.target.value) }))}
-              className="h-7 rounded border border-border bg-background px-1"
-              aria-label="매물대 빈 개수"
-            >
-              {[16, 24, 32, 48].map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex items-center justify-between gap-2">
-            값
-            <select
-              value={vp.basis}
-              onChange={(e) => setVp((v) => ({ ...v, basis: e.target.value as VpPrefs["basis"] }))}
-              className="h-7 rounded border border-border bg-background px-1"
-              aria-label="매물대 기준"
-            >
-              <option value="volume">거래량</option>
-              <option value="turnover">거래대금</option>
-            </select>
-          </label>
-          <label className="flex items-center justify-between gap-2">
-            폭
-            <select
-              value={vp.width}
-              onChange={(e) => setVp((v) => ({ ...v, width: e.target.value as VpPrefs["width"], preset: "ref", enabled: true }))}
-              className="h-7 rounded border border-border bg-background px-1"
-              aria-label="매물대 폭"
-            >
-              <option value="thin">얇게</option>
-              <option value="mid">보통</option>
-              <option value="wide">넓게</option>
-            </select>
-          </label>
-          <label className="flex items-center gap-2">
-            투명도
-            <input
-              type="range"
-              min={0.12}
-              max={0.4}
-              step={0.02}
-              value={vp.opacity}
-              onChange={(e) => setVp((v) => ({ ...v, opacity: Number(e.target.value), enabled: true, preset: v.preset === "hide" ? "ref" : v.preset }))}
-              aria-label="매물대 투명도"
-              className="w-full"
-            />
-          </label>
-          <label className="flex items-center gap-2">
-            <input type="checkbox" checked={vp.showVa} onChange={() => setVp((v) => ({ ...v, showVa: !v.showVa }))} className="size-3.5 accent-primary" />
-            밸류영역
-          </label>
-          <label className="flex items-center gap-2">
-            <input type="checkbox" checked={vp.showPoc} onChange={() => setVp((v) => ({ ...v, showPoc: !v.showPoc }))} className="size-3.5 accent-primary" />
-            POC 점선
-          </label>
-          <label className="flex items-center gap-2">
-            <input type="checkbox" checked={vp.visibleOnly} onChange={() => setVp((v) => ({ ...v, visibleOnly: !v.visibleOnly }))} className="size-3.5 accent-primary" />
-            화면구간만 (고급)
-          </label>
-          {bars.length < 30 && <p className="text-muted-foreground">30봉 미만이라 매물대를 숨깁니다.</p>}
-        </div>
-      </details>
+      <button type="button" className={btn(vp.enabled)} onClick={(event) => { htsTriggerRef.current = event.currentTarget; setPanel("hts"); }} data-testid="open-hts-settings">{htsAllowed ? "6단 · " : ""}매물대 설정</button>
       <span className="mx-0.5 h-5 w-px bg-border" />
       <form
         className="flex items-center gap-1"
@@ -1323,7 +1285,8 @@ export function ProChart(props: ProChartProps) {
 
   const hasData = rawBars.length > 0;
   const sepPanes = layout.indicators.filter((i) => i.visible && INDICATOR_BY_ID.get(i.id)?.pane === "separate" && INDICATOR_BY_ID.get(i.id)?.render === "series").length;
-  const shellHeight = typeof props.height === "number" ? props.height + Math.max(0, sepPanes - 1) * 88 : (props.height ?? 480);
+  const htsHeight = HTS_PANEL_ORDER.reduce((sum, id) => sum + (hts.collapsed[id] ? 34 : hts.panelHeights[id]), 34) + extraCount * 100;
+  const shellHeight = htsEnabled ? htsHeight : typeof props.height === "number" ? props.height + Math.max(0, sepPanes - 1) * 88 : (props.height ?? 480);
   const status = hasData ? { source: props.source, mode: props.modeLabel, updatedAt: props.updatedAt, note: `${rawBars.length.toLocaleString("ko-KR")}봉${rawBars.length > 10_000 ? " (최근 10,000봉)" : ""}` } : null;
 
   return (
@@ -1333,21 +1296,17 @@ export function ProChart(props: ProChartProps) {
         toolbarExtra={props.toolbarExtra}
         toolbar={toolbar}
         hud={hud}
-        legend={[
-          ...legend,
-          ...(vp.enabled && bars.length < 30
-            ? [{ id: "vp-short", label: "매물대: 30봉 미만", value: "기간을 늘리면 표시", visible: true, color: "#94a3b8" } satisfies LegendItem]
-            : []),
-        ]}
+        legend={legend}
         status={status}
         onExportPng={hasData ? exportPng : undefined}
         onExportCsv={hasData ? exportCsv : undefined}
         onFullscreen={props.onFullscreen}
         onKeyDown={onKeyDown}
         height={shellHeight}
+        minPlotHeight={htsEnabled ? htsHeight : undefined}
         testId={props.testId ?? "pro-chart"}
         collapseToolbar={props.compact}
-        footer={
+        footer={<>
           <RangePositionStrip
             stats={rangeStats}
             compact={props.compact}
@@ -1358,7 +1317,14 @@ export function ProChart(props: ProChartProps) {
                 : `보이는 구간 기준. 최근 고저 창은 ${vp.recentSpan === "all" ? "구간 전체" : vp.recentSpan}입니다. 기간 극값과 같으면 기간=최근.`
             }
           />
-        }
+          <ProfileDetails profile={vpProfile} metadata={profileMetadata} onExport={() => downloadCsv((vpProfile ? profileToCsv(vpProfile, profileMetadata) : "profile,status\r\n,disabled"), `${code}-profile.csv`)} />
+          {htsEnabled && <details className="border-t border-border p-3 text-xs" data-testid="hts-data-details">
+            <summary className="min-h-11 cursor-pointer">6단 지표 값·출처·제공 상태 · {hts.trustStartDate}부터 누적</summary>
+            <div className="overflow-x-auto"><table className="w-full text-left"><caption className="text-left text-muted-foreground">같은 날짜의 실제 값과 결측 사유 · 투신은 범위를 이동해도 누적 시작일 유지</caption><thead><tr><th>패널</th><th>값</th><th>상태</th><th>기준일</th><th>출처</th></tr></thead><tbody>
+              {htsPanes.summaries.map((item) => <tr key={item.id}><th className="p-2">{item.title}</th><td>{item.value} {item.unit}</td><td>{item.status}</td><td>{item.asOf}</td><td>{item.source}</td></tr>)}
+            </tbody></table></div>
+          </details>}
+        </>}
         shortcuts={[
           ...DRAWING_TOOLS.map((t) => ({ keys: t.key.toUpperCase(), label: t.label })),
           { keys: "Esc", label: "도구 취소" },
@@ -1412,6 +1378,15 @@ export function ProChart(props: ProChartProps) {
       {compare.map((sym) => (
         <CompareLoader key={sym} sym={sym} interval={interval} minuteSize={props.minuteSize} range={props.range} onBars={onCompareBars} />
       ))}
+      <Sheet open={panel === "hts"} onOpenChange={(open) => setPanel(open ? "hts" : null)}>
+        <SheetContent className="overflow-y-auto" onCloseAutoFocus={(event) => { if (htsTriggerRef.current?.isConnected) { event.preventDefault(); htsTriggerRef.current.focus(); } }}><SheetHeader><SheetTitle>차트·매물대 설정</SheetTitle><SheetDescription>현재 종목·주기·화면의 설정을 저장합니다. 기존 드로잉은 유지됩니다.</SheetDescription></SheetHeader>
+          {legacyNotice && <p className="m-4 text-xs text-muted-foreground" role="status">기존 지표·드로잉과 RSI 기간을 보존했습니다. 공통 6단과 추가 지표를 함께 표시합니다. 기본값 복원은 공통 6단 설정만 변경합니다.</p>}
+          <HtsSettingsPanel settings={hts} onChange={setHts} allowHts={htsAllowed} onRestore={() => {
+            setHts({ ...defaultHtsSettings(market, instrument), trustStartDate: hts.trustStartDate || rawBars[0]?.date.slice(0, 10) || "" });
+            setLegacyNotice(false);
+          }} />
+        </SheetContent>
+      </Sheet>
       <IndicatorPanel
         open={panel === "indicators"}
         onOpenChange={(v) => setPanel(v ? "indicators" : null)}

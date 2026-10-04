@@ -19,7 +19,8 @@ import {
 } from "@/lib/format";
 import { useStockBundle, useChartData } from "@/lib/use-market";
 import { useMarketStream } from "@/lib/use-market-stream";
-import { inferSectorId, detectKrMarket, normalizeKrTicker, isDigitTicker, shouldRouteToEtf } from "@/lib/infer-sector";
+import { inferSectorId, detectKrMarket, normalizeKrTicker, isDigitTicker } from "@/lib/infer-sector";
+import { useChartSecurity } from "@/lib/charts/use-chart-security";
 import { DATA_LABEL } from "@/data/market";
 import { ChevronRight, Loader2 } from "lucide-react";
 
@@ -44,6 +45,7 @@ function StockPage() {
   const code = normalizeKrTicker(ticker);
   const validStock = isDigitTicker(code);
   const uni = getUniverseItem(code);
+  const security = useChartSecurity(code, "KR");
   const [lastHit, setLastHit] = useState<{
     nameKo?: string;
     market?: string;
@@ -51,6 +53,7 @@ function StockPage() {
     isEtf?: boolean;
   } | null>(null);
   useEffect(() => {
+    setLastHit(null);
     try {
       const raw = JSON.parse(sessionStorage.getItem("kx-last-security") ?? "null");
       if (raw && raw.code === code) setLastHit(raw);
@@ -104,9 +107,10 @@ function StockPage() {
     enabled: validStock,
   });
 
-  if (shouldRouteToEtf(code, liveName, lastHit?.isEtf)) {
+  if (security.data?.instrument === "etf") {
     return <Navigate to="/etfs/$code" params={{ code }} replace />;
   }
+  if (!validStock && security.isLoading) return <p className="p-6 text-sm text-muted-foreground">종목 메타데이터 확인 중…</p>;
   if (!validStock) throw notFound();
   const sector = SECTOR_BY_ID[meta.sectorId];
   const price = quote?.price ?? 0;
@@ -252,6 +256,7 @@ function StockPage() {
       <TradingChart
         code={meta.code}
         market={meta.market}
+        instrument={security.data?.instrument}
         name={meta.nameKo}
         eventMarkers={(disclosures ?? []).slice(0, 40).map((d) => ({
           time: d.datetime?.slice(0, 10) ?? "",

@@ -13,6 +13,8 @@ import {
   disparity,
   findPivots,
   quantSnapshot,
+  rsi,
+  rsiWithSignal,
   rollingPercentileBands,
   stochastic,
 } from "./chart-indicators.ts";
@@ -387,7 +389,8 @@ test("AT-35 volume profile POC / VAH / VAL", () => {
     4,
     0.7,
   );
-  close6(vp.rows.map((r) => r.volume), [33.333333, 50, 200, 166.666667], "rows");
+  // Proportional overlap, not equal shares for every row touched at an edge.
+  close6(vp.rows.map((r) => r.volume), [50, 75, 175, 150], "rows");
   assert.equal(vp.poc, 10.5);
   assert.equal(vp.vah, 12);
   assert.equal(vp.val, 10);
@@ -406,4 +409,307 @@ test("RSI of an empty series is empty (no phantom point)", async () => {
   const { rsi } = await import("./chart-indicators.ts");
   assert.deepEqual(rsi([], 14), []);
   assert.equal(rsi([1, 2, 3], 14).length, 3);
+});
+
+function near(actual: number, expected: number, relativeTolerance = 1e-12) {
+  assert.ok(Math.abs(actual - expected) <= relativeTolerance * Math.max(1, Math.abs(expected)), `${actual} != ${expected}`);
+}
+
+test("HTS volume profile divides a 100..120 bar equally between two equal overlaps", () => {
+  const profile = volumeProfile([{ low: 100, high: 120, volume: 200 }], 2);
+  assert.deepEqual(profile.rows, [
+    { low: 100, high: 110, volume: 100, percent: 50 },
+    { low: 110, high: 120, volume: 100, percent: 50 },
+  ]);
+  assert.equal(profile.totalVolume, 200);
+  assert.equal(profile.totalValue, 200);
+  assert.equal(profile.validBars, 1);
+  assert.equal(profile.excludedBars, 0);
+  assert.equal(profile.method, "ohlcv-overlap");
+  assert.equal(profile.basis, "volume");
+});
+
+test("HTS volume profile uses unequal overlap lengths and does not count touching boundaries", () => {
+  const profile = volumeProfile([
+    { low: 100, high: 130, volume: 0 }, // Defines three linear bins.
+    { low: 105, high: 120, volume: 300 },
+  ], 3);
+  assert.deepEqual(profile.rows.map((row) => row.volume), [100, 200, 0]);
+  close6(profile.rows.map((row) => row.percent), [100 / 3, 200 / 3, 0], "overlap percentages");
+  assert.equal(profile.totalVolume, 300);
+  assert.equal(profile.validBars, 2, "reported zero volume is valid data");
+  assert.equal(profile.poc, 115);
+});
+
+test("HTS point bars use half-open bins, with a closed uppermost boundary", () => {
+  const profile = volumeProfile([
+    { low: 100, high: 130, volume: 0 },
+    { low: 100, high: 100, volume: 1 },
+    { low: 110, high: 110, volume: 2 },
+    { low: 120, high: 120, volume: 4 },
+    { low: 130, high: 130, volume: 8 },
+  ], 3);
+  assert.deepEqual(profile.rows.map((row) => row.volume), [1, 2, 12]);
+  assert.equal(profile.totalVolume, 15);
+  assert.equal(profile.totalValue, 15);
+});
+
+test("HTS a wholly single-price dataset uses its actual price with finite 100%", () => {
+  const profile = volumeProfile([
+    { low: 12345, high: 12345, close: 12345, volume: 20 },
+    { low: 12345, high: 12345, close: 12345, volume: 30 },
+  ], 10);
+  assert.deepEqual(profile.rows, [{ low: 12345, high: 12345, volume: 50, percent: 100 }]);
+  assert.equal(profile.poc, 12345);
+  assert.equal(profile.val, 12345);
+  assert.equal(profile.vah, 12345);
+});
+
+test("HTS empty and all-zero volume have no invented POC or value area", () => {
+  for (const bars of [[], [{ low: 100, high: 120, volume: 0 }]]) {
+    const profile = volumeProfile(bars);
+    assert.deepEqual(profile.rows, []);
+    assert.equal(profile.poc, null);
+    assert.equal(profile.val, null);
+    assert.equal(profile.vah, null);
+    assert.equal(profile.totalVolume, 0);
+    assert.equal(profile.totalValue, 0);
+    assert.equal(profile.validBars, bars.length);
+    assert.equal(profile.excludedBars, 0);
+  }
+});
+
+test("HTS validation reports excluded volume and abnormal OHLC without filling missing data with zero", () => {
+  type InputBar = Parameters<typeof volumeProfile>[0][number];
+  const invalid: InputBar[] = [
+    { low: 100, high: 110, volume: Number.NaN },
+    { low: 100, high: 110, volume: Number.POSITIVE_INFINITY },
+    { low: 100, high: 110, volume: -1 },
+    { low: 100, high: 110, volume: 0, volumeValid: false },
+    { low: 100, high: 110 } as InputBar,
+    { low: 100, high: 110, volume: null } as unknown as InputBar,
+    { low: 110, high: 100, volume: 100 },
+    { low: 0, high: 110, volume: 100 },
+    { low: -1, high: 110, volume: 100 },
+    { low: 100, high: Infinity, volume: 100 },
+    { low: NaN, high: 110, volume: 100 },
+    { low: 100, high: 110, close: 120, volume: 100 },
+    { low: 100, high: 110, open: 90, volume: 100 },
+    { low: 100, high: 110, close: NaN, volume: 100 },
+  ];
+  const profile = volumeProfile([...invalid, { low: 100, high: 110, open: 100, close: 110, volume: 10 }], 2);
+  assert.equal(profile.excludedBars, invalid.length);
+  assert.equal(profile.validBars, 1);
+  assert.equal(profile.totalVolume, 10);
+  assert.deepEqual(profile.rows.map((row) => row.volume), [5, 5]);
+  const none = volumeProfile(invalid);
+  assert.equal(none.excludedBars, invalid.length);
+  assert.equal(none.validBars, 0);
+  assert.deepEqual(none.rows, []);
+  const reportedZero = volumeProfile([{ low: 100, high: 110, volume: 0, volumeValid: true }]);
+  assert.equal(reportedZero.validBars, 1);
+  assert.equal(reportedZero.excludedBars, 0);
+});
+
+test("HTS percentage denominator includes every bin, independent of price-axis clipping", () => {
+  const profile = volumeProfile([{ low: 100, high: 200, volume: 1000 }], 10);
+  const visibleRows = profile.rows.filter((row) => row.low >= 150);
+  assert.equal(visibleRows.length, 5);
+  assert.equal(visibleRows.reduce((sum, row) => sum + row.percent, 0), 50);
+  assert.ok(visibleRows.every((row) => row.percent === 10));
+  assert.equal(profile.totalValue, 1000);
+  assert.deepEqual(volumeProfile([{ low: 100, high: 200, volume: 1000 }], 10), profile,
+    "fixed-period calculation receives the same bars while the viewport scrolls");
+});
+
+test("HTS volume and percentages are conserved across fractional volumes and many bins", () => {
+  // Deterministic synthetic numerical fixture, not fabricated market data.
+  const bars = Array.from({ length: 257 }, (_, index) => {
+    const low = 100 + ((index * 17) % 101) / 7;
+    return { low, high: low + ((index * 31) % 37) / 11, volume: ((index * 19) % 71) / 13 };
+  });
+  const expected = bars.reduce((sum, entry) => sum + entry.volume, 0);
+  for (const rows of [1, 2, 10, 29, 100, 257]) {
+    const profile = volumeProfile(bars, rows);
+    near(profile.totalVolume, expected);
+    near(profile.rows.reduce((sum, row) => sum + row.volume, 0), expected);
+    near(profile.totalValue, expected);
+    near(profile.rows.reduce((sum, row) => sum + row.percent, 0), 100);
+    assert.ok(profile.rows.every((row) => Number.isFinite(row.volume) && Number.isFinite(row.percent)));
+  }
+});
+
+test("HTS 1..29 bars are displayed and quantity units are preserved without rounding", () => {
+  for (let length = 1; length < 30; length++) {
+    const profile = volumeProfile(Array.from({ length }, () => ({ low: 100, high: 110, volume: 0.125 })), 3);
+    assert.equal(profile.rows.length, 3);
+    near(profile.totalVolume, length * 0.125);
+    near(profile.rows[0]!.volume, (length * 0.125) / 3);
+    near(profile.rows.reduce((sum, row) => sum + row.percent, 0), 100);
+  }
+});
+
+test("HTS turnover preserves raw totalVolume while percentages use the selected value basis", () => {
+  const profile = volumeProfile([
+    { low: 100, high: 110, close: 110, volume: 10 },
+    { low: 110, high: 120, close: 115, volume: 20 },
+  ], 2, 0.7, "turnover");
+  assert.equal(profile.basis, "turnover");
+  assert.equal(profile.totalVolume, 30);
+  assert.equal(profile.totalValue, 3400);
+  assert.deepEqual(profile.rows.map((row) => row.volume), [1100, 2300]);
+  near(profile.rows[0]!.percent, (1100 / 3400) * 100);
+  near(profile.rows.reduce((sum, row) => sum + row.percent, 0), 100);
+  const midpoint = volumeProfile([{ low: 100, high: 120, volume: 3 }], 2, 0.7, "turnover");
+  assert.equal(midpoint.totalValue, 330, "legacy absent-close midpoint estimate is retained");
+});
+
+test("HTS invalid bin/area settings and arithmetic overflow do not produce NaN", () => {
+  for (const count of [0, -5, NaN, Infinity, 2.9, 2000]) {
+    const profile = volumeProfile([{ low: 100, high: 120, volume: 5 }], count, NaN);
+    assert.ok(profile.rows.length >= 1 && profile.rows.length <= 1000);
+    near(profile.totalValue, 5);
+    assert.ok(profile.rows.every((row) => Number.isFinite(row.percent)));
+  }
+  const overflow = volumeProfile([{ low: 1e200, high: 1e200, volume: 1e200 }], 10, 0.7, "turnover");
+  assert.equal(overflow.excludedBars, 1);
+  assert.equal(overflow.totalVolume, 0);
+  assert.deepEqual(overflow.rows, []);
+});
+
+test("HTS tied POC always chooses the lower-price bin", () => {
+  const profile = volumeProfile([{ low: 100, high: 140, volume: 400 }], 4);
+  assert.equal(profile.poc, 105);
+  assert.equal(profile.val, 100);
+  assert.equal(profile.vah, 130);
+});
+
+test("HTS value area expands toward the larger neighbour and ties choose lower", () => {
+  const points = (volumes: number[]) => [
+    { low: 100, high: 100 + volumes.length * 10, volume: 0 },
+    ...volumes.map((volume, index) => ({ low: 105 + index * 10, high: 105 + index * 10, volume })),
+  ];
+  // POC=125; equal 20 neighbours => first add 115, hitting exactly 60%.
+  const tied = volumeProfile(points([10, 20, 40, 20, 10]), 5, 0.6);
+  assert.equal(tied.poc, 125);
+  assert.equal(tied.val, 110);
+  assert.equal(tied.vah, 130);
+  // Larger upper neighbour=30; it alone reaches 70%.
+  const larger = volumeProfile(points([10, 10, 40, 30, 10]), 5, 0.7);
+  assert.equal(larger.val, 120);
+  assert.equal(larger.vah, 140);
+  // Only adjacent bins compete: the low outer bin cannot be selected early.
+  const adjacent = volumeProfile(points([29, 1, 40, 20, 10]), 5, 0.6);
+  assert.equal(adjacent.val, 120);
+  assert.equal(adjacent.vah, 140);
+  const all = volumeProfile(points([10, 20, 40, 20, 10]), 5, 1);
+  assert.equal(all.val, 100);
+  assert.equal(all.vah, 150);
+});
+
+test("HTS uniform price scaling preserves quantity and rejects mixed adjusted-close OHLC", () => {
+  const bars = [{ low: 100, high: 120, close: 110, volume: 200 }];
+  const original = volumeProfile(bars, 2);
+  const consistentlyScaled = volumeProfile(bars.map((entry) => ({ ...entry, low: entry.low / 2, high: entry.high / 2, close: entry.close / 2 })), 2);
+  assert.deepEqual(original.rows.map((row) => row.volume), consistentlyScaled.rows.map((row) => row.volume));
+  assert.deepEqual(original.rows.map((row) => row.percent), consistentlyScaled.rows.map((row) => row.percent));
+  assert.equal(consistentlyScaled.totalVolume, original.totalVolume, "price scaling does not imply quantity scaling");
+  assert.equal(consistentlyScaled.poc, original.poc! / 2);
+  const mixed = volumeProfile([{ ...bars[0]!, close: 55 }], 2);
+  assert.equal(mixed.excludedBars, 1);
+  assert.deepEqual(mixed.rows, []);
+  assert.equal("adjusted" in original, false, "calculation cannot fabricate source adjustment metadata");
+});
+
+test("HTS Wilder RSI matches the independently published 14-period reference sample", () => {
+  const closes = [44.34, 44.09, 44.15, 43.61, 44.33, 44.83, 45.1, 45.42, 45.84, 46.08, 45.89, 46.03, 45.61, 46.28, 46.28, 46, 46.03, 46.41, 46.22, 45.64, 46.21];
+  const result = rsi(closes);
+  assert.ok(result.slice(0, 14).every((value) => value === null));
+  // Wilder seed: gains=3.34/14, losses=1.40/14, RSI=70.464135... .
+  close6(result.slice(14), [70.464135, 66.249619, 66.480942, 69.346853, 66.294713, 57.915021, 62.880718], "Wilder reference");
+});
+
+test("HTS RSI has explicit rising=100, falling=0, and flat=50 policies", () => {
+  const rising = Array.from({ length: 40 }, (_, index) => 10 + index);
+  const falling = Array.from({ length: 40 }, (_, index) => 100 - index);
+  const flat = Array.from({ length: 40 }, () => 50);
+  assert.ok(rsi(rising).slice(14).every((value) => value === 100));
+  assert.ok(rsi(falling).slice(14).every((value) => value === 0));
+  assert.ok(rsi(flat).slice(14).every((value) => value === 50));
+  assert.deepEqual(rsi([10, 13, 12, 14, 12, 16], 3).slice(0, 3), [null, null, null]);
+  close6(rsi([10, 13, 12, 14, 12, 16], 3).slice(3), [250 / 3, 500 / 9, 700 / 9], "hand-derived RSI");
+});
+
+test("HTS default RSI starts at index 14 and its SMA/EMA signal at index 22", () => {
+  const closes = Array.from({ length: 40 }, (_, index) => 100 + Math.sin(index) * 5 + index / 3);
+  for (const method of ["sma", "ema"] as const) {
+    const result = rsiWithSignal(closes, 14, 9, method);
+    assert.equal(result.rsi.length, closes.length);
+    assert.equal(result.signal.length, closes.length);
+    assert.equal(result.rsi.findIndex((value) => value !== null), 14);
+    assert.equal(result.signal.findIndex((value) => value !== null), 22);
+    const firstAverage = result.rsi.slice(14, 23).reduce<number>((sum, value) => sum + value!, 0) / 9;
+    near(result.signal[22]!, firstAverage);
+  }
+  assert.deepEqual(rsiWithSignal(closes), rsiWithSignal(closes, 14, 9, "sma"));
+  assert.deepEqual(rsiWithSignal([]), { rsi: [], signal: [] });
+  assert.ok(rsiWithSignal(closes.slice(0, 22)).signal.every((value) => value === null));
+});
+
+test("HTS signal smooths RSI itself, with independent hand-derived SMA and EMA values", () => {
+  const closes = [10, 13, 12, 14, 12, 16, 15];
+  const smaSignal = rsiWithSignal(closes, 3, 3, "sma");
+  const emaSignal = rsiWithSignal(closes, 3, 3, "ema");
+  const rsi3 = 250 / 3;
+  const rsi4 = 500 / 9;
+  const rsi5 = 700 / 9;
+  const rsi6 = 11200 / 171;
+  const seed = (rsi3 + rsi4 + rsi5) / 3;
+  near(smaSignal.signal[5]!, seed);
+  near(emaSignal.signal[5]!, seed);
+  near(smaSignal.signal[6]!, (rsi4 + rsi5 + rsi6) / 3);
+  near(emaSignal.signal[6]!, (seed + rsi6) / 2);
+  assert.notEqual(smaSignal.signal[6], emaSignal.signal[6]);
+  assert.notEqual(smaSignal.signal[5], (14 + 12 + 16) / 3, "not SMA of price");
+  assert.notEqual(smaSignal.signal[5], rsi(closes, 3)[5], "not a separate RSI");
+});
+
+test("HTS RSI and its signal restart warmup after invalid prices without bridging the gap", () => {
+  for (const invalid of [NaN, Infinity, -Infinity, 0, -1, undefined, null]) {
+    const closes = [10, 11, 12, invalid, 20, 21, 22, 23, 24] as number[];
+    for (const method of ["sma", "ema"] as const) {
+      const result = rsiWithSignal(closes, 2, 2, method);
+      assert.deepEqual(result.rsi, [null, null, 100, null, null, null, 100, 100, 100]);
+      assert.deepEqual(result.signal, [null, null, null, null, null, null, null, 100, 100]);
+    }
+  }
+});
+
+test("HTS invalid periods remain null and period-one signals equal RSI", () => {
+  const closes = [10, 11, 12, 11, 13, 14];
+  for (const period of [0, -1, 1.5, NaN, Infinity]) {
+    assert.deepEqual(rsi(closes, period), closes.map(() => null));
+    assert.deepEqual(rsiWithSignal(closes, 2, period).signal, closes.map(() => null));
+  }
+  assert.deepEqual(rsi(closes, 1), [null, 100, 100, 0, 100, 100]);
+  for (const method of ["sma", "ema"] as const) {
+    const result = rsiWithSignal(closes, 2, 1, method);
+    assert.deepEqual(result.signal, result.rsi);
+  }
+});
+
+test("HTS RSI replay prefixes contain no future information and loaded values survive viewport slicing", () => {
+  const closes = Array.from({ length: 150 }, (_, index) => 100 + index / 20 + Math.sin(index * 0.7) * 10);
+  for (const method of ["sma", "ema"] as const) {
+    const loaded = rsiWithSignal(closes, 14, 9, method);
+    for (const length of [14, 15, 22, 23, 50, 100]) {
+      const replay = rsiWithSignal(closes.slice(0, length), 14, 9, method);
+      assert.deepEqual(replay.rsi, loaded.rsi.slice(0, length));
+      assert.deepEqual(replay.signal, loaded.signal.slice(0, length));
+    }
+    const leftViewport = loaded.rsi.slice(20, 70);
+    const rightViewport = loaded.rsi.slice(50, 100);
+    assert.deepEqual(leftViewport.slice(30), rightViewport.slice(0, 20));
+    assert.ok(loaded.signal.slice(50, 100).every((value) => value !== null));
+  }
 });

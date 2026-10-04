@@ -1,0 +1,61 @@
+{
+  "date": "2026-10-03",
+  "node": "22.23.3",
+  "commands": [
+    {
+      "command": "npm test",
+      "status": "passed",
+      "tests": 519,
+      "scriptTests": 201,
+      "typescriptTests": 318
+    },
+    {
+      "command": "npm run typecheck",
+      "status": "passed"
+    },
+    {
+      "command": "npm run lint",
+      "status": "failed-existing-error",
+      "errors": 1,
+      "warnings": 61,
+      "existingError": "src/lib/app-data/client.server.ts:214 no-empty",
+      "baselineWarnings": 67,
+      "note": "Existing no-empty error remains; the new HTS hook has no lint warnings. Total warnings decreased from baseline67 to61."
+    },
+    {
+      "command": "npm run check:auth",
+      "status": "passed",
+      "result": "dev/build sign-in off agree"
+    },
+    {
+      "command": "env -u DATABASE_URL node scripts/with-app-env.mjs vite build",
+      "status": "passed",
+      "note": "Pinned Node and node_modules/.bin on PATH; database migration omitted; output outside tracked generated assets."
+    }
+  ],
+  "browserSmoke": {
+    "development": "HTTP200 desktop/mobile; no page exceptions or horizontal overflow; external certificate console errors",
+    "production": "HTTP200 desktop/mobile; identical content hashes; no page exceptions or overflow; external certificate console errors",
+    "productionChart": "actual ETF069500 desktop passed"
+  },
+  "externalLimits": [
+    "KIS_APP_KEY and KIS_APP_SECRET absent: authenticated credit/trust provider responses unverified",
+    "Reference JPG images absent: no image-to-image reference comparison",
+    "Chromium external HTTPS certificates untrusted; no TLS validation bypass or trust store modification",
+    "Separate pre-hydration watchlist hard-navigation warning observed; baseline attribution unverified. Normal hydrated navigation passed all three sizes."
+  ],
+  "evidence": "See validation-logs and browser verdict files. Browser matrix/interaction results are maintained separately.",
+  "browserMatrix": {
+    "realRouteViewportCombinations": 45,
+    "coreMatrix": 42,
+    "watchlist": 3,
+    "initialCorePassed": 40,
+    "initialCoreReadinessTimeouts": 2,
+    "readinessRechecksPassed": 2,
+    "fixtureCasesPassed": 6,
+    "realInteractionChecks": 18,
+    "realAlertMarkerCasesPassed": 2,
+    "geometryKeyboardChecksPassed": 5,
+    "productionEtfCasesPassed": 1
+  }
+}

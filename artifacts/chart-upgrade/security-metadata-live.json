@@ -1,0 +1,104 @@
+{
+  "verifiedAt": "2026-10-03T13:16:40.668541+00:00",
+  "method": "live provider identity fields; no name/code inference",
+  "securities": [
+    {
+      "code": "001820",
+      "name": "삼화콘덴서",
+      "productType": "stock",
+      "listingCountry": "KOR",
+      "exchange": "KOSPI",
+      "source": "https://m.stock.naver.com/api/stock/001820/basic"
+    },
+    {
+      "code": "403870",
+      "name": "HPSP",
+      "productType": "stock",
+      "listingCountry": "KOR",
+      "exchange": "KOSDAQ",
+      "source": "https://m.stock.naver.com/api/stock/403870/basic"
+    },
+    {
+      "code": "036540",
+      "name": "SFA반도체",
+      "productType": "stock",
+      "listingCountry": "KOR",
+      "exchange": "KOSDAQ",
+      "source": "https://m.stock.naver.com/api/stock/036540/basic"
+    },
+    {
+      "code": "011790",
+      "name": "SKC",
+      "productType": "stock",
+      "listingCountry": "KOR",
+      "exchange": "KOSPI",
+      "source": "https://m.stock.naver.com/api/stock/011790/basic"
+    },
+    {
+      "code": "069500",
+      "name": "KODEX 200",
+      "productType": "etf",
+      "listingCountry": "KOR",
+      "exchange": "KOSPI",
+      "source": "https://m.stock.naver.com/api/stock/069500/basic"
+    },
+    {
+      "code": "360750",
+      "name": "TIGER 미국S&P500",
+      "productType": "etf",
+      "listingCountry": "KOR",
+      "exchange": "KOSPI",
+      "source": "https://m.stock.naver.com/api/stock/360750/basic"
+    },
+    {
+      "code": "0226A0",
+      "name": "PLUS SK하이닉스샌디스크채권혼합50",
+      "productType": "etf",
+      "listingCountry": "KOR",
+      "exchange": "KOSPI",
+      "source": "https://m.stock.naver.com/api/stock/0226A0/basic"
+    },
+    {
+      "code": "379800",
+      "name": "KODEX 미국S&P500",
+      "productType": "etf",
+      "listingCountry": "KOR",
+      "exchange": "KOSPI",
+      "source": "https://m.stock.naver.com/api/stock/379800/basic"
+    },
+    {
+      "code": "0005A0",
+      "name": "KODEX 미국S&P500데일리커버드콜OTM",
+      "productType": "etf",
+      "listingCountry": "KOR",
+      "exchange": "KOSPI",
+      "source": "https://m.stock.naver.com/api/stock/0005A0/basic"
+    }
+  ],
+  "usSecurities": [
+    {
+      "code": "NVDA",
+      "name": "NVIDIA Corporation",
+      "instrumentType": "EQUITY",
+      "currency": "USD",
+      "exchange": "NMS",
+      "source": "https://query1.finance.yahoo.com/v8/finance/chart/NVDA?interval=1d&range=1d"
+    },
+    {
+      "code": "BOTZ",
+      "name": "Global X Robotics & Artificial Intelligence ETF",
+      "instrumentType": "ETF",
+      "currency": "USD",
+      "exchange": "NGM",
+      "source": "https://query1.finance.yahoo.com/v8/finance/chart/BOTZ?interval=1d&range=1d"
+    },
+    {
+      "code": "SPY",
+      "name": "State Street SPDR S&P 500 ETF Trust",
+      "instrumentType": "ETF",
+      "currency": "USD",
+      "exchange": "PCX",
+      "source": "https://query1.finance.yahoo.com/v8/finance/chart/SPY?interval=1d&range=1d"
+    }
+  ]
+}

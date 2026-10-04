@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import type { Market } from "@/data/types";
 import type { ChartInterval, MinuteSize } from "@/server/naver-market";
-import { useChartData } from "@/lib/use-market";
+import { useAnalysisChartData } from "@/lib/charts/use-analysis-chart-data";
+import { useChartSecurity } from "@/lib/charts/use-chart-security";
+import { chartLayoutScope } from "@/lib/charts/security";
 import { formatPrice, formatUsd } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { StreetTapeRow, ChartAnalyticsStrip, BandCompareStrip, RsiDivergenceStrip, MacdCrossStrip } from "@/components/stocks/RangePositionStrip";
@@ -103,6 +105,9 @@ export function TradingChart({
 }) {
   const isUs = market === "US";
   const mk: "KR" | "US" = isUs ? "US" : "KR";
+  const security = useChartSecurity(code, mk);
+  const product = instrument ?? security.data?.instrument;
+  const layoutScope = chartLayoutScope("detail");
   const px = (n: number) => (isUs ? formatUsd(n) : formatPrice(n));
   const navigate = useNavigate();
   const [interval, setInterval] = useState<ChartInterval>("day");
@@ -122,7 +127,7 @@ export function TradingChart({
   }, [interval, minuteSize]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const minuteRangeOpts = minuteRangesFor(minuteSize);
-  const { data, isLoading, isError, isFetching, dataUpdatedAt } = useChartData({
+  const { data, isLoading, isError, isFetching, dataUpdatedAt, profileBars, profileSource, indicatorBars, priceBasisNote } = useAnalysisChartData({
     code,
     market,
     interval,
@@ -183,7 +188,7 @@ export function TradingChart({
   );
 
   const intervalKey = interval === "minute" ? `minute-${minuteSize}` : interval;
-  const modeLabel = interval === "minute" ? (isUs ? "분봉 · Yahoo 지연 시세" : "분봉 · 비공식 경로(지연 가능)") : isUs ? "Yahoo 분할조정 · 당일 봉 지연" : "일봉 이상 · 당일 봉은 지연·잠정";
+  const modeLabel = interval === "minute" ? (isUs ? "분봉 · Yahoo 지연 시세" : "분봉 · 비공식 경로(지연 가능)") : isUs ? "Yahoo 가격 조정 · 당일 봉 지연" : "일봉 이상 · 당일 봉은 지연·잠정";
 
   const controls = (
     <div className="flex flex-wrap items-center gap-1">
@@ -232,9 +237,17 @@ export function TradingChart({
         <ProChart
           code={isUs ? code.toUpperCase() : code}
           market={mk}
-          instrument={instrument}
+          instrument={product}
+          exchange={security.data?.exchange ?? market}
+          currency={security.data?.currency ?? (isUs ? "USD" : "KRW")}
+          quantityUnit={security.data?.quantityUnit ?? "주"}
+          layoutScope={layoutScope}
           name={name}
           bars={bars}
+          profileBars={profileBars}
+          profileSource={profileSource}
+          indicatorBars={indicatorBars}
+          priceBasisNote={priceBasisNote}
           interval={interval}
           minuteSize={minuteSize}
           range={range}
@@ -249,8 +262,8 @@ export function TradingChart({
           signalMarkers={signalMarkers}
           researchMarkers={researchMarkers}
           toolbarExtra={controls}
-          height={460}
-          onFullscreen={() => void navigate({ to: "/chart", search: { symbols: `${mk}:${isUs ? code.toUpperCase() : code}`, layout: "1" } })}
+          height={isUs && product !== "etf" ? 460 : 800}
+          onFullscreen={() => void navigate({ to: "/chart", search: { symbols: `${mk}:${isUs ? code.toUpperCase() : code}`, layout: "1", scope: layoutScope, interval, minuteSize, range } })}
           prePost={isUs && interval === "minute" ? { on: prePost, toggle: () => setPrePost((v) => !v) } : undefined}
           testId="trading-chart"
         />
@@ -260,7 +273,7 @@ export function TradingChart({
         <RsiDivergenceStrip items={divergences} barCount={bars.length} formatValue={px} />
         <MacdCrossStrip items={macdCrosses} barCount={bars.length} />
         <div className="border-t border-border bg-muted/20 px-3 py-1 text-[10px] leading-relaxed text-muted-foreground">
-          차트 OHLC: {isUs ? "Yahoo 분할조정 · 미국 정규장(시간외 버튼으로 프리·애프터 포함) · 뉴욕 시각" : "Yahoo/네이버 비공식 경로"} · 체결 스트림과 마지막 봉이 어긋날 수 있음 · 실주문 전 HTS 재확인 · 그림·지표는 종목·주기별로 이 브라우저에 저장
+          차트 OHLC: {isUs ? "Yahoo 조정계수 적용 · 미국 정규장(시간외 버튼으로 프리·애프터 포함) · 뉴욕 시각" : "Yahoo/네이버 비공식 경로"} · 체결 스트림과 마지막 봉이 어긋날 수 있음 · 실주문 전 HTS 재확인 · 그림·지표는 종목·주기별로 이 브라우저에 저장
           {interval === "minute" ? " · 분봉은 봉주기별 최대 기간 지원(1m≤7일, 5~30m≤60일, 60m≤2년)" : ""}
         </div>
       </div>

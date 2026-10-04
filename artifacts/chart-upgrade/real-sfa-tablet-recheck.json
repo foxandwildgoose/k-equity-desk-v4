@@ -1,0 +1,124 @@
+{
+  "base": "http://127.0.0.1:8080",
+  "mode": "real",
+  "at": "2026-10-03T13:40:00.557Z",
+  "results": [
+    {
+      "id": "stock-036540",
+      "mode": "real",
+      "viewport": "tablet",
+      "path": "/stock/036540",
+      "status": "passed",
+      "errors": [],
+      "externalFailures": [
+        {
+          "url": "https://fonts.googleapis.com/css2",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://grok.com/grok-app-builder/extensions.js",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        }
+      ],
+      "cancelledRequests": [],
+      "fixtureCalls": [],
+      "marketResponses": [
+        {
+          "function": "getChartData",
+          "status": 200
+        },
+        {
+          "function": "getChartFlow",
+          "status": 200
+        }
+      ],
+      "httpStatus": 200,
+      "snapshot": {
+        "textLength": 5425,
+        "width": 768,
+        "scrollWidth": 768,
+        "title": "036540",
+        "statuses": [
+          "출처 yahoo-036540.KQ· 일봉 이상 · 당일 봉은 지연·잠정· 기준 방금· 486봉",
+          "출처 yahoo-036540.KQ · 펀더멘털 네이버· 일봉 종가 · 밴드 = — × 배수· 기준 방금"
+        ],
+        "panes": [
+          {
+            "id": "rsi",
+            "top": 705,
+            "left": 272,
+            "height": 100,
+            "width": 466,
+            "canvases": 4,
+            "colors": 417
+          },
+          {
+            "id": "price",
+            "top": 806,
+            "left": 272,
+            "height": 400,
+            "width": 466,
+            "canvases": 4,
+            "colors": 411
+          },
+          {
+            "id": "credit",
+            "top": 1207,
+            "left": 272,
+            "height": 90,
+            "width": 466,
+            "canvases": 4,
+            "colors": 433
+          },
+          {
+            "id": "foreign",
+            "top": 1298,
+            "left": 272,
+            "height": 90,
+            "width": 466,
+            "canvases": 4,
+            "colors": 434
+          },
+          {
+            "id": "investmentTrust",
+            "top": 1389,
+            "left": 272,
+            "height": 110,
+            "width": 466,
+            "canvases": 4,
+            "colors": 390
+          },
+          {
+            "id": "volume",
+            "top": 1500,
+            "left": 272,
+            "height": 121,
+            "width": 466,
+            "canvases": 4,
+            "colors": 330
+          }
+        ],
+        "canvasCount": 27,
+        "empty": [],
+        "summaries": [
+          "매물대 상세 · 가격 구간별 수량·비율 (10구간)OHLCV 가격대 겹침 배분 추정치 · 실제 체결가격별 거래량 아님종목036540 · 036540 · KR · STOCK집계 범위현재 보이는 시간 구간요청 기간2026-01-08 ~ 2026-10-02실제 확보 기간2026-01-08 ~ 2026-10-02원천 해상도day계산 방식OHLCV 추정 · 봉 고저 범위와 가격 구간의 겹침 길이로 거래량 배분수량 단위 / 가격 통화주 / KRW출처yahoo-036540.KQ원천 기준 시각2026-10-02취득 시각2026-10-03T13:39:59.180Z가격·거래량 조정 기준Yahoo 제공 OHLC · 거래량은 공급자 원수량 · 분할·분배금 조정 및 수량 기준 일치 미확인전체 유효 거래량1,005,256,134주선택 기준 전체 합계약 1,005,256,134.0000001주유효 봉 / 제외 봉179 / 1비율의 분모는 선택 기간의 전체 유효 거래량입니다. 수량은 화면에서만 반올림하며, CSV에는 내부 정밀도를 유지합니다. 제외된 봉은 합계에 포함하지 않습니다.036540 매물대 가격 구간별 거래량, 전체 대비 비율 및 POC·Value Area. yahoo-036540.KQ 2026-10-02가격 범위 (KRW)수량 (주)전체 대비가격대3,735 ~ 4,546.5약 6,116,657주0.6%—4,546.5 ~ 5,358약 40,478,038주4.0%—5,358 ~ 6,169.5약 102,574,936주10.2%VA6,169.5 ~ 6,981약 104,815,355주10.4%VA6,981 ~ 7,792.5약 222,546,393주22.1%POC · VA7,792.5 ~ 8,604약 160,214,393주15.9%VA8,604 ~ 9,415.5약 130,199,922주13.0%VA9,415.5 ~ 10,227약 89,451,301주8.9%—10,227 ~ 11,038.5약 109,760,808주10.9%—11,038.5 ~ 11,850약 39,098,331주3.9%—POC 7,386.75 · VAL 5,358 · VAH 9,415.5 (KRW)매물대 수량·비율 CSV",
+          "6단 지표 값·출처·제공 상태 · 2024-10-02부터 누적같은 날짜의 실제 값과 결측 사유 · 투신은 범위를 이동해도 누적 시작일 유지패널값상태기준일출처RSI85.67 / Signal 82.9 0–100종가 · Wilder 14 / Signal · SMA 92026-10-02yahoo-036540.KQ가격·매물대11,370 보이는 구간 · 2026-01-08~2026-10-02 · day · 주 · 추정2026-10-02yahoo-036540.KQ신용잔고율— %인증 미설정 · KIS_APP_KEY / KIS_APP_SECRET 인증 미설정 · 해당 종목 실응답 미검증 · 조회 2026-10-03T13:37:00.130Z · 기준 미확인 · 확정 여부 미확인미확인한국투자증권 · 신용잔고 일별추이 [0476]외국인보유비율14.22 %일부 기간 제공 · 요청 범위 중 일부 날짜만 제공 · 공표 시각/확정 여부 미확인 · 취득 2026-10-03T13:37:00.130Z · 기준 거래일 · 확정 여부 미확인2026-10-02네이버 금융 · 종목 투자자 동향투신 누적순매수 · 기준 2024-10-02— 주인증 미설정 · KIS_APP_KEY / KIS_APP_SECRET 인증 미설정 · 해당 종목 실응답 미검증 · 조회 2026-10-03T13:37:00.130Z · 기준 미확인 · 확정 여부 미확인2026-10-02한국투자증권 · 종목별 투자자매매동향(일별)거래량6,949,617 주SMA 5/20/60 · 최근 봉은 장중·기간 중 미완성 가능2026-10-02yahoo-036540.KQ"
+        ],
+        "profileRows": [
+          10
+        ],
+        "settings": {
+          "ked:hts:v1:KR:stock:036540:day:detail": "{\"v\":1,\"enabled\":true,\"panelHeights\":{\"rsi\":100,\"price\":400,\"credit\":90,\"foreign\":90,\"investmentTrust\":110,\"volume\":120},\"collapsed\":{\"rsi\":false,\"price\":false,\"credit\":false,\"foreign\":false,\"investmentTrust\":false,\"volume\":false},\"rsiPeriod\":14,\"signalPeriod\":9,\"signalMethod\":\"sma\",\"rsiZones\":false,\"volumeMa\":{\"5\":true,\"20\":true,\"60\":true},\"trustMode\":\"cumulative\",\"trustStartDate\":\"2024-10-02\",\"profile\":{\"enabled\":true,\"preset\":\"hts\",\"rows\":10,\"widthRatio\":0.85,\"color\":\"#e7b157\",\"opacity\":0.22,\"showLabels\":true,\"showVa\":true,\"showPoc\":true,\"basis\":\"volume\",\"rangeMode\":\"visible\",\"startDate\":\"\",\"endDate\":\"\",\"rangeOn\":true,\"recentSpan\":\"52W\"}}"
+        }
+      },
+      "screenshot": "/workspace/screenshots/chart-upgrade/real-sfa-tablet-recheck/stock-036540-tablet.png"
+    }
+  ]
+}

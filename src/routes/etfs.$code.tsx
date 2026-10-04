@@ -1,7 +1,8 @@
 import { createFileRoute, Link, Navigate, notFound } from "@tanstack/react-router";
 import { useEtfBundle } from "@/lib/use-market";
 import { TradingChart } from "@/components/stocks/TradingChart";
-import { normalizeKrTicker, isKrTicker, isDigitTicker, looksLikeEtf } from "@/lib/infer-sector";
+import { normalizeKrTicker, isKrTicker } from "@/lib/infer-sector";
+import { useChartSecurity } from "@/lib/charts/use-chart-security";
 import { yahooUsSymbol } from "@/lib/valuation-series";
 import {
   formatHoldingPrice,
@@ -61,20 +62,12 @@ const CLASS_CHIP: Record<string, string> = {
 function EtfDetailPage() {
   const { code } = Route.useParams();
   const normalized = normalizeKrTicker(code);
+  const security = useChartSecurity(normalized, "KR");
   const { data, isLoading, isError } = useEtfBundle(code);
   const colors = usePriceColors();
 
   if (!isKrTicker(normalized)) throw notFound();
-  if (isDigitTicker(normalized) && data && "error" in data) {
-    return <Navigate to="/stock/$ticker" params={{ ticker: normalized }} replace />;
-  }
-  if (
-    isDigitTicker(normalized) &&
-    data &&
-    "etf" in data &&
-    data.etf &&
-    !looksLikeEtf(normalized, data.etf.nameKo)
-  ) {
+  if (security.data?.instrument === "stock") {
     return <Navigate to="/stock/$ticker" params={{ ticker: normalized }} replace />;
   }
   if (data && "error" in data) throw notFound();
@@ -281,7 +274,7 @@ function EtfDetailPage() {
           )}
           <TradingChart
             code={normalizeKrTicker(etf?.code ?? code)}
-            market="KOSPI"
+            market={security.data?.exchange === "KOSDAQ" ? "KOSDAQ" : "KOSPI"}
             instrument="etf"
             name={etf?.nameKo}
           />

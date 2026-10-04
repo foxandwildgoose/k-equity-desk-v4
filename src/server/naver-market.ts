@@ -10,6 +10,7 @@ import { yahooUsSymbol } from "@/lib/valuation-series";
 import { classifyResearchSectors } from "@/data/research-taxonomy";
 import { buildResearchExecutiveSummary } from "@/lib/research-utils";
 import { sortReportsNewestFirst } from "@/lib/feed/mappers";
+import { chartVolume } from "@/lib/charts/volume-validity";
 
 const UA =
   "Mozilla/5.0 (compatible; KoreaEquityCommand/1.0; +https://x.ai) AppleWebKit/537.36";
@@ -98,6 +99,8 @@ export interface OhlcBar {
   low: number;
   close: number;
   volume: number;
+  /** False means missing/invalid provider volume; numeric zero is a JSON carrier only. */
+  volumeValid?: boolean;
   bullish: boolean;
   ma5?: number;
   ma20?: number;
@@ -598,6 +601,7 @@ function bucketMinuteBars(
       low: Math.min(...chunk.map((x) => x.low)),
       close: last.close,
       volume: chunk.reduce((sum, x) => sum + x.volume, 0),
+      volumeValid: chunk.every((x) => x.volumeValid !== false),
       bullish: last.close >= first.open,
     });
   }
@@ -636,7 +640,7 @@ function parseYahooMinuteResult(result: {
       high: Math.round(h),
       low: Math.round(l),
       close: Math.round(c),
-      volume: Math.round(v ?? 0),
+      ...chartVolume(v),
       bullish: c >= o,
     });
   }
@@ -670,7 +674,7 @@ async function fetchNaverMinuteFchart(
         high: Math.max(high, open, close),
         low: Math.min(low, open, close),
         close,
-        volume: num(v),
+        ...chartVolume(v),
         bullish: close >= open,
       });
     }
@@ -834,7 +838,7 @@ function parseUsYahooBars(
       high: Math.max(high, open, close),
       low: Math.min(low, open, close),
       close,
-      volume: Math.round(q.volume?.[i] ?? 0),
+      ...chartVolume(q.volume?.[i]),
       bullish: close >= open,
     });
   }
@@ -935,6 +939,7 @@ async function fetchUsOhlc(opts: {
         low: Math.min(...list.map((x) => x.low)),
         close: last.close,
         volume: list.reduce((s, x) => s + x.volume, 0),
+        volumeValid: list.every((x) => x.volumeValid !== false),
         bullish: last.close >= first.open,
       });
     }
@@ -1023,7 +1028,7 @@ export async function fetchOhlc(opts: {
           high: Math.round(h),
           low: Math.round(l),
           close: Math.round(c),
-          volume: Math.round(v ?? 0),
+          ...chartVolume(v),
           bullish: c >= o,
         });
       }
@@ -1074,6 +1079,7 @@ export async function fetchOhlc(opts: {
         low: Math.min(...list.map((x) => x.low)),
         close: last.close,
         volume: list.reduce((s, x) => s + x.volume, 0),
+        volumeValid: list.every((x) => x.volumeValid !== false),
         bullish: last.close >= first.open,
       });
     }
@@ -1110,7 +1116,7 @@ async function fetchNaverFchart(
         high: Math.max(high, open, close),
         low: Math.min(low, open, close),
         close,
-        volume: num(v),
+        ...chartVolume(v),
         bullish: close >= open,
       });
     }
@@ -1150,7 +1156,7 @@ async function fetchNaverDayOhlc(
     const high = num(row[2]);
     const low = num(row[3]);
     const close = num(row[4]);
-    const volume = num(row[5]);
+    const volume = chartVolume(row[5]);
     raw.push({
       date,
       label: `${Number(ymd.slice(4, 6))}/${Number(ymd.slice(6, 8))}`,
@@ -1158,7 +1164,7 @@ async function fetchNaverDayOhlc(
       high,
       low,
       close,
-      volume,
+      ...volume,
       bullish: close >= open,
     });
   }

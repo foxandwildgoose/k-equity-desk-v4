@@ -1,0 +1,1315 @@
+{
+  "verifiedAt": "2026-10-03T13:20:42.606Z",
+  "mode": "actual-provider-responses",
+  "credentialPresence": {
+    "KIS_APP_KEY": false,
+    "KIS_APP_SECRET": false
+  },
+  "securities": [
+    {
+      "code": "001820",
+      "name": "삼화콘덴서",
+      "instrument": "stock",
+      "nation": "KOR",
+      "exchange": "KOSPI",
+      "timezone": "Asia/Seoul",
+      "result": {
+        "request": {
+          "code": "001820",
+          "market": "KR",
+          "instrument": "stock",
+          "exchange": "KOSPI",
+          "currency": "KRW",
+          "quantityUnit": "주",
+          "from": "2026-09-01",
+          "to": "2026-10-02",
+          "interval": "day"
+        },
+        "credit": {
+          "capability": "not-configured",
+          "reason": "KIS_APP_KEY / KIS_APP_SECRET 인증 미설정 · 해당 종목 실응답 미검증",
+          "unit": "%",
+          "source": "한국투자증권 · 신용잔고 일별추이 [0476]",
+          "observations": [],
+          "providedFrom": null,
+          "providedTo": null
+        },
+        "foreign": {
+          "capability": "partial",
+          "reason": "요청 범위 중 일부 날짜만 제공 · 공표 시각/확정 여부 미확인",
+          "unit": "%",
+          "source": "네이버 금융 · 종목 투자자 동향",
+          "observations": [
+            {
+              "date": "2026-09-17",
+              "value": 5.24,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-17",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:43.431Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-18",
+              "value": 6.04,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-18",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:43.431Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-21",
+              "value": 5.82,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-21",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:43.431Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-22",
+              "value": 6.07,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-22",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:43.431Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-23",
+              "value": 6.33,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-23",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:43.431Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-28",
+              "value": 6.62,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-28",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:43.431Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-29",
+              "value": 9.36,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-29",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:43.431Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-30",
+              "value": 6.94,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-30",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:43.431Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-10-01",
+              "value": 9.42,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-10-01",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:43.431Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-10-02",
+              "value": 8.58,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-10-02",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:43.431Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            }
+          ],
+          "providedFrom": "2026-09-17",
+          "providedTo": "2026-10-02"
+        },
+        "investmentTrust": {
+          "capability": "not-configured",
+          "reason": "KIS_APP_KEY / KIS_APP_SECRET 인증 미설정 · 해당 종목 실응답 미검증",
+          "unit": "주",
+          "source": "한국투자증권 · 종목별 투자자매매동향(일별)",
+          "observations": [],
+          "providedFrom": null,
+          "providedTo": null
+        },
+        "fetchedAt": "2026-10-03T13:20:43.431Z",
+        "stale": false
+      }
+    },
+    {
+      "code": "403870",
+      "name": "HPSP",
+      "instrument": "stock",
+      "nation": "KOR",
+      "exchange": "KOSDAQ",
+      "timezone": "Asia/Seoul",
+      "result": {
+        "request": {
+          "code": "403870",
+          "market": "KR",
+          "instrument": "stock",
+          "exchange": "KOSDAQ",
+          "currency": "KRW",
+          "quantityUnit": "주",
+          "from": "2026-09-01",
+          "to": "2026-10-02",
+          "interval": "day"
+        },
+        "credit": {
+          "capability": "not-configured",
+          "reason": "KIS_APP_KEY / KIS_APP_SECRET 인증 미설정 · 해당 종목 실응답 미검증",
+          "unit": "%",
+          "source": "한국투자증권 · 신용잔고 일별추이 [0476]",
+          "observations": [],
+          "providedFrom": null,
+          "providedTo": null
+        },
+        "foreign": {
+          "capability": "partial",
+          "reason": "요청 범위 중 일부 날짜만 제공 · 공표 시각/확정 여부 미확인",
+          "unit": "%",
+          "source": "네이버 금융 · 종목 투자자 동향",
+          "observations": [
+            {
+              "date": "2026-09-17",
+              "value": 32.95,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-17",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:44.967Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-18",
+              "value": 33.04,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-18",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:44.967Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-21",
+              "value": 33.48,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-21",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:44.967Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-22",
+              "value": 33.65,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-22",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:44.967Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-23",
+              "value": 33.76,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-23",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:44.967Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-28",
+              "value": 34.06,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-28",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:44.967Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-29",
+              "value": 34.21,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-29",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:44.967Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-30",
+              "value": 34.15,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-30",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:44.967Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-10-01",
+              "value": 34.3,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-10-01",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:44.967Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-10-02",
+              "value": 33.56,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-10-02",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:44.967Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            }
+          ],
+          "providedFrom": "2026-09-17",
+          "providedTo": "2026-10-02"
+        },
+        "investmentTrust": {
+          "capability": "not-configured",
+          "reason": "KIS_APP_KEY / KIS_APP_SECRET 인증 미설정 · 해당 종목 실응답 미검증",
+          "unit": "주",
+          "source": "한국투자증권 · 종목별 투자자매매동향(일별)",
+          "observations": [],
+          "providedFrom": null,
+          "providedTo": null
+        },
+        "fetchedAt": "2026-10-03T13:20:44.967Z",
+        "stale": false
+      }
+    },
+    {
+      "code": "036540",
+      "name": "SFA반도체",
+      "instrument": "stock",
+      "nation": "KOR",
+      "exchange": "KOSDAQ",
+      "timezone": "Asia/Seoul",
+      "result": {
+        "request": {
+          "code": "036540",
+          "market": "KR",
+          "instrument": "stock",
+          "exchange": "KOSDAQ",
+          "currency": "KRW",
+          "quantityUnit": "주",
+          "from": "2026-09-01",
+          "to": "2026-10-02",
+          "interval": "day"
+        },
+        "credit": {
+          "capability": "not-configured",
+          "reason": "KIS_APP_KEY / KIS_APP_SECRET 인증 미설정 · 해당 종목 실응답 미검증",
+          "unit": "%",
+          "source": "한국투자증권 · 신용잔고 일별추이 [0476]",
+          "observations": [],
+          "providedFrom": null,
+          "providedTo": null
+        },
+        "foreign": {
+          "capability": "partial",
+          "reason": "요청 범위 중 일부 날짜만 제공 · 공표 시각/확정 여부 미확인",
+          "unit": "%",
+          "source": "네이버 금융 · 종목 투자자 동향",
+          "observations": [
+            {
+              "date": "2026-09-17",
+              "value": 8.51,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-17",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:46.616Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-18",
+              "value": 8.6,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-18",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:46.616Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-21",
+              "value": 9.61,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-21",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:46.616Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-22",
+              "value": 10.72,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-22",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:46.616Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-23",
+              "value": 11.52,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-23",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:46.616Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-28",
+              "value": 12.09,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-28",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:46.616Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-29",
+              "value": 12.58,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-29",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:46.616Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-30",
+              "value": 12.94,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-30",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:46.616Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-10-01",
+              "value": 13.76,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-10-01",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:46.616Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-10-02",
+              "value": 14.22,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-10-02",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:46.616Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            }
+          ],
+          "providedFrom": "2026-09-17",
+          "providedTo": "2026-10-02"
+        },
+        "investmentTrust": {
+          "capability": "not-configured",
+          "reason": "KIS_APP_KEY / KIS_APP_SECRET 인증 미설정 · 해당 종목 실응답 미검증",
+          "unit": "주",
+          "source": "한국투자증권 · 종목별 투자자매매동향(일별)",
+          "observations": [],
+          "providedFrom": null,
+          "providedTo": null
+        },
+        "fetchedAt": "2026-10-03T13:20:46.616Z",
+        "stale": false
+      }
+    },
+    {
+      "code": "011790",
+      "name": "SKC",
+      "instrument": "stock",
+      "nation": "KOR",
+      "exchange": "KOSPI",
+      "timezone": "Asia/Seoul",
+      "result": {
+        "request": {
+          "code": "011790",
+          "market": "KR",
+          "instrument": "stock",
+          "exchange": "KOSPI",
+          "currency": "KRW",
+          "quantityUnit": "주",
+          "from": "2026-09-01",
+          "to": "2026-10-02",
+          "interval": "day"
+        },
+        "credit": {
+          "capability": "not-configured",
+          "reason": "KIS_APP_KEY / KIS_APP_SECRET 인증 미설정 · 해당 종목 실응답 미검증",
+          "unit": "%",
+          "source": "한국투자증권 · 신용잔고 일별추이 [0476]",
+          "observations": [],
+          "providedFrom": null,
+          "providedTo": null
+        },
+        "foreign": {
+          "capability": "partial",
+          "reason": "요청 범위 중 일부 날짜만 제공 · 공표 시각/확정 여부 미확인",
+          "unit": "%",
+          "source": "네이버 금융 · 종목 투자자 동향",
+          "observations": [
+            {
+              "date": "2026-09-17",
+              "value": 10.61,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-17",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:47.599Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-18",
+              "value": 10.58,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-18",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:47.599Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-21",
+              "value": 10.58,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-21",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:47.599Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-22",
+              "value": 10.61,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-22",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:47.599Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-23",
+              "value": 10.59,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-23",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:47.599Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-28",
+              "value": 10.59,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-28",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:47.599Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-29",
+              "value": 10.6,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-29",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:47.599Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-30",
+              "value": 10.61,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-30",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:47.599Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-10-01",
+              "value": 10.45,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-10-01",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:47.599Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-10-02",
+              "value": 10.35,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-10-02",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:47.599Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            }
+          ],
+          "providedFrom": "2026-09-17",
+          "providedTo": "2026-10-02"
+        },
+        "investmentTrust": {
+          "capability": "not-configured",
+          "reason": "KIS_APP_KEY / KIS_APP_SECRET 인증 미설정 · 해당 종목 실응답 미검증",
+          "unit": "주",
+          "source": "한국투자증권 · 종목별 투자자매매동향(일별)",
+          "observations": [],
+          "providedFrom": null,
+          "providedTo": null
+        },
+        "fetchedAt": "2026-10-03T13:20:47.599Z",
+        "stale": false
+      }
+    },
+    {
+      "code": "069500",
+      "name": "KODEX 200",
+      "instrument": "etf",
+      "nation": "KOR",
+      "exchange": "KOSPI",
+      "timezone": "Asia/Seoul",
+      "result": {
+        "request": {
+          "code": "069500",
+          "market": "KR",
+          "instrument": "etf",
+          "exchange": "KOSPI",
+          "currency": "KRW",
+          "quantityUnit": "주",
+          "from": "2026-09-01",
+          "to": "2026-10-02",
+          "interval": "day"
+        },
+        "credit": {
+          "capability": "not-configured",
+          "reason": "KIS_APP_KEY / KIS_APP_SECRET 인증 미설정 · 해당 종목 실응답 미검증",
+          "unit": "%",
+          "source": "한국투자증권 · 신용잔고 일별추이 [0476]",
+          "observations": [],
+          "providedFrom": null,
+          "providedTo": null
+        },
+        "foreign": {
+          "capability": "partial",
+          "reason": "요청 범위 중 일부 날짜만 제공 · 공표 시각/확정 여부 미확인",
+          "unit": "%",
+          "source": "네이버 금융 · 종목 투자자 동향",
+          "observations": [
+            {
+              "date": "2026-09-17",
+              "value": 22.09,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-17",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:48.712Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-18",
+              "value": 22.04,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-18",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:48.712Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-21",
+              "value": 21.96,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-21",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:48.712Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-22",
+              "value": 21.99,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-22",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:48.712Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-23",
+              "value": 22.06,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-23",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:48.712Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-28",
+              "value": 22.44,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-28",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:48.712Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-29",
+              "value": 22.58,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-29",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:48.712Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-30",
+              "value": 22.73,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-30",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:48.712Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-10-01",
+              "value": 22.39,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-10-01",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:48.712Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-10-02",
+              "value": 22.24,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-10-02",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:48.712Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            }
+          ],
+          "providedFrom": "2026-09-17",
+          "providedTo": "2026-10-02"
+        },
+        "investmentTrust": {
+          "capability": "not-configured",
+          "reason": "KIS_APP_KEY / KIS_APP_SECRET 인증 미설정 · 해당 종목 실응답 미검증",
+          "unit": "주",
+          "source": "한국투자증권 · 종목별 투자자매매동향(일별)",
+          "observations": [],
+          "providedFrom": null,
+          "providedTo": null
+        },
+        "fetchedAt": "2026-10-03T13:20:48.712Z",
+        "stale": false
+      }
+    },
+    {
+      "code": "379800",
+      "name": "KODEX 미국S&P500",
+      "instrument": "etf",
+      "nation": "KOR",
+      "exchange": "KOSPI",
+      "timezone": "Asia/Seoul",
+      "result": {
+        "request": {
+          "code": "379800",
+          "market": "KR",
+          "instrument": "etf",
+          "exchange": "KOSPI",
+          "currency": "KRW",
+          "quantityUnit": "주",
+          "from": "2026-09-01",
+          "to": "2026-10-02",
+          "interval": "day"
+        },
+        "credit": {
+          "capability": "not-configured",
+          "reason": "KIS_APP_KEY / KIS_APP_SECRET 인증 미설정 · 해당 종목 실응답 미검증",
+          "unit": "%",
+          "source": "한국투자증권 · 신용잔고 일별추이 [0476]",
+          "observations": [],
+          "providedFrom": null,
+          "providedTo": null
+        },
+        "foreign": {
+          "capability": "partial",
+          "reason": "요청 범위 중 일부 날짜만 제공 · 공표 시각/확정 여부 미확인",
+          "unit": "%",
+          "source": "네이버 금융 · 종목 투자자 동향",
+          "observations": [
+            {
+              "date": "2026-09-17",
+              "value": 0.18,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-17",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:49.669Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-18",
+              "value": 0.23,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-18",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:49.669Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-21",
+              "value": 0.17,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-21",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:49.669Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-22",
+              "value": 0.13,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-22",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:49.669Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-23",
+              "value": 0.12,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-23",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:49.669Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-28",
+              "value": 0.12,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-28",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:49.669Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-29",
+              "value": 0.17,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-29",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:49.669Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-30",
+              "value": 0.17,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-30",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:49.669Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-10-01",
+              "value": 0.21,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-10-01",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:49.669Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-10-02",
+              "value": 0.14,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-10-02",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:49.669Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            }
+          ],
+          "providedFrom": "2026-09-17",
+          "providedTo": "2026-10-02"
+        },
+        "investmentTrust": {
+          "capability": "not-configured",
+          "reason": "KIS_APP_KEY / KIS_APP_SECRET 인증 미설정 · 해당 종목 실응답 미검증",
+          "unit": "주",
+          "source": "한국투자증권 · 종목별 투자자매매동향(일별)",
+          "observations": [],
+          "providedFrom": null,
+          "providedTo": null
+        },
+        "fetchedAt": "2026-10-03T13:20:49.669Z",
+        "stale": false
+      }
+    },
+    {
+      "code": "0005A0",
+      "name": "KODEX 미국S&P500데일리커버드콜OTM",
+      "instrument": "etf",
+      "nation": "KOR",
+      "exchange": "KOSPI",
+      "timezone": "Asia/Seoul",
+      "result": {
+        "request": {
+          "code": "0005A0",
+          "market": "KR",
+          "instrument": "etf",
+          "exchange": "KOSPI",
+          "currency": "KRW",
+          "quantityUnit": "주",
+          "from": "2026-09-01",
+          "to": "2026-10-02",
+          "interval": "day"
+        },
+        "credit": {
+          "capability": "not-configured",
+          "reason": "KIS_APP_KEY / KIS_APP_SECRET 인증 미설정 · 해당 종목 실응답 미검증",
+          "unit": "%",
+          "source": "한국투자증권 · 신용잔고 일별추이 [0476]",
+          "observations": [],
+          "providedFrom": null,
+          "providedTo": null
+        },
+        "foreign": {
+          "capability": "partial",
+          "reason": "요청 범위 중 일부 날짜만 제공 · 공표 시각/확정 여부 미확인",
+          "unit": "%",
+          "source": "네이버 금융 · 종목 투자자 동향",
+          "observations": [
+            {
+              "date": "2026-09-17",
+              "value": 0.03,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-17",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:50.496Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-18",
+              "value": 0.03,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-18",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:50.496Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-21",
+              "value": 0.03,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-21",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:50.496Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-22",
+              "value": 0.03,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-22",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:50.496Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-23",
+              "value": 0.02,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-23",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:50.496Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-28",
+              "value": 0.02,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-28",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:50.496Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-29",
+              "value": 0.02,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-29",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:50.496Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-09-30",
+              "value": 0.02,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-09-30",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:50.496Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-10-01",
+              "value": 0.02,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-10-01",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:50.496Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            },
+            {
+              "date": "2026-10-02",
+              "value": 0.02,
+              "unit": "%",
+              "source": "네이버 금융 · 종목 투자자 동향",
+              "sourceField": "foreignerHoldRatio",
+              "asOf": "2026-10-02",
+              "dateBasis": "trade-date",
+              "fetchedAt": "2026-10-03T13:20:50.496Z",
+              "availableAt": null,
+              "final": null,
+              "derived": false
+            }
+          ],
+          "providedFrom": "2026-09-17",
+          "providedTo": "2026-10-02"
+        },
+        "investmentTrust": {
+          "capability": "not-configured",
+          "reason": "KIS_APP_KEY / KIS_APP_SECRET 인증 미설정 · 해당 종목 실응답 미검증",
+          "unit": "주",
+          "source": "한국투자증권 · 종목별 투자자매매동향(일별)",
+          "observations": [],
+          "providedFrom": null,
+          "providedTo": null
+        },
+        "fetchedAt": "2026-10-03T13:20:50.496Z",
+        "stale": false
+      }
+    }
+  ],
+  "ownershipVsLimit": [
+    {
+      "code": "030200",
+      "limitConsumption": {
+        "code": "foreignRate",
+        "key": "외인소진율",
+        "value": "100.00%"
+      },
+      "ownership": [
+        {
+          "date": "20261002",
+          "foreignerHoldRatio": "49.00%"
+        },
+        {
+          "date": "20261001",
+          "foreignerHoldRatio": "49.00%"
+        }
+      ]
+    },
+    {
+      "code": "017670",
+      "limitConsumption": {
+        "code": "foreignRate",
+        "key": "외인소진율",
+        "value": "71.12%"
+      },
+      "ownership": [
+        {
+          "date": "20261002",
+          "foreignerHoldRatio": "34.88%"
+        },
+        {
+          "date": "20261001",
+          "foreignerHoldRatio": "34.85%"
+        }
+      ]
+    }
+  ]
+}

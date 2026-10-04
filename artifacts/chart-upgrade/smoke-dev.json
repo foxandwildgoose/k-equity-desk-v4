@@ -1,0 +1,46 @@
+{
+  "url": "http://127.0.0.1:8080/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "대시보드 · Korea Equity Command Center",
+      "hasCanvas": false,
+      "bodyTextLen": 2588,
+      "bodyTextHash": "1f9a6ca8691c38b18071a96d3de4ec5c73c230ec595ad4ad826a99cecd3980a0",
+      "bodyTextPrefix": "실시간: KIS Open API · KRX WebSocket(설정 시) · 백업: 네이버 금융 스냅샷 · 리포트: ",
+      "horizontalOverflow": false,
+      "consoleErrors": [
+        "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+        "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+        "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+      ],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/chart-upgrade/smoke-dev.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "대시보드 · Korea Equity Command Center",
+      "hasCanvas": false,
+      "bodyTextLen": 2275,
+      "bodyTextHash": "07fa89b5e600ae35dd962eee90ba141a3ff58ef9062d20449fd3f42b44d3760a",
+      "bodyTextPrefix": "KX Equity COMMAND 실시간: KIS Open API · KRX WebSocket(설정 시) · 백업: ",
+      "horizontalOverflow": false,
+      "consoleErrors": [
+        "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+        "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+        "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+      ],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/chart-upgrade/smoke-dev-mobile.png"
+    }
+  },
+  "brandWarnings": [
+    "BRAND NOTE: no custom public/og.jpg — the platform will serve the og.grok.me placeholder. Custom cards are the default for games of every kind (DOM board/word games included), whimsical apps, creative tools, and brand-forward pages — only plain utilities (converters, CRUD trackers, admin dashboards) keep the placeholder. If this app is not a plain utility, finish the brand-asset pass per /workspace/.grok/skills/og/SKILL.md."
+  ],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/chart-upgrade/smoke-dev.json"
+}

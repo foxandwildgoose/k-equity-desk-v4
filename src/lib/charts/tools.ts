@@ -120,7 +120,7 @@ export interface CsvBar {
   high: number;
   low: number;
   close: number;
-  volume: number;
+  volume: number | null;
 }
 
 function timeLabel(t: string | number): string {

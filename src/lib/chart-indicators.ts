@@ -59,35 +59,97 @@ export function bollinger(
   return { mid, upper, lower };
 }
 
+/**
+ * Wilder RSI, seeded with `period` consecutive close-to-close changes.
+ * Missing/non-finite/non-positive closes break the series and restart warmup;
+ * they are never treated as zero or bridged. A completely flat window is 50.
+ * Invalid periods produce only nulls. Compute over the loaded history before
+ * slicing for display so scrolling cannot change a date's RSI.
+ */
 export function rsi(closes: number[], period = 14): (number | null)[] {
-  if (!closes.length) return [];
-  const out: (number | null)[] = [null];
+  const out: (number | null)[] = new Array(closes.length).fill(null);
+  if (!Number.isSafeInteger(period) || period < 1) return out;
   let avgGain = 0;
   let avgLoss = 0;
-  for (let i = 1; i < closes.length; i++) {
-    const ch = closes[i]! - closes[i - 1]!;
-    const gain = Math.max(ch, 0);
-    const loss = Math.max(-ch, 0);
-    if (i < period) {
-      avgGain += gain;
-      avgLoss += loss;
-      out.push(null);
+  let changes = 0;
+  let previous: number | null = null;
+  for (let i = 0; i < closes.length; i++) {
+    const close = closes[i]!;
+    if (!Number.isFinite(close) || close <= 0) {
+      previous = null;
+      changes = 0;
+      avgGain = 0;
+      avgLoss = 0;
       continue;
     }
-    if (i === period) {
-      avgGain = (avgGain + gain) / period;
-      avgLoss = (avgLoss + loss) / period;
-    } else {
-      avgGain = (avgGain * (period - 1) + gain) / period;
-      avgLoss = (avgLoss * (period - 1) + loss) / period;
+    if (previous == null) {
+      previous = close;
+      continue;
     }
-    if (avgLoss === 0) out.push(100);
+    const ch = close - previous;
+    previous = close;
+    const gain = Math.max(ch, 0);
+    const loss = Math.max(-ch, 0);
+    if (changes < period) {
+      // Sum the divided terms to avoid overflowing on large finite prices.
+      avgGain += gain / period;
+      avgLoss += loss / period;
+      changes++;
+      if (changes < period) continue;
+    } else {
+      avgGain += (gain - avgGain) / period;
+      avgLoss += (loss - avgLoss) / period;
+    }
+    if (avgGain === 0 && avgLoss === 0) out[i] = 50;
+    else if (avgLoss === 0) out[i] = 100;
     else {
       const rs = avgGain / avgLoss;
-      out.push(100 - 100 / (1 + rs));
+      out[i] = 100 - 100 / (1 + rs);
     }
   }
   return out;
+}
+
+/** SMA/EMA of the RSI output, not a second RSI or a moving average of price. */
+export function rsiWithSignal(
+  closes: number[],
+  period = 14,
+  signalPeriod = 9,
+  method: "sma" | "ema" = "sma",
+): { rsi: (number | null)[]; signal: (number | null)[] } {
+  const values = rsi(closes, period);
+  const signal: (number | null)[] = new Array(values.length).fill(null);
+  if (!Number.isSafeInteger(signalPeriod) || signalPeriod < 1) return { rsi: values, signal };
+  const window: number[] = [];
+  let count = 0;
+  let sum = 0;
+  let previous: number | null = null;
+  const alpha = 2 / (signalPeriod + 1);
+  for (let i = 0; i < values.length; i++) {
+    const value = values[i];
+    if (value == null) {
+      window.length = 0;
+      count = 0;
+      sum = 0;
+      previous = null;
+      continue;
+    }
+    if (method === "ema" && previous != null) {
+      previous += alpha * (value - previous);
+      signal[i] = previous;
+      continue;
+    }
+    const slot = count % signalPeriod;
+    sum -= window[slot] ?? 0;
+    sum += value;
+    window[slot] = value;
+    count++;
+    if (count >= signalPeriod) {
+      previous = sum / signalPeriod;
+      signal[i] = previous;
+    }
+  }
+  return { rsi: values, signal };
 }
 
 export function macd(
@@ -1275,52 +1337,125 @@ export function obv(closes: number[], volumes: number[]): number[] {
 }
 
 export interface VolumeProfile {
-  rows: { low: number; high: number; volume: number }[];
+  /** `volume` uses the selected basis for compatibility with existing callers. */
+  rows: { low: number; high: number; volume: number; percent: number }[];
   poc: number | null;
   vah: number | null;
   val: number | null;
+  /** Valid input volume, in the input's own quantity unit, even for turnover. */
+  totalVolume: number;
+  /** Sum of all bins in the selected basis; the denominator for every percent. */
+  totalValue: number;
+  excludedBars: number;
+  validBars: number;
+  method: "ohlcv-overlap";
+  basis: "volume" | "turnover";
 }
 
 /**
- * Volume profile over the given bars: each bar's volume is spread evenly over
- * the rows its high–low range touches. POC = middle of the max-volume row;
- * value area grows from the POC toward the larger neighbour until `valueArea`.
+ * OHLCV estimate over exactly the bars supplied, using linear price bins.
+ * For H > L, allocate V * overlap([L,H], bin) / (H-L), with no early rounding.
+ * A point bar belongs to [low,high), except the top bin also includes its high.
+ * A wholly single-price sample has one degenerate inclusive bin at that price.
+ * POC is the midpoint of the largest bin. Both POC ties and adjacent value-area
+ * ties prefer the lower price. VAL/VAH are the final included bin boundaries.
+ *
+ * Validation: high/low must be finite positive prices with high >= low; any
+ * supplied open/close must lie within that range. Volume must be finite and
+ * nonnegative. Invalid bars (including arithmetic overflow) are excluded and
+ * counted, never replaced with zero. Valid zero-volume bars are counted; a
+ * sample with no positive volume has no profile/POC/value area. One bar suffices.
+ * Turnover retains the existing close * volume (midpoint when close omitted)
+ * estimate. `totalVolume` still reports raw volume, `totalValue` that basis.
+ *
+ * Row count is bounded to 1..1000 (non-finite => 24); valueArea to 0..1.
+ * Adjustment/source/quantity-unit metadata belongs to the caller: this pure
+ * calculation cannot verify price or volume adjustment consistency. Supply one
+ * consistent source and period; neither viewport nor price zoom is an input.
  */
 export function volumeProfile(
-  bars: { high: number; low: number; volume: number; close?: number }[],
+  bars: { high: number; low: number; volume: number; volumeValid?: boolean; open?: number; close?: number }[],
   rowCount = 24,
   valueArea = 0.7,
   basis: "volume" | "turnover" = "volume",
 ): VolumeProfile {
-  if (!bars.length) return { rows: [], poc: null, vah: null, val: null };
-  const lo = Math.min(...bars.map((b) => b.low));
-  const hi = Math.max(...bars.map((b) => b.high));
+  const result: VolumeProfile = {
+    rows: [], poc: null, vah: null, val: null,
+    totalVolume: 0, totalValue: 0, excludedBars: 0, validBars: 0,
+    method: "ohlcv-overlap", basis,
+  };
+  const valid: { low: number; high: number; value: number }[] = [];
+  let lo = Infinity;
+  let hi = -Infinity;
+  let inputValue = 0;
+  for (const bar of bars) {
+    const validPrice = (value: number | undefined) => value === undefined ||
+      (Number.isFinite(value) && value >= bar.low && value <= bar.high);
+    if (bar.volumeValid === false || !Number.isFinite(bar.low) || !Number.isFinite(bar.high) || bar.low <= 0 || bar.high < bar.low ||
+      !Number.isFinite(bar.volume) || bar.volume < 0 || !validPrice(bar.open) || !validPrice(bar.close)) {
+      result.excludedBars++;
+      continue;
+    }
+    const price = bar.close ?? bar.low + (bar.high - bar.low) / 2;
+    const value = basis === "turnover" ? bar.volume * price : bar.volume;
+    if (!Number.isFinite(value) || !Number.isFinite(inputValue + value) ||
+      !Number.isFinite(result.totalVolume + bar.volume)) {
+      result.excludedBars++;
+      continue;
+    }
+    valid.push({ low: bar.low, high: bar.high, value });
+    result.validBars++;
+    result.totalVolume += bar.volume;
+    inputValue += value;
+    lo = Math.min(lo, bar.low);
+    hi = Math.max(hi, bar.high);
+  }
+  if (inputValue === 0) return result;
   const span = hi - lo;
-  const n = span > 0 ? rowCount : 1;
-  const size = span > 0 ? span / n : 1;
-  const rows = Array.from({ length: n }, (_, i) => ({ low: lo + i * size, high: lo + (i + 1) * size, volume: 0 }));
-  for (const b of bars) {
-    const px = basis === "turnover" ? (b.close ?? (b.high + b.low) / 2) : 1;
-    const v = Math.max(b.volume, 0) * (basis === "turnover" ? Math.max(px, 0) : 1);
-    if (!v) continue;
-    const a = span > 0 ? Math.min(n - 1, Math.floor((b.low - lo) / size)) : 0;
-    const z = span > 0 ? Math.min(n - 1, Math.floor((Math.max(b.high, b.low) - lo) / size)) : 0;
-    const share = v / (z - a + 1);
-    for (let r = a; r <= z; r++) rows[r]!.volume += share;
+  const n = span > 0 ? (Number.isFinite(rowCount) ? Math.max(1, Math.min(1000, Math.floor(rowCount))) : 24) : 1;
+  // Shared boundaries avoid small gaps/overlap from separately rounded edges.
+  const edges = Array.from({ length: n + 1 }, (_, i) => i === n ? hi : lo + span * (i / n));
+  const rows = Array.from({ length: n }, (_, i) => ({ low: edges[i]!, high: edges[i + 1]!, volume: 0, percent: 0 }));
+  for (const bar of valid) {
+    if (bar.value === 0) continue;
+    if (bar.high === bar.low) {
+      // Search actual edges (rather than dividing rounded prices by bin width).
+      // Exact interior edges belong only to the upper bin, the top edge to last.
+      let left = 0;
+      let right = n - 1;
+      while (left < right) {
+        const middle = Math.floor((left + right) / 2);
+        if (bar.low < rows[middle]!.high) right = middle;
+        else left = middle + 1;
+      }
+      rows[left]!.volume += bar.value;
+    } else {
+      const range = bar.high - bar.low;
+      for (const row of rows) {
+        const overlap = Math.max(0, Math.min(bar.high, row.high) - Math.max(bar.low, row.low));
+        if (overlap > 0) row.volume += bar.value * (overlap / range);
+      }
+    }
   }
   let pocIdx = 0;
   for (let i = 1; i < n; i++) if (rows[i]!.volume > rows[pocIdx]!.volume) pocIdx = i;
   const total = rows.reduce((s, r) => s + r.volume, 0);
+  for (const row of rows) row.percent = (row.volume / total) * 100;
   let lowI = pocIdx;
   let highI = pocIdx;
   let acc = rows[pocIdx]!.volume;
-  while (total > 0 && acc / total < valueArea && (lowI > 0 || highI < n - 1)) {
+  const target = Number.isFinite(valueArea) ? Math.max(0, Math.min(1, valueArea)) : 0.7;
+  while (acc / total < target && (lowI > 0 || highI < n - 1)) {
     const below = lowI > 0 ? rows[lowI - 1]!.volume : -1;
     const above = highI < n - 1 ? rows[highI + 1]!.volume : -1;
-    if (above >= below) acc += rows[++highI]!.volume;
-    else acc += rows[--lowI]!.volume;
+    if (below >= above) acc += rows[--lowI]!.volume;
+    else acc += rows[++highI]!.volume;
   }
-  return { rows, poc: (rows[pocIdx]!.low + rows[pocIdx]!.high) / 2, vah: rows[highI]!.high, val: rows[lowI]!.low };
+  return {
+    ...result, rows, totalValue: total,
+    poc: rows[pocIdx]!.low + (rows[pocIdx]!.high - rows[pocIdx]!.low) / 2,
+    vah: rows[highI]!.high, val: rows[lowI]!.low,
+  };
 }
 
 /** Stochastic RSI: %K = SMA(k) of the stochastic of RSI, %D = SMA(d) of %K. */

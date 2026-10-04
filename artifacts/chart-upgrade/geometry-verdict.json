@@ -1,0 +1,242 @@
+{
+  "mode": "real",
+  "code": "069500",
+  "base": "http://127.0.0.1:8080",
+  "at": "2026-10-03T13:50:21.410Z",
+  "checks": [
+    {
+      "name": "keyboard-settings-and-fixed-range",
+      "status": "passed",
+      "detail": {
+        "focusReturned": true,
+        "rangeMode": "fixed",
+        "from": "2026-01-08",
+        "to": "2026-10-02"
+      }
+    },
+    {
+      "name": "native-separator-persists-after-reload",
+      "status": "passed",
+      "detail": {
+        "before": {
+          "rsi": 100,
+          "price": 400,
+          "credit": 90,
+          "foreign": 90,
+          "investmentTrust": 110,
+          "volume": 121
+        },
+        "after": {
+          "rsi": 135,
+          "price": 365,
+          "credit": 90,
+          "foreign": 90,
+          "investmentTrust": 110,
+          "volume": 121
+        },
+        "restored": {
+          "rsi": 135,
+          "price": 365,
+          "credit": 90,
+          "foreign": 90,
+          "investmentTrust": 110,
+          "volume": 121
+        },
+        "stored": {
+          "rsi": 135,
+          "price": 365,
+          "credit": 90,
+          "foreign": 90,
+          "investmentTrust": 110,
+          "volume": 120
+        }
+      }
+    },
+    {
+      "name": "fixed-profile-is-invariant-under-time-pan",
+      "status": "passed",
+      "detail": {
+        "bins": 10,
+        "exactQuantityAndPercentTitlesUnchanged": true
+      }
+    },
+    {
+      "name": "fixed-profile-is-invariant-under-price-axis-zoom",
+      "status": "passed",
+      "detail": {
+        "bins": 10,
+        "exactQuantityAndPercentTitlesUnchanged": true,
+        "axis": {
+          "x": 1330,
+          "y": 734.5,
+          "width": 80,
+          "height": 365
+        }
+      }
+    },
+    {
+      "name": "crosshair-date-aligns-accessible-pane-values",
+      "status": "passed",
+      "detail": {
+        "captures": [
+          {
+            "hoveredDate": "2026-03-30",
+            "rows": [
+              [
+                "RSI",
+                "44.22 / Signal 51.45 0–100",
+                "종가 · Wilder 14 / Signal · SMA 9",
+                "2026-03-30",
+                "yahoo-069500.KS"
+              ],
+              [
+                "가격·매물대",
+                "78,680",
+                "고정 구간 · 2026-01-08~2026-10-02 · day · 주 · 추정",
+                "2026-03-30",
+                "yahoo-069500.KS"
+              ],
+              [
+                "신용잔고율",
+                "— %",
+                "인증 미설정 · KIS_APP_KEY / KIS_APP_SECRET 인증 미설정 · 해당 종목 실응답 미검증 · 조회 2026-10-03T13:49:09.294Z · 기준 미확인 · 확정 여부 미확인",
+                "미확인",
+                "한국투자증권 · 신용잔고 일별추이 [0476]"
+              ],
+              [
+                "외국인보유비율",
+                "— %",
+                "일부 기간 제공 · 일부 거래일 누락 · 조회 2026-10-03T13:49:09.294Z · 기준 미확인 · 확정 여부 미확인",
+                "미확인",
+                "네이버 금융 · 종목 투자자 동향"
+              ],
+              [
+                "투신 누적순매수 · 기준 2024-10-02",
+                "— 주",
+                "인증 미설정 · KIS_APP_KEY / KIS_APP_SECRET 인증 미설정 · 해당 종목 실응답 미검증 · 조회 2026-10-03T13:49:09.294Z · 기준 미확인 · 확정 여부 미확인",
+                "2026-03-30",
+                "한국투자증권 · 종목별 투자자매매동향(일별)"
+              ],
+              [
+                "거래량",
+                "17,986,750 주",
+                "SMA 5/20/60 · 최근 봉은 장중·기간 중 미완성 가능",
+                "2026-03-30",
+                "yahoo-069500.KS"
+              ]
+            ]
+          },
+          {
+            "hoveredDate": "2026-06-16",
+            "rows": [
+              [
+                "RSI",
+                "63.23 / Signal 58.6 0–100",
+                "종가 · Wilder 14 / Signal · SMA 9",
+                "2026-06-16",
+                "yahoo-069500.KS"
+              ],
+              [
+                "가격·매물대",
+                "139,550",
+                "고정 구간 · 2026-01-08~2026-10-02 · day · 주 · 추정",
+                "2026-06-16",
+                "yahoo-069500.KS"
+              ],
+              [
+                "신용잔고율",
+                "— %",
+                "인증 미설정 · KIS_APP_KEY / KIS_APP_SECRET 인증 미설정 · 해당 종목 실응답 미검증 · 조회 2026-10-03T13:49:09.294Z · 기준 미확인 · 확정 여부 미확인",
+                "미확인",
+                "한국투자증권 · 신용잔고 일별추이 [0476]"
+              ],
+              [
+                "외국인보유비율",
+                "— %",
+                "일부 기간 제공 · 일부 거래일 누락 · 조회 2026-10-03T13:49:09.294Z · 기준 미확인 · 확정 여부 미확인",
+                "미확인",
+                "네이버 금융 · 종목 투자자 동향"
+              ],
+              [
+                "투신 누적순매수 · 기준 2024-10-02",
+                "— 주",
+                "인증 미설정 · KIS_APP_KEY / KIS_APP_SECRET 인증 미설정 · 해당 종목 실응답 미검증 · 조회 2026-10-03T13:49:09.294Z · 기준 미확인 · 확정 여부 미확인",
+                "2026-06-16",
+                "한국투자증권 · 종목별 투자자매매동향(일별)"
+              ],
+              [
+                "거래량",
+                "16,326,020 주",
+                "SMA 5/20/60 · 최근 봉은 장중·기간 중 미완성 가능",
+                "2026-06-16",
+                "yahoo-069500.KS"
+              ]
+            ]
+          }
+        ],
+        "note": "RSI, price and volume match the hover date; flow rows retain original source as-of and missing-value reasons."
+      }
+    }
+  ],
+  "errors": [],
+  "externalFailures": [
+    {
+      "origin": "https://fonts.googleapis.com",
+      "error": "net::ERR_CERT_AUTHORITY_INVALID"
+    },
+    {
+      "origin": "https://grok.com",
+      "error": "net::ERR_CERT_AUTHORITY_INVALID"
+    },
+    {
+      "origin": "https://cdn.jsdelivr.net",
+      "error": "net::ERR_CERT_AUTHORITY_INVALID"
+    },
+    {
+      "origin": "https://fonts.googleapis.com",
+      "error": "net::ERR_CERT_AUTHORITY_INVALID"
+    },
+    {
+      "origin": "https://grok.com",
+      "error": "net::ERR_CERT_AUTHORITY_INVALID"
+    },
+    {
+      "origin": "https://cdn.jsdelivr.net",
+      "error": "net::ERR_CERT_AUTHORITY_INVALID"
+    },
+    {
+      "origin": "https://fonts.googleapis.com",
+      "error": "net::ERR_CERT_AUTHORITY_INVALID"
+    },
+    {
+      "origin": "https://cdn.jsdelivr.net",
+      "error": "net::ERR_CERT_AUTHORITY_INVALID"
+    },
+    {
+      "origin": "https://grok.com",
+      "error": "net::ERR_CERT_AUTHORITY_INVALID"
+    }
+  ],
+  "navigations": [
+    {
+      "at": "2026-10-03T13:50:22.046Z",
+      "url": "http://127.0.0.1:8080/etfs/069500"
+    },
+    {
+      "at": "2026-10-03T13:50:22.470Z",
+      "url": "http://127.0.0.1:8080/etfs/069500"
+    },
+    {
+      "at": "2026-10-03T13:50:23.054Z",
+      "url": "http://127.0.0.1:8080/etfs/069500"
+    },
+    {
+      "at": "2026-10-03T13:50:27.408Z",
+      "url": "http://127.0.0.1:8080/etfs/069500"
+    }
+  ],
+  "screenshots": [
+    "artifacts/chart-upgrade/geometry/etf-fixed-profile-price-zoom.png",
+    "artifacts/chart-upgrade/geometry/etf-shared-crosshair.png"
+  ]
+}

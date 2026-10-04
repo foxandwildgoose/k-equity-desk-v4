@@ -1,0 +1,9 @@
+{
+  "mode": "synthetic calculation benchmark, not market data or browser FPS",
+  "bars": 10000,
+  "bins": 64,
+  "repetitions": 25,
+  "medianMs": 4.272599999999983,
+  "p95Ms": 16.288510000000002,
+  "maxMs": 22.632284
+}

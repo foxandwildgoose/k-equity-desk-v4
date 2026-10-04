@@ -46,7 +46,9 @@ export function useProChart(ref: RefObject<HTMLDivElement | null>, theme: ChartT
     setChart(c);
     return () => {
       setChart(null);
-      c.remove();
+      // Series/primitive effects also clean up on unmount. Destroy last so their
+      // removals cannot schedule a native draw after its canvases are disposed.
+      queueMicrotask(() => c.remove());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ref]);

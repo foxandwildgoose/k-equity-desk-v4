@@ -1,0 +1,11 @@
+{
+  "securityCode": "036540",
+  "verifiedAt": "2026-10-03T13:43:48.983Z",
+  "transport": "Actual browser getChartData response; no request interception or mocks; default TLS verification",
+  "status": 200,
+  "source": "yahoo-036540.KQ",
+  "market": null,
+  "barCount": 486,
+  "firstDate": "2024-10-02",
+  "lastDate": "2026-10-02"
+}

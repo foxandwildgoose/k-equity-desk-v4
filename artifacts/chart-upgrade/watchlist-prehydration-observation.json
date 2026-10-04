@@ -1,0 +1,277 @@
+{
+  "base": "http://127.0.0.1:8080",
+  "mode": "real",
+  "at": "2026-10-03T13:48:07.732Z",
+  "results": [
+    {
+      "id": "watchlist",
+      "mode": "real",
+      "viewport": "desktop",
+      "path": "/stock/001820",
+      "status": "failed",
+      "errors": [],
+      "externalFailures": [
+        {
+          "url": "https://fonts.googleapis.com/css2",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://grok.com/grok-app-builder/extensions.js",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://fonts.googleapis.com/css2",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://grok.com/grok-app-builder/extensions.js",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        }
+      ],
+      "cancelledRequests": [],
+      "fixtureCalls": [],
+      "marketResponses": [],
+      "httpStatus": 200,
+      "failure": "TimeoutError: locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('a[href=\"/stock/001820\"]').first() to be visible\u001b[22m\n",
+      "snapshot": {
+        "textLength": 1019,
+        "width": 1440,
+        "scrollWidth": 1440,
+        "title": "관심종목",
+        "statuses": [],
+        "panes": [],
+        "canvasCount": 0,
+        "empty": [],
+        "summaries": [],
+        "profileRows": [],
+        "settings": {}
+      },
+      "screenshot": "/workspace/screenshots/chart-upgrade/real-watchlist/watchlist-desktop-failed.png"
+    },
+    {
+      "id": "watchlist",
+      "mode": "real",
+      "viewport": "tablet",
+      "path": "/stock/001820",
+      "status": "failed",
+      "errors": [
+        "Error: Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\nhttps://react.dev/link/hydration-mismatch\n\n  ...\n    <SafeFragment fallback={null}>\n      <CatchBoundary getResetKey={function getResetKey} errorComponent={function AppErrorComponent} ...>\n        <SafeFragment fallback={function fallback}>\n          <MatchInnerImpl match={{id:\"/watch...\", ...}}>\n            <Lazy>\n              <WatchlistPage>\n                <div className=\"flex flex-...\">\n                  <header>\n                  <StockTable stocks={[...]}>\n                    <div className=\"desk-card ...\">\n                      <table className=\"desk-table...\">\n                        <thead>\n                        <tbody>\n                          <tr className=\"border-b b...\">\n                            <td>\n                            <td className=\"px-2 py-1.5\">\n                              <SecurityLink code=\"207940\" nameKo=\"삼성바이오로직스\" className=\"group flex...\">\n                                <a\n+                                 href=\"/stock/207940\"\n-                                 href=\"/stock/005930\"\n                                  ref={{current:null}}\n                                  onClick={function}\n                                  onBlur={function}\n                                  onFocus={function}\n                                  onMouseEnter={function}\n                                  onMouseLeave={function}\n                                  onTouchStart={function}\n                                  target={undefined}\n                                  className=\"group flex flex-col min-w-0\"\n                                >\n                                  <span className=\"font-medium text-foreground group-hover:underline truncate\">\n+                                   삼성바이오로직스\n-                                   삼성전자\n                                  ...\n                            ...\n                          ...\n                  ...\n\n    at throwOnHydrationMismatch (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=d17e44ab:2968:51)\n    at prepareToHydrateHostInstance (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=d17e44ab:3021:18)\n    at completeWork (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=d17e44ab:6332:46)\n    at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=d17e44ab:851:66)\n    at completeUnitOfWork (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=d17e44ab:8492:15)\n    at performUnitOfWork (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=d17e44ab:8431:23)\n    at workLoopConcurrentByScheduler (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=d17e44ab:8425:55)\n    at renderRootConcurrent (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=d17e44ab:8408:64)\n    at performWorkOnRoot (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=d17e44ab:7957:145)\n    at performWorkOnRootViaSchedulerTask (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=d17e44ab:9059:4)"
+      ],
+      "externalFailures": [
+        {
+          "url": "https://fonts.googleapis.com/css2",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://grok.com/grok-app-builder/extensions.js",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://fonts.googleapis.com/css2",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://grok.com/grok-app-builder/extensions.js",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://fonts.googleapis.com/css2",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://grok.com/grok-app-builder/extensions.js",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        }
+      ],
+      "cancelledRequests": [
+        {
+          "url": "http://127.0.0.1:8080/api/wire",
+          "error": "net::ERR_ABORTED",
+          "function": ""
+        }
+      ],
+      "fixtureCalls": [],
+      "marketResponses": [],
+      "httpStatus": 200,
+      "failure": "TimeoutError: locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('a[href=\"/stock/001820\"]').first() to be visible\u001b[22m\n\u001b[2m    - waiting for \"http://127.0.0.1:8080/watchlist\" navigation to finish...\u001b[22m\n\u001b[2m    - navigated to \"http://127.0.0.1:8080/watchlist\"\u001b[22m\n",
+      "snapshot": {
+        "textLength": 1019,
+        "width": 768,
+        "scrollWidth": 768,
+        "title": "관심종목",
+        "statuses": [],
+        "panes": [],
+        "canvasCount": 0,
+        "empty": [],
+        "summaries": [],
+        "profileRows": [],
+        "settings": {}
+      },
+      "screenshot": "/workspace/screenshots/chart-upgrade/real-watchlist/watchlist-tablet-failed.png"
+    },
+    {
+      "id": "watchlist",
+      "mode": "real",
+      "viewport": "mobile",
+      "path": "/stock/001820",
+      "status": "failed",
+      "errors": [
+        "Error: Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\nhttps://react.dev/link/hydration-mismatch\n\n  ...\n    <SafeFragment fallback={null}>\n      <CatchBoundary getResetKey={function getResetKey} errorComponent={function AppErrorComponent} ...>\n        <SafeFragment fallback={function fallback}>\n          <MatchInnerImpl match={{id:\"/watch...\", ...}}>\n            <Lazy>\n              <WatchlistPage>\n                <div className=\"flex flex-...\">\n                  <header>\n                  <StockTable stocks={[...]}>\n                    <div className=\"desk-card ...\">\n                      <table className=\"desk-table...\">\n                        <thead>\n                        <tbody>\n                          <tr className=\"border-b b...\">\n                            <td>\n                            <td className=\"px-2 py-1.5\">\n                              <SecurityLink code=\"207940\" nameKo=\"삼성바이오로직스\" className=\"group flex...\">\n                                <a\n+                                 href=\"/stock/207940\"\n-                                 href=\"/stock/005930\"\n                                  ref={{current:null}}\n                                  onClick={function}\n                                  onBlur={function}\n                                  onFocus={function}\n                                  onMouseEnter={function}\n                                  onMouseLeave={function}\n                                  onTouchStart={function}\n                                  target={undefined}\n                                  className=\"group flex flex-col min-w-0\"\n                                >\n                                  <span className=\"font-medium text-foreground group-hover:underline truncate\">\n+                                   삼성바이오로직스\n-                                   삼성전자\n                                  ...\n                            ...\n                          ...\n                  ...\n\n    at throwOnHydrationMismatch (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=d17e44ab:2968:51)\n    at prepareToHydrateHostInstance (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=d17e44ab:3021:18)\n    at completeWork (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=d17e44ab:6332:46)\n    at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=d17e44ab:851:66)\n    at completeUnitOfWork (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=d17e44ab:8492:15)\n    at performUnitOfWork (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=d17e44ab:8431:23)\n    at workLoopConcurrentByScheduler (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=d17e44ab:8425:55)\n    at renderRootConcurrent (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=d17e44ab:8408:64)\n    at performWorkOnRoot (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=d17e44ab:7957:145)\n    at performWorkOnRootViaSchedulerTask (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=d17e44ab:9059:4)",
+        "Error: Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\nhttps://react.dev/link/hydration-mismatch\n\n  ...\n    <SafeFragment fallback={null}>\n      <CatchBoundary getResetKey={function getResetKey} errorComponent={function AppErrorComponent} ...>\n        <SafeFragment fallback={function fallback}>\n          <MatchInnerImpl match={{id:\"/watch...\", ...}}>\n            <Lazy>\n              <WatchlistPage>\n                <div className=\"flex flex-...\">\n                  <header>\n                  <StockTable stocks={[...]}>\n                    <div className=\"desk-card ...\">\n                      <table className=\"desk-table...\">\n                        <thead>\n                        <tbody>\n                          <tr className=\"border-b b...\">\n                            <td>\n                            <td className=\"px-2 py-1.5\">\n                              <SecurityLink code=\"207940\" nameKo=\"삼성바이오로직스\" className=\"group flex...\">\n                                <a\n+                                 href=\"/stock/207940\"\n-                                 href=\"/stock/005930\"\n                                  ref={{current:null}}\n                                  onClick={function}\n                                  onBlur={function}\n                                  onFocus={function}\n                                  onMouseEnter={function}\n                                  onMouseLeave={function}\n                                  onTouchStart={function}\n                                  target={undefined}\n                                  className=\"group flex flex-col min-w-0\"\n                                >\n                                  <span className=\"font-medium text-foreground group-hover:underline truncate\">\n+                                   삼성바이오로직스\n-                                   삼성전자\n                                  ...\n                            ...\n                          ...\n                  ...\n\n    at throwOnHydrationMismatch (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=d17e44ab:2968:51)\n    at prepareToHydrateHostInstance (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=d17e44ab:3021:18)\n    at completeWork (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=d17e44ab:6332:46)\n    at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=d17e44ab:851:66)\n    at completeUnitOfWork (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=d17e44ab:8492:15)\n    at performUnitOfWork (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=d17e44ab:8431:23)\n    at workLoopConcurrentByScheduler (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=d17e44ab:8425:55)\n    at renderRootConcurrent (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=d17e44ab:8408:64)\n    at performWorkOnRoot (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=d17e44ab:7957:145)\n    at performWorkOnRootViaSchedulerTask (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=d17e44ab:9059:4)",
+        "Error: Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\nhttps://react.dev/link/hydration-mismatch\n\n  ...\n    <SafeFragment fallback={null}>\n      <CatchBoundary getResetKey={function getResetKey} errorComponent={function AppErrorComponent} ...>\n        <SafeFragment fallback={function fallback}>\n          <MatchInnerImpl match={{id:\"/watch...\", ...}}>\n            <Lazy>\n              <WatchlistPage>\n                <div className=\"flex flex-...\">\n                  <header>\n                  <StockTable stocks={[...]}>\n                    <div className=\"desk-card ...\">\n                      <table className=\"desk-table...\">\n                        <thead>\n                        <tbody>\n                          <tr className=\"border-b b...\">\n                            <td>\n                            <td className=\"px-2 py-1.5\">\n                              <SecurityLink code=\"207940\" nameKo=\"삼성바이오로직스\" className=\"group flex...\">\n                                <a\n+                                 href=\"/stock/207940\"\n-                                 href=\"/stock/005930\"\n                                  ref={{current:null}}\n                                  onClick={function}\n                                  onBlur={function}\n                                  onFocus={function}\n                                  onMouseEnter={function}\n                                  onMouseLeave={function}\n                                  onTouchStart={function}\n                                  target={undefined}\n                                  className=\"group flex flex-col min-w-0\"\n                                >\n                                  <span className=\"font-medium text-foreground group-hover:underline truncate\">\n+                                   삼성바이오로직스\n-                                   삼성전자\n                                  ...\n                            ...\n                          ...\n                  ...\n\n    at throwOnHydrationMismatch (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=d17e44ab:2968:51)\n    at prepareToHydrateHostInstance (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=d17e44ab:3021:18)\n    at completeWork (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=d17e44ab:6332:46)\n    at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=d17e44ab:851:66)\n    at completeUnitOfWork (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=d17e44ab:8492:15)\n    at performUnitOfWork (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=d17e44ab:8431:23)\n    at workLoopConcurrentByScheduler (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=d17e44ab:8425:55)\n    at renderRootConcurrent (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=d17e44ab:8408:64)\n    at performWorkOnRoot (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=d17e44ab:7957:145)\n    at performWorkOnRootViaSchedulerTask (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=d17e44ab:9059:4)"
+      ],
+      "externalFailures": [
+        {
+          "url": "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://fonts.googleapis.com/css2",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://grok.com/grok-app-builder/extensions.js",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://fonts.googleapis.com/css2",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://grok.com/grok-app-builder/extensions.js",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://fonts.googleapis.com/css2",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://grok.com/grok-app-builder/extensions.js",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://fonts.googleapis.com/css2",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://grok.com/grok-app-builder/extensions.js",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://grok.com/grok-app-builder/extensions.js",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://fonts.googleapis.com/css2",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://fonts.googleapis.com/css2",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://grok.com/grok-app-builder/extensions.js",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        }
+      ],
+      "cancelledRequests": [
+        {
+          "url": "http://127.0.0.1:8080/api/wire",
+          "error": "net::ERR_ABORTED",
+          "function": ""
+        }
+      ],
+      "fixtureCalls": [],
+      "marketResponses": [],
+      "httpStatus": 200,
+      "failure": "TimeoutError: locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('a[href=\"/stock/001820\"]').first() to be visible\u001b[22m\n\u001b[2m    - waiting for \"http://127.0.0.1:8080/watchlist\" navigation to finish...\u001b[22m\n\u001b[2m    - navigated to \"http://127.0.0.1:8080/watchlist\"\u001b[22m\n",
+      "snapshot": {
+        "textLength": 1019,
+        "width": 390,
+        "scrollWidth": 390,
+        "title": "관심종목",
+        "statuses": [],
+        "panes": [],
+        "canvasCount": 0,
+        "empty": [],
+        "summaries": [],
+        "profileRows": [],
+        "settings": {}
+      },
+      "screenshot": "/workspace/screenshots/chart-upgrade/real-watchlist/watchlist-mobile-failed.png"
+    }
+  ]
+}

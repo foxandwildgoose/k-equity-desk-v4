@@ -5,10 +5,13 @@
  */
 import type {
   IChartApi,
+  IPanePrimitive,
+  IPanePrimitivePaneView,
   IPrimitivePaneRenderer,
   IPrimitivePaneView,
   ISeriesApi,
   ISeriesPrimitive,
+  PaneAttachedParameter,
   PrimitivePaneViewZOrder,
   SeriesAttachedParameter,
   SeriesType,
@@ -26,21 +29,35 @@ import {
   type Pt,
 } from "@/lib/charts/drawings";
 import type { VolumeProfile } from "@/lib/chart-indicators";
+import { layoutProfileLabels, type ProfileLabelRow, type ProfileUnit } from "@/lib/charts/profile-labels";
 
 export type VolumeProfileStyle = {
-  /** Fraction of the pane width. Reference preset is about 0.10. */
+  /** Fraction of the price plot width; HTS detail defaults to 0.85. */
   widthRatio: number;
-  /** Base fill alpha. Value area is a bit stronger; POC a bit more. */
+  /** Solid fill alpha; candles are painted in front of this primitive. */
   opacity: number;
+  color: string;
+  labelColor: string;
+  backgroundColor: string;
+  showLabels: boolean;
+  unit: ProfileUnit;
+  estimated: boolean;
   showVa: boolean;
   showPoc: boolean;
   /** Price under the crosshair — that bin is drawn slightly stronger. */
   hoverPrice: number | null;
+  currentPrice?: number | null;
 };
 
 const VP_STYLE: VolumeProfileStyle = {
-  widthRatio: 0.1,
+  widthRatio: 0.85,
   opacity: 0.22,
+  color: "#e7b157",
+  labelColor: "#e2e8f0",
+  backgroundColor: "#0f172a",
+  showLabels: true,
+  unit: "주",
+  estimated: true,
   showVa: true,
   showPoc: true,
   hoverPrice: null,
@@ -439,12 +456,20 @@ export class SessionPrimitive extends BasePrimitive {
   }
 }
 
-/** Left-edge volume profile. Behind candles; fades before it covers the price path. */
+/** HTS profile: solid bars behind candles, labels below drawings/crosshair. */
 export class VolumeProfilePrimitive extends BasePrimitive {
   profile: VolumeProfile | null = null;
   style: VolumeProfileStyle = { ...VP_STYLE };
+  private readonly views: IPrimitivePaneView[];
   constructor() {
     super("bottom", true);
+    const renderer: IPrimitivePaneRenderer = {
+      draw: (target) => target.useMediaCoordinateSpace(({ context, mediaSize }) => this.paintLabels(context, mediaSize.width, mediaSize.height)),
+    };
+    this.views = [...super.paneViews(), { zOrder: () => "normal", renderer: () => renderer }];
+  }
+  override paneViews() {
+    return this.views;
   }
   set(profile: VolumeProfile | null) {
     this.profile = profile;
@@ -452,22 +477,30 @@ export class VolumeProfilePrimitive extends BasePrimitive {
   }
   setStyle(style: Partial<VolumeProfileStyle>) {
     this.style = { ...this.style, ...style };
+    this.style.widthRatio = Number.isFinite(this.style.widthRatio) ? Math.min(0.9, Math.max(0.1, this.style.widthRatio)) : VP_STYLE.widthRatio;
+    this.style.opacity = Number.isFinite(this.style.opacity) ? Math.min(0.6, Math.max(0.02, this.style.opacity)) : VP_STYLE.opacity;
     this.update();
   }
-  protected paint(ctx: Ctx, w: number) {
+  protected paint(ctx: Ctx, w: number, h: number) {
     const vp = this.profile;
     if (!vp || !vp.rows.length) return;
     const max = Math.max(...vp.rows.map((r) => r.volume));
     if (!(max > 0)) return;
-    const widthRatio = Math.min(0.18, Math.max(0.06, this.style.widthRatio));
-    const width = Math.max(8, w * widthRatio);
-    const base = Math.min(0.4, Math.max(0.08, this.style.opacity));
-    for (const r of vp.rows) {
+    const width = w * this.style.widthRatio;
+    const base = this.style.opacity;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, w, h);
+    ctx.clip();
+    for (let i = 0; i < vp.rows.length; i++) {
+      const r = vp.rows[i]!;
+      if (!(r.volume > 0)) continue;
       const y0 = this.y(r.high);
       const y1 = this.y(r.low);
-      if (y0 == null || y1 == null) continue;
+      if (y0 == null || y1 == null || !Number.isFinite(y0) || !Number.isFinite(y1)) continue;
       const top = Math.min(y0, y1);
       const bh = Math.abs(y1 - y0);
+      if (top >= h || top + bh < 0) continue;
       const gap = bh > 3 ? 1 : 0;
       const inVa =
         this.style.showVa &&
@@ -475,34 +508,237 @@ export class VolumeProfilePrimitive extends BasePrimitive {
         vp.vah != null &&
         r.low >= vp.val - 1e-9 &&
         r.high <= vp.vah + 1e-9;
-      const isPoc = vp.poc != null && r.low <= vp.poc && vp.poc <= r.high;
+      const isPoc = this.style.showPoc && vp.poc != null && r.low <= vp.poc && vp.poc <= r.high;
       const hovered =
         this.style.hoverPrice != null &&
         r.low <= this.style.hoverPrice &&
-        this.style.hoverPrice <= r.high;
-      let alpha = inVa ? base + 0.08 : base * 0.72;
-      if (isPoc) alpha = Math.min(0.5, base + 0.16);
-      if (hovered) alpha = Math.min(0.55, alpha + 0.16);
-      const bw = Math.max(1, (r.volume / max) * width);
-      const grad = ctx.createLinearGradient(0, 0, bw, 0);
-      grad.addColorStop(0, `rgba(148,163,184,${alpha.toFixed(3)})`);
-      grad.addColorStop(0.72, `rgba(148,163,184,${(alpha * 0.45).toFixed(3)})`);
-      grad.addColorStop(1, "rgba(148,163,184,0)");
-      ctx.fillStyle = grad;
+        (this.style.hoverPrice < r.high || (i === vp.rows.length - 1 && this.style.hoverPrice === r.high));
+      ctx.globalAlpha = Math.min(0.65, base + (inVa ? 0.03 : 0) + (isPoc ? 0.06 : 0) + (hovered ? 0.1 : 0));
+      const bw = (r.volume / max) * width;
+      ctx.fillStyle = this.style.color;
       ctx.fillRect(0, top + gap / 2, bw, Math.max(1, bh - gap));
     }
+    ctx.globalAlpha = 1;
     if (this.style.showPoc && vp.poc != null) {
       const y = this.y(vp.poc);
-      if (y != null) {
-        ctx.save();
-        ctx.strokeStyle = "rgba(148,163,184,0.22)";
+      if (y != null && y >= 0 && y <= h) {
+        ctx.strokeStyle = this.style.color;
+        ctx.globalAlpha = 0.72;
         ctx.lineWidth = 1;
         ctx.setLineDash([3, 4]);
         line(ctx, { x: 0, y }, { x: w, y });
-        ctx.restore();
       }
     }
+    if (this.style.showVa) {
+      ctx.strokeStyle = this.style.color;
+      ctx.globalAlpha = 0.5;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2, 5]);
+      for (const boundary of [vp.val, vp.vah]) {
+        const y = boundary == null ? null : this.y(boundary);
+        if (y != null && y >= 0 && y <= h) line(ctx, { x: 0, y }, { x: width, y });
+      }
+    }
+    ctx.restore();
   }
+
+  private paintLabels(ctx: Ctx, w: number, h: number) {
+    const vp = this.profile;
+    if (!this.style.showLabels || !vp?.rows.length) return;
+    const max = Math.max(...vp.rows.map((r) => r.volume));
+    if (!(max > 0)) return;
+    const rows: ProfileLabelRow[] = [];
+    for (const [index, row] of vp.rows.entries()) {
+      const y0 = this.y(row.high);
+      const y1 = this.y(row.low);
+      if (y0 == null || y1 == null) continue;
+      const isPoc = vp.poc != null && row.low <= vp.poc && vp.poc <= row.high;
+      const hovered = this.style.hoverPrice != null && row.low <= this.style.hoverPrice &&
+        (this.style.hoverPrice < row.high || (index === vp.rows.length - 1 && this.style.hoverPrice === row.high));
+      rows.push({ index, y: (y0 + y1) / 2, barWidth: (row.volume / max) * w * this.style.widthRatio, value: row.volume, percent: row.percent, priority: hovered ? 3 : isPoc && this.style.showPoc ? 2 : 0 });
+    }
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, w, h);
+    ctx.clip();
+    ctx.font = "500 11px ui-sans-serif, system-ui, sans-serif";
+    ctx.textBaseline = "middle";
+    const currentY = this.style.currentPrice == null ? null : this.y(this.style.currentPrice);
+    const labels = layoutProfileLabels(rows, {
+      width: w,
+      height: h,
+      unit: this.style.unit,
+      estimated: this.style.estimated,
+      measure: (text) => ctx.measureText(text).width,
+      // Leave the end of the current-price line clear. The axis itself is
+      // outside our clipped plot; this is the only reserved plot fragment.
+      reserved: currentY == null ? [] : [{ x: Math.max(0, w - 72), y: currentY - 9, width: 72, height: 18 }],
+    });
+    for (const text of labels) {
+      ctx.textAlign = text.align;
+      // A thin theme-matched halo keeps digits readable without opaque boxes
+      // covering candlesticks. Drawings, moving averages and crosshair retain
+      // their own foreground layers.
+      ctx.strokeStyle = this.style.backgroundColor;
+      ctx.lineWidth = 3;
+      ctx.lineJoin = "round";
+      ctx.strokeText(text.text, text.anchorX, text.priceY);
+      ctx.fillStyle = this.style.labelColor;
+      ctx.fillText(text.text, text.anchorX, text.priceY);
+    }
+    ctx.restore();
+  }
+}
+
+/** RSI shading uses the attached RSI series' real native 0–100 price scale. */
+export class RsiZonesPrimitive extends BasePrimitive {
+  private enabled = true;
+
+  constructor() {
+    super("bottom", true);
+  }
+
+  setEnabled(enabled: boolean) {
+    this.enabled = enabled;
+    this.update();
+  }
+
+  protected paint(ctx: Ctx, w: number, h: number) {
+    if (!this.enabled) return;
+    const upper = this.y(70);
+    const lower = this.y(30);
+    if (upper == null || lower == null) return;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, w, h);
+    ctx.clip();
+    ctx.fillStyle = "rgba(239,68,68,0.055)";
+    ctx.fillRect(0, 0, w, Math.max(0, Math.min(h, upper)));
+    ctx.fillStyle = "rgba(34,197,94,0.055)";
+    ctx.fillRect(0, Math.max(0, lower), w, Math.max(0, h - lower));
+    ctx.restore();
+  }
+}
+
+export interface PaneCaption {
+  title: string;
+  unit?: string;
+  status?: string;
+  detail?: string;
+  hover?: string;
+  asOf?: string;
+  source?: string;
+  color?: string;
+  mutedColor?: string;
+  backgroundColor?: string;
+}
+
+/**
+ * Native pane caption, included by takeScreenshot(). Attach with
+ * pane.attachPrimitive(caption) and preserve required empty panes with
+ * pane.setPreserveEmptyPane(true); no placeholder or zero series is necessary.
+ */
+export class PaneCaptionPrimitive implements IPanePrimitive<Time> {
+  private caption: PaneCaption = { title: "" };
+  private requestUpdate: (() => void) | null = null;
+  private readonly views: readonly IPanePrimitivePaneView[];
+
+  constructor() {
+    const renderer: IPrimitivePaneRenderer = {
+      draw: (target) => target.useMediaCoordinateSpace(({ context, mediaSize }) => this.paint(context, mediaSize.width, mediaSize.height)),
+    };
+    this.views = [{ zOrder: () => "top", renderer: () => renderer }];
+  }
+
+  set(caption: PaneCaption) {
+    this.caption = { ...caption };
+    this.requestUpdate?.();
+  }
+
+  attached(parameters: PaneAttachedParameter<Time>) {
+    this.requestUpdate = parameters.requestUpdate;
+    this.requestUpdate();
+  }
+
+  detached() {
+    this.requestUpdate = null;
+  }
+
+  paneViews() {
+    return this.views;
+  }
+
+  private paint(ctx: Ctx, w: number, h: number) {
+    const c = this.caption;
+    if (!c.title || w < 20 || h < 20) return;
+    const ink = c.color ?? "#e2e8f0";
+    const muted = c.mutedColor ?? "#94a3b8";
+    const paper = c.backgroundColor ?? "#0f172a";
+    const availableWidth = w - 16;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, w, h);
+    ctx.clip();
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    const paintText = (text: string, y: number, color: string, weight = 400) => {
+      ctx.font = `${weight} 11px ui-sans-serif, system-ui, sans-serif`;
+      const fitted = fitCanvasText(ctx, text, availableWidth);
+      ctx.strokeStyle = paper;
+      ctx.lineWidth = 3;
+      ctx.lineJoin = "round";
+      ctx.strokeText(fitted, 8, y);
+      ctx.fillStyle = color;
+      ctx.fillText(fitted, 8, y);
+    };
+    paintText(`${c.title}${c.unit ? ` · ${c.unit}` : ""}`, 13, ink, 600);
+    if (c.hover && h >= 44) paintText(c.hover, 29, ink);
+    const footer = [c.asOf ? `기준 ${c.asOf}` : "", c.source ? `출처 ${c.source}` : ""].filter(Boolean).join(" · ");
+    const footerY = h - 10;
+    const bodyTop = c.hover ? 48 : 34;
+    const bodyBottom = footer ? footerY - 16 : h - 9;
+    if (c.status && bodyBottom >= bodyTop) {
+      const lines = wrapCanvasText(ctx, [c.status, c.detail].filter(Boolean).join(" · "), availableWidth, Math.max(1, Math.floor((bodyBottom - bodyTop) / 14) + 1));
+      // Keep provenance/settings at the pane edge. Centered captions cross
+      // candlesticks and RSI curves even when the series has plenty of space.
+      const start = Math.max(bodyTop, bodyBottom - (lines.length - 1) * 14);
+      lines.forEach((text, i) => paintText(text, start + i * 14, muted));
+    } else if (c.detail && h >= 60) {
+      paintText(c.detail, c.hover ? 45 : 31, muted);
+    }
+    if (footer && footerY >= (c.hover ? 46 : 29)) paintText(footer, footerY, muted);
+    ctx.restore();
+  }
+}
+
+function fitCanvasText(ctx: Ctx, text: string, width: number): string {
+  if (ctx.measureText(text).width <= width) return text;
+  let low = 0;
+  let high = text.length;
+  while (low < high) {
+    const mid = Math.ceil((low + high) / 2);
+    if (ctx.measureText(`${text.slice(0, mid)}…`).width <= width) low = mid;
+    else high = mid - 1;
+  }
+  return low > 0 ? `${text.slice(0, low)}…` : "";
+}
+
+function wrapCanvasText(ctx: Ctx, text: string, width: number, maxLines: number): string[] {
+  const lines: string[] = [];
+  let remaining = text;
+  while (remaining && lines.length < maxLines) {
+    const fitted = fitCanvasText(ctx, remaining, width);
+    if (!fitted || fitted === remaining || lines.length === maxLines - 1) {
+      if (fitted) lines.push(fitted);
+      break;
+    }
+    let count = fitted.length - 1;
+    const breakAt = remaining.lastIndexOf(" ", count);
+    if (breakAt > count / 2) count = breakAt;
+    lines.push(remaining.slice(0, count));
+    remaining = remaining.slice(count).trimStart();
+  }
+  return lines;
 }
 
 export type RangeMark = {

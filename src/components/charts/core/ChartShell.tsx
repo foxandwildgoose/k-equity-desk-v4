@@ -52,6 +52,7 @@ export function ChartShell({
   className,
   testId,
   height,
+  minPlotHeight,
   collapseToolbar = false,
 }: {
   title?: ReactNode;
@@ -73,6 +74,8 @@ export function ChartShell({
   className?: string;
   testId?: string;
   height?: number | string;
+  /** Preserve native pane heights; tall layouts scroll vertically in fullscreen. */
+  minPlotHeight?: number;
   /** Always put the toolbar in the bottom sheet (dense multi-chart layouts). */
   collapseToolbar?: boolean;
 }) {
@@ -80,6 +83,7 @@ export function ChartShell({
   const [isFull, setIsFull] = useState(false);
   const [help, setHelp] = useState(false);
   const [tools, setTools] = useState(false);
+  const plotMinHeight = minPlotHeight != null && Number.isFinite(minPlotHeight) && minPlotHeight > 0 ? minPlotHeight : undefined;
 
   useEffect(() => {
     const on = () => setIsFull(document.fullscreenElement === rootRef.current);
@@ -111,7 +115,7 @@ export function ChartShell({
   return (
     <div
       ref={rootRef}
-      className={cn("flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card outline-none", isFull && "h-full rounded-none", className)}
+      className={cn("flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card outline-none", isFull && "h-full rounded-none", plotMinHeight != null && "[&>div]:shrink-0", isFull && plotMinHeight != null && "overflow-y-auto", className)}
       tabIndex={0}
       onKeyDown={handleKey}
       data-testid={testId ?? "chart-shell"}
@@ -169,7 +173,7 @@ export function ChartShell({
           )}
         </div>
       )}
-      <div className={cn("relative", isFull && "min-h-0 flex-1")} style={isFull ? undefined : { height }}>
+      <div className={cn("relative", isFull && (plotMinHeight == null ? "min-h-0 flex-1" : "flex-1"))} style={{ height: isFull ? undefined : height, minHeight: plotMinHeight }}>
         {children}
       </div>
       {footer}
