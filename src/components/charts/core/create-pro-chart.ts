@@ -14,7 +14,9 @@ import type { ChartTheme } from "@/components/charts/core/theme";
 export function proChartOptions(theme: ChartTheme, market: ChartMarket): DeepPartial<ChartOptions> {
   return {
     autoSize: true,
-    layout: { background: { color: "transparent" }, textColor: theme.muted, fontSize: 11, attributionLogo: false, panes: { separatorColor: theme.border, separatorHoverColor: theme.crosshair } },
+    // A real theme background also makes PNGs match the screen when exporting
+    // translucent primitives; transparent screenshots otherwise lose the paper.
+    layout: { background: { color: theme.background }, textColor: theme.muted, fontSize: 11, attributionLogo: false, panes: { separatorColor: theme.border, separatorHoverColor: theme.crosshair } },
     grid: { vertLines: { color: theme.grid }, horzLines: { color: theme.grid } },
     crosshair: {
       mode: CrosshairMode.Normal,
@@ -57,7 +59,12 @@ export function useProChart(ref: RefObject<HTMLDivElement | null>, theme: ChartT
       first.current = false;
       return;
     }
-    chart?.applyOptions(proChartOptions(theme, market));
+    // Theme changes update presentation only. Reapplying initial barSpacing /
+    // rightOffset would silently reset the user's pan and zoom.
+    chart?.applyOptions({ ...proChartOptions(theme, market),
+      timeScale: { borderColor: theme.border },
+      rightPriceScale: { borderColor: theme.border },
+    });
   }, [chart, theme, market]);
   return chart;
 }

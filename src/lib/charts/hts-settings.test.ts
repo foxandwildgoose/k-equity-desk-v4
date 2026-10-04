@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { volumeProfile } from "../chart-indicators.ts";
 import {
   applyHtsProfilePreset,
+  applyChartReadabilityPreset,
   defaultHtsSettings,
   hasSavedHtsSettings,
   HTS_PANEL_ORDER,
@@ -35,10 +36,14 @@ test("HTS defaults are shared by domestic shares, domestic/foreign-asset ETFs an
     assert.equal(state.signalMethod, "sma");
     assert.equal(state.profile.rows, 10);
     assert.equal(state.profile.widthRatio, 0.85);
-    assert.equal(state.profile.opacity, 0.22);
-    assert.equal(state.profile.color, "#e7b157");
+    assert.equal(state.profile.opacity, 0.32);
+    assert.equal(state.profile.color, "#E6B77C");
+    assert.equal(state.profile.colorMode, "auto");
     assert.equal(state.profile.showLabels, true);
     assert.equal(state.profile.rangeMode, "visible");
+    assert.equal(state.profile.showVa, false);
+    assert.equal(state.profile.showPoc, false);
+    assert.equal(state.profile.rangeOn, false);
   }
   assert.equal(defaultHtsSettings("US", "stock").enabled, false, "US individual-stock layout remains opt-out");
   assert.equal(defaultHtsSettings("US", "etf").enabled, true, "supported overseas ETFs reuse the layout");
@@ -83,7 +88,8 @@ test("parse validates nested input without truthy strings, invalid dates or unsu
   assert.equal(state.profile.rows, 65);
   assert.equal(state.profile.widthRatio, 0.9);
   assert.equal(state.profile.opacity, 0.6);
-  assert.equal(state.profile.color, "#e7b157");
+  assert.equal(state.profile.color, "#E6B77C");
+  assert.equal(state.profile.colorMode, "custom", "finite saved opacity preserves the prior style despite missing mode");
   assert.equal(state.profile.enabled, true);
   assert.equal(state.profile.showLabels, false);
   assert.equal(state.profile.startDate, "2024-02-29");
@@ -145,7 +151,7 @@ test("blocked storage keeps defaults and interactions usable without exceptions"
   assert.doesNotThrow(() => saveHtsSettings(blocked, scope, defaultHtsSettings("KR")));
 });
 
-test("HTS preset restores visible ten-row labels while hide/ref/emphasis remain available", () => {
+test("HTS preset restores readable quantity profile while hide/ref/emphasis remain available", () => {
   const previous = { ...defaultHtsSettings("KR").profile, basis: "turnover" as const, startDate: "2026-01-01", endDate: "2026-02-01", rangeMode: "fixed" as const, enabled: false, showLabels: false };
   const restored = applyHtsProfilePreset("hts", previous);
   assert.equal(restored.rows, 10);
@@ -153,10 +159,68 @@ test("HTS preset restores visible ten-row labels while hide/ref/emphasis remain 
   assert.equal(restored.enabled, true);
   assert.equal(restored.showLabels, true);
   assert.equal(restored.rangeMode, "visible");
-  assert.equal(restored.basis, "turnover", "preset does not change quantity-vs-currency choice");
+  assert.equal(restored.basis, "volume");
+  assert.equal(restored.colorMode, "auto");
+  assert.equal(restored.showVa, false);
+  assert.equal(restored.showPoc, false);
+  assert.equal(restored.rangeOn, false);
   assert.equal(applyHtsProfilePreset("hide", restored).enabled, false);
   assert.equal(applyHtsProfilePreset("ref", restored).widthRatio, 0.1);
   assert.equal(applyHtsProfilePreset("emph", restored).widthRatio, 0.18);
+  assert.equal(applyHtsProfilePreset("ref", restored).colorMode, "custom", "preset opacity remains an explicit style");
+});
+
+test("older scoped profile styles and narrow/full-period settings survive until explicit readability action", () => {
+  const oldProfile = { enabled: false, rows: 64, widthRatio: 0.1, rangeMode: "all", color: "#123AbC", opacity: 0.15, showLabels: false, showVa: true, showPoc: true, rangeOn: true };
+  const store = memoryStore({ [htsSettingsKey(scope)]: JSON.stringify({ v: 1, profile: oldProfile }) });
+  const loaded = loadHtsSettings(store, scope);
+  for (const [key, value] of Object.entries(oldProfile)) assert.equal(loaded.profile[key as keyof typeof loaded.profile], value);
+  assert.equal(loaded.profile.colorMode, "custom", "ambiguous prior styles are not assumed to be defaults");
+  saveHtsSettings(store, scope, loaded);
+  assert.deepEqual(loadHtsSettings(store, scope).profile, loaded.profile);
+  assert.equal(loadHtsSettings(store, { ...scope, code: "069500" }).profile.widthRatio, 0.85);
+});
+
+test("profile color mode distinguishes explicit automatic choice, old styles and malformed values", () => {
+  const parse = (profile: unknown) => parseHtsSettings(JSON.stringify({ v: 1, profile }))!.profile;
+  assert.equal(parse({}).colorMode, "auto");
+  assert.equal(parse({ color: "#e7b157" }).colorMode, "custom");
+  assert.equal(parse({ opacity: 0.22 }).colorMode, "custom");
+  assert.equal(parse({ color: "#123456", opacity: 0.1, colorMode: "auto" }).colorMode, "auto");
+  assert.equal(parse({ colorMode: "custom" }).colorMode, "custom");
+  const malformed = parse({ color: "red", opacity: "0.1", colorMode: true, widthRatio: null, rows: null, enabled: "false", showLabels: "false" });
+  assert.equal(malformed.colorMode, "auto");
+  assert.equal(malformed.color, "#E6B77C");
+  assert.equal(malformed.opacity, 0.32);
+  assert.equal(malformed.widthRatio, 0.85);
+  assert.equal(malformed.rows, 10);
+  assert.equal(malformed.enabled, true);
+  assert.equal(malformed.showLabels, true);
+});
+
+test("chart readability resets only display profile fields and persists in the current scope", () => {
+  const settings = defaultHtsSettings("KR", "etf");
+  settings.enabled = false;
+  settings.collapsed.credit = true;
+  settings.panelHeights.price = 780;
+  settings.volumeMa[20] = false;
+  settings.rsiPeriod = 21;
+  settings.signalMethod = "ema";
+  settings.trustMode = "daily";
+  settings.trustStartDate = "2026-01-05";
+  settings.profile = { ...settings.profile, enabled: false, rows: 64, widthRatio: 0.1, basis: "turnover", rangeMode: "fixed", startDate: "2026-02-02", endDate: "2026-03-03", recentSpan: "6M", colorMode: "custom", color: "#112233", opacity: 0.08, showLabels: false, showPoc: true, showVa: true, rangeOn: true };
+  const before = structuredClone(settings);
+  const result = applyChartReadabilityPreset(settings);
+  const { profile: previousProfile, ...previousOther } = before;
+  const { profile, ...other } = result;
+  assert.deepEqual(other, previousOther, "HTS layout, pane settings and trust origin are untouched");
+  assert.deepEqual(settings, before, "action does not mutate its input");
+  assert.deepEqual([profile.startDate, profile.endDate, profile.recentSpan], [previousProfile.startDate, previousProfile.endDate, previousProfile.recentSpan]);
+  assert.deepEqual(profile, { ...previousProfile, preset: "hts", enabled: true, rows: 10, widthRatio: 0.85, rangeMode: "visible", basis: "volume", showLabels: true, showPoc: false, showVa: false, rangeOn: false, colorMode: "auto", color: "#E6B77C", opacity: 0.32 });
+  const store = memoryStore();
+  saveHtsSettings(store, scope, result);
+  assert.deepEqual(loadHtsSettings(store, scope), result);
+  assert.equal(loadHtsSettings(store, { ...scope, layout: "other-workspace" }).trustStartDate, "");
 });
 
 const metadata: ProfileMetadata = {

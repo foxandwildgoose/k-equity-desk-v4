@@ -12,7 +12,7 @@ import {
   distToSegment,
   type Drawing,
 } from "./drawings.ts";
-import { chartStateKey, defaultLayout, migrateLegacyDrawings, migrateLegacyOnce, parseChartState, type StorageLike } from "./persistence.ts";
+import { chartStateKey, defaultLayout, DEFAULT_OVERLAYS, loadChartState, migrateLegacyDrawings, migrateLegacyOnce, parseChartState, saveChartState, type StorageLike } from "./persistence.ts";
 import { computeInstance, INDICATORS, indicatorCacheKey, newInstance, sanitizeParams, searchIndicators, INDICATOR_BY_ID, defaultIndicators } from "./catalog.ts";
 import { alignByTime, barsToCsv, capBars, chartExportName, extendedHoursRuns, percentFromFirstVisible, replaySlice, replayStep, sessionBreaks } from "./tools.ts";
 import { sma, rsi } from "../chart-indicators.ts";
@@ -94,6 +94,38 @@ test("AT-39 layout key format and one-time legacy migration", () => {
   assert.equal(migrateLegacyOnce(store, "005930", times, defaultLayout([])), 0, "runs once");
   assert.equal(parseChartState("{bad json"), null);
   assert.equal(parseChartState(JSON.stringify({ v: 1 })), null);
+});
+
+test("chart annotations start OFF and preserve prior combined report/target and dividend/split choices", () => {
+  assert.ok(Object.values(DEFAULT_OVERLAYS).every((enabled) => enabled === false));
+  assert.deepEqual(defaultLayout([]).overlays, DEFAULT_OVERLAYS);
+  for (const enabled of [true, false]) {
+    const state = parseChartState(JSON.stringify({ v: 2, overlays: { research: enabled, dividends: enabled, disclosures: true } }))!;
+    assert.equal(state.overlays.research, enabled);
+    assert.equal(state.overlays.targets, enabled);
+    assert.equal(state.overlays.dividends, enabled);
+    assert.equal(state.overlays.splits, enabled);
+    assert.equal(state.overlays.disclosures, true);
+    assert.equal(state.overlays.signals, false);
+  }
+  const separated = parseChartState(JSON.stringify({ v: 2, overlays: { research: true, targets: false, dividends: false, splits: true } }))!;
+  assert.deepEqual([separated.overlays.research, separated.overlays.targets, separated.overlays.dividends, separated.overlays.splits], [true, false, false, true]);
+});
+
+test("annotation persistence strictly validates booleans without truthy strings or arbitrary stored keys", () => {
+  for (const overlays of [null, [], true, { disclosures: "false", research: "true", targets: 1, dividends: "on", splits: 0, news: {}, signals: null, injected: true }]) {
+    assert.deepEqual(parseChartState(JSON.stringify({ v: 2, overlays }))!.overlays, DEFAULT_OVERLAYS);
+  }
+  const first = defaultLayout([]);
+  first.overlays.targets = true;
+  assert.equal(defaultLayout([]).overlays.targets, false, "defaults are independent mutable state");
+  const store = memStore();
+  saveChartState(store, "KR", "005930", "day", first);
+  assert.deepEqual(loadChartState(store, "KR", "005930", "day")!.overlays, first.overlays);
+  assert.equal(loadChartState(store, "KR", "005930", "week"), null);
+  const blocked = { getItem: () => { throw new Error("blocked"); }, setItem: () => { throw new Error("full"); }, removeItem: () => {} };
+  assert.equal(loadChartState(blocked, "KR", "005930", "day"), null);
+  assert.doesNotThrow(() => saveChartState(blocked, "KR", "005930", "day", first));
 });
 
 test("indicator catalog: every definition computes, params sanitized, memo key", () => {

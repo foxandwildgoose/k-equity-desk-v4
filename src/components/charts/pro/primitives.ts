@@ -30,6 +30,7 @@ import {
 } from "@/lib/charts/drawings";
 import type { VolumeProfile } from "@/lib/chart-indicators";
 import { layoutProfileLabels, type ProfileLabelRow, type ProfileUnit } from "@/lib/charts/profile-labels";
+import { profileBarWidth } from "@/lib/charts/profile-style";
 
 export type VolumeProfileStyle = {
   /** Fraction of the price plot width; HTS detail defaults to 0.85. */
@@ -47,19 +48,22 @@ export type VolumeProfileStyle = {
   /** Price under the crosshair — that bin is drawn slightly stronger. */
   hoverPrice: number | null;
   currentPrice?: number | null;
+  /** Actual native caption/OHLC and provenance areas, in pane-local CSS px. */
+  labelReservedTop?: number;
+  labelReservedBottom?: number;
 };
 
 const VP_STYLE: VolumeProfileStyle = {
   widthRatio: 0.85,
-  opacity: 0.22,
-  color: "#e7b157",
-  labelColor: "#e2e8f0",
-  backgroundColor: "#0f172a",
+  opacity: 0.28,
+  color: "#D9A15A",
+  labelColor: "#E5D2B8",
+  backgroundColor: "#0d1524",
   showLabels: true,
   unit: "주",
   estimated: true,
-  showVa: true,
-  showPoc: true,
+  showVa: false,
+  showPoc: false,
   hoverPrice: null,
 };
 
@@ -484,7 +488,7 @@ export class VolumeProfilePrimitive extends BasePrimitive {
   protected paint(ctx: Ctx, w: number, h: number) {
     const vp = this.profile;
     if (!vp || !vp.rows.length) return;
-    const max = Math.max(...vp.rows.map((r) => r.volume));
+    const max = vp.rows.reduce((largest, row) => Number.isFinite(row.volume) ? Math.max(largest, row.volume) : largest, 0);
     if (!(max > 0)) return;
     const width = w * this.style.widthRatio;
     const base = this.style.opacity;
@@ -494,7 +498,8 @@ export class VolumeProfilePrimitive extends BasePrimitive {
     ctx.clip();
     for (let i = 0; i < vp.rows.length; i++) {
       const r = vp.rows[i]!;
-      if (!(r.volume > 0)) continue;
+      const bw = profileBarWidth(w, this.style.widthRatio, r.volume, max);
+      if (!(bw > 0)) continue;
       const y0 = this.y(r.high);
       const y1 = this.y(r.low);
       if (y0 == null || y1 == null || !Number.isFinite(y0) || !Number.isFinite(y1)) continue;
@@ -514,7 +519,6 @@ export class VolumeProfilePrimitive extends BasePrimitive {
         r.low <= this.style.hoverPrice &&
         (this.style.hoverPrice < r.high || (i === vp.rows.length - 1 && this.style.hoverPrice === r.high));
       ctx.globalAlpha = Math.min(0.65, base + (inVa ? 0.03 : 0) + (isPoc ? 0.06 : 0) + (hovered ? 0.1 : 0));
-      const bw = (r.volume / max) * width;
       ctx.fillStyle = this.style.color;
       ctx.fillRect(0, top + gap / 2, bw, Math.max(1, bh - gap));
     }
@@ -545,34 +549,43 @@ export class VolumeProfilePrimitive extends BasePrimitive {
   private paintLabels(ctx: Ctx, w: number, h: number) {
     const vp = this.profile;
     if (!this.style.showLabels || !vp?.rows.length) return;
-    const max = Math.max(...vp.rows.map((r) => r.volume));
+    const max = vp.rows.reduce((largest, row) => Number.isFinite(row.volume) ? Math.max(largest, row.volume) : largest, 0);
     if (!(max > 0)) return;
     const rows: ProfileLabelRow[] = [];
     for (const [index, row] of vp.rows.entries()) {
+      const barWidth = profileBarWidth(w, this.style.widthRatio, row.volume, max);
+      if (!(barWidth > 0)) continue;
       const y0 = this.y(row.high);
       const y1 = this.y(row.low);
-      if (y0 == null || y1 == null) continue;
-      const isPoc = vp.poc != null && row.low <= vp.poc && vp.poc <= row.high;
+      if (y0 == null || y1 == null || !Number.isFinite(y0) || !Number.isFinite(y1)) continue;
       const hovered = this.style.hoverPrice != null && row.low <= this.style.hoverPrice &&
         (this.style.hoverPrice < row.high || (index === vp.rows.length - 1 && this.style.hoverPrice === row.high));
-      rows.push({ index, y: (y0 + y1) / 2, barWidth: (row.volume / max) * w * this.style.widthRatio, value: row.volume, percent: row.percent, priority: hovered ? 3 : isPoc && this.style.showPoc ? 2 : 0 });
+      rows.push({ index, y: (y0 + y1) / 2, barWidth, value: row.volume, percent: row.percent, priority: hovered ? 3 : row.volume === max ? 2 : 0 });
     }
     ctx.save();
+    ctx.globalAlpha = 1;
     ctx.beginPath();
     ctx.rect(0, 0, w, h);
     ctx.clip();
-    ctx.font = "500 11px ui-sans-serif, system-ui, sans-serif";
+    ctx.font = "500 12px ui-sans-serif, system-ui, sans-serif";
     ctx.textBaseline = "middle";
     const currentY = this.style.currentPrice == null ? null : this.y(this.style.currentPrice);
+    const reservedTop = Number.isFinite(this.style.labelReservedTop) ? Math.max(0, Math.min(h, this.style.labelReservedTop!)) : 0;
+    const reservedBottom = Number.isFinite(this.style.labelReservedBottom) ? Math.max(0, Math.min(h, this.style.labelReservedBottom!)) : 0;
     const labels = layoutProfileLabels(rows, {
       width: w,
       height: h,
       unit: this.style.unit,
       estimated: this.style.estimated,
+      lineHeight: 16,
       measure: (text) => ctx.measureText(text).width,
       // Leave the end of the current-price line clear. The axis itself is
-      // outside our clipped plot; this is the only reserved plot fragment.
-      reserved: currentY == null ? [] : [{ x: Math.max(0, w - 72), y: currentY - 9, width: 72, height: 18 }],
+      // outside our clipped plot. Keep native pane captions clear as well.
+      reserved: [
+        ...(reservedTop > 0 ? [{ x: 0, y: 0, width: w, height: reservedTop }] : []),
+        ...(reservedBottom > 0 ? [{ x: 0, y: h - reservedBottom, width: w, height: reservedBottom }] : []),
+        ...(currentY != null && Number.isFinite(currentY) ? [{ x: Math.max(0, w - 72), y: currentY - 9, width: 72, height: 18 }] : []),
+      ],
     });
     for (const text of labels) {
       ctx.textAlign = text.align;

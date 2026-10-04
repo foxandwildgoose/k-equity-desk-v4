@@ -142,8 +142,9 @@ async function openTools(page, chart) {
   if (await control.isVisible()) await control.click();
 }
 async function openSettings(page, shell) {
-  await openTools(page, shell);
-  await page.getByTestId('open-hts-settings').filter({ visible: true }).first().click();
+  const trigger = shell.getByTestId('open-hts-settings');
+  if (!await trigger.isVisible()) await openTools(page, shell);
+  await trigger.click();
   await page.getByTestId('hts-settings').waitFor();
   return page.getByTestId('hts-settings');
 }

@@ -2,6 +2,8 @@ import { useId, type ReactNode } from "react";
 import { RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useAppStore } from "@/lib/store";
+import { resolveProfileStyle } from "@/lib/charts/profile-style";
 import {
   applyHtsProfilePreset,
   HTS_PANEL_LABELS,
@@ -29,7 +31,9 @@ export interface HtsSettingsPanelProps {
 /** Shared by stock/ETF routes and workspace. Native controls retain keyboard support. */
 export function HtsSettingsPanel({ settings, onChange, onRestore, allowHts = true }: HtsSettingsPanelProps) {
   const rowOptionsId = useId();
+  const theme = useAppStore((state) => state.theme);
   const profile = settings.profile;
+  const profileStyle = resolveProfileStyle(profile, theme);
   const set = (patch: Partial<HtsSettings>) => onChange({ ...settings, ...patch });
   const setProfile = (patch: Partial<HtsProfileSettings>) => set({ profile: { ...profile, ...patch } });
   const number = (raw: string, min: number, max: number, fallback: number) => raw === "" || !Number.isFinite(Number(raw)) ? fallback : Math.min(max, Math.max(min, Number(raw)));
@@ -51,6 +55,11 @@ export function HtsSettingsPanel({ settings, onChange, onRestore, allowHts = tru
             <option value="hts">HTS 상세</option><option value="ref">간략 표시</option><option value="emph">강조 표시</option><option value="hide">숨기기</option>
           </select>
         </label>
+        <label className={labelClass}>매물대 색상 방식
+          <select className={fieldClass} value={profile.colorMode} onChange={(e) => setProfile({ colorMode: e.target.value as HtsProfileSettings["colorMode"], color: profileStyle.color, opacity: profileStyle.opacity })}>
+            <option value="auto">테마 자동</option><option value="custom">사용자 지정</option>
+          </select>
+        </label>
         <div className="grid grid-cols-2 gap-3">
           <label className={labelClass}>가격 구간 수
             <Input type="number" min={1} max={200} step={1} list={rowOptionsId} value={profile.rows} onChange={(e) => setProfile({ rows: Math.round(number(e.target.value, 1, 200, profile.rows)) })} className={fieldClass} />
@@ -62,13 +71,14 @@ export function HtsSettingsPanel({ settings, onChange, onRestore, allowHts = tru
           <label className={labelClass}>최대 폭 ({Math.round(profile.widthRatio * 100)}%)
             <input type="range" min={10} max={90} step={1} value={Math.round(profile.widthRatio * 100)} onChange={(e) => setProfile({ widthRatio: Number(e.target.value) / 100 })} className="min-h-11 w-full accent-primary" />
           </label>
-          <label className={labelClass}>불투명도 ({Math.round(profile.opacity * 100)}%)
-            <input type="range" min={5} max={60} step={1} value={Math.round(profile.opacity * 100)} onChange={(e) => setProfile({ opacity: Number(e.target.value) / 100 })} className="min-h-11 w-full accent-primary" />
+          <label className={labelClass}>불투명도 ({Math.round(profileStyle.opacity * 100)}%)
+            <input type="range" min={5} max={60} step={1} value={Math.round(profileStyle.opacity * 100)} onChange={(e) => setProfile({ colorMode: "custom", color: profileStyle.color, opacity: Number(e.target.value) / 100 })} className="min-h-11 w-full accent-primary" />
           </label>
           <label className={labelClass}>막대 색상
-            <input type="color" value={profile.color} onChange={(e) => setProfile({ color: e.target.value })} className="min-h-11 w-full cursor-pointer rounded-md border border-border bg-background p-1" />
+            <input type="color" value={profileStyle.color} onChange={(e) => setProfile({ colorMode: "custom", color: e.target.value, opacity: profileStyle.opacity })} className="min-h-11 w-full cursor-pointer rounded-md border border-border bg-background p-1" />
           </label>
         </div>
+        <p className="text-xs leading-relaxed text-muted-foreground">테마 자동은 라이트·다크 모드에 따라 색과 불투명도를 바꿉니다. 색상이나 불투명도를 직접 조정하면 사용자 지정으로 저장합니다.</p>
         <Toggle checked={profile.showLabels} onChange={(showLabels) => setProfile({ showLabels })}>막대별 수량·전체 대비 비율 라벨</Toggle>
         <div className="grid grid-cols-2 gap-x-3"><Toggle checked={profile.showPoc} onChange={(showPoc) => setProfile({ showPoc })}>POC 표시</Toggle><Toggle checked={profile.showVa} onChange={(showVa) => setProfile({ showVa })}>Value Area 표시</Toggle></div>
         <label className={labelClass}>매물대 집계 범위
@@ -78,6 +88,16 @@ export function HtsSettingsPanel({ settings, onChange, onRestore, allowHts = tru
           <label className={labelClass}>매물대 시작일<Input type="date" value={profile.startDate} max={profile.endDate || undefined} onChange={(e) => setProfile({ startDate: e.target.value })} className={fieldClass} /></label>
           <label className={labelClass}>매물대 종료일<Input type="date" value={profile.endDate} min={profile.startDate || undefined} onChange={(e) => setProfile({ endDate: e.target.value })} className={fieldClass} /></label>
         </div><p className="text-xs leading-relaxed text-muted-foreground">고정 기간에서는 화면을 이동해도 집계 기간을 바꾸지 않습니다. 실제 확보한 데이터 범위는 상세표에서 확인하세요.</p>{invalidDates && <p role="status" className="text-xs text-destructive">유효한 시작일과 종료일을 선택하세요. 날짜가 지정되기 전에는 집계하지 않습니다.</p>}</div>}
+      </fieldset>
+
+      <fieldset className="space-y-2 border-t border-border pt-3">
+        <legend className="text-sm font-semibold">고저점 자동 주석</legend>
+        <Toggle checked={profile.rangeOn} onChange={(rangeOn) => setProfile({ rangeOn })}>고저점·고저점 대비 문구·자동 연결선</Toggle>
+        <label className={labelClass}>최근 고저 창
+          <select className={fieldClass} value={profile.recentSpan} onChange={(e) => setProfile({ recentSpan: e.target.value as HtsProfileSettings["recentSpan"] })}>
+            <option value="3M">최근 3M</option><option value="6M">최근 6M</option><option value="52W">최근 52W</option><option value="all">최근=전체</option><option value="swing">최근 스윙</option>
+          </select>
+        </label>
       </fieldset>
 
       {allowHts && <>

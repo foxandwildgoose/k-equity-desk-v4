@@ -18,6 +18,7 @@ import {
 } from "@/lib/chart-indicators";
 import { ProChart, type ChartMarkerInput } from "@/components/charts/pro/ProChart";
 import { barTimeOf } from "@/lib/charts/bar-time";
+import type { ChartEventInput } from "@/lib/charts/chart-events";
 import { Loader2 } from "lucide-react";
 
 const INTERVALS: { id: ChartInterval; label: string }[] = [
@@ -97,8 +98,8 @@ export function TradingChart({
   code: string;
   market: Market | "US";
   /** Optional disclosure/event dates (YYYY-MM-DD) for chart markers */
-  eventMarkers?: { time: string; title: string }[];
-  /** Research TP-change markers (daily bars). */
+  eventMarkers?: (ChartEventInput & { time: string; title: string })[];
+  /** Separate report-publication and target-price-change events (daily bars). */
   researchMarkers?: ChartMarkerInput[];
   instrument?: "stock" | "etf" | "etn";
   name?: string;
@@ -171,19 +172,20 @@ export function TradingChart({
       const bar = bars[swing.i2];
       if (!bar) continue;
       const bull = swing.kind.endsWith("bullish");
-      out.push({ time: barTimeOf(bar.date, mk), position: bull ? "belowBar" : "aboveBar", color: bull ? "#2dd4bf" : "#fb7185", shape: bull ? "arrowUp" : "arrowDown", text: swing.kind.startsWith("hidden") ? (bull ? "히든↑" : "히든↓") : bull ? "RSI↑" : "RSI↓" });
+      const confirmedBar = bars[swing.i2 + 5];
+      out.push({ time: barTimeOf(bar.date, mk), category: "signals", subtype: `rsi-${swing.kind}`, id: `rsi:${swing.kind}:${bars[swing.i1]?.date}:${bar.date}`, title: swing.label, confirmedAt: confirmedBar ? barTimeOf(confirmedBar.date, mk) : undefined, position: bull ? "belowBar" : "aboveBar", color: bull ? "#2dd4bf" : "#fb7185", shape: bull ? "arrowUp" : "arrowDown", text: swing.kind.startsWith("hidden") ? (bull ? "히든↑" : "히든↓") : bull ? "RSI↑" : "RSI↓" });
     }
     for (const cross of macdCrosses) {
       const bar = bars[cross.index];
       if (!bar) continue;
       const golden = cross.kind === "golden";
-      out.push({ time: barTimeOf(bar.date, mk), position: golden ? "belowBar" : "aboveBar", color: golden ? "#e5b84c" : "#94a3b8", shape: golden ? "arrowUp" : "arrowDown", text: golden ? "골든" : "데드" });
+      out.push({ time: barTimeOf(bar.date, mk), category: "signals", subtype: `macd-${cross.kind}`, id: `macd:${cross.kind}:${bar.date}`, title: golden ? "MACD 골든크로스" : "MACD 데드크로스", confirmedAt: barTimeOf(bar.date, mk), position: golden ? "belowBar" : "aboveBar", color: golden ? "#e5b84c" : "#94a3b8", shape: golden ? "arrowUp" : "arrowDown", text: golden ? "골든" : "데드" });
     }
     return out;
   }, [divergences, macdCrosses, bars, mk]);
 
   const disclosureMarkers = useMemo(
-    () => (interval === "minute" ? [] : eventMarkers.map((e) => ({ time: e.time.slice(0, 10), title: e.title })).slice(-60)),
+    () => (interval === "minute" ? [] : eventMarkers.map((e) => ({ ...e, category: "disclosures" as const, time: e.time.slice(0, 10) }))),
     [eventMarkers, interval],
   );
 

@@ -39,6 +39,7 @@ export function ChartShell({
   title,
   toolbar,
   toolbarExtra,
+  displayControls,
   hud,
   legend = [],
   status,
@@ -59,6 +60,8 @@ export function ChartShell({
   toolbar?: ReactNode;
   /** Always-visible controls (e.g. interval) that stay inline on mobile. */
   toolbarExtra?: ReactNode;
+  /** Always accessible beside the price chart, including compact and mobile layouts. */
+  displayControls?: ReactNode;
   hud?: ReactNode;
   legend?: LegendItem[];
   status: ChartStatus | null;
@@ -149,6 +152,7 @@ export function ChartShell({
           </button>
         </div>
       </div>
+      {displayControls && <div className="flex min-w-0 flex-wrap items-center gap-1 border-b border-border px-2 py-1" aria-label="차트 표시 제어">{displayControls}</div>}
       {(hud || legend.length > 0) && (
         <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-border px-2 py-1 text-[11px]" data-testid="chart-hud">
           {hud}

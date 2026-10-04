@@ -28,6 +28,7 @@ export function instanceLabel(inst: IndicatorInstance): string {
 export function IndicatorPanel({
   open,
   onOpenChange,
+  portalContainer,
   instances,
   onAdd,
   onChange,
@@ -39,6 +40,7 @@ export function IndicatorPanel({
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  portalContainer?: HTMLElement;
   instances: IndicatorInstance[];
   onAdd: (def: IndicatorDef) => void;
   onChange: (uid: string, patch: Partial<IndicatorInstance>) => void;
@@ -59,7 +61,7 @@ export function IndicatorPanel({
   }, [results]);
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full max-w-md overflow-y-auto p-0" data-testid="indicator-panel">
+      <SheetContent portalContainer={portalContainer} side="right" className="w-full max-w-md overflow-y-auto p-0" data-testid="indicator-panel">
         <SheetHeader className="border-b border-border">
           <SheetTitle>지표</SheetTitle>
           <SheetDescription>검색해서 추가하고, 매개변수·색·표시를 바꿉니다. 설정은 이 차트 레이아웃에 저장됩니다.</SheetDescription>
@@ -188,6 +190,7 @@ const TYPE_LABEL = Object.fromEntries(DRAWING_TOOLS.map((t) => [t.type, t.label]
 export function ObjectManager({
   open,
   onOpenChange,
+  portalContainer,
   drawings,
   selectedId,
   onSelect,
@@ -198,6 +201,7 @@ export function ObjectManager({
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  portalContainer?: HTMLElement;
   drawings: Drawing[];
   selectedId: string | null;
   onSelect: (id: string) => void;
@@ -208,7 +212,7 @@ export function ObjectManager({
 }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full max-w-md overflow-y-auto p-0" data-testid="object-manager">
+      <SheetContent portalContainer={portalContainer} side="right" className="w-full max-w-md overflow-y-auto p-0" data-testid="object-manager">
         <SheetHeader className="border-b border-border">
           <SheetTitle>그리기 목록</SheetTitle>
           <SheetDescription>선택·색·두께·잠금·숨김·삭제. 수평선은 가격 알림으로 바꿀 수 있습니다. 실행 취소 Ctrl/⌘+Z.</SheetDescription>
@@ -258,6 +262,7 @@ export function ObjectManager({
 export function AlertsPanel({
   open,
   onOpenChange,
+  portalContainer,
   alerts,
   onAddRsi,
   onAddMa,
@@ -265,6 +270,7 @@ export function AlertsPanel({
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  portalContainer?: HTMLElement;
   alerts: PriceAlert[];
   onAddRsi: () => void;
   onAddMa: () => void;
@@ -272,7 +278,7 @@ export function AlertsPanel({
 }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full max-w-md overflow-y-auto p-0" data-testid="alerts-panel">
+      <SheetContent portalContainer={portalContainer} side="right" className="w-full max-w-md overflow-y-auto p-0" data-testid="alerts-panel">
         <SheetHeader className="border-b border-border">
           <SheetTitle>차트 알림</SheetTitle>
           <SheetDescription>데이터가 새로 들어올 때 이 브라우저에서 확인합니다. 알림은 Live Wire(토스트·데스크톱 알림 설정)로 보냅니다.</SheetDescription>

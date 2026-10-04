@@ -30,12 +30,14 @@ export function SheetContent({
   className,
   children,
   side = "right",
+  portalContainer,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   side?: "top" | "bottom" | "left" | "right";
+  portalContainer?: HTMLElement;
 }) {
   return (
-    <SheetPortal>
+    <SheetPortal container={portalContainer}>
       <SheetOverlay />
       <DialogPrimitive.Content
         className={cn(

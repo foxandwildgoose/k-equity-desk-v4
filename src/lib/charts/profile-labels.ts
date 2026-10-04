@@ -7,7 +7,7 @@ export interface ProfileLabelRow {
   barWidth: number;
   value: number;
   percent: number;
-  /** Hovered and POC rows win only when density makes all labels impossible. */
+  /** Hovered and maximum-volume rows win when density makes all labels impossible. */
   priority?: number;
 }
 
@@ -80,7 +80,7 @@ export function layoutProfileLabels(
     lineHeight = 14,
     reserved = [],
   } = options;
-  if (!(width > 12 && height >= lineHeight)) return [];
+  if (![width, height, lineHeight].every(Number.isFinite) || !(width > 12 && lineHeight > 0 && height >= lineHeight)) return [];
   const labels: ProfileLabel[] = [];
   const ordered = [...rows].sort(
     (a, b) => (b.priority ?? 0) - (a.priority ?? 0) || b.value - a.value || a.index - b.index,
@@ -88,8 +88,9 @@ export function layoutProfileLabels(
   for (const row of ordered) {
     if (
       ![row.y, row.barWidth, row.value, row.percent].every(Number.isFinite) ||
-      row.value < 0 ||
-      row.barWidth < 0
+      row.value <= 0 ||
+      row.barWidth <= 0 ||
+      row.percent < 0 || row.percent > 100
     )
       continue;
     const top = row.y - lineHeight / 2;
@@ -104,6 +105,7 @@ export function layoutProfileLabels(
     for (const [variant, quantity] of texts.entries()) {
       const text = quantity + suffix;
       const textWidth = measure(text);
+      if (!Number.isFinite(textWidth) || textWidth <= 0) continue;
       const candidates = [
         { x: end - 5 - textWidth, align: "right" as const, anchorX: end - 5 },
         { x: end + 5, align: "left" as const, anchorX: end + 5 },

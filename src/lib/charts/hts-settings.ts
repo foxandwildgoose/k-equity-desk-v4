@@ -17,6 +17,8 @@ export interface HtsProfileSettings {
   preset: HtsProfilePreset;
   rows: number;
   widthRatio: number;
+  /** Auto follows the chart theme; custom retains the user's saved style. */
+  colorMode: "auto" | "custom";
   color: string;
   opacity: number;
   showLabels: boolean;
@@ -72,16 +74,17 @@ export function defaultHtsSettings(market: "KR" | "US", instrument: HtsInstrumen
       preset: "hts",
       rows: 10,
       widthRatio: 0.85,
-      color: "#e7b157",
-      opacity: 0.22,
+      colorMode: "auto",
+      color: "#E6B77C",
+      opacity: 0.32,
       showLabels: true,
-      showVa: true,
-      showPoc: true,
+      showVa: false,
+      showPoc: false,
       basis: "volume",
       rangeMode: "visible",
       startDate: "",
       endDate: "",
-      rangeOn: true,
+      rangeOn: false,
       recentSpan: "52W",
     },
   };
@@ -111,12 +114,17 @@ const date = (value: unknown, fallback: string): string => value === "" || valid
 
 function validateProfile(raw: unknown, defaults: HtsProfileSettings): HtsProfileSettings {
   const p = record(raw);
+  const validColor = typeof p.color === "string" && /^#[0-9a-f]{6}$/i.test(p.color);
+  // Older versions cannot tell a prior default from an intentional style.
+  // Preserve valid saved styles instead of silently replacing them on theme changes.
+  const legacyStyle = validColor || (typeof p.opacity === "number" && Number.isFinite(p.opacity));
   return {
     enabled: bool(p.enabled, defaults.enabled),
     preset: choice(p.preset, ["hts", "ref", "emph", "hide"], defaults.preset),
     rows: bounded(p.rows, defaults.rows, 1, 200, true),
     widthRatio: bounded(p.widthRatio, defaults.widthRatio, 0.1, 0.9),
-    color: typeof p.color === "string" && /^#[0-9a-f]{6}$/i.test(p.color) ? p.color : defaults.color,
+    colorMode: choice(p.colorMode, ["auto", "custom"], legacyStyle ? "custom" : defaults.colorMode),
+    color: validColor ? p.color as string : defaults.color,
     opacity: bounded(p.opacity, defaults.opacity, 0.05, 0.6),
     showLabels: bool(p.showLabels, defaults.showLabels),
     showVa: bool(p.showVa, defaults.showVa),
@@ -217,9 +225,14 @@ export function saveHtsSettings(store: Pick<StorageLike, "setItem">, scope: HtsS
 
 export function applyHtsProfilePreset(preset: HtsProfilePreset, previous: HtsProfileSettings): HtsProfileSettings {
   if (preset === "hide") return { ...previous, preset, enabled: false };
-  if (preset === "ref") return { ...previous, preset, enabled: true, widthRatio: 0.1, opacity: 0.22 };
-  if (preset === "emph") return { ...previous, preset, enabled: true, widthRatio: 0.18, opacity: 0.32 };
-  return { ...previous, preset, enabled: true, rows: 10, widthRatio: 0.85, color: "#e7b157", opacity: 0.22, showLabels: true, rangeMode: "visible" };
+  if (preset === "ref") return { ...previous, preset, enabled: true, widthRatio: 0.1, opacity: 0.22, colorMode: "custom" };
+  if (preset === "emph") return { ...previous, preset, enabled: true, widthRatio: 0.18, opacity: 0.32, colorMode: "custom" };
+  return { ...previous, preset, enabled: true, rows: 10, widthRatio: 0.85, colorMode: "auto", color: "#E6B77C", opacity: 0.32, showLabels: true, showVa: false, showPoc: false, rangeOn: false, rangeMode: "visible", basis: "volume" };
+}
+
+/** Only profile readability changes: pane layout, RSI and trust origins survive. */
+export function applyChartReadabilityPreset(settings: HtsSettings): HtsSettings {
+  return { ...settings, profile: applyHtsProfilePreset("hts", settings.profile) };
 }
 
 export interface ProfileMetadata {

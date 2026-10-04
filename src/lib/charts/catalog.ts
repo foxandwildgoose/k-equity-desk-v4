@@ -173,11 +173,11 @@ export const INDICATORS: IndicatorDef[] = [
   { id: "obv", label: "OBV", group: "거래량", pane: "separate", render: "series", params: [], outputs: [line("v", "OBV")], keywords: "on balance volume", compute: (b) => ({ v: obv(b.close, b.volume) }) },
   {
     id: "vprofile",
-    label: "볼륨 프로파일 (내장 매물대가 꺼져 있을 때만)",
+    label: "매물대 (공통 표시·설정)",
     group: "거래량",
     pane: "overlay",
     render: "volume-profile",
-    params: [int("rows", "가격 구간 수", 24, 6, 80), flt("va", "밸류 영역", 0.7, 0.5, 0.95, 0.05)],
+    params: [],
     outputs: [],
     keywords: "volume profile poc vah val",
     compute: () => ({}),

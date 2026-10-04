@@ -33,7 +33,7 @@ export interface ChartLayoutState {
   drawings: Drawing[];
   chartType: ChartType;
   scale: ChartScale;
-  overlays: { disclosures: boolean; news: boolean; research: boolean; dividends: boolean; signals: boolean };
+  overlays: { disclosures: boolean; news: boolean; research: boolean; targets: boolean; dividends: boolean; splits: boolean; signals: boolean };
 }
 
 export interface StorageLike {
@@ -51,7 +51,17 @@ export const LEGACY_DRAW_KEY = (code: string) => `ke-chart-draw:${code}`;
 const TYPES = new Set(CHART_TYPES.map((t) => t.id));
 const SCALES = new Set(CHART_SCALES.map((s) => s.id));
 
-export const DEFAULT_OVERLAYS: ChartLayoutState["overlays"] = { disclosures: true, news: false, research: true, dividends: true, signals: true };
+export const DEFAULT_OVERLAYS: ChartLayoutState["overlays"] = { disclosures: false, news: false, research: false, targets: false, dividends: false, splits: false, signals: false };
+
+function validateOverlays(raw: unknown): ChartLayoutState["overlays"] {
+  const value = raw != null && typeof raw === "object" && !Array.isArray(raw) ? raw as Record<string, unknown> : {};
+  const validated = Object.fromEntries(Object.entries(DEFAULT_OVERLAYS).map(([key, fallback]) => [key, typeof value[key] === "boolean" ? value[key] : fallback])) as ChartLayoutState["overlays"];
+  // Reports/target changes and dividends/splits were previously single toggles.
+  // Retain an explicit old boolean for both newly separated meanings.
+  if (!Object.hasOwn(value, "targets") && typeof value.research === "boolean") validated.targets = value.research;
+  if (!Object.hasOwn(value, "splits") && typeof value.dividends === "boolean") validated.splits = value.dividends;
+  return validated;
+}
 
 export function defaultLayout(indicators: IndicatorInstance[], chartType: ChartType = "candles", scale: ChartScale = "normal"): ChartLayoutState {
   return { v: 2, indicators, drawings: [], chartType, scale, overlays: { ...DEFAULT_OVERLAYS } };
@@ -81,7 +91,7 @@ export function parseChartState(raw: string | null): ChartLayoutState | null {
         : [],
       chartType: TYPES.has(v.chartType as ChartType) ? (v.chartType as ChartType) : "candles",
       scale: SCALES.has(v.scale as ChartScale) ? (v.scale as ChartScale) : "normal",
-      overlays: { ...DEFAULT_OVERLAYS, ...(v.overlays ?? {}) },
+      overlays: validateOverlays(v.overlays),
     };
   } catch {
     return null;

@@ -23,6 +23,9 @@ import { inferSectorId, detectKrMarket, normalizeKrTicker, isDigitTicker } from 
 import { useChartSecurity } from "@/lib/charts/use-chart-security";
 import { DATA_LABEL } from "@/data/market";
 import { ChevronRight, Loader2 } from "lucide-react";
+import type { ChartMarkerInput } from "@/components/charts/pro/ProChart";
+import type { ResearchReport } from "@/server/naver-market";
+import { researchChartEvents } from "@/lib/charts/chart-events";
 
 export const Route = createFileRoute("/stock/$ticker")({
   component: StockPage,
@@ -258,9 +261,14 @@ function StockPage() {
         market={meta.market}
         instrument={security.data?.instrument}
         name={meta.nameKo}
-        eventMarkers={(disclosures ?? []).slice(0, 40).map((d) => ({
+        eventMarkers={(disclosures ?? []).map((d) => ({
           time: d.datetime?.slice(0, 10) ?? "",
+          category: "disclosures" as const,
+          id: d.id,
           title: d.title,
+          source: d.sourceLabel ?? d.source,
+          url: d.dartUrl ?? d.dartSearchUrl,
+          publishedAt: d.datetime,
         }))}
         researchMarkers={researchTpMarkers(research ?? [])}
       />
@@ -369,23 +377,9 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 /**
- * F7.10 research overlay: target-price changes only where the prior
- * same-broker target was actually fetched (annotated rows); otherwise a
- * plain "리포트" marker with the rating.
+ * One publication event per fetched document, plus a distinct target-change
+ * event only when an older same-broker target was actually fetched.
  */
-function researchTpMarkers(reports: { date: string; broker: string; targetPrice?: number; prevTargetPrice?: number }[]) {
-  return annotatePrevTargets(reports)
-    .slice(0, 40)
-    .filter((r) => /^\d{4}-\d{2}-\d{2}/.test(r.date))
-    .map((r) => {
-      const up = r.targetPrice != null && r.prevTargetPrice != null && r.targetPrice > r.prevTargetPrice;
-      const down = r.targetPrice != null && r.prevTargetPrice != null && r.targetPrice < r.prevTargetPrice;
-      return {
-        time: r.date.slice(0, 10),
-        text: up ? `TP↑ ${r.broker}` : down ? `TP↓ ${r.broker}` : `리포트 ${r.broker}`,
-        position: "belowBar" as const,
-        shape: up ? ("arrowUp" as const) : down ? ("arrowDown" as const) : ("square" as const),
-        color: up ? "#2dd4bf" : down ? "#fb7185" : "#94a3b8",
-      };
-    });
+function researchTpMarkers(reports: ResearchReport[]): ChartMarkerInput[] {
+  return researchChartEvents(annotatePrevTargets(reports));
 }

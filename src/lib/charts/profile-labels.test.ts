@@ -112,3 +112,23 @@ test("unusable coordinates and physically too-small plots omit labels safely", (
   assert.deepEqual(layoutProfileLabels([row()], { ...options, height: 10 }), []);
   assert.deepEqual(layoutProfileLabels([row()], { ...options, width: 60 }), []);
 });
+
+test("zero bins and malformed percentages do not masquerade as traded profile labels", () => {
+  const options = { width: 600, height: 100, measure, unit: "주" as const };
+  assert.deepEqual(layoutProfileLabels([
+    row({ value: 0, barWidth: 0 }), row({ value: 0 }), row({ barWidth: 0 }),
+    row({ percent: -1 }), row({ percent: 101 }),
+  ], options), []);
+  assert.deepEqual(layoutProfileLabels([row()], { ...options, measure: () => NaN }), []);
+  assert.deepEqual(layoutProfileLabels([row()], { ...options, lineHeight: -1 }), []);
+});
+
+test("native price captions and provenance reserve their actual top and bottom areas", () => {
+  const rows = [row({ index: 0, y: 20 }), row({ index: 1, y: 65 }), row({ index: 2, y: 105 })];
+  const labels = layoutProfileLabels(rows, {
+    width: 600, height: 130, measure, unit: "주", lineHeight: 16,
+    reserved: [{ x: 0, y: 0, width: 600, height: 38 }, { x: 0, y: 92, width: 600, height: 38 }],
+  });
+  assert.deepEqual(labels.map((label) => label.index), [1]);
+  assert.equal(labels[0]!.priceY, 65);
+});
