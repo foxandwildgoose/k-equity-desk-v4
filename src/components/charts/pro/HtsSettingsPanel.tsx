@@ -93,7 +93,7 @@ export function HtsSettingsPanel({ settings, onChange, onRestore, allowHts = tru
 
         <fieldset className="space-y-3 border-t border-border pt-3">
           <legend className="text-sm font-semibold">투신 수량</legend>
-          <label className={labelClass}>투신 표시 방식<select className={fieldClass} value={settings.trustMode} onChange={(e) => set({ trustMode: e.target.value as HtsSettings["trustMode"] })}><option value="cumulative">기준일 이후 누적순매수</option><option value="daily">일별 순매수</option></select></label>
+          <label className={labelClass}>투신 표시 방식<select className={fieldClass} value={settings.trustMode} onChange={(e) => set({ trustMode: e.target.value as HtsSettings["trustMode"] })}><option value="cumulative">기준일 이후 누적순매수</option><option value="daily">일별 순매수</option><option value="available-cumulative">가용한 최근 연속 구간부터 누적 (실제 시작일 표시)</option></select></label>
           <label className={labelClass}>투신 누적 기준일<Input type="date" value={settings.trustStartDate} onChange={(e) => set({ trustStartDate: e.target.value })} className={fieldClass} /></label>
           <p className="text-xs leading-relaxed text-muted-foreground">기준일은 스크롤·줌과 무관하게 고정됩니다. 누적순매수는 절대 보유수량이 아니며, 누락된 날은 0으로 채우지 않습니다.</p>
         </fieldset>

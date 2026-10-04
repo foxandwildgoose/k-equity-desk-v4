@@ -40,6 +40,7 @@ const HEADERS = [
   "providedTo",
   "trustMode",
   "cumulativeStart",
+  "provider", "environment", "marketScope", "sourceApiId", "parsingStatus", "status", "lastSuccessAt",
 ];
 type CsvRow = Record<string, unknown>;
 const cell = (value: unknown) => {
@@ -71,7 +72,7 @@ export function flowToCsv(
   flow: FlowResponse,
   aligned: Record<FlowMetricId, AlignedFlowMetric>,
   replayAt?: string,
-  settings: { trustMode?: "cumulative" | "daily"; cumulativeStart?: string } = {},
+  settings: { trustMode?: "cumulative" | "daily" | "available-cumulative"; cumulativeStart?: string } = {},
 ): string {
   const replayMs = replayAt === undefined ? null : Date.parse(replayAt);
   const permitted = (row: FlowObservation) =>
@@ -95,7 +96,13 @@ export function flowToCsv(
       metric: id,
       unit: metric.unit,
       source: metric.source,
-      stale: flow.stale,
+      stale: metric.stale ?? flow.stale,
+      provider: metric.observations[0]?.provider,
+      environment: metric.diagnostics?.environment,
+      marketScope: metric.diagnostics?.marketScope,
+      sourceApiId: metric.diagnostics?.apiId,
+      status: metric.status,
+      lastSuccessAt: metric.lastSuccessAt,
       requestedFrom: flow.request.from,
       requestedTo: flow.request.to,
       providedFrom: metric.providedFrom,
@@ -125,7 +132,7 @@ export function flowToCsv(
     for (const point of output.points) {
       // Defend the export boundary even if a caller supplied non-replay-aligned points.
       const contributing =
-        id === "investmentTrust" && settings.trustMode === "cumulative"
+        id === "investmentTrust" && settings.trustMode !== "daily"
           ? metric.observations.filter(
               (observation) =>
                 observation.date >= (settings.cumulativeStart ?? flow.request.from) &&
@@ -171,7 +178,7 @@ export function flowToCsv(
         derived: true,
         formula:
           id === "investmentTrust"
-            ? settings.trustMode === "cumulative"
+            ? settings.trustMode === "cumulative" || settings.trustMode === "available-cumulative"
               ? `Σ dailyNet[${settings.cumulativeStart ?? "기준일 미제공"}..asOf]`
               : settings.trustMode === "daily"
                 ? "Σ dailyNet[봉 기간]"

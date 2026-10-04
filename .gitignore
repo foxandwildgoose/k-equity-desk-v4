@@ -4,3 +4,6 @@ node_modules/
 .env
 .env.*
 .qa/
+*_appkey.txt
+*_appsecret.txt
+*_secretkey.txt

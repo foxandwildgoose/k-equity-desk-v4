@@ -112,7 +112,7 @@ import { HtsSettingsPanel } from "./HtsSettingsPanel";
 import { ProfileDetails } from "./ProfileDetails";
 import { defaultHtsSettings, hasSavedHtsSettings, loadHtsSettings, saveHtsSettings, htsSettingsKey, HTS_PANEL_ORDER, profileToCsv, type HtsProfileSettings, type ProfileMetadata } from "@/lib/charts/hts-settings";
 import { pricePanePoint, periodEndDay, profileRangeBars } from "@/lib/charts/hts-layout";
-import { alignChartFlow, emptyChartFlow, FLOW_METRICS, type FlowRequest } from "@/lib/charts/hts-flow";
+import { alignChartFlow, availableFlowStart, emptyChartFlow, FLOW_METRICS, type FlowRequest } from "@/lib/charts/hts-flow";
 import { chartReplayInstant, flowToCsv } from "@/lib/charts/hts-flow-export";
 import { useChartFlow } from "@/lib/use-chart-flow";
 
@@ -627,16 +627,20 @@ export function ProChart(props: ProChartProps) {
   }, [vpProfile, vp, quantityUnit, currency, theme, bars, mainEpoch]);
   const flowRequest = useMemo<FlowRequest>(() => ({ code, market, instrument, exchange: props.exchange ?? (market === "KR" ? "KRX" : "US"),
     currency, quantityUnit, from: hts.trustStartDate && hts.trustStartDate < (rawBars[0]?.date.slice(0, 10) ?? "") ? hts.trustStartDate : rawBars[0]?.date.slice(0, 10) ?? "",
-    to: rawBars.at(-1) ? periodEndDay(rawBars.at(-1)!.date, interval).slice(0, 10) : "", interval }),
-  [code, market, instrument, props.exchange, currency, quantityUnit, hts.trustStartDate, rawBars, interval]);
+    to: rawBars.at(-1) ? periodEndDay(rawBars.at(-1)!.date, interval).slice(0, 10) : "", interval,
+    expectedDailyDates: (props.profileBars ?? props.indicatorBars ?? (interval === "day" ? rawBars : [])).map((b) => b.date.slice(0, 10)) }),
+  [code, market, instrument, props.exchange, currency, quantityUnit, hts.trustStartDate, rawBars, interval, props.profileBars, props.indicatorBars]);
   const flowQuery = useChartFlow(flowRequest, htsEnabled && Boolean(props.instrument) && htsLoaded === scopeKey && Boolean(hts.trustStartDate));
   const flow = useMemo(() => flowQuery.data ?? emptyChartFlow(flowRequest, flowQuery.isError ? "데이터 요청 실패 · 재시도 필요" : props.instrument ? "데이터 확인 중" : "상품 유형 확인 중"), [flowQuery.data, flowQuery.isError, flowRequest, props.instrument]);
+  const effectiveTrustStart = useMemo(() => hts.trustMode === "available-cumulative"
+    ? availableFlowStart(flow, (props.profileBars ?? props.indicatorBars ?? (interval === "day" ? rawBars : [])).map((b) => b.date.slice(0, 10)), hts.trustStartDate) ?? hts.trustStartDate
+    : hts.trustStartDate, [flow, hts.trustMode, hts.trustStartDate, props.profileBars, props.indicatorBars, interval, rawBars]);
   const replayAt = replay && bars.at(-1) ? chartReplayInstant(periodEndDay(bars.at(-1)!.date, interval).slice(0, 10), market) : undefined;
   const alignedFlow = useMemo(() => alignChartFlow(flow, { dates: bars.map((b) => b.date.slice(0, 10)), interval,
     cumulativeStart: hts.trustStartDate, investmentTrustMode: hts.trustMode,
-    expectedDailyDates: (props.profileBars ?? (interval === "day" ? rawBars : [])).map((b) => b.date.slice(0, 10)),
+    expectedDailyDates: (props.profileBars ?? props.indicatorBars ?? (interval === "day" ? rawBars : [])).map((b) => b.date.slice(0, 10)),
     replayAt,
-  }), [flow, bars, interval, hts.trustStartDate, hts.trustMode, props.profileBars, rawBars, replayAt]);
+  }), [flow, bars, interval, hts.trustStartDate, hts.trustMode, props.profileBars, props.indicatorBars, rawBars, replayAt]);
 
   // Visible range tracking.
   const onVisibleRangeRef = useRef(props.onVisibleRange);
@@ -718,7 +722,7 @@ export function ProChart(props: ProChartProps) {
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const htsPanes = useHtsPanes({ chart, enabled: htsEnabled, settings: hts, onSettings: setHts,
     container: containerRef, extraCount, bars, indicatorBars: props.indicatorBars, times,
-    flow, aligned: alignedFlow, hoverIndex: hoverIdx, theme, upColor, downColor,
+    flow, aligned: alignedFlow, effectiveTrustStart, hoverIndex: hoverIdx, theme, upColor, downColor,
     quantityUnit, source: props.source, profileDescription, interval });
   const [pendingAvwap, setPendingAvwap] = useState<string | null>(null);
   const shown = useMemo(() => (dragging ? history.items.map((d) => (d.id === dragging.id ? dragging : d)) : history.items), [history.items, dragging]);
@@ -1058,7 +1062,7 @@ export function ProChart(props: ProChartProps) {
     downloadCanvasPng(composeChartPng(chart.takeScreenshot(true, false), [
       `${props.name ?? code} · ${market} ${code} · ${intervalKey} · ${props.source}`,
       `매물대 ${profileDescription} · 합계 ${vpProfile?.totalValue ?? 0} · ${vpProfile?.method ?? "자료 없음"}`,
-      ...(htsEnabled ? [`RSI(${hts.rsiPeriod}) ${hts.signalMethod.toUpperCase()}(${hts.signalPeriod}) · 투신 ${hts.trustMode} 시작 ${hts.trustStartDate}`] : []),
+      ...(htsEnabled ? [`RSI(${hts.rsiPeriod}) ${hts.signalMethod.toUpperCase()}(${hts.signalPeriod}) · ${hts.trustMode === "daily" ? "투신 일별 순매수" : `투신 누적순매수 시작 ${effectiveTrustStart || "확인 중"}`}`] : []),
       ...htsPanes.summaries.filter(() => htsEnabled).map((item) => `${item.title}: ${item.value} ${item.unit} · ${item.status} · ${item.asOf} · ${item.source}`),
       profileMetadata.adjustment,
     ]), chartExportName(market, code, intervalKey, "png", Date.now()));
@@ -1078,8 +1082,8 @@ export function ProChart(props: ProChartProps) {
       for (const period of [5, 20, 60] as const) extra.push({ name: `VolumeSMA${period}`, values: htsPanes.averages[period].slice(w.from, w.to + 1) });
       for (const id of FLOW_METRICS) extra.push({ name: id, values: alignedFlow[id].points.slice(w.from, w.to + 1).map((p) => p.value) });
     }
-    const flowRows = flowToCsv(flow, alignedFlow, replayAt, { trustMode: hts.trustMode, cumulativeStart: hts.trustStartDate });
-    downloadCsv(`${barsToCsv(rows, extra)}\r\n\r\n${(vpProfile ? profileToCsv(vpProfile, profileMetadata) : "profile,status\r\n,disabled")}\r\n\r\ntrustMode,${hts.trustMode}\r\ncumulativeStart,${hts.trustStartDate}\r\n${flowRows}`, chartExportName(market, code, intervalKey, "csv", Date.now()));
+    const flowRows = flowToCsv(flow, alignedFlow, replayAt, { trustMode: hts.trustMode, cumulativeStart: effectiveTrustStart });
+    downloadCsv(`${barsToCsv(rows, extra)}\r\n\r\n${(vpProfile ? profileToCsv(vpProfile, profileMetadata) : "profile,status\r\n,disabled")}\r\n\r\ntrustMode,${hts.trustMode}\r\ncumulativeStart,${effectiveTrustStart}\r\n${flowRows}`, chartExportName(market, code, intervalKey, "csv", Date.now()));
   };
 
   // ── HUD + legend ───────────────────────────────────────────────────────
@@ -1319,7 +1323,7 @@ export function ProChart(props: ProChartProps) {
           />
           <ProfileDetails profile={vpProfile} metadata={profileMetadata} onExport={() => downloadCsv((vpProfile ? profileToCsv(vpProfile, profileMetadata) : "profile,status\r\n,disabled"), `${code}-profile.csv`)} />
           {htsEnabled && <details className="border-t border-border p-3 text-xs" data-testid="hts-data-details">
-            <summary className="min-h-11 cursor-pointer">6단 지표 값·출처·제공 상태 · {hts.trustStartDate}부터 누적</summary>
+            <summary className="min-h-11 cursor-pointer">6단 지표 값·출처·제공 상태 · {hts.trustMode === "daily" ? "투신 일별 순매수" : `${hts.trustMode === "available-cumulative" ? "가용 시작 " : ""}${effectiveTrustStart || "확인 중"}부터 누적`}</summary>
             <div className="overflow-x-auto"><table className="w-full text-left"><caption className="text-left text-muted-foreground">같은 날짜의 실제 값과 결측 사유 · 투신은 범위를 이동해도 누적 시작일 유지</caption><thead><tr><th>패널</th><th>값</th><th>상태</th><th>기준일</th><th>출처</th></tr></thead><tbody>
               {htsPanes.summaries.map((item) => <tr key={item.id}><th className="p-2">{item.title}</th><td>{item.value} {item.unit}</td><td>{item.status}</td><td>{item.asOf}</td><td>{item.source}</td></tr>)}
             </tbody></table></div>

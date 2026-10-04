@@ -5,6 +5,7 @@ import {
   datedRatio,
   emptyChartFlow,
   flowRequestKey,
+  flowClientQueryKey,
   nullableFlowNumber,
   type FlowObservation,
   type FlowRequest,
@@ -197,4 +198,39 @@ test("duplicate versions replace by fetchedAt, and response identities never col
     { exchange: "KOSDAQ" },
   ])
     assert.notEqual(flowRequestKey(request), flowRequestKey({ ...request, ...patch }));
+});
+
+test("an owner's browser response cannot be selected from another session or signed-out query", () => {
+  const cache = new Map<string, FlowResponse>();
+  cache.set(JSON.stringify(flowClientQueryKey(request, "owner-session")), response([["2026-09-01", 10]]));
+  assert.equal(cache.get(JSON.stringify(flowClientQueryKey(request, "another-session"))), undefined);
+  assert.equal(cache.get(JSON.stringify(flowClientQueryKey(request, null))), undefined);
+  assert.equal(cache.get(JSON.stringify(flowClientQueryKey({ ...request, code: "403870" }, "owner-session"))), undefined);
+});
+
+test("weekend origin with Monday observed session does not poison cumulative; latest missing stays null", () => {
+  const r = response([["2026-09-07", 10], ["2026-09-08", -4]]);
+  const a = alignChartFlow(r, {dates:["2026-09-07","2026-09-08","2026-09-09"],expectedDailyDates:["2026-09-07","2026-09-08","2026-09-09"],interval:"day",cumulativeStart:"2026-09-05",investmentTrustMode:"cumulative"});
+  assert.deepEqual(a.investmentTrust.points.map(p=>p.value),[10,6,null]);
+});
+test("partial weekly net sum is null while raw daily values and last valid ratio remain", () => {
+  const r=response([["2026-09-01",10],["2026-09-03",6]]);
+  const a=alignChartFlow(r,{...daily,dates:["2026-09-01"],expectedDailyDates:daily.dates,interval:"week",investmentTrustMode:"daily"});
+  assert.equal(a.investmentTrust.points[0]?.value,null);assert.equal(a.foreign.points[0]?.value,6);assert.equal(r.investmentTrust.observations.length,2);
+});
+test("available continuous segment is opt-in and exposes a different actual origin", () => {
+  const r=response([["2026-09-01",100],["2026-09-03",6]]);
+  assert.deepEqual(alignChartFlow(r,{...daily,investmentTrustMode:"cumulative"}).investmentTrust.points.map(p=>p.value),[100,null,null]);
+  assert.deepEqual(alignChartFlow(r,{...daily,investmentTrustMode:"available-cumulative"}).investmentTrust.points.map(p=>p.value),[null,null,6]);
+  r.investmentTrust.observations[1]!.value=12;
+  assert.equal(alignChartFlow(r,{...daily,investmentTrustMode:"available-cumulative"}).investmentTrust.points[2]?.value,12);
+});
+test("a gap in an earlier month does not hide a complete daily-net sum in the next month", () => {
+  const r = response([["2026-09-01", 10], ["2026-09-03", 6], ["2026-10-01", 12], ["2026-10-02", -4]]);
+  for (const id of ["credit", "foreign", "investmentTrust"] as const) r[id].capability = "partial";
+  const options = { ...daily, dates: ["2026-09-01", "2026-10-01"], expectedDailyDates: ["2026-09-01", "2026-09-02", "2026-09-03", "2026-10-01", "2026-10-02"], interval: "month" as const };
+  const net = alignChartFlow(r, { ...options, investmentTrustMode: "daily" });
+  assert.deepEqual(net.investmentTrust.points.map(point => point.value), [null, 8]);
+  assert.deepEqual(net.foreign.points.map(point => point.partial), [true, false]);
+  assert.equal(alignChartFlow(r, options).investmentTrust.points[1]?.value, null);
 });

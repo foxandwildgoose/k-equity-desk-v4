@@ -7,6 +7,7 @@
  * node scripts/qa-chart-hts.mjs --mode real --base http://127.0.0.1:8080
  * node scripts/qa-chart-hts.mjs --mode fixture --cases stock-001820,etf-069500
  * Options: --viewports desktop,tablet,mobile --interactions --timeout 65000
+ *          --function-map <compiled-server-RPC-id-to-name.json> (production hashed IDs)
  *          --checks "Local price alert" (run only matching interaction checks)
  *          --cases stock-001820,stock-403870,stock-036540,stock-011790,
  *                  etf-069500,etf-379800,etf-0005A0,retirement,watchlist,
@@ -26,6 +27,8 @@ const timeout = Number(arg('--timeout', '65000'));
 const output = resolve(arg('--out', `/workspace/screenshots/chart-upgrade/${mode}`));
 const interactions = argv.includes('--interactions');
 const selectedChecks = arg('--checks', '').split(',').filter(Boolean);
+const functionMapPath = arg('--function-map', '');
+const functionNames = functionMapPath ? JSON.parse(readFileSync(functionMapPath, 'utf8')) : {};
 const wantedCases = arg('--cases', '').split(',').filter(Boolean);
 const wantedViewports = arg('--viewports', 'desktop,tablet,mobile').split(',');
 const paneOrder = ['rsi', 'price', 'credit', 'foreign', 'investmentTrust', 'volume'];
@@ -69,6 +72,7 @@ function fixtureBars(code) {
 function serverFunctionName(url) {
   try {
     const encoded = new URL(url).pathname.split('/_serverFn/')[1] ?? '';
+    if (functionNames[encoded]) return functionNames[encoded];
     return JSON.parse(Buffer.from(decodeURIComponent(encoded), 'base64url').toString()).export?.replace(/_createServerFn_handler$/, '') ?? '';
   } catch { return ''; }
 }
@@ -79,24 +83,18 @@ async function fixtures(page, fixtureCalls) {
     if (!['getChartData', 'getChartFlow'].includes(name)) return route.continue();
     let data = {};
     try {
-      const raw = new URL(route.request().url()).searchParams.get('payload');
+      const raw = route.request().method() === 'POST' ? route.request().postData() : new URL(route.request().url()).searchParams.get('payload');
       const payload = raw ? fromJSON(JSON.parse(raw)) : {};
       data = payload.data ?? payload;
     } catch { /* Invalid transport will fail normal assertions rather than forge data. */ }
     const rows = fixtureBars(data.code ?? 'QA');
     let result = { bars: rows, source: 'QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA' };
     if (name === 'getChartFlow') {
-      const fetchedAt = '2025-12-31T09:00:00Z';
-      const absent = unit => ({ capability: 'unknown', reason: 'QA fixture: unavailable metric state', unit,
-        source: 'QA SYNTHETIC FIXTURE', observations: [], providedFrom: null, providedTo: null });
-      const foreignRows = rows.slice(-20).map((row, i) => ({ date: row.date, value: i === 4 ? null : i / 10,
-        unit: '%', source: 'QA SYNTHETIC FIXTURE', sourceField: 'fixtureForeignOwnershipPercent', asOf: row.date,
-        dateBasis: 'trade-date', fetchedAt, availableAt: null, final: null, derived: false }));
-      result = { request: data, credit: absent('%'), foreign: { capability: 'partial', reason: 'QA fixture: partial dated values, including true zero and null',
-        unit: '%', source: 'QA SYNTHETIC FIXTURE', observations: foreignRows, providedFrom: foreignRows[0].date, providedTo: foreignRows.at(-1).date },
-        investmentTrust: absent(data.quantityUnit ?? '주'), fetchedAt, stale: false };
+      const { kiwoomBrowserFixture } = await import('./qa-kiwoom-fixture.mjs');
+      result = await kiwoomBrowserFixture(data, rows);
     }
-    fixtureCalls.push({ name, code: data.code });
+    if (name === 'getChartFlow') assert.equal(route.request().method(), 'POST', 'daily calendar must travel in a POST body');
+    fixtureCalls.push({ name, code: data.code, method: route.request().method(), urlBytes: route.request().url().length, calendarDates: data.expectedDailyDates?.length ?? null });
     await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'x-tss-serialized': 'true' },
       body: JSON.stringify(await toCrossJSONAsync({ result, error: undefined, context: {} }, { refs: new Map() })) });
   });
@@ -136,6 +134,8 @@ async function state(page) {
 async function closeOverlays(page) {
   await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
+  // Wait for Radix exit/focus restoration before reopening another sheet.
+  await page.waitForFunction(() => [...document.querySelectorAll('[role="dialog"]')].every(el => !el.getClientRects().length || getComputedStyle(el).visibility === 'hidden'), undefined, { timeout: 5000 });
 }
 async function openTools(page, chart) {
   const control = chart.getByTestId('chart-tools-mobile');
@@ -201,6 +201,26 @@ async function interact(page, item, result) {
     await closeOverlays(page);
     await shell.getByTestId('profile-details').locator('tbody tr').first().waitFor({ state: 'attached' });
     return { initialHeight, resizedHeight, persistedRows: 16, otherCode, otherRows: 10, restoredRows: 10 };
+  });
+  if (mode === 'fixture' && item.panes) await check('Kiwoom daily values, gap handling and explicit available cumulative origin', async () => {
+    await page.waitForFunction(() => document.querySelector('[data-testid="hts-data-details"]')?.textContent.includes('기준일 이후 누락: 누적순매수 미확정'), undefined, { timeout });
+    const settings = await openSettings(page, shell);
+    const requestedStart = await settings.getByLabel('투신 누적 기준일', { exact: true }).inputValue();
+    await settings.getByLabel(/투신 표시 방식/).selectOption('daily');
+    await closeOverlays(page);
+    await page.waitForFunction(() => /투신 일별 순매수-1,000 주/.test(document.querySelector('[data-testid="hts-data-details"]')?.textContent ?? ''), undefined, { timeout });
+    const availableSettings = await openSettings(page, shell);
+    await availableSettings.getByLabel(/투신 표시 방식/).selectOption('available-cumulative');
+    await closeOverlays(page);
+    await page.waitForFunction(() => document.querySelector('[data-testid="hts-data-details"] summary')?.textContent.includes('가용 시작 '), undefined, { timeout });
+    const summary = await shell.getByTestId('hts-data-details').locator('summary').textContent();
+    const actualStart = summary.match(/가용 시작 (\d{4}-\d{2}-\d{2})부터/)?.[1];
+    assert(actualStart && actualStart > requestedStart, 'actual available origin must be visible after the synthetic gap');
+    const restore = await openSettings(page, shell);
+    assert.equal(await restore.getByLabel('투신 누적 기준일', { exact: true }).inputValue(), requestedStart, 'opt-in changed the fixed requested origin');
+    await restore.getByLabel(/투신 표시 방식/).selectOption('cumulative');
+    await closeOverlays(page);
+    return { requestedStart, actualStart, rawDailyNet: -1000, synthetic: true };
   });
   await check('Accessible profile table and total percentages', async () => {
     const details = shell.getByTestId('profile-details');
@@ -420,6 +440,13 @@ try {
       await page.getByTestId('chart-canvas').first().waitFor();
       if (item.panes) await page.locator('[data-hts-pane="volume"]').first().waitFor();
       await page.waitForFunction(() => [...document.querySelectorAll('[data-testid="profile-details"]')].some(el => el.querySelectorAll('tbody tr').length > 0), undefined, { timeout }).catch(() => undefined);
+      if (mode === 'fixture' && item.panes && /^[0-9A-Z]{6}$/.test(item.code)) {
+        await page.waitForFunction(() => [...document.querySelectorAll('[data-testid="hts-data-details"]')].some(el => (el.textContent.match(/키움증권 · QA SYNTHETIC \(실데이터 아님\)/g) ?? []).length >= 3), undefined, { timeout });
+        const details = await page.getByTestId('hts-data-details').first().textContent();
+        assert.match(details, /신용잔고율[\d.]+ %/, 'credit response has not reached the chart');
+        assert.match(details, /외국인보유비율[\d.]+ %/, 'foreign response has not reached the chart');
+        assert.match(details, /기준일 이후 누락: 누적순매수 미확정/, 'synthetic daily gap must block cumulative values');
+      }
       await page.waitForTimeout(500);
       result.snapshot = await state(page);
       assert.equal(result.httpStatus, 200, 'route HTTP status');
@@ -427,6 +454,7 @@ try {
       assert(result.snapshot.scrollWidth <= result.snapshot.width + 1, `horizontal overflow ${result.snapshot.scrollWidth}/${result.snapshot.width}`);
       assert(result.snapshot.canvasCount >= 2, 'native chart canvas absent');
       assert(result.snapshot.profileRows.some(count => count === 10), 'default 10-bin profile missing (price data may be unavailable)');
+      assert(!result.marketResponses.some(response => response.function === 'getChartFlow' && response.status >= 400), 'chart flow transport failed');
       if (item.panes) {
         const expectedCharts = item.charts ?? 1;
         assert.equal(result.snapshot.panes.length, 6 * expectedCharts, 'native pane count');
@@ -443,9 +471,11 @@ try {
       await chart.scrollIntoViewIfNeeded();
       result.screenshot = join(output, `${item.id}-${viewport.name}.png`);
       await page.screenshot({ path: result.screenshot, fullPage: true });
+      result.chartScreenshot = join(output, `${item.id}-${viewport.name}-chart.png`);
+      await chart.screenshot({ path: result.chartScreenshot });
       // Interactions once per representative stock/ETF, with real and fixture
       // results kept distinct; the matrix itself covers every requested viewport.
-      if (interactions && viewport.name === 'desktop' && ['stock-001820', 'etf-069500'].includes(item.id)) await interact(page, item, result);
+      if (interactions && viewport.name === 'desktop' && ['stock-001820', 'stock-403870', 'etf-069500'].includes(item.id)) await interact(page, item, result);
       assert.equal(result.errors.length, 0, 'application console/runtime errors');
       assert(!(result.interactions ?? []).some(check => check.status === 'failed'), 'interaction failures');
       result.status = 'passed';
@@ -464,3 +494,5 @@ try {
 } finally { await browser.close(); }
 console.log(JSON.stringify({ mode, passed: results.filter(r => r.status === 'passed').length, failed: results.filter(r => r.status === 'failed').length, verdict: join(output, 'verdict.json') }));
 process.exitCode = results.some(result => result.status !== 'passed') ? 1 : 0;
+
+if (mode === "fixture") { const { closeKiwoomBrowserFixture } = await import("./qa-kiwoom-fixture.mjs"); await closeKiwoomBrowserFixture(); }

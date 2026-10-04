@@ -7,6 +7,13 @@ export type FlowCapability =
   | "not-applicable"
   | "error"
   | "unknown";
+export type FlowStatus = "disabled" | "configuration" | "authentication" | "access" | "ip-check" | "rate-limit" | "timeout" | "network" | "parsing" | "history" | "collecting" | "ready" | "unsupported" | "storage";
+export const FLOW_STATUS_LABELS: Record<FlowStatus, string> = {
+  disabled: "수집 비활성", configuration: "서버 설정 미완료", authentication: "인증 오류", access: "로그인/권한 확인 필요",
+  "ip-check": "호출 서버 IP 확인 필요", "rate-limit": "호출 제한", timeout: "응답 시간 초과", network: "통신 오류",
+  parsing: "응답 필드 검증 오류", history: "이력 부족/제공 범위 확인", collecting: "수집 중/대기", ready: "갱신됨",
+  unsupported: "확인된 미지원", storage: "영속 저장소 설정/연결 확인 필요",
+};
 export type FlowMetricId = "credit" | "foreign" | "investmentTrust";
 export type FlowInterval = "day" | "week" | "month" | "year" | "minute";
 export type FlowQuantityUnit = "주" | "좌" | "shares";
@@ -20,6 +27,9 @@ export interface FlowRequest {
   from: string;
   to: string;
   interval: FlowInterval;
+  /** Explicit provider market; listing exchanges KOSPI/KOSDAQ both map to KRX. */
+  flowScope?: "KRX" | "NXT" | "SOR";
+  expectedDailyDates?: string[];
 }
 export interface FlowObservation {
   date: string;
@@ -37,6 +47,13 @@ export interface FlowObservation {
   denominator?: number;
   buy?: number | null;
   sell?: number | null;
+  provider?: "kiwoom";
+  environment?: "real" | "mock";
+  marketScope?: "KRX" | "NXT" | "SOR";
+  sourceApiId?: string;
+  parsingStatus?: "valid" | "missing" | "invalid";
+  referenceValue?: number | null;
+  referenceUnit?: string;
 }
 export interface FlowMetric {
   capability: FlowCapability;
@@ -46,6 +63,15 @@ export interface FlowMetric {
   observations: FlowObservation[];
   providedFrom: string | null;
   providedTo: string | null;
+  status?: FlowStatus;
+  stale?: boolean;
+  lastSuccessAt?: string | null;
+  diagnostics?: {
+    apiId: string; pages: number; rows: number; validValues: number; invalidRows: number;
+    stopReason: string; missingDates: string[] | null; calendarBasis: string;
+    stored: boolean; errorCode: number | null; environment: "real" | "mock";
+    mode: "direct" | "collector"; marketScope: string;
+  };
 }
 export interface FlowResponse {
   request: FlowRequest;
@@ -85,7 +111,7 @@ export function isFlowDate(value: string): boolean {
 
 export function flowRequestKey(request: FlowRequest): string {
   return JSON.stringify([
-    "hts-flow-v1",
+    "hts-flow-kiwoom-v2",
     request.market,
     request.code,
     request.instrument,
@@ -95,7 +121,14 @@ export function flowRequestKey(request: FlowRequest): string {
     request.from,
     request.to,
     request.interval,
+    request.flowScope ?? "KRX",
+    request.expectedDailyDates ?? [],
   ]);
+}
+
+/** Browser memory caches follow the current session; server authorization remains authoritative. */
+export function flowClientQueryKey(request: FlowRequest, userId: string | null) {
+  return ["chart-flow-kiwoom-v2", userId ?? "unverified-session", flowRequestKey(request)] as const;
 }
 
 /** Empty strings, provider dashes, invalid strings and infinity are missing, not zero. */
@@ -145,11 +178,25 @@ export interface AlignChartFlowOptions {
   dates: string[];
   interval: FlowInterval;
   cumulativeStart: string;
-  investmentTrustMode: "cumulative" | "daily";
+  investmentTrustMode: "cumulative" | "daily" | "available-cumulative";
   /** Daily price sessions, when available even while rendering weekly/monthly bars. */
   expectedDailyDates?: string[];
   /** ISO instant. Unknown publication instants are NEVER allowed in replay. */
   replayAt?: string;
+}
+
+/** Opt-in only: find the last available continuous run against observed price sessions. */
+export function availableFlowStart(response: FlowResponse, expectedDates: string[], requestedStart: string): string | null {
+  const values = new Map(response.investmentTrust.observations.map((row) => [row.date, row.value]));
+  const dates = [...new Set(expectedDates.filter((d) => isFlowDate(d) && d >= requestedStart))].sort();
+  let start: string | null = null;
+  const lastValid = dates.filter((date) => values.get(date) != null).at(-1);
+  for (const date of dates) {
+    if (lastValid && date > lastValid) break;
+    if (values.get(date) == null) start = null;
+    else start ??= date;
+  }
+  return start;
 }
 
 function periodKey(date: string, interval: FlowInterval): string {
@@ -187,6 +234,9 @@ export function alignChartFlow(
     ),
   ].sort();
   const replayMs = options.replayAt ? Date.parse(options.replayAt) : null;
+  const cumulativeStart = options.investmentTrustMode === "available-cumulative"
+    ? availableFlowStart(response, expected, options.cumulativeStart) ?? options.cumulativeStart
+    : options.cumulativeStart;
   return Object.fromEntries(
     FLOW_METRICS.map((id) => {
       const metric = response[id];
@@ -223,14 +273,19 @@ export function alignChartFlow(
       const cumulative = new Map<string, number | null>();
       let sum = 0;
       // Coverage cannot begin after the fixed start unless the known price calendar proves no intervening session.
-      const firstKnown = rows.find((row) => row.date >= options.cumulativeStart)?.date;
-      const firstSession = expected.find((date) => date >= options.cumulativeStart);
+      const firstKnown = rows.find((row) => row.date >= cumulativeStart)?.date;
+      const firstSession = expected.find((date) => date >= cumulativeStart);
+      const startDay = new Date(`${cumulativeStart}T00:00:00Z`).getUTCDay();
+      const nextWeekday = new Date(`${cumulativeStart}T00:00:00Z`);
+      if (startDay === 6) nextWeekday.setUTCDate(nextWeekday.getUTCDate() + 2);
+      if (startDay === 0) nextWeekday.setUTCDate(nextWeekday.getUTCDate() + 1);
+      const weekendProven = (startDay === 0 || startDay === 6) && firstKnown === firstSession && firstKnown === nextWeekday.toISOString().slice(0, 10);
       let broken =
         !firstKnown ||
-        (firstKnown > options.cumulativeStart &&
-          !(expected[0] && expected[0] <= options.cumulativeStart && firstSession === firstKnown));
+        (firstKnown > cumulativeStart && !weekendProven &&
+          !(expected[0] && expected[0] <= cumulativeStart && firstSession === firstKnown));
       for (const date of allDates) {
-        if (date < options.cumulativeStart) continue;
+        if (date < cumulativeStart) continue;
         const value = rowByDate.get(date)?.value;
         if (value == null || !Number.isFinite(value)) broken = true;
         if (!broken && value != null) sum += value;
@@ -244,13 +299,13 @@ export function alignChartFlow(
         let partial =
           valid.length !== periodRows.length ||
           expectedInPeriod.some((day) => rowByDate.get(day)?.value == null);
-        if (options.interval !== "day" && metric.capability === "partial") partial = true;
+        if (options.interval !== "day" && metric.capability === "partial" && !expectedInPeriod.length) partial = true;
         const last = valid.at(-1);
         let value: number | null = last?.value ?? null;
         let asOf = last?.asOf ?? null;
         let reason = partial ? "일부 거래일 누락" : "";
         if (id === "investmentTrust") {
-          if (options.investmentTrustMode === "cumulative") {
+          if (options.investmentTrustMode !== "daily") {
             const lastDate = [
               ...new Set([...expectedInPeriod, ...periodRows.map((row) => row.date)]),
             ]
@@ -264,7 +319,7 @@ export function alignChartFlow(
             }
           } else {
             value = valid.length ? valid.reduce((total, row) => total + row.value!, 0) : null;
-            if (partial && options.interval === "day") value = null;
+            if (partial) value = null;
           }
         }
         if (value === null && !reason) reason = "해당 날짜 관측값 없음";

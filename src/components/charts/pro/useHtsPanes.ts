@@ -53,6 +53,7 @@ export function useHtsPanes(options: {
   times: (string | number)[];
   flow: FlowResponse;
   aligned: FlowValues;
+  effectiveTrustStart?: string;
   hoverIndex: number | null;
   theme: ChartTheme;
   upColor: string;
@@ -265,7 +266,7 @@ export function useHtsPanes(options: {
       status: `SMA ${[5, 20, 60].filter((n) => settings.volumeMa[n as 5 | 20 | 60]).join("/")} · 최근 봉은 장중·기간 중 미완성 가능`, asOf: day, source: options.source };
     const point = aligned[id].points.find((p) => p.date === day.slice(0, 10));
     const metric = flow[id];
-    const title = id === "investmentTrust" ? settings.trustMode === "cumulative" ? `투신 누적순매수 · 기준 ${settings.trustStartDate || "확인 중"}` : "투신 일별 순매수" : HTS_PANEL_LABELS[id].replace(/\s*\(%\)$/, "");
+    const title = id === "investmentTrust" ? settings.trustMode !== "daily" ? `투신 누적순매수 · ${settings.trustMode === "available-cumulative" ? "가용 시작" : "기준"} ${options.effectiveTrustStart || settings.trustStartDate || "확인 중"}` : "투신 일별 순매수" : HTS_PANEL_LABELS[id].replace(/\s*\(%\)$/, "");
     const details = htsFlowPointDetails(metric, aligned[id], point, flow.fetchedAt, flow.stale);
     return { id, title, unit: metric.unit, value: number(point?.value, id === "investmentTrust" ? 0 : 2),
       ...details, source: metric.source };

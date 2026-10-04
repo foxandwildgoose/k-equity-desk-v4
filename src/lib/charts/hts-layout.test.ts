@@ -156,7 +156,7 @@ test("flow captions preserve actionable provider reasons and never borrow a futu
   const details = htsFlowPointDetails(metric, aligned, point, "2026-10-03T01:00:00Z", true);
   assert.match(details.status, /인증 미설정 · KIS 인증 미설정/);
   assert.equal(details.capability, "not-configured", "raw capability remains available for structured details/exports");
-  assert.match(details.status, /오래된 캐시/);
+  assert.match(details.status, /오래된 데이터/);
   assert.match(details.status, /조회 2026-10-03T01:00:00Z/);
   assert.equal(details.asOf, "미확인");
   assert.equal(details.dateBasis, "미확인");

@@ -39,7 +39,7 @@ export interface HtsSettings {
   signalMethod: "sma" | "ema";
   rsiZones: boolean;
   volumeMa: Record<5 | 20 | 60, boolean>;
-  trustMode: "cumulative" | "daily";
+  trustMode: "cumulative" | "daily" | "available-cumulative";
   /** Empty only until the first analysis window is loaded; then fix and persist. */
   trustStartDate: string;
   profile: HtsProfileSettings;
@@ -149,7 +149,7 @@ export function parseHtsSettings(raw: string | null, defaults = defaultHtsSettin
       signalMethod: choice(data.signalMethod, ["sma", "ema"], defaults.signalMethod),
       rsiZones: bool(data.rsiZones, defaults.rsiZones),
       volumeMa: { 5: bool(volumeMa[5], defaults.volumeMa[5]), 20: bool(volumeMa[20], defaults.volumeMa[20]), 60: bool(volumeMa[60], defaults.volumeMa[60]) },
-      trustMode: choice(data.trustMode, ["cumulative", "daily"], defaults.trustMode),
+      trustMode: choice(data.trustMode, ["cumulative", "daily", "available-cumulative"], defaults.trustMode),
       trustStartDate: date(data.trustStartDate, defaults.trustStartDate),
       profile: validateProfile(data.profile, defaults.profile),
     };

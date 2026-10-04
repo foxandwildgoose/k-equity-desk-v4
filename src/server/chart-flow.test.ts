@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  createChartFlowService,
+  createLegacyChartFlowService as createChartFlowService,
   parseKisFlow,
   parseNaverForeign,
   validateFlowRequest,
-} from "./chart-flow.ts";
+} from "./chart-flow-legacy.ts";
 import type { FlowRequest } from "../lib/charts/hts-flow.ts";
 
 const request: FlowRequest = {

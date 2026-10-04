@@ -1,5 +1,5 @@
 import { HTS_PANEL_ORDER, type HtsPanel } from "./hts-settings.ts";
-import type { AlignedFlowMetric, AlignedFlowPoint, FlowMetric } from "./hts-flow.ts";
+import { FLOW_STATUS_LABELS, type AlignedFlowMetric, type AlignedFlowPoint, type FlowMetric } from "./hts-flow.ts";
 
 /** Extra oscillators preserve the six required panes' relative order; volume stays last. */
 export function htsPaneIndices(extraCount = 0): Record<HtsPanel, number> {
@@ -174,7 +174,7 @@ export function htsFlowPointDetails(metric: FlowMetric, aligned: AlignedFlowMetr
   };
   return {
     capability: aligned.capability,
-    status: [capabilityNames[aligned.capability], reason, stale ? "오래된 캐시" : "", `${acquisitionLabel} ${acquisition}`, `기준 ${dateBasis}`, final].filter(Boolean).join(" · "),
+    status: [capabilityNames[aligned.capability], metric.status ? FLOW_STATUS_LABELS[metric.status] : "", reason, (metric.stale ?? stale) ? "오래된 데이터" : "", `최종 관측 ${metric.providedTo ?? "미확인"}`, `확보 ${metric.providedFrom ?? "—"}~${metric.providedTo ?? "—"}`, `${acquisitionLabel} ${acquisition}`, `기준 ${dateBasis}`, final].filter(Boolean).join(" · "),
     asOf: point?.asOf || "미확인", fetchedAt: acquisition, dateBasis, final,
   };
 }
