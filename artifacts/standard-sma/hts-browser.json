@@ -1,0 +1,2095 @@
+{
+  "base": "http://127.0.0.1:8183",
+  "mode": "fixture",
+  "at": "2026-10-04T14:08:49.548Z",
+  "results": [
+    {
+      "id": "stock-403870",
+      "mode": "fixture",
+      "viewport": "desktop",
+      "path": "/stock/403870",
+      "status": "passed",
+      "errors": [],
+      "externalFailures": [
+        {
+          "url": "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://fonts.googleapis.com/css2",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://grok.com/grok-app-builder/extensions.js",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://fonts.googleapis.com/css2",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://grok.com/grok-app-builder/extensions.js",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://fonts.googleapis.com/css2",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://grok.com/grok-app-builder/extensions.js",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://fonts.googleapis.com/css2",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://grok.com/grok-app-builder/extensions.js",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        }
+      ],
+      "cancelledRequests": [
+        {
+          "url": "http://127.0.0.1:8183/api/market-stream",
+          "error": "net::ERR_ABORTED",
+          "function": ""
+        }
+      ],
+      "fixtureCalls": [
+        {
+          "name": "getChartData",
+          "code": "403870",
+          "method": "GET",
+          "urlBytes": 695,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartData",
+          "code": "403870",
+          "method": "GET",
+          "urlBytes": 695,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartFlow",
+          "code": "403870",
+          "method": "POST",
+          "urlBytes": 96,
+          "calendarDates": 180
+        },
+        {
+          "name": "getChartData",
+          "code": "403870",
+          "method": "GET",
+          "urlBytes": 695,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartData",
+          "code": "403870",
+          "method": "GET",
+          "urlBytes": 695,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartFlow",
+          "code": "403870",
+          "method": "POST",
+          "urlBytes": 96,
+          "calendarDates": 180
+        },
+        {
+          "name": "getChartSecurity",
+          "code": "069500",
+          "method": "GET",
+          "urlBytes": 418,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartData",
+          "code": "069500",
+          "method": "GET",
+          "urlBytes": 694,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartData",
+          "code": "069500",
+          "method": "GET",
+          "urlBytes": 694,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartFlow",
+          "code": "069500",
+          "method": "POST",
+          "urlBytes": 96,
+          "calendarDates": 180
+        },
+        {
+          "name": "getChartData",
+          "code": "403870",
+          "method": "GET",
+          "urlBytes": 695,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartData",
+          "code": "403870",
+          "method": "GET",
+          "urlBytes": 695,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartFlow",
+          "code": "403870",
+          "method": "POST",
+          "urlBytes": 96,
+          "calendarDates": 180
+        },
+        {
+          "name": "getChartData",
+          "code": "403870",
+          "method": "GET",
+          "urlBytes": 696,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartData",
+          "code": "403870",
+          "method": "GET",
+          "urlBytes": 697,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartFlow",
+          "code": "403870",
+          "method": "POST",
+          "urlBytes": 96,
+          "calendarDates": 0
+        },
+        {
+          "name": "getChartData",
+          "code": "403870",
+          "method": "GET",
+          "urlBytes": 698,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartData",
+          "code": "403870",
+          "method": "GET",
+          "urlBytes": 696,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartFlow",
+          "code": "403870",
+          "method": "POST",
+          "urlBytes": 96,
+          "calendarDates": 0
+        },
+        {
+          "name": "getChartData",
+          "code": "403870",
+          "method": "GET",
+          "urlBytes": 699,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartFlow",
+          "code": "403870",
+          "method": "POST",
+          "urlBytes": 96,
+          "calendarDates": 0
+        }
+      ],
+      "marketResponses": [
+        {
+          "function": "getChartData",
+          "status": 200
+        },
+        {
+          "function": "getChartData",
+          "status": 200
+        },
+        {
+          "function": "getChartFlow",
+          "status": 200
+        },
+        {
+          "function": "getChartData",
+          "status": 200
+        },
+        {
+          "function": "getChartData",
+          "status": 200
+        },
+        {
+          "function": "getChartFlow",
+          "status": 200
+        },
+        {
+          "function": "getChartData",
+          "status": 200
+        },
+        {
+          "function": "getChartData",
+          "status": 200
+        },
+        {
+          "function": "getChartFlow",
+          "status": 200
+        },
+        {
+          "function": "getChartData",
+          "status": 200
+        },
+        {
+          "function": "getChartData",
+          "status": 200
+        },
+        {
+          "function": "getChartFlow",
+          "status": 200
+        },
+        {
+          "function": "getChartData",
+          "status": 200
+        },
+        {
+          "function": "getChartData",
+          "status": 200
+        },
+        {
+          "function": "getChartFlow",
+          "status": 200
+        },
+        {
+          "function": "getChartData",
+          "status": 200
+        },
+        {
+          "function": "getChartData",
+          "status": 200
+        },
+        {
+          "function": "getChartFlow",
+          "status": 200
+        },
+        {
+          "function": "getChartData",
+          "status": 200
+        },
+        {
+          "function": "getChartFlow",
+          "status": 200
+        }
+      ],
+      "httpStatus": 200,
+      "snapshot": {
+        "textLength": 5915,
+        "width": 1440,
+        "scrollWidth": 1440,
+        "title": "HPSP",
+        "statuses": [
+          "출처 QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA· 일봉 이상 · 당일 봉은 지연·잠정· 기준 방금· 180봉",
+          "출처 QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA · 펀더멘털 네이버· 일봉 종가 · 밴드 = — × 배수· 기준 방금"
+        ],
+        "panes": [
+          {
+            "id": "rsi",
+            "top": 575,
+            "left": 272,
+            "height": 100,
+            "width": 1138,
+            "canvases": 4,
+            "colors": 169
+          },
+          {
+            "id": "price",
+            "top": 676,
+            "left": 272,
+            "height": 400,
+            "width": 1138,
+            "canvases": 4,
+            "colors": 204
+          },
+          {
+            "id": "credit",
+            "top": 1077,
+            "left": 272,
+            "height": 90,
+            "width": 1138,
+            "canvases": 4,
+            "colors": 256
+          },
+          {
+            "id": "foreign",
+            "top": 1168,
+            "left": 272,
+            "height": 90,
+            "width": 1138,
+            "canvases": 4,
+            "colors": 217
+          },
+          {
+            "id": "investmentTrust",
+            "top": 1259,
+            "left": 272,
+            "height": 110,
+            "width": 1138,
+            "canvases": 4,
+            "colors": 154
+          },
+          {
+            "id": "volume",
+            "top": 1370,
+            "left": 272,
+            "height": 121,
+            "width": 1138,
+            "canvases": 4,
+            "colors": 152
+          }
+        ],
+        "canvasCount": 27,
+        "empty": [],
+        "summaries": [
+          "매물대 상세 · 가격 구간별 수량·비율 (10구간)OHLCV 가격대 겹침 배분 추정치 · 실제 체결가격별 거래량 아님종목HPSP · 403870 · KR · STOCK집계 범위현재 보이는 시간 구간요청 기간2025-01-02 ~ 2025-09-10실제 확보 기간2025-01-02 ~ 2025-09-10원천 해상도day계산 방식OHLCV 추정 · 봉 고저 범위와 가격 구간의 겹침 길이로 거래량 배분수량 단위 / 가격 통화주 / KRW출처QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA원천 기준 시각2025-09-10취득 시각2026-10-04T14:07:33.234Z가격·거래량 조정 기준공급자 제공 OHLC·거래량 · 수정가격·분할·분배금 및 수량 조정 기준 미확인 · 동일 주기·가격기준의 추가 워밍업 이력 미확보 · SMA는 해당 주기의 실제 봉으로 계산; 부족 구간은 결측전체 유효 거래량13,849,763,075주선택 기준 전체 합계약 13,849,763,075.000004주유효 봉 / 제외 봉180 / 0비율의 분모는 선택 기간의 전체 유효 거래량입니다. 수량은 화면에서만 반올림하며, CSV에는 내부 정밀도를 유지합니다. 제외된 봉은 합계에 포함하지 않습니다.HPSP 매물대 가격 구간별 거래량, 전체 대비 비율 및 POC·Value Area. QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA 2025-09-10가격 범위 (KRW)수량 (주)전체 대비가격대12,289.755587 ~ 12,690.407329약 988,367,198주7.1%—12,690.407329 ~ 13,091.059071약 638,025,466주4.6%—13,091.059071 ~ 13,491.710813약 2,573,796,454주18.6%VA13,491.710813 ~ 13,892.362555약 2,095,558,722주15.1%VA13,892.362555 ~ 14,293.014297약 1,189,447,494주8.6%VA14,293.014297 ~ 14,693.666039약 1,946,814,116주14.1%VA14,693.666039 ~ 15,094.317781약 3,263,025,747주23.6%POC · VA15,094.317781 ~ 15,494.969523약 163,291,650주1.2%—15,494.969523 ~ 15,895.621265약 940,507,619주6.8%—15,895.621265 ~ 16,296.273007약 50,928,608주0.4%—POC 14,893.99191 · VAL 13,091.059071 · VAH 15,094.317781 (KRW)매물대 수량·비율 CSV",
+          "6단 지표 값·출처·제공 상태 · 2025-01-02부터 누적같은 날짜의 실제 값과 결측 사유 · 투신은 범위를 이동해도 누적 시작일 유지패널값상태기준일출처RSI90.39 / Signal 86.7 0–100종가 · Wilder 14 / Signal · SMA 92025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA가격·매물대16,196.27 보이는 구간 · 2025-01-02~2025-09-10 · day · 주 · 추정2025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA신용잔고율0.3 %키움 이력 일부 확보 · QA SYNTHETIC API → 격리된 메모리 PGlite → 실제 서버 서비스 · 모의 응답 · 실수급 검증 아님 · 요청 시작일까지 확보 · KRX 시장 · 공급자 기준일/공표시각/확정 여부 미확인 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:07:35.641Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)외국인보유비율3.1 %키움 이력 일부 확보 · QA SYNTHETIC API → 격리된 메모리 PGlite → 실제 서버 서비스 · 모의 응답 · 실수급 검증 아님 · 요청 시작일까지 확보 · KRX 시장 · 공급자 기준일/공표시각/확정 여부 미확인 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:07:35.652Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)투신 누적순매수 · 기준 2025-01-02— 주키움 이력 일부 확보 · 기준일 이후 누락: 누적순매수 미확정 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:07:35.655Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)거래량261,137 주SMA 5/20/60 · 최근 봉은 장중·기간 중 미완성 가능2025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA"
+        ],
+        "profileRows": [
+          10
+        ],
+        "settings": {
+          "ked:hts:v1:KR:stock:403870:day:detail": "{\"v\":1,\"enabled\":true,\"panelHeights\":{\"rsi\":100,\"price\":400,\"credit\":90,\"foreign\":90,\"investmentTrust\":110,\"volume\":120},\"collapsed\":{\"rsi\":false,\"price\":false,\"credit\":false,\"foreign\":false,\"investmentTrust\":false,\"volume\":false},\"rsiPeriod\":14,\"signalPeriod\":9,\"signalMethod\":\"sma\",\"rsiZones\":false,\"volumeMa\":{\"5\":true,\"20\":true,\"60\":true},\"trustMode\":\"cumulative\",\"trustStartDate\":\"2025-01-02\",\"profile\":{\"enabled\":true,\"preset\":\"hts\",\"rows\":10,\"widthRatio\":0.85,\"colorMode\":\"auto\",\"color\":\"#E6B77C\",\"opacity\":0.32,\"showLabels\":true,\"showVa\":false,\"showPoc\":false,\"basis\":\"volume\",\"rangeMode\":\"visible\",\"startDate\":\"\",\"endDate\":\"\",\"rangeOn\":false,\"recentSpan\":\"52W\"}}"
+        }
+      },
+      "screenshot": "/workspace/screenshots/standard-sma-hts-fixture/stock-403870-desktop.png",
+      "chartScreenshot": "/workspace/screenshots/standard-sma-hts-fixture/stock-403870-desktop-chart.png",
+      "interactions": [
+        {
+          "name": "HTS defaults, height and scoped settings restoration",
+          "status": "passed",
+          "detail": {
+            "initialHeight": 400,
+            "resizedHeight": 460,
+            "persistedRows": 16,
+            "otherCode": "069500",
+            "otherRows": 10,
+            "restoredRows": 10
+          }
+        },
+        {
+          "name": "Kiwoom daily values, gap handling and explicit available cumulative origin",
+          "status": "passed",
+          "detail": {
+            "requestedStart": "2025-01-02",
+            "actualStart": "2025-03-28",
+            "rawDailyNet": -1000,
+            "synthetic": true
+          }
+        },
+        {
+          "name": "Accessible profile table and total percentages",
+          "status": "passed",
+          "detail": {
+            "bins": 10,
+            "roundedPercentTotal": 100.1
+          }
+        },
+        {
+          "name": "PNG includes whole chart",
+          "status": "passed",
+          "detail": {
+            "width": 1138,
+            "height": 1202,
+            "bytes": 570878,
+            "path": "/workspace/screenshots/standard-sma-hts-fixture/stock-403870-export.png",
+            "note": "Review image for DOM status/legend coverage."
+          }
+        },
+        {
+          "name": "CSV profile/source/flow metadata",
+          "status": "passed",
+          "detail": {
+            "path": "/workspace/screenshots/standard-sma-hts-fixture/stock-403870-export.csv",
+            "bytes": 696239,
+            "lines": 1277
+          }
+        },
+        {
+          "name": "Outside-price drawing rejection and price drawing persistence",
+          "status": "passed",
+          "detail": [
+            {
+              "type": "hline",
+              "before": 0,
+              "after": 1,
+              "anchors": [
+                {
+                  "t": "2025-02-14",
+                  "p": 13400
+                }
+              ]
+            },
+            {
+              "type": "trend",
+              "before": 1,
+              "after": 2,
+              "anchors": [
+                {
+                  "t": "2025-02-14",
+                  "p": 13400
+                },
+                {
+                  "t": "2025-03-18",
+                  "p": 13310
+                }
+              ]
+            },
+            {
+              "type": "fib",
+              "before": 2,
+              "after": 3,
+              "anchors": [
+                {
+                  "t": "2025-02-14",
+                  "p": 13400
+                },
+                {
+                  "t": "2025-03-18",
+                  "p": 13310
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Local price alert and event overlays stay in price pane",
+          "status": "passed",
+          "detail": {
+            "drawingType": "hline",
+            "level": 15590,
+            "alertLinked": true,
+            "unaffectedPanes": [
+              "rsi",
+              "credit",
+              "foreign",
+              "investmentTrust",
+              "volume"
+            ],
+            "markerToggleChangedOnlyPrice": true
+          }
+        },
+        {
+          "name": "Time zoom/pan preserves native pane structure",
+          "status": "passed",
+          "detail": {
+            "visuallyChanged": true,
+            "panes": 6
+          }
+        },
+        {
+          "name": "Day/week/month/minute switching and replay data boundaries",
+          "status": "passed",
+          "detail": {
+            "intervals": [
+              {
+                "id": "week",
+                "source": "출처 QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA· 일봉 이상 · 당일 봉은 지연·잠정· 기준 방금· 180봉",
+                "summary": "6단 지표 값·출처·제공 상태 · 2025-01-02부터 누적같은 날짜의 실제 값과 결측 사유 · 투신은 범위를 이동해도 누적 시작일 유지패널값상태기준일출처RSI90.39 / Signal 86.7 0–100종가 · Wilder 14 / Signal · SMA 92025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA가격·매물대16,196.27 보이는 구간 · 2025-01-02~2025-09-10 · week · 주 · 추정2025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA신용잔고율0.3 %키움 이력 일부 확보 · 일부 거래일 누락 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:07:56.990Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)외국인보유비율3.1 %키움 이력 일부 확보 · 일부 거래일 누락 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:07:56.991Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)투신 누적순매수 · 기준 2025-01-02— 주키움 이력 일부 확보 · 기준일 이후 누락: 누적순매수 미확정 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:07:56.992Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)거래량261,137 주SMA 5/20/60 · 최근 봉은 장중·기간 중 미완성 가능2025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA"
+              },
+              {
+                "id": "month",
+                "source": "출처 QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA· 일봉 이상 · 당일 봉은 지연·잠정· 기준 방금· 180봉",
+                "summary": "6단 지표 값·출처·제공 상태 · 2025-01-02부터 누적같은 날짜의 실제 값과 결측 사유 · 투신은 범위를 이동해도 누적 시작일 유지패널값상태기준일출처RSI90.39 / Signal 86.7 0–100종가 · Wilder 14 / Signal · SMA 92025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA가격·매물대16,196.27 보이는 구간 · 2025-01-02~2025-09-10 · month · 주 · 추정2025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA신용잔고율0.3 %키움 이력 일부 확보 · 일부 거래일 누락 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:07:57.767Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)외국인보유비율3.1 %키움 이력 일부 확보 · 일부 거래일 누락 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:07:57.768Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)투신 누적순매수 · 기준 2025-01-02— 주키움 이력 일부 확보 · 기준일 이후 누락: 누적순매수 미확정 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:07:57.770Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)거래량261,137 주SMA 5/20/60 · 최근 봉은 장중·기간 중 미완성 가능2025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA"
+              },
+              {
+                "id": "minute",
+                "source": "출처 QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA· 분봉 · 비공식 경로(지연 가능)· 기준 방금· 180봉",
+                "summary": "6단 지표 값·출처·제공 상태 · 2025-01-02부터 누적같은 날짜의 실제 값과 결측 사유 · 투신은 범위를 이동해도 누적 시작일 유지패널값상태기준일출처RSI90.39 / Signal 86.7 0–100종가 · Wilder 14 / Signal · SMA 92025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA가격·매물대16,196.27 보이는 구간 · 2025-01-30~2025-09-10 · minute · 주 · 추정2025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA신용잔고율— %키움 이력 일부 확보 · 일별 원천 데이터: 분봉 곡선 비활성 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 조회 2026-10-04T14:07:58.435Z · 기준 미확인 · 확정 여부 미확인미확인키움증권 · QA SYNTHETIC (실데이터 아님)외국인보유비율— %키움 이력 일부 확보 · 일별 원천 데이터: 분봉 곡선 비활성 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 조회 2026-10-04T14:07:58.435Z · 기준 미확인 · 확정 여부 미확인미확인키움증권 · QA SYNTHETIC (실데이터 아님)투신 누적순매수 · 기준 2025-01-02— 주키움 이력 일부 확보 · 일별 원천 데이터: 분봉 곡선 비활성 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 조회 2026-10-04T14:07:58.435Z · 기준 미확인 · 확정 여부 미확인미확인키움증권 · QA SYNTHETIC (실데이터 아님)거래량261,137 주SMA 5/20/60 · 최근 봉은 장중·기간 중 미완성 가능2025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA"
+              },
+              {
+                "id": "day",
+                "source": "출처 QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA· 일봉 이상 · 당일 봉은 지연·잠정· 기준 방금· 180봉",
+                "summary": "6단 지표 값·출처·제공 상태 · 2025-01-02부터 누적같은 날짜의 실제 값과 결측 사유 · 투신은 범위를 이동해도 누적 시작일 유지패널값상태기준일출처RSI90.39 / Signal 86.7 0–100종가 · Wilder 14 / Signal · SMA 92025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA가격·매물대16,196.27 보이는 구간 · 2025-01-02~2025-09-10 · day · 주 · 추정2025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA신용잔고율0.3 %키움 이력 일부 확보 · QA SYNTHETIC API → 격리된 메모리 PGlite → 실제 서버 서비스 · 모의 응답 · 실수급 검증 아님 · 요청 시작일까지 확보 · KRX 시장 · 공급자 기준일/공표시각/확정 여부 미확인 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:07:35.641Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)외국인보유비율3.1 %키움 이력 일부 확보 · QA SYNTHETIC API → 격리된 메모리 PGlite → 실제 서버 서비스 · 모의 응답 · 실수급 검증 아님 · 요청 시작일까지 확보 · KRX 시장 · 공급자 기준일/공표시각/확정 여부 미확인 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:07:35.652Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)투신 누적순매수 · 기준 2025-01-02— 주키움 이력 일부 확보 · 기준일 이후 누락: 누적순매수 미확정 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:07:35.655Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)거래량261,137 주SMA 5/20/60 · 최근 봉은 장중·기간 중 미완성 가능2025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA"
+              }
+            ],
+            "replayStepChanged": true,
+            "replayMissingPublicationRestricted": true
+          }
+        },
+        {
+          "name": "Theme toggle",
+          "status": "passed",
+          "detail": "Theme class and rendered chart changed"
+        },
+        {
+          "name": "Fullscreen/workspace entry",
+          "status": "passed",
+          "detail": {
+            "fullscreen": false,
+            "path": "/chart"
+          }
+        }
+      ]
+    },
+    {
+      "id": "etf-069500",
+      "mode": "fixture",
+      "viewport": "desktop",
+      "path": "/etfs/069500",
+      "status": "passed",
+      "errors": [],
+      "externalFailures": [
+        {
+          "url": "https://fonts.googleapis.com/css2",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://grok.com/grok-app-builder/extensions.js",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://fonts.googleapis.com/css2",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://grok.com/grok-app-builder/extensions.js",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://fonts.googleapis.com/css2",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://grok.com/grok-app-builder/extensions.js",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://grok.com/grok-app-builder/extensions.js",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://fonts.googleapis.com/css2",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        }
+      ],
+      "cancelledRequests": [],
+      "fixtureCalls": [
+        {
+          "name": "getChartSecurity",
+          "code": "069500",
+          "method": "GET",
+          "urlBytes": 418,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartData",
+          "code": "069500",
+          "method": "GET",
+          "urlBytes": 694,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartData",
+          "code": "069500",
+          "method": "GET",
+          "urlBytes": 694,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartFlow",
+          "code": "069500",
+          "method": "POST",
+          "urlBytes": 96,
+          "calendarDates": 180
+        },
+        {
+          "name": "getChartSecurity",
+          "code": "069500",
+          "method": "GET",
+          "urlBytes": 418,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartData",
+          "code": "069500",
+          "method": "GET",
+          "urlBytes": 694,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartData",
+          "code": "069500",
+          "method": "GET",
+          "urlBytes": 694,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartFlow",
+          "code": "069500",
+          "method": "POST",
+          "urlBytes": 96,
+          "calendarDates": 180
+        },
+        {
+          "name": "getChartSecurity",
+          "code": "379800",
+          "method": "GET",
+          "urlBytes": 418,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartData",
+          "code": "379800",
+          "method": "GET",
+          "urlBytes": 694,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartData",
+          "code": "379800",
+          "method": "GET",
+          "urlBytes": 694,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartFlow",
+          "code": "379800",
+          "method": "POST",
+          "urlBytes": 96,
+          "calendarDates": 180
+        },
+        {
+          "name": "getChartSecurity",
+          "code": "069500",
+          "method": "GET",
+          "urlBytes": 418,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartData",
+          "code": "069500",
+          "method": "GET",
+          "urlBytes": 694,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartData",
+          "code": "069500",
+          "method": "GET",
+          "urlBytes": 694,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartFlow",
+          "code": "069500",
+          "method": "POST",
+          "urlBytes": 96,
+          "calendarDates": 180
+        },
+        {
+          "name": "getChartData",
+          "code": "069500",
+          "method": "GET",
+          "urlBytes": 695,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartData",
+          "code": "069500",
+          "method": "GET",
+          "urlBytes": 696,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartFlow",
+          "code": "069500",
+          "method": "POST",
+          "urlBytes": 96,
+          "calendarDates": 0
+        },
+        {
+          "name": "getChartData",
+          "code": "069500",
+          "method": "GET",
+          "urlBytes": 697,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartData",
+          "code": "069500",
+          "method": "GET",
+          "urlBytes": 695,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartFlow",
+          "code": "069500",
+          "method": "POST",
+          "urlBytes": 96,
+          "calendarDates": 0
+        },
+        {
+          "name": "getChartData",
+          "code": "069500",
+          "method": "GET",
+          "urlBytes": 698,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartFlow",
+          "code": "069500",
+          "method": "POST",
+          "urlBytes": 96,
+          "calendarDates": 0
+        }
+      ],
+      "marketResponses": [
+        {
+          "function": "getChartData",
+          "status": 200
+        },
+        {
+          "function": "getChartData",
+          "status": 200
+        },
+        {
+          "function": "getChartFlow",
+          "status": 200
+        },
+        {
+          "function": "getChartData",
+          "status": 200
+        },
+        {
+          "function": "getChartData",
+          "status": 200
+        },
+        {
+          "function": "getChartFlow",
+          "status": 200
+        },
+        {
+          "function": "getChartData",
+          "status": 200
+        },
+        {
+          "function": "getChartData",
+          "status": 200
+        },
+        {
+          "function": "getChartFlow",
+          "status": 200
+        },
+        {
+          "function": "getChartData",
+          "status": 200
+        },
+        {
+          "function": "getChartData",
+          "status": 200
+        },
+        {
+          "function": "getChartFlow",
+          "status": 200
+        },
+        {
+          "function": "getChartData",
+          "status": 200
+        },
+        {
+          "function": "getChartData",
+          "status": 200
+        },
+        {
+          "function": "getChartFlow",
+          "status": 200
+        },
+        {
+          "function": "getEtfBundle",
+          "status": 200
+        },
+        {
+          "function": "getChartData",
+          "status": 200
+        },
+        {
+          "function": "getChartData",
+          "status": 200
+        },
+        {
+          "function": "getChartFlow",
+          "status": 200
+        },
+        {
+          "function": "getChartData",
+          "status": 200
+        },
+        {
+          "function": "getChartFlow",
+          "status": 200
+        }
+      ],
+      "httpStatus": 200,
+      "snapshot": {
+        "textLength": 4958,
+        "width": 1440,
+        "scrollWidth": 1440,
+        "title": "로딩…",
+        "statuses": [
+          "출처 QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA· 일봉 이상 · 당일 봉은 지연·잠정· 기준 방금· 180봉"
+        ],
+        "panes": [
+          {
+            "id": "rsi",
+            "top": 575.5,
+            "left": 272,
+            "height": 100,
+            "width": 1138,
+            "canvases": 4,
+            "colors": 169
+          },
+          {
+            "id": "price",
+            "top": 676.5,
+            "left": 272,
+            "height": 400,
+            "width": 1138,
+            "canvases": 4,
+            "colors": 207
+          },
+          {
+            "id": "credit",
+            "top": 1077.5,
+            "left": 272,
+            "height": 90,
+            "width": 1138,
+            "canvases": 4,
+            "colors": 268
+          },
+          {
+            "id": "foreign",
+            "top": 1168.5,
+            "left": 272,
+            "height": 90,
+            "width": 1138,
+            "canvases": 4,
+            "colors": 232
+          },
+          {
+            "id": "investmentTrust",
+            "top": 1259.5,
+            "left": 272,
+            "height": 110,
+            "width": 1138,
+            "canvases": 4,
+            "colors": 154
+          },
+          {
+            "id": "volume",
+            "top": 1370.5,
+            "left": 272,
+            "height": 121,
+            "width": 1138,
+            "canvases": 4,
+            "colors": 152
+          }
+        ],
+        "canvasCount": 27,
+        "empty": [],
+        "summaries": [
+          "매물대 상세 · 가격 구간별 수량·비율 (10구간)OHLCV 가격대 겹침 배분 추정치 · 실제 체결가격별 거래량 아님종목069500 · KR · ETF집계 범위현재 보이는 시간 구간요청 기간2025-01-02 ~ 2025-09-10실제 확보 기간2025-01-02 ~ 2025-09-10원천 해상도day계산 방식OHLCV 추정 · 봉 고저 범위와 가격 구간의 겹침 길이로 거래량 배분수량 단위 / 가격 통화좌 / KRW출처QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA원천 기준 시각2025-09-10취득 시각2026-10-04T14:08:03.684Z가격·거래량 조정 기준공급자 제공 OHLC·거래량 · 수정가격·분할·분배금 및 수량 조정 기준 미확인 · 동일 주기·가격기준의 추가 워밍업 이력 미확보 · SMA는 해당 주기의 실제 봉으로 계산; 부족 구간은 결측전체 유효 거래량13,849,763,075좌선택 기준 전체 합계약 13,849,763,075.000004좌유효 봉 / 제외 봉180 / 0비율의 분모는 선택 기간의 전체 유효 거래량입니다. 수량은 화면에서만 반올림하며, CSV에는 내부 정밀도를 유지합니다. 제외된 봉은 합계에 포함하지 않습니다.069500 매물대 가격 구간별 거래량, 전체 대비 비율 및 POC·Value Area. QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA 2025-09-10가격 범위 (KRW)수량 (좌)전체 대비가격대12,269.755587 ~ 12,670.407329약 988,367,198좌7.1%—12,670.407329 ~ 13,071.059071약 638,025,466좌4.6%—13,071.059071 ~ 13,471.710813약 2,573,796,454좌18.6%VA13,471.710813 ~ 13,872.362555약 2,095,558,722좌15.1%VA13,872.362555 ~ 14,273.014297약 1,189,447,494좌8.6%VA14,273.014297 ~ 14,673.666039약 1,946,814,116좌14.1%VA14,673.666039 ~ 15,074.317781약 3,263,025,747좌23.6%POC · VA15,074.317781 ~ 15,474.969523약 163,291,650좌1.2%—15,474.969523 ~ 15,875.621265약 940,507,619좌6.8%—15,875.621265 ~ 16,276.273007약 50,928,608좌0.4%—POC 14,873.99191 · VAL 13,071.059071 · VAH 15,074.317781 (KRW)매물대 수량·비율 CSV",
+          "6단 지표 값·출처·제공 상태 · 2025-01-02부터 누적같은 날짜의 실제 값과 결측 사유 · 투신은 범위를 이동해도 누적 시작일 유지패널값상태기준일출처RSI90.39 / Signal 86.7 0–100종가 · Wilder 14 / Signal · SMA 92025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA가격·매물대16,176.27 보이는 구간 · 2025-01-02~2025-09-10 · day · 좌 · 추정2025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA신용잔고율0.3 %키움 이력 일부 확보 · QA SYNTHETIC API → 격리된 메모리 PGlite → 실제 서버 서비스 · 모의 응답 · 실수급 검증 아님 · 요청 시작일까지 확보 · KRX 시장 · 공급자 기준일/공표시각/확정 여부 미확인 · ETF/ETN 지표 지원·주/좌 단위 실응답 확인 필요 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:07:44.222Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)외국인보유비율3.1 %키움 이력 일부 확보 · QA SYNTHETIC API → 격리된 메모리 PGlite → 실제 서버 서비스 · 모의 응답 · 실수급 검증 아님 · 요청 시작일까지 확보 · KRX 시장 · 공급자 기준일/공표시각/확정 여부 미확인 · ETF/ETN 지표 지원·주/좌 단위 실응답 확인 필요 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:07:44.223Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)투신 누적순매수 · 기준 2025-01-02— 주키움 이력 일부 확보 · 기준일 이후 누락: 누적순매수 미확정 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:07:44.224Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)거래량261,137 좌SMA 5/20/60 · 최근 봉은 장중·기간 중 미완성 가능2025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA"
+        ],
+        "profileRows": [
+          10
+        ],
+        "settings": {
+          "ked:hts:v1:KR:etf:069500:day:detail": "{\"v\":1,\"enabled\":true,\"panelHeights\":{\"rsi\":100,\"price\":400,\"credit\":90,\"foreign\":90,\"investmentTrust\":110,\"volume\":120},\"collapsed\":{\"rsi\":false,\"price\":false,\"credit\":false,\"foreign\":false,\"investmentTrust\":false,\"volume\":false},\"rsiPeriod\":14,\"signalPeriod\":9,\"signalMethod\":\"sma\",\"rsiZones\":false,\"volumeMa\":{\"5\":true,\"20\":true,\"60\":true},\"trustMode\":\"cumulative\",\"trustStartDate\":\"2025-01-02\",\"profile\":{\"enabled\":true,\"preset\":\"hts\",\"rows\":10,\"widthRatio\":0.85,\"colorMode\":\"auto\",\"color\":\"#E6B77C\",\"opacity\":0.32,\"showLabels\":true,\"showVa\":false,\"showPoc\":false,\"basis\":\"volume\",\"rangeMode\":\"visible\",\"startDate\":\"\",\"endDate\":\"\",\"rangeOn\":false,\"recentSpan\":\"52W\"}}"
+        }
+      },
+      "screenshot": "/workspace/screenshots/standard-sma-hts-fixture/etf-069500-desktop.png",
+      "chartScreenshot": "/workspace/screenshots/standard-sma-hts-fixture/etf-069500-desktop-chart.png",
+      "interactions": [
+        {
+          "name": "HTS defaults, height and scoped settings restoration",
+          "status": "passed",
+          "detail": {
+            "initialHeight": 400,
+            "resizedHeight": 460,
+            "persistedRows": 16,
+            "otherCode": "379800",
+            "otherRows": 10,
+            "restoredRows": 10
+          }
+        },
+        {
+          "name": "Kiwoom daily values, gap handling and explicit available cumulative origin",
+          "status": "passed",
+          "detail": {
+            "requestedStart": "2025-01-02",
+            "actualStart": "2025-03-28",
+            "rawDailyNet": -1000,
+            "synthetic": true
+          }
+        },
+        {
+          "name": "Accessible profile table and total percentages",
+          "status": "passed",
+          "detail": {
+            "bins": 10,
+            "roundedPercentTotal": 100.1
+          }
+        },
+        {
+          "name": "PNG includes whole chart",
+          "status": "passed",
+          "detail": {
+            "width": 1138,
+            "height": 1238,
+            "bytes": 587173,
+            "path": "/workspace/screenshots/standard-sma-hts-fixture/etf-069500-export.png",
+            "note": "Review image for DOM status/legend coverage."
+          }
+        },
+        {
+          "name": "CSV profile/source/flow metadata",
+          "status": "passed",
+          "detail": {
+            "path": "/workspace/screenshots/standard-sma-hts-fixture/etf-069500-export.csv",
+            "bytes": 756289,
+            "lines": 1277
+          }
+        },
+        {
+          "name": "Outside-price drawing rejection and price drawing persistence",
+          "status": "passed",
+          "detail": [
+            {
+              "type": "hline",
+              "before": 0,
+              "after": 1,
+              "anchors": [
+                {
+                  "t": "2025-02-14",
+                  "p": 13385
+                }
+              ]
+            },
+            {
+              "type": "trend",
+              "before": 1,
+              "after": 2,
+              "anchors": [
+                {
+                  "t": "2025-02-14",
+                  "p": 13385
+                },
+                {
+                  "t": "2025-03-18",
+                  "p": 13295
+                }
+              ]
+            },
+            {
+              "type": "fib",
+              "before": 2,
+              "after": 3,
+              "anchors": [
+                {
+                  "t": "2025-02-14",
+                  "p": 13385
+                },
+                {
+                  "t": "2025-03-18",
+                  "p": 13295
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Local price alert and event overlays stay in price pane",
+          "status": "passed",
+          "detail": {
+            "drawingType": "hline",
+            "level": 15570,
+            "alertLinked": true,
+            "unaffectedPanes": [
+              "rsi",
+              "credit",
+              "foreign",
+              "investmentTrust",
+              "volume"
+            ],
+            "markerToggleChangedOnlyPrice": true
+          }
+        },
+        {
+          "name": "Time zoom/pan preserves native pane structure",
+          "status": "passed",
+          "detail": {
+            "visuallyChanged": true,
+            "panes": 6
+          }
+        },
+        {
+          "name": "Day/week/month/minute switching and replay data boundaries",
+          "status": "passed",
+          "detail": {
+            "intervals": [
+              {
+                "id": "week",
+                "source": "출처 QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA· 일봉 이상 · 당일 봉은 지연·잠정· 기준 방금· 180봉",
+                "summary": "6단 지표 값·출처·제공 상태 · 2025-01-02부터 누적같은 날짜의 실제 값과 결측 사유 · 투신은 범위를 이동해도 누적 시작일 유지패널값상태기준일출처RSI90.39 / Signal 86.7 0–100종가 · Wilder 14 / Signal · SMA 92025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA가격·매물대16,176.27 보이는 구간 · 2025-01-02~2025-09-10 · week · 좌 · 추정2025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA신용잔고율0.3 %키움 이력 일부 확보 · 일부 거래일 누락 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:08:24.148Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)외국인보유비율3.1 %키움 이력 일부 확보 · 일부 거래일 누락 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:08:24.149Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)투신 누적순매수 · 기준 2025-01-02— 주키움 이력 일부 확보 · 기준일 이후 누락: 누적순매수 미확정 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:08:24.152Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)거래량261,137 좌SMA 5/20/60 · 최근 봉은 장중·기간 중 미완성 가능2025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA"
+              },
+              {
+                "id": "month",
+                "source": "출처 QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA· 일봉 이상 · 당일 봉은 지연·잠정· 기준 방금· 180봉",
+                "summary": "6단 지표 값·출처·제공 상태 · 2025-01-02부터 누적같은 날짜의 실제 값과 결측 사유 · 투신은 범위를 이동해도 누적 시작일 유지패널값상태기준일출처RSI90.39 / Signal 86.7 0–100종가 · Wilder 14 / Signal · SMA 92025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA가격·매물대16,176.27 보이는 구간 · 2025-01-02~2025-09-10 · month · 좌 · 추정2025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA신용잔고율0.3 %키움 이력 일부 확보 · 일부 거래일 누락 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:08:24.890Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)외국인보유비율3.1 %키움 이력 일부 확보 · 일부 거래일 누락 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:08:24.892Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)투신 누적순매수 · 기준 2025-01-02— 주키움 이력 일부 확보 · 기준일 이후 누락: 누적순매수 미확정 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:08:24.893Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)거래량261,137 좌SMA 5/20/60 · 최근 봉은 장중·기간 중 미완성 가능2025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA"
+              },
+              {
+                "id": "minute",
+                "source": "출처 QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA· 분봉 · 비공식 경로(지연 가능)· 기준 방금· 180봉",
+                "summary": "6단 지표 값·출처·제공 상태 · 2025-01-02부터 누적같은 날짜의 실제 값과 결측 사유 · 투신은 범위를 이동해도 누적 시작일 유지패널값상태기준일출처RSI90.39 / Signal 86.7 0–100종가 · Wilder 14 / Signal · SMA 92025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA가격·매물대16,176.27 보이는 구간 · 2025-01-30~2025-09-10 · minute · 좌 · 추정2025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA신용잔고율— %키움 이력 일부 확보 · 일별 원천 데이터: 분봉 곡선 비활성 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 조회 2026-10-04T14:08:25.632Z · 기준 미확인 · 확정 여부 미확인미확인키움증권 · QA SYNTHETIC (실데이터 아님)외국인보유비율— %키움 이력 일부 확보 · 일별 원천 데이터: 분봉 곡선 비활성 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 조회 2026-10-04T14:08:25.632Z · 기준 미확인 · 확정 여부 미확인미확인키움증권 · QA SYNTHETIC (실데이터 아님)투신 누적순매수 · 기준 2025-01-02— 주키움 이력 일부 확보 · 일별 원천 데이터: 분봉 곡선 비활성 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 조회 2026-10-04T14:08:25.632Z · 기준 미확인 · 확정 여부 미확인미확인키움증권 · QA SYNTHETIC (실데이터 아님)거래량261,137 좌SMA 5/20/60 · 최근 봉은 장중·기간 중 미완성 가능2025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA"
+              },
+              {
+                "id": "day",
+                "source": "출처 QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA· 일봉 이상 · 당일 봉은 지연·잠정· 기준 방금· 180봉",
+                "summary": "6단 지표 값·출처·제공 상태 · 2025-01-02부터 누적같은 날짜의 실제 값과 결측 사유 · 투신은 범위를 이동해도 누적 시작일 유지패널값상태기준일출처RSI90.39 / Signal 86.7 0–100종가 · Wilder 14 / Signal · SMA 92025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA가격·매물대16,176.27 보이는 구간 · 2025-01-02~2025-09-10 · day · 좌 · 추정2025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA신용잔고율0.3 %키움 이력 일부 확보 · QA SYNTHETIC API → 격리된 메모리 PGlite → 실제 서버 서비스 · 모의 응답 · 실수급 검증 아님 · 요청 시작일까지 확보 · KRX 시장 · 공급자 기준일/공표시각/확정 여부 미확인 · ETF/ETN 지표 지원·주/좌 단위 실응답 확인 필요 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:07:44.222Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)외국인보유비율3.1 %키움 이력 일부 확보 · QA SYNTHETIC API → 격리된 메모리 PGlite → 실제 서버 서비스 · 모의 응답 · 실수급 검증 아님 · 요청 시작일까지 확보 · KRX 시장 · 공급자 기준일/공표시각/확정 여부 미확인 · ETF/ETN 지표 지원·주/좌 단위 실응답 확인 필요 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:07:44.223Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)투신 누적순매수 · 기준 2025-01-02— 주키움 이력 일부 확보 · 기준일 이후 누락: 누적순매수 미확정 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:07:44.224Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)거래량261,137 좌SMA 5/20/60 · 최근 봉은 장중·기간 중 미완성 가능2025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA"
+              }
+            ],
+            "replayStepChanged": true,
+            "replayMissingPublicationRestricted": true
+          }
+        },
+        {
+          "name": "Theme toggle",
+          "status": "passed",
+          "detail": "Theme class and rendered chart changed"
+        },
+        {
+          "name": "Fullscreen/workspace entry",
+          "status": "passed",
+          "detail": {
+            "fullscreen": false,
+            "path": "/chart"
+          }
+        }
+      ]
+    },
+    {
+      "id": "workspace-multi",
+      "mode": "fixture",
+      "viewport": "desktop",
+      "path": "/chart?symbols=KR%3A001820%2CKR%3A069500&layout=2",
+      "status": "passed",
+      "errors": [],
+      "externalFailures": [
+        {
+          "url": "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://fonts.googleapis.com/css2",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://grok.com/grok-app-builder/extensions.js",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        }
+      ],
+      "cancelledRequests": [],
+      "fixtureCalls": [
+        {
+          "name": "getChartSecurity",
+          "code": "001820",
+          "method": "GET",
+          "urlBytes": 418,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartSecurity",
+          "code": "069500",
+          "method": "GET",
+          "urlBytes": 418,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartData",
+          "code": "001820",
+          "method": "GET",
+          "urlBytes": 694,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartData",
+          "code": "001820",
+          "method": "GET",
+          "urlBytes": 694,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartData",
+          "code": "069500",
+          "method": "GET",
+          "urlBytes": 694,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartData",
+          "code": "069500",
+          "method": "GET",
+          "urlBytes": 694,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartFlow",
+          "code": "001820",
+          "method": "POST",
+          "urlBytes": 96,
+          "calendarDates": 180
+        },
+        {
+          "name": "getChartFlow",
+          "code": "069500",
+          "method": "POST",
+          "urlBytes": 96,
+          "calendarDates": 180
+        }
+      ],
+      "marketResponses": [
+        {
+          "function": "getChartData",
+          "status": 200
+        },
+        {
+          "function": "getChartData",
+          "status": 200
+        },
+        {
+          "function": "getChartData",
+          "status": 200
+        },
+        {
+          "function": "getChartData",
+          "status": 200
+        },
+        {
+          "function": "getChartFlow",
+          "status": 200
+        },
+        {
+          "function": "getChartFlow",
+          "status": 200
+        }
+      ],
+      "httpStatus": 200,
+      "snapshot": {
+        "textLength": 6206,
+        "width": 1440,
+        "scrollWidth": 1440,
+        "title": "차트 워크스페이스",
+        "statuses": [
+          "출처 QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA· 비공식 경로 · 당일 봉 지연 가능· 기준 방금· 180봉",
+          "출처 QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA· 비공식 경로 · 당일 봉 지연 가능· 기준 방금· 180봉"
+        ],
+        "panes": [
+          {
+            "id": "rsi",
+            "top": 450.875,
+            "left": 269,
+            "height": 100,
+            "width": 566,
+            "canvases": 4,
+            "colors": 295
+          },
+          {
+            "id": "price",
+            "top": 551.875,
+            "left": 269,
+            "height": 400,
+            "width": 566,
+            "canvases": 4,
+            "colors": 332
+          },
+          {
+            "id": "credit",
+            "top": 952.875,
+            "left": 269,
+            "height": 90,
+            "width": 566,
+            "canvases": 4,
+            "colors": 392
+          },
+          {
+            "id": "foreign",
+            "top": 1043.875,
+            "left": 269,
+            "height": 90,
+            "width": 566,
+            "canvases": 4,
+            "colors": 284
+          },
+          {
+            "id": "investmentTrust",
+            "top": 1134.875,
+            "left": 269,
+            "height": 110,
+            "width": 566,
+            "canvases": 4,
+            "colors": 209
+          },
+          {
+            "id": "volume",
+            "top": 1245.875,
+            "left": 269,
+            "height": 121,
+            "width": 566,
+            "canvases": 4,
+            "colors": 251
+          },
+          {
+            "id": "rsi",
+            "top": 450.875,
+            "left": 845,
+            "height": 100,
+            "width": 566,
+            "canvases": 4,
+            "colors": 295
+          },
+          {
+            "id": "price",
+            "top": 551.875,
+            "left": 845,
+            "height": 400,
+            "width": 566,
+            "canvases": 4,
+            "colors": 330
+          },
+          {
+            "id": "credit",
+            "top": 952.875,
+            "left": 845,
+            "height": 90,
+            "width": 566,
+            "canvases": 4,
+            "colors": 394
+          },
+          {
+            "id": "foreign",
+            "top": 1043.875,
+            "left": 845,
+            "height": 90,
+            "width": 566,
+            "canvases": 4,
+            "colors": 285
+          },
+          {
+            "id": "investmentTrust",
+            "top": 1134.875,
+            "left": 845,
+            "height": 110,
+            "width": 566,
+            "canvases": 4,
+            "colors": 208
+          },
+          {
+            "id": "volume",
+            "top": 1245.875,
+            "left": 845,
+            "height": 121,
+            "width": 566,
+            "canvases": 4,
+            "colors": 251
+          }
+        ],
+        "canvasCount": 54,
+        "empty": [],
+        "summaries": [
+          "매물대 상세 · 가격 구간별 수량·비율 (10구간)OHLCV 가격대 겹침 배분 추정치 · 실제 체결가격별 거래량 아님종목001820 · KR · STOCK집계 범위현재 보이는 시간 구간요청 기간2025-01-02 ~ 2025-09-10실제 확보 기간2025-01-02 ~ 2025-09-10원천 해상도day계산 방식OHLCV 추정 · 봉 고저 범위와 가격 구간의 겹침 길이로 거래량 배분수량 단위 / 가격 통화주 / KRW출처QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA원천 기준 시각2025-09-10취득 시각2026-10-04T14:08:31.427Z가격·거래량 조정 기준공급자 제공 OHLC·거래량 · 수정가격·분할·분배금 및 수량 조정 기준 미확인 · 동일 주기·가격기준의 추가 워밍업 이력 미확보 · SMA는 해당 주기의 실제 봉으로 계산; 부족 구간은 결측전체 유효 거래량13,849,763,075주선택 기준 전체 합계약 13,849,763,075.000004주유효 봉 / 제외 봉180 / 0비율의 분모는 선택 기간의 전체 유효 거래량입니다. 수량은 화면에서만 반올림하며, CSV에는 내부 정밀도를 유지합니다. 제외된 봉은 합계에 포함하지 않습니다.001820 매물대 가격 구간별 거래량, 전체 대비 비율 및 POC·Value Area. QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA 2025-09-10가격 범위 (KRW)수량 (주)전체 대비가격대12,179.755587 ~ 12,580.407329약 988,367,198주7.1%—12,580.407329 ~ 12,981.059071약 638,025,466주4.6%—12,981.059071 ~ 13,381.710813약 2,573,796,454주18.6%VA13,381.710813 ~ 13,782.362555약 2,095,558,722주15.1%VA13,782.362555 ~ 14,183.014297약 1,189,447,494주8.6%VA14,183.014297 ~ 14,583.666039약 1,946,814,116주14.1%VA14,583.666039 ~ 14,984.317781약 3,263,025,747주23.6%POC · VA14,984.317781 ~ 15,384.969523약 163,291,650주1.2%—15,384.969523 ~ 15,785.621265약 940,507,619주6.8%—15,785.621265 ~ 16,186.273007약 50,928,608주0.4%—POC 14,783.99191 · VAL 12,981.059071 · VAH 14,984.317781 (KRW)매물대 수량·비율 CSV",
+          "6단 지표 값·출처·제공 상태 · 2025-01-02부터 누적같은 날짜의 실제 값과 결측 사유 · 투신은 범위를 이동해도 누적 시작일 유지패널값상태기준일출처RSI90.39 / Signal 86.7 0–100종가 · Wilder 14 / Signal · SMA 92025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA가격·매물대16,086.27 보이는 구간 · 2025-01-02~2025-09-10 · day · 주 · 추정2025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA신용잔고율0.3 %키움 이력 일부 확보 · QA SYNTHETIC API → 격리된 메모리 PGlite → 실제 서버 서비스 · 모의 응답 · 실수급 검증 아님 · 요청 시작일까지 확보 · KRX 시장 · 공급자 기준일/공표시각/확정 여부 미확인 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:08:31.772Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)외국인보유비율3.1 %키움 이력 일부 확보 · QA SYNTHETIC API → 격리된 메모리 PGlite → 실제 서버 서비스 · 모의 응답 · 실수급 검증 아님 · 요청 시작일까지 확보 · KRX 시장 · 공급자 기준일/공표시각/확정 여부 미확인 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:08:31.778Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)투신 누적순매수 · 기준 2025-01-02— 주키움 이력 일부 확보 · 기준일 이후 누락: 누적순매수 미확정 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:08:31.781Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)거래량261,137 주SMA 5/20/60 · 최근 봉은 장중·기간 중 미완성 가능2025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA",
+          "매물대 상세 · 가격 구간별 수량·비율 (10구간)OHLCV 가격대 겹침 배분 추정치 · 실제 체결가격별 거래량 아님종목069500 · KR · ETF집계 범위현재 보이는 시간 구간요청 기간2025-01-02 ~ 2025-09-10실제 확보 기간2025-01-02 ~ 2025-09-10원천 해상도day계산 방식OHLCV 추정 · 봉 고저 범위와 가격 구간의 겹침 길이로 거래량 배분수량 단위 / 가격 통화좌 / KRW출처QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA원천 기준 시각2025-09-10취득 시각2026-10-04T14:08:31.428Z가격·거래량 조정 기준공급자 제공 OHLC·거래량 · 수정가격·분할·분배금 및 수량 조정 기준 미확인 · 동일 주기·가격기준의 추가 워밍업 이력 미확보 · SMA는 해당 주기의 실제 봉으로 계산; 부족 구간은 결측전체 유효 거래량13,849,763,075좌선택 기준 전체 합계약 13,849,763,075.000004좌유효 봉 / 제외 봉180 / 0비율의 분모는 선택 기간의 전체 유효 거래량입니다. 수량은 화면에서만 반올림하며, CSV에는 내부 정밀도를 유지합니다. 제외된 봉은 합계에 포함하지 않습니다.069500 매물대 가격 구간별 거래량, 전체 대비 비율 및 POC·Value Area. QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA 2025-09-10가격 범위 (KRW)수량 (좌)전체 대비가격대12,269.755587 ~ 12,670.407329약 988,367,198좌7.1%—12,670.407329 ~ 13,071.059071약 638,025,466좌4.6%—13,071.059071 ~ 13,471.710813약 2,573,796,454좌18.6%VA13,471.710813 ~ 13,872.362555약 2,095,558,722좌15.1%VA13,872.362555 ~ 14,273.014297약 1,189,447,494좌8.6%VA14,273.014297 ~ 14,673.666039약 1,946,814,116좌14.1%VA14,673.666039 ~ 15,074.317781약 3,263,025,747좌23.6%POC · VA15,074.317781 ~ 15,474.969523약 163,291,650좌1.2%—15,474.969523 ~ 15,875.621265약 940,507,619좌6.8%—15,875.621265 ~ 16,276.273007약 50,928,608좌0.4%—POC 14,873.99191 · VAL 13,071.059071 · VAH 15,074.317781 (KRW)매물대 수량·비율 CSV",
+          "6단 지표 값·출처·제공 상태 · 2025-01-02부터 누적같은 날짜의 실제 값과 결측 사유 · 투신은 범위를 이동해도 누적 시작일 유지패널값상태기준일출처RSI90.39 / Signal 86.7 0–100종가 · Wilder 14 / Signal · SMA 92025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA가격·매물대16,176.27 보이는 구간 · 2025-01-02~2025-09-10 · day · 좌 · 추정2025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA신용잔고율0.3 %키움 이력 일부 확보 · QA SYNTHETIC API → 격리된 메모리 PGlite → 실제 서버 서비스 · 모의 응답 · 실수급 검증 아님 · 요청 시작일까지 확보 · KRX 시장 · 공급자 기준일/공표시각/확정 여부 미확인 · ETF/ETN 지표 지원·주/좌 단위 실응답 확인 필요 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:08:24.890Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)외국인보유비율3.1 %키움 이력 일부 확보 · QA SYNTHETIC API → 격리된 메모리 PGlite → 실제 서버 서비스 · 모의 응답 · 실수급 검증 아님 · 요청 시작일까지 확보 · KRX 시장 · 공급자 기준일/공표시각/확정 여부 미확인 · ETF/ETN 지표 지원·주/좌 단위 실응답 확인 필요 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:08:24.892Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)투신 누적순매수 · 기준 2025-01-02— 주키움 이력 일부 확보 · 기준일 이후 누락: 누적순매수 미확정 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:08:24.893Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)거래량261,137 좌SMA 5/20/60 · 최근 봉은 장중·기간 중 미완성 가능2025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA"
+        ],
+        "profileRows": [
+          10,
+          10
+        ],
+        "settings": {
+          "ked:hts:v1:KR:stock:001820:day:workspace-0": "{\"v\":1,\"enabled\":true,\"panelHeights\":{\"rsi\":100,\"price\":400,\"credit\":90,\"foreign\":90,\"investmentTrust\":110,\"volume\":120},\"collapsed\":{\"rsi\":false,\"price\":false,\"credit\":false,\"foreign\":false,\"investmentTrust\":false,\"volume\":false},\"rsiPeriod\":14,\"signalPeriod\":9,\"signalMethod\":\"sma\",\"rsiZones\":false,\"volumeMa\":{\"5\":true,\"20\":true,\"60\":true},\"trustMode\":\"cumulative\",\"trustStartDate\":\"2025-01-02\",\"profile\":{\"enabled\":true,\"preset\":\"hts\",\"rows\":10,\"widthRatio\":0.85,\"colorMode\":\"auto\",\"color\":\"#E6B77C\",\"opacity\":0.32,\"showLabels\":true,\"showVa\":false,\"showPoc\":false,\"basis\":\"volume\",\"rangeMode\":\"visible\",\"startDate\":\"\",\"endDate\":\"\",\"rangeOn\":false,\"recentSpan\":\"52W\"}}",
+          "ked:hts:v1:KR:etf:069500:day:workspace-1": "{\"v\":1,\"enabled\":true,\"panelHeights\":{\"rsi\":100,\"price\":400,\"credit\":90,\"foreign\":90,\"investmentTrust\":110,\"volume\":120},\"collapsed\":{\"rsi\":false,\"price\":false,\"credit\":false,\"foreign\":false,\"investmentTrust\":false,\"volume\":false},\"rsiPeriod\":14,\"signalPeriod\":9,\"signalMethod\":\"sma\",\"rsiZones\":false,\"volumeMa\":{\"5\":true,\"20\":true,\"60\":true},\"trustMode\":\"cumulative\",\"trustStartDate\":\"2025-01-02\",\"profile\":{\"enabled\":true,\"preset\":\"hts\",\"rows\":10,\"widthRatio\":0.85,\"colorMode\":\"auto\",\"color\":\"#E6B77C\",\"opacity\":0.32,\"showLabels\":true,\"showVa\":false,\"showPoc\":false,\"basis\":\"volume\",\"rangeMode\":\"visible\",\"startDate\":\"\",\"endDate\":\"\",\"rangeOn\":false,\"recentSpan\":\"52W\"}}"
+        }
+      },
+      "screenshot": "/workspace/screenshots/standard-sma-hts-fixture/workspace-multi-desktop.png",
+      "chartScreenshot": "/workspace/screenshots/standard-sma-hts-fixture/workspace-multi-desktop-chart.png"
+    },
+    {
+      "id": "us-NVDA",
+      "mode": "fixture",
+      "viewport": "desktop",
+      "path": "/us/NVDA",
+      "status": "passed",
+      "errors": [],
+      "externalFailures": [
+        {
+          "url": "https://fonts.googleapis.com/css2",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://grok.com/grok-app-builder/extensions.js",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        }
+      ],
+      "cancelledRequests": [],
+      "fixtureCalls": [
+        {
+          "name": "getUsChartSecurity",
+          "code": "NVDA",
+          "method": "GET",
+          "urlBytes": 416,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartData",
+          "code": "NVDA",
+          "method": "GET",
+          "urlBytes": 689,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartData",
+          "code": "NVDA",
+          "method": "GET",
+          "urlBytes": 690,
+          "calendarDates": null
+        }
+      ],
+      "marketResponses": [
+        {
+          "function": "getChartData",
+          "status": 200
+        },
+        {
+          "function": "getChartData",
+          "status": 200
+        }
+      ],
+      "httpStatus": 200,
+      "snapshot": {
+        "textLength": 4894,
+        "width": 1440,
+        "scrollWidth": 1440,
+        "title": "NVDA",
+        "statuses": [
+          "출처 QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA· Yahoo 가격 조정 · 당일 봉 지연· 기준 방금· 180봉"
+        ],
+        "panes": [],
+        "canvasCount": 19,
+        "empty": [],
+        "summaries": [
+          "매물대 상세 · 가격 구간별 수량·비율 (10구간)OHLCV 가격대 겹침 배분 추정치 · 실제 체결가격별 거래량 아님종목NVDA · US · STOCK집계 범위현재 보이는 시간 구간요청 기간2025-01-02 ~ 2025-09-10실제 확보 기간2025-01-02 ~ 2025-09-10원천 해상도day계산 방식OHLCV 추정 · 봉 고저 범위와 가격 구간의 겹침 길이로 거래량 배분수량 단위 / 가격 통화주 / USD출처QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA원천 기준 시각2025-09-10취득 시각2026-10-04T14:08:35.236Z가격·거래량 조정 기준공급자 제공 OHLC·거래량 · 수정가격·분할·분배금 및 수량 조정 기준 미확인 · 동일 주기·가격기준의 추가 워밍업 이력 미확보 · SMA는 해당 주기의 실제 봉으로 계산; 부족 구간은 결측전체 유효 거래량13,849,763,075주선택 기준 전체 합계약 13,849,763,075.000004주유효 봉 / 제외 봉180 / 0비율의 분모는 선택 기간의 전체 유효 거래량입니다. 수량은 화면에서만 반올림하며, CSV에는 내부 정밀도를 유지합니다. 제외된 봉은 합계에 포함하지 않습니다.NVDA 매물대 가격 구간별 거래량, 전체 대비 비율 및 POC·Value Area. QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA 2025-09-10가격 범위 (USD)수량 (주)전체 대비가격대12,159.755587 ~ 12,560.407329약 988,367,198주7.1%—12,560.407329 ~ 12,961.059071약 638,025,466주4.6%—12,961.059071 ~ 13,361.710813약 2,573,796,454주18.6%VA13,361.710813 ~ 13,762.362555약 2,095,558,722주15.1%VA13,762.362555 ~ 14,163.014297약 1,189,447,494주8.6%VA14,163.014297 ~ 14,563.666039약 1,946,814,116주14.1%VA14,563.666039 ~ 14,964.317781약 3,263,025,747주23.6%POC · VA14,964.317781 ~ 15,364.969523약 163,291,650주1.2%—15,364.969523 ~ 15,765.621265약 940,507,619주6.8%—15,765.621265 ~ 16,166.273007약 50,928,608주0.4%—POC 14,763.99191 · VAL 12,961.059071 · VAH 14,964.317781 (USD)매물대 수량·비율 CSV"
+        ],
+        "profileRows": [
+          10
+        ],
+        "settings": {
+          "ked:hts:v1:US:stock:NVDA:day:detail": "{\"v\":1,\"enabled\":false,\"panelHeights\":{\"rsi\":100,\"price\":400,\"credit\":90,\"foreign\":90,\"investmentTrust\":110,\"volume\":120},\"collapsed\":{\"rsi\":false,\"price\":false,\"credit\":false,\"foreign\":false,\"investmentTrust\":false,\"volume\":false},\"rsiPeriod\":14,\"signalPeriod\":9,\"signalMethod\":\"sma\",\"rsiZones\":false,\"volumeMa\":{\"5\":true,\"20\":true,\"60\":true},\"trustMode\":\"cumulative\",\"trustStartDate\":\"2025-01-02\",\"profile\":{\"enabled\":true,\"preset\":\"hts\",\"rows\":10,\"widthRatio\":0.85,\"colorMode\":\"auto\",\"color\":\"#E6B77C\",\"opacity\":0.32,\"showLabels\":true,\"showVa\":false,\"showPoc\":false,\"basis\":\"volume\",\"rangeMode\":\"visible\",\"startDate\":\"\",\"endDate\":\"\",\"rangeOn\":false,\"recentSpan\":\"52W\"}}"
+        }
+      },
+      "screenshot": "/workspace/screenshots/standard-sma-hts-fixture/us-NVDA-desktop.png",
+      "chartScreenshot": "/workspace/screenshots/standard-sma-hts-fixture/us-NVDA-desktop-chart.png"
+    },
+    {
+      "id": "stock-403870",
+      "mode": "fixture",
+      "viewport": "mobile",
+      "path": "/stock/403870",
+      "status": "passed",
+      "errors": [],
+      "externalFailures": [
+        {
+          "url": "https://fonts.googleapis.com/css2",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://grok.com/grok-app-builder/extensions.js",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        }
+      ],
+      "cancelledRequests": [],
+      "fixtureCalls": [
+        {
+          "name": "getChartData",
+          "code": "403870",
+          "method": "GET",
+          "urlBytes": 695,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartData",
+          "code": "403870",
+          "method": "GET",
+          "urlBytes": 695,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartFlow",
+          "code": "403870",
+          "method": "POST",
+          "urlBytes": 96,
+          "calendarDates": 180
+        }
+      ],
+      "marketResponses": [
+        {
+          "function": "getChartData",
+          "status": 200
+        },
+        {
+          "function": "getChartData",
+          "status": 200
+        },
+        {
+          "function": "getChartFlow",
+          "status": 200
+        }
+      ],
+      "httpStatus": 200,
+      "snapshot": {
+        "textLength": 5915,
+        "width": 390,
+        "scrollWidth": 390,
+        "title": "HPSP",
+        "statuses": [
+          "출처 QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA· 일봉 이상 · 당일 봉은 지연·잠정· 기준 방금· 180봉",
+          "출처 QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA · 펀더멘털 네이버· 일봉 종가 · 밴드 = — × 배수· 기준 방금"
+        ],
+        "panes": [
+          {
+            "id": "rsi",
+            "top": 961.5,
+            "left": 20,
+            "height": 100,
+            "width": 352,
+            "canvases": 4,
+            "colors": 405
+          },
+          {
+            "id": "price",
+            "top": 1062.5,
+            "left": 20,
+            "height": 400,
+            "width": 352,
+            "canvases": 4,
+            "colors": 471
+          },
+          {
+            "id": "credit",
+            "top": 1463.5,
+            "left": 20,
+            "height": 90,
+            "width": 352,
+            "canvases": 4,
+            "colors": 564
+          },
+          {
+            "id": "foreign",
+            "top": 1554.5,
+            "left": 20,
+            "height": 90,
+            "width": 352,
+            "canvases": 4,
+            "colors": 382
+          },
+          {
+            "id": "investmentTrust",
+            "top": 1645.5,
+            "left": 20,
+            "height": 110,
+            "width": 352,
+            "canvases": 4,
+            "colors": 349
+          },
+          {
+            "id": "volume",
+            "top": 1756.5,
+            "left": 20,
+            "height": 121,
+            "width": 352,
+            "canvases": 4,
+            "colors": 329
+          }
+        ],
+        "canvasCount": 27,
+        "empty": [],
+        "summaries": [
+          "매물대 상세 · 가격 구간별 수량·비율 (10구간)OHLCV 가격대 겹침 배분 추정치 · 실제 체결가격별 거래량 아님종목HPSP · 403870 · KR · STOCK집계 범위현재 보이는 시간 구간요청 기간2025-01-02 ~ 2025-09-10실제 확보 기간2025-01-02 ~ 2025-09-10원천 해상도day계산 방식OHLCV 추정 · 봉 고저 범위와 가격 구간의 겹침 길이로 거래량 배분수량 단위 / 가격 통화주 / KRW출처QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA원천 기준 시각2025-09-10취득 시각2026-10-04T14:08:38.023Z가격·거래량 조정 기준공급자 제공 OHLC·거래량 · 수정가격·분할·분배금 및 수량 조정 기준 미확인 · 동일 주기·가격기준의 추가 워밍업 이력 미확보 · SMA는 해당 주기의 실제 봉으로 계산; 부족 구간은 결측전체 유효 거래량13,849,763,075주선택 기준 전체 합계약 13,849,763,075.000004주유효 봉 / 제외 봉180 / 0비율의 분모는 선택 기간의 전체 유효 거래량입니다. 수량은 화면에서만 반올림하며, CSV에는 내부 정밀도를 유지합니다. 제외된 봉은 합계에 포함하지 않습니다.HPSP 매물대 가격 구간별 거래량, 전체 대비 비율 및 POC·Value Area. QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA 2025-09-10가격 범위 (KRW)수량 (주)전체 대비가격대12,289.755587 ~ 12,690.407329약 988,367,198주7.1%—12,690.407329 ~ 13,091.059071약 638,025,466주4.6%—13,091.059071 ~ 13,491.710813약 2,573,796,454주18.6%VA13,491.710813 ~ 13,892.362555약 2,095,558,722주15.1%VA13,892.362555 ~ 14,293.014297약 1,189,447,494주8.6%VA14,293.014297 ~ 14,693.666039약 1,946,814,116주14.1%VA14,693.666039 ~ 15,094.317781약 3,263,025,747주23.6%POC · VA15,094.317781 ~ 15,494.969523약 163,291,650주1.2%—15,494.969523 ~ 15,895.621265약 940,507,619주6.8%—15,895.621265 ~ 16,296.273007약 50,928,608주0.4%—POC 14,893.99191 · VAL 13,091.059071 · VAH 15,094.317781 (KRW)매물대 수량·비율 CSV",
+          "6단 지표 값·출처·제공 상태 · 2025-01-02부터 누적같은 날짜의 실제 값과 결측 사유 · 투신은 범위를 이동해도 누적 시작일 유지패널값상태기준일출처RSI90.39 / Signal 86.7 0–100종가 · Wilder 14 / Signal · SMA 92025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA가격·매물대16,196.27 보이는 구간 · 2025-01-02~2025-09-10 · day · 주 · 추정2025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA신용잔고율0.3 %키움 이력 일부 확보 · QA SYNTHETIC API → 격리된 메모리 PGlite → 실제 서버 서비스 · 모의 응답 · 실수급 검증 아님 · 요청 시작일까지 확보 · KRX 시장 · 공급자 기준일/공표시각/확정 여부 미확인 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:07:57.767Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)외국인보유비율3.1 %키움 이력 일부 확보 · QA SYNTHETIC API → 격리된 메모리 PGlite → 실제 서버 서비스 · 모의 응답 · 실수급 검증 아님 · 요청 시작일까지 확보 · KRX 시장 · 공급자 기준일/공표시각/확정 여부 미확인 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:07:57.768Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)투신 누적순매수 · 기준 2025-01-02— 주키움 이력 일부 확보 · 기준일 이후 누락: 누적순매수 미확정 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:07:57.770Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)거래량261,137 주SMA 5/20/60 · 최근 봉은 장중·기간 중 미완성 가능2025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA"
+        ],
+        "profileRows": [
+          10
+        ],
+        "settings": {
+          "ked:hts:v1:KR:stock:403870:day:detail": "{\"v\":1,\"enabled\":true,\"panelHeights\":{\"rsi\":100,\"price\":400,\"credit\":90,\"foreign\":90,\"investmentTrust\":110,\"volume\":120},\"collapsed\":{\"rsi\":false,\"price\":false,\"credit\":false,\"foreign\":false,\"investmentTrust\":false,\"volume\":false},\"rsiPeriod\":14,\"signalPeriod\":9,\"signalMethod\":\"sma\",\"rsiZones\":false,\"volumeMa\":{\"5\":true,\"20\":true,\"60\":true},\"trustMode\":\"cumulative\",\"trustStartDate\":\"2025-01-02\",\"profile\":{\"enabled\":true,\"preset\":\"hts\",\"rows\":10,\"widthRatio\":0.85,\"colorMode\":\"auto\",\"color\":\"#E6B77C\",\"opacity\":0.32,\"showLabels\":true,\"showVa\":false,\"showPoc\":false,\"basis\":\"volume\",\"rangeMode\":\"visible\",\"startDate\":\"\",\"endDate\":\"\",\"rangeOn\":false,\"recentSpan\":\"52W\"}}"
+        }
+      },
+      "screenshot": "/workspace/screenshots/standard-sma-hts-fixture/stock-403870-mobile.png",
+      "chartScreenshot": "/workspace/screenshots/standard-sma-hts-fixture/stock-403870-mobile-chart.png"
+    },
+    {
+      "id": "etf-069500",
+      "mode": "fixture",
+      "viewport": "mobile",
+      "path": "/etfs/069500",
+      "status": "passed",
+      "errors": [],
+      "externalFailures": [
+        {
+          "url": "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://fonts.googleapis.com/css2",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://grok.com/grok-app-builder/extensions.js",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        }
+      ],
+      "cancelledRequests": [],
+      "fixtureCalls": [
+        {
+          "name": "getChartSecurity",
+          "code": "069500",
+          "method": "GET",
+          "urlBytes": 418,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartData",
+          "code": "069500",
+          "method": "GET",
+          "urlBytes": 694,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartData",
+          "code": "069500",
+          "method": "GET",
+          "urlBytes": 694,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartFlow",
+          "code": "069500",
+          "method": "POST",
+          "urlBytes": 96,
+          "calendarDates": 180
+        }
+      ],
+      "marketResponses": [
+        {
+          "function": "getChartData",
+          "status": 200
+        },
+        {
+          "function": "getChartData",
+          "status": 200
+        },
+        {
+          "function": "getChartFlow",
+          "status": 200
+        }
+      ],
+      "httpStatus": 200,
+      "snapshot": {
+        "textLength": 4958,
+        "width": 390,
+        "scrollWidth": 390,
+        "title": "로딩…",
+        "statuses": [
+          "출처 QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA· 일봉 이상 · 당일 봉은 지연·잠정· 기준 방금· 180봉"
+        ],
+        "panes": [
+          {
+            "id": "rsi",
+            "top": 1013.1875,
+            "left": 20,
+            "height": 100,
+            "width": 352,
+            "canvases": 4,
+            "colors": 405
+          },
+          {
+            "id": "price",
+            "top": 1114.1875,
+            "left": 20,
+            "height": 400,
+            "width": 352,
+            "canvases": 4,
+            "colors": 470
+          },
+          {
+            "id": "credit",
+            "top": 1515.1875,
+            "left": 20,
+            "height": 90,
+            "width": 352,
+            "canvases": 4,
+            "colors": 564
+          },
+          {
+            "id": "foreign",
+            "top": 1606.1875,
+            "left": 20,
+            "height": 90,
+            "width": 352,
+            "canvases": 4,
+            "colors": 382
+          },
+          {
+            "id": "investmentTrust",
+            "top": 1697.1875,
+            "left": 20,
+            "height": 110,
+            "width": 352,
+            "canvases": 4,
+            "colors": 349
+          },
+          {
+            "id": "volume",
+            "top": 1808.1875,
+            "left": 20,
+            "height": 121,
+            "width": 352,
+            "canvases": 4,
+            "colors": 328
+          }
+        ],
+        "canvasCount": 27,
+        "empty": [],
+        "summaries": [
+          "매물대 상세 · 가격 구간별 수량·비율 (10구간)OHLCV 가격대 겹침 배분 추정치 · 실제 체결가격별 거래량 아님종목069500 · KR · ETF집계 범위현재 보이는 시간 구간요청 기간2025-01-02 ~ 2025-09-10실제 확보 기간2025-01-02 ~ 2025-09-10원천 해상도day계산 방식OHLCV 추정 · 봉 고저 범위와 가격 구간의 겹침 길이로 거래량 배분수량 단위 / 가격 통화좌 / KRW출처QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA원천 기준 시각2025-09-10취득 시각2026-10-04T14:08:41.459Z가격·거래량 조정 기준공급자 제공 OHLC·거래량 · 수정가격·분할·분배금 및 수량 조정 기준 미확인 · 동일 주기·가격기준의 추가 워밍업 이력 미확보 · SMA는 해당 주기의 실제 봉으로 계산; 부족 구간은 결측전체 유효 거래량13,849,763,075좌선택 기준 전체 합계약 13,849,763,075.000004좌유효 봉 / 제외 봉180 / 0비율의 분모는 선택 기간의 전체 유효 거래량입니다. 수량은 화면에서만 반올림하며, CSV에는 내부 정밀도를 유지합니다. 제외된 봉은 합계에 포함하지 않습니다.069500 매물대 가격 구간별 거래량, 전체 대비 비율 및 POC·Value Area. QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA 2025-09-10가격 범위 (KRW)수량 (좌)전체 대비가격대12,269.755587 ~ 12,670.407329약 988,367,198좌7.1%—12,670.407329 ~ 13,071.059071약 638,025,466좌4.6%—13,071.059071 ~ 13,471.710813약 2,573,796,454좌18.6%VA13,471.710813 ~ 13,872.362555약 2,095,558,722좌15.1%VA13,872.362555 ~ 14,273.014297약 1,189,447,494좌8.6%VA14,273.014297 ~ 14,673.666039약 1,946,814,116좌14.1%VA14,673.666039 ~ 15,074.317781약 3,263,025,747좌23.6%POC · VA15,074.317781 ~ 15,474.969523약 163,291,650좌1.2%—15,474.969523 ~ 15,875.621265약 940,507,619좌6.8%—15,875.621265 ~ 16,276.273007약 50,928,608좌0.4%—POC 14,873.99191 · VAL 13,071.059071 · VAH 15,074.317781 (KRW)매물대 수량·비율 CSV",
+          "6단 지표 값·출처·제공 상태 · 2025-01-02부터 누적같은 날짜의 실제 값과 결측 사유 · 투신은 범위를 이동해도 누적 시작일 유지패널값상태기준일출처RSI90.39 / Signal 86.7 0–100종가 · Wilder 14 / Signal · SMA 92025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA가격·매물대16,176.27 보이는 구간 · 2025-01-02~2025-09-10 · day · 좌 · 추정2025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA신용잔고율0.3 %키움 이력 일부 확보 · QA SYNTHETIC API → 격리된 메모리 PGlite → 실제 서버 서비스 · 모의 응답 · 실수급 검증 아님 · 요청 시작일까지 확보 · KRX 시장 · 공급자 기준일/공표시각/확정 여부 미확인 · ETF/ETN 지표 지원·주/좌 단위 실응답 확인 필요 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:08:24.890Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)외국인보유비율3.1 %키움 이력 일부 확보 · QA SYNTHETIC API → 격리된 메모리 PGlite → 실제 서버 서비스 · 모의 응답 · 실수급 검증 아님 · 요청 시작일까지 확보 · KRX 시장 · 공급자 기준일/공표시각/확정 여부 미확인 · ETF/ETN 지표 지원·주/좌 단위 실응답 확인 필요 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:08:24.892Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)투신 누적순매수 · 기준 2025-01-02— 주키움 이력 일부 확보 · 기준일 이후 누락: 누적순매수 미확정 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:08:24.893Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)거래량261,137 좌SMA 5/20/60 · 최근 봉은 장중·기간 중 미완성 가능2025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA"
+        ],
+        "profileRows": [
+          10
+        ],
+        "settings": {
+          "ked:hts:v1:KR:etf:069500:day:detail": "{\"v\":1,\"enabled\":true,\"panelHeights\":{\"rsi\":100,\"price\":400,\"credit\":90,\"foreign\":90,\"investmentTrust\":110,\"volume\":120},\"collapsed\":{\"rsi\":false,\"price\":false,\"credit\":false,\"foreign\":false,\"investmentTrust\":false,\"volume\":false},\"rsiPeriod\":14,\"signalPeriod\":9,\"signalMethod\":\"sma\",\"rsiZones\":false,\"volumeMa\":{\"5\":true,\"20\":true,\"60\":true},\"trustMode\":\"cumulative\",\"trustStartDate\":\"2025-01-02\",\"profile\":{\"enabled\":true,\"preset\":\"hts\",\"rows\":10,\"widthRatio\":0.85,\"colorMode\":\"auto\",\"color\":\"#E6B77C\",\"opacity\":0.32,\"showLabels\":true,\"showVa\":false,\"showPoc\":false,\"basis\":\"volume\",\"rangeMode\":\"visible\",\"startDate\":\"\",\"endDate\":\"\",\"rangeOn\":false,\"recentSpan\":\"52W\"}}"
+        }
+      },
+      "screenshot": "/workspace/screenshots/standard-sma-hts-fixture/etf-069500-mobile.png",
+      "chartScreenshot": "/workspace/screenshots/standard-sma-hts-fixture/etf-069500-mobile-chart.png"
+    },
+    {
+      "id": "workspace-multi",
+      "mode": "fixture",
+      "viewport": "mobile",
+      "path": "/chart?symbols=KR%3A001820%2CKR%3A069500&layout=2",
+      "status": "passed",
+      "errors": [],
+      "externalFailures": [
+        {
+          "url": "https://fonts.googleapis.com/css2",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://grok.com/grok-app-builder/extensions.js",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        }
+      ],
+      "cancelledRequests": [],
+      "fixtureCalls": [
+        {
+          "name": "getChartSecurity",
+          "code": "001820",
+          "method": "GET",
+          "urlBytes": 418,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartSecurity",
+          "code": "069500",
+          "method": "GET",
+          "urlBytes": 418,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartData",
+          "code": "001820",
+          "method": "GET",
+          "urlBytes": 694,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartData",
+          "code": "001820",
+          "method": "GET",
+          "urlBytes": 694,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartData",
+          "code": "069500",
+          "method": "GET",
+          "urlBytes": 694,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartData",
+          "code": "069500",
+          "method": "GET",
+          "urlBytes": 694,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartFlow",
+          "code": "001820",
+          "method": "POST",
+          "urlBytes": 96,
+          "calendarDates": 180
+        },
+        {
+          "name": "getChartFlow",
+          "code": "069500",
+          "method": "POST",
+          "urlBytes": 96,
+          "calendarDates": 180
+        }
+      ],
+      "marketResponses": [
+        {
+          "function": "getChartData",
+          "status": 200
+        },
+        {
+          "function": "getChartData",
+          "status": 200
+        },
+        {
+          "function": "getChartData",
+          "status": 200
+        },
+        {
+          "function": "getChartData",
+          "status": 200
+        },
+        {
+          "function": "getChartFlow",
+          "status": 200
+        },
+        {
+          "function": "getChartFlow",
+          "status": 200
+        }
+      ],
+      "httpStatus": 200,
+      "snapshot": {
+        "textLength": 6206,
+        "width": 390,
+        "scrollWidth": 390,
+        "title": "차트 워크스페이스",
+        "statuses": [
+          "출처 QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA· 비공식 경로 · 당일 봉 지연 가능· 기준 방금· 180봉",
+          "출처 QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA· 비공식 경로 · 당일 봉 지연 가능· 기준 방금· 180봉"
+        ],
+        "panes": [
+          {
+            "id": "rsi",
+            "top": 719.75,
+            "left": 17,
+            "height": 100,
+            "width": 356,
+            "canvases": 4,
+            "colors": 418
+          },
+          {
+            "id": "price",
+            "top": 820.75,
+            "left": 17,
+            "height": 400,
+            "width": 356,
+            "canvases": 4,
+            "colors": 499
+          },
+          {
+            "id": "credit",
+            "top": 1221.75,
+            "left": 17,
+            "height": 90,
+            "width": 356,
+            "canvases": 4,
+            "colors": 549
+          },
+          {
+            "id": "foreign",
+            "top": 1312.75,
+            "left": 17,
+            "height": 90,
+            "width": 356,
+            "canvases": 4,
+            "colors": 363
+          },
+          {
+            "id": "investmentTrust",
+            "top": 1403.75,
+            "left": 17,
+            "height": 110,
+            "width": 356,
+            "canvases": 4,
+            "colors": 340
+          },
+          {
+            "id": "volume",
+            "top": 1514.75,
+            "left": 17,
+            "height": 121,
+            "width": 356,
+            "canvases": 4,
+            "colors": 354
+          },
+          {
+            "id": "rsi",
+            "top": 2254.75,
+            "left": 17,
+            "height": 100,
+            "width": 356,
+            "canvases": 4,
+            "colors": 418
+          },
+          {
+            "id": "price",
+            "top": 2355.75,
+            "left": 17,
+            "height": 400,
+            "width": 356,
+            "canvases": 4,
+            "colors": 495
+          },
+          {
+            "id": "credit",
+            "top": 2756.75,
+            "left": 17,
+            "height": 90,
+            "width": 356,
+            "canvases": 4,
+            "colors": 549
+          },
+          {
+            "id": "foreign",
+            "top": 2847.75,
+            "left": 17,
+            "height": 90,
+            "width": 356,
+            "canvases": 4,
+            "colors": 363
+          },
+          {
+            "id": "investmentTrust",
+            "top": 2938.75,
+            "left": 17,
+            "height": 110,
+            "width": 356,
+            "canvases": 4,
+            "colors": 340
+          },
+          {
+            "id": "volume",
+            "top": 3049.75,
+            "left": 17,
+            "height": 121,
+            "width": 356,
+            "canvases": 4,
+            "colors": 356
+          }
+        ],
+        "canvasCount": 54,
+        "empty": [],
+        "summaries": [
+          "매물대 상세 · 가격 구간별 수량·비율 (10구간)OHLCV 가격대 겹침 배분 추정치 · 실제 체결가격별 거래량 아님종목001820 · KR · STOCK집계 범위현재 보이는 시간 구간요청 기간2025-01-02 ~ 2025-09-10실제 확보 기간2025-01-02 ~ 2025-09-10원천 해상도day계산 방식OHLCV 추정 · 봉 고저 범위와 가격 구간의 겹침 길이로 거래량 배분수량 단위 / 가격 통화주 / KRW출처QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA원천 기준 시각2025-09-10취득 시각2026-10-04T14:08:44.793Z가격·거래량 조정 기준공급자 제공 OHLC·거래량 · 수정가격·분할·분배금 및 수량 조정 기준 미확인 · 동일 주기·가격기준의 추가 워밍업 이력 미확보 · SMA는 해당 주기의 실제 봉으로 계산; 부족 구간은 결측전체 유효 거래량13,849,763,075주선택 기준 전체 합계약 13,849,763,075.000004주유효 봉 / 제외 봉180 / 0비율의 분모는 선택 기간의 전체 유효 거래량입니다. 수량은 화면에서만 반올림하며, CSV에는 내부 정밀도를 유지합니다. 제외된 봉은 합계에 포함하지 않습니다.001820 매물대 가격 구간별 거래량, 전체 대비 비율 및 POC·Value Area. QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA 2025-09-10가격 범위 (KRW)수량 (주)전체 대비가격대12,179.755587 ~ 12,580.407329약 988,367,198주7.1%—12,580.407329 ~ 12,981.059071약 638,025,466주4.6%—12,981.059071 ~ 13,381.710813약 2,573,796,454주18.6%VA13,381.710813 ~ 13,782.362555약 2,095,558,722주15.1%VA13,782.362555 ~ 14,183.014297약 1,189,447,494주8.6%VA14,183.014297 ~ 14,583.666039약 1,946,814,116주14.1%VA14,583.666039 ~ 14,984.317781약 3,263,025,747주23.6%POC · VA14,984.317781 ~ 15,384.969523약 163,291,650주1.2%—15,384.969523 ~ 15,785.621265약 940,507,619주6.8%—15,785.621265 ~ 16,186.273007약 50,928,608주0.4%—POC 14,783.99191 · VAL 12,981.059071 · VAH 14,984.317781 (KRW)매물대 수량·비율 CSV",
+          "6단 지표 값·출처·제공 상태 · 2025-01-02부터 누적같은 날짜의 실제 값과 결측 사유 · 투신은 범위를 이동해도 누적 시작일 유지패널값상태기준일출처RSI90.39 / Signal 86.7 0–100종가 · Wilder 14 / Signal · SMA 92025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA가격·매물대16,086.27 보이는 구간 · 2025-01-02~2025-09-10 · day · 주 · 추정2025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA신용잔고율0.3 %키움 이력 일부 확보 · QA SYNTHETIC API → 격리된 메모리 PGlite → 실제 서버 서비스 · 모의 응답 · 실수급 검증 아님 · 요청 시작일까지 확보 · KRX 시장 · 공급자 기준일/공표시각/확정 여부 미확인 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:08:31.772Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)외국인보유비율3.1 %키움 이력 일부 확보 · QA SYNTHETIC API → 격리된 메모리 PGlite → 실제 서버 서비스 · 모의 응답 · 실수급 검증 아님 · 요청 시작일까지 확보 · KRX 시장 · 공급자 기준일/공표시각/확정 여부 미확인 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:08:31.778Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)투신 누적순매수 · 기준 2025-01-02— 주키움 이력 일부 확보 · 기준일 이후 누락: 누적순매수 미확정 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:08:31.781Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)거래량261,137 주SMA 5/20/60 · 최근 봉은 장중·기간 중 미완성 가능2025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA",
+          "매물대 상세 · 가격 구간별 수량·비율 (10구간)OHLCV 가격대 겹침 배분 추정치 · 실제 체결가격별 거래량 아님종목069500 · KR · ETF집계 범위현재 보이는 시간 구간요청 기간2025-01-02 ~ 2025-09-10실제 확보 기간2025-01-02 ~ 2025-09-10원천 해상도day계산 방식OHLCV 추정 · 봉 고저 범위와 가격 구간의 겹침 길이로 거래량 배분수량 단위 / 가격 통화좌 / KRW출처QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA원천 기준 시각2025-09-10취득 시각2026-10-04T14:08:44.795Z가격·거래량 조정 기준공급자 제공 OHLC·거래량 · 수정가격·분할·분배금 및 수량 조정 기준 미확인 · 동일 주기·가격기준의 추가 워밍업 이력 미확보 · SMA는 해당 주기의 실제 봉으로 계산; 부족 구간은 결측전체 유효 거래량13,849,763,075좌선택 기준 전체 합계약 13,849,763,075.000004좌유효 봉 / 제외 봉180 / 0비율의 분모는 선택 기간의 전체 유효 거래량입니다. 수량은 화면에서만 반올림하며, CSV에는 내부 정밀도를 유지합니다. 제외된 봉은 합계에 포함하지 않습니다.069500 매물대 가격 구간별 거래량, 전체 대비 비율 및 POC·Value Area. QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA 2025-09-10가격 범위 (KRW)수량 (좌)전체 대비가격대12,269.755587 ~ 12,670.407329약 988,367,198좌7.1%—12,670.407329 ~ 13,071.059071약 638,025,466좌4.6%—13,071.059071 ~ 13,471.710813약 2,573,796,454좌18.6%VA13,471.710813 ~ 13,872.362555약 2,095,558,722좌15.1%VA13,872.362555 ~ 14,273.014297약 1,189,447,494좌8.6%VA14,273.014297 ~ 14,673.666039약 1,946,814,116좌14.1%VA14,673.666039 ~ 15,074.317781약 3,263,025,747좌23.6%POC · VA15,074.317781 ~ 15,474.969523약 163,291,650좌1.2%—15,474.969523 ~ 15,875.621265약 940,507,619좌6.8%—15,875.621265 ~ 16,276.273007약 50,928,608좌0.4%—POC 14,873.99191 · VAL 13,071.059071 · VAH 15,074.317781 (KRW)매물대 수량·비율 CSV",
+          "6단 지표 값·출처·제공 상태 · 2025-01-02부터 누적같은 날짜의 실제 값과 결측 사유 · 투신은 범위를 이동해도 누적 시작일 유지패널값상태기준일출처RSI90.39 / Signal 86.7 0–100종가 · Wilder 14 / Signal · SMA 92025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA가격·매물대16,176.27 보이는 구간 · 2025-01-02~2025-09-10 · day · 좌 · 추정2025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA신용잔고율0.3 %키움 이력 일부 확보 · QA SYNTHETIC API → 격리된 메모리 PGlite → 실제 서버 서비스 · 모의 응답 · 실수급 검증 아님 · 요청 시작일까지 확보 · KRX 시장 · 공급자 기준일/공표시각/확정 여부 미확인 · ETF/ETN 지표 지원·주/좌 단위 실응답 확인 필요 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:08:24.890Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)외국인보유비율3.1 %키움 이력 일부 확보 · QA SYNTHETIC API → 격리된 메모리 PGlite → 실제 서버 서비스 · 모의 응답 · 실수급 검증 아님 · 요청 시작일까지 확보 · KRX 시장 · 공급자 기준일/공표시각/확정 여부 미확인 · ETF/ETN 지표 지원·주/좌 단위 실응답 확인 필요 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:08:24.892Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)투신 누적순매수 · 기준 2025-01-02— 주키움 이력 일부 확보 · 기준일 이후 누락: 누적순매수 미확정 · 오래된 데이터 · 최종 관측 2025-09-10 · 확보 2025-01-02~2025-09-10 · 취득 2026-10-04T14:08:24.893Z · 기준 미확인 · 확정 여부 미확인2025-09-10키움증권 · QA SYNTHETIC (실데이터 아님)거래량261,137 좌SMA 5/20/60 · 최근 봉은 장중·기간 중 미완성 가능2025-09-10QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA"
+        ],
+        "profileRows": [
+          10,
+          10
+        ],
+        "settings": {
+          "ked:hts:v1:KR:stock:001820:day:workspace-0": "{\"v\":1,\"enabled\":true,\"panelHeights\":{\"rsi\":100,\"price\":400,\"credit\":90,\"foreign\":90,\"investmentTrust\":110,\"volume\":120},\"collapsed\":{\"rsi\":false,\"price\":false,\"credit\":false,\"foreign\":false,\"investmentTrust\":false,\"volume\":false},\"rsiPeriod\":14,\"signalPeriod\":9,\"signalMethod\":\"sma\",\"rsiZones\":false,\"volumeMa\":{\"5\":true,\"20\":true,\"60\":true},\"trustMode\":\"cumulative\",\"trustStartDate\":\"2025-01-02\",\"profile\":{\"enabled\":true,\"preset\":\"hts\",\"rows\":10,\"widthRatio\":0.85,\"colorMode\":\"auto\",\"color\":\"#E6B77C\",\"opacity\":0.32,\"showLabels\":true,\"showVa\":false,\"showPoc\":false,\"basis\":\"volume\",\"rangeMode\":\"visible\",\"startDate\":\"\",\"endDate\":\"\",\"rangeOn\":false,\"recentSpan\":\"52W\"}}",
+          "ked:hts:v1:KR:etf:069500:day:workspace-1": "{\"v\":1,\"enabled\":true,\"panelHeights\":{\"rsi\":100,\"price\":400,\"credit\":90,\"foreign\":90,\"investmentTrust\":110,\"volume\":120},\"collapsed\":{\"rsi\":false,\"price\":false,\"credit\":false,\"foreign\":false,\"investmentTrust\":false,\"volume\":false},\"rsiPeriod\":14,\"signalPeriod\":9,\"signalMethod\":\"sma\",\"rsiZones\":false,\"volumeMa\":{\"5\":true,\"20\":true,\"60\":true},\"trustMode\":\"cumulative\",\"trustStartDate\":\"2025-01-02\",\"profile\":{\"enabled\":true,\"preset\":\"hts\",\"rows\":10,\"widthRatio\":0.85,\"colorMode\":\"auto\",\"color\":\"#E6B77C\",\"opacity\":0.32,\"showLabels\":true,\"showVa\":false,\"showPoc\":false,\"basis\":\"volume\",\"rangeMode\":\"visible\",\"startDate\":\"\",\"endDate\":\"\",\"rangeOn\":false,\"recentSpan\":\"52W\"}}"
+        }
+      },
+      "screenshot": "/workspace/screenshots/standard-sma-hts-fixture/workspace-multi-mobile.png",
+      "chartScreenshot": "/workspace/screenshots/standard-sma-hts-fixture/workspace-multi-mobile-chart.png"
+    },
+    {
+      "id": "us-NVDA",
+      "mode": "fixture",
+      "viewport": "mobile",
+      "path": "/us/NVDA",
+      "status": "passed",
+      "errors": [],
+      "externalFailures": [
+        {
+          "url": "https://fonts.googleapis.com/css2",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://grok.com/grok-app-builder/extensions.js",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID",
+          "function": ""
+        }
+      ],
+      "cancelledRequests": [],
+      "fixtureCalls": [
+        {
+          "name": "getUsChartSecurity",
+          "code": "NVDA",
+          "method": "GET",
+          "urlBytes": 416,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartData",
+          "code": "NVDA",
+          "method": "GET",
+          "urlBytes": 689,
+          "calendarDates": null
+        },
+        {
+          "name": "getChartData",
+          "code": "NVDA",
+          "method": "GET",
+          "urlBytes": 690,
+          "calendarDates": null
+        }
+      ],
+      "marketResponses": [
+        {
+          "function": "getChartData",
+          "status": 200
+        },
+        {
+          "function": "getChartData",
+          "status": 200
+        }
+      ],
+      "httpStatus": 200,
+      "snapshot": {
+        "textLength": 5008,
+        "width": 390,
+        "scrollWidth": 390,
+        "title": "NVDA",
+        "statuses": [
+          "출처 QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA· Yahoo 가격 조정 · 당일 봉 지연· 기준 방금· 180봉"
+        ],
+        "panes": [],
+        "canvasCount": 19,
+        "empty": [],
+        "summaries": [
+          "매물대 상세 · 가격 구간별 수량·비율 (10구간)OHLCV 가격대 겹침 배분 추정치 · 실제 체결가격별 거래량 아님종목NVDA · US · STOCK집계 범위현재 보이는 시간 구간요청 기간2025-01-02 ~ 2025-09-10실제 확보 기간2025-01-02 ~ 2025-09-10원천 해상도day계산 방식OHLCV 추정 · 봉 고저 범위와 가격 구간의 겹침 길이로 거래량 배분수량 단위 / 가격 통화주 / USD출처QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA원천 기준 시각2025-09-10취득 시각2026-10-04T14:08:48.655Z가격·거래량 조정 기준공급자 제공 OHLC·거래량 · 수정가격·분할·분배금 및 수량 조정 기준 미확인 · 동일 주기·가격기준의 추가 워밍업 이력 미확보 · SMA는 해당 주기의 실제 봉으로 계산; 부족 구간은 결측전체 유효 거래량13,849,763,075주선택 기준 전체 합계약 13,849,763,075.000004주유효 봉 / 제외 봉180 / 0비율의 분모는 선택 기간의 전체 유효 거래량입니다. 수량은 화면에서만 반올림하며, CSV에는 내부 정밀도를 유지합니다. 제외된 봉은 합계에 포함하지 않습니다.NVDA 매물대 가격 구간별 거래량, 전체 대비 비율 및 POC·Value Area. QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA 2025-09-10가격 범위 (USD)수량 (주)전체 대비가격대12,159.755587 ~ 12,560.407329약 988,367,198주7.1%—12,560.407329 ~ 12,961.059071약 638,025,466주4.6%—12,961.059071 ~ 13,361.710813약 2,573,796,454주18.6%VA13,361.710813 ~ 13,762.362555약 2,095,558,722주15.1%VA13,762.362555 ~ 14,163.014297약 1,189,447,494주8.6%VA14,163.014297 ~ 14,563.666039약 1,946,814,116주14.1%VA14,563.666039 ~ 14,964.317781약 3,263,025,747주23.6%POC · VA14,964.317781 ~ 15,364.969523약 163,291,650주1.2%—15,364.969523 ~ 15,765.621265약 940,507,619주6.8%—15,765.621265 ~ 16,166.273007약 50,928,608주0.4%—POC 14,763.99191 · VAL 12,961.059071 · VAH 14,964.317781 (USD)매물대 수량·비율 CSV"
+        ],
+        "profileRows": [
+          10
+        ],
+        "settings": {
+          "ked:hts:v1:US:stock:NVDA:day:detail": "{\"v\":1,\"enabled\":false,\"panelHeights\":{\"rsi\":100,\"price\":400,\"credit\":90,\"foreign\":90,\"investmentTrust\":110,\"volume\":120},\"collapsed\":{\"rsi\":false,\"price\":false,\"credit\":false,\"foreign\":false,\"investmentTrust\":false,\"volume\":false},\"rsiPeriod\":14,\"signalPeriod\":9,\"signalMethod\":\"sma\",\"rsiZones\":false,\"volumeMa\":{\"5\":true,\"20\":true,\"60\":true},\"trustMode\":\"cumulative\",\"trustStartDate\":\"2025-01-02\",\"profile\":{\"enabled\":true,\"preset\":\"hts\",\"rows\":10,\"widthRatio\":0.85,\"colorMode\":\"auto\",\"color\":\"#E6B77C\",\"opacity\":0.32,\"showLabels\":true,\"showVa\":false,\"showPoc\":false,\"basis\":\"volume\",\"rangeMode\":\"visible\",\"startDate\":\"\",\"endDate\":\"\",\"rangeOn\":false,\"recentSpan\":\"52W\"}}"
+        }
+      },
+      "screenshot": "/workspace/screenshots/standard-sma-hts-fixture/us-NVDA-mobile.png",
+      "chartScreenshot": "/workspace/screenshots/standard-sma-hts-fixture/us-NVDA-mobile-chart.png"
+    }
+  ]
+}

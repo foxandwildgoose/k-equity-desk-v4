@@ -1,0 +1,302 @@
+
+> build
+> node scripts/with-app-env.mjs vite build && npm run db:migrate
+
+[nitro:vercel] ℹ Using nodejs22.x runtime.
+[nitro:vercel] ℹ Using web entry format.
+vite v8.2.2 building client environment for production...
+transforming...
+✓ 2846 modules transformed.
+rendering chunks...
+computing gzip size...
+../.onboarding/builds/k-equity-desk-v4/static/assets/styles-CTs3DYSX.css                 96.57 kB │ gzip:  16.50 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/not-found-i5RsCZif.js                0.11 kB │ gzip:   0.11 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/chevron-down-nMDvyfA8.js             0.12 kB │ gzip:   0.14 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/chevron-up-Dqg46KcW.js               0.12 kB │ gzip:   0.14 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/chevron-right-BSuGU669.js            0.13 kB │ gzip:   0.14 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/etfs-7mVjuuDe.js                     0.14 kB │ gzip:   0.13 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/us-research-7mVjuuDe.js              0.14 kB │ gzip:   0.13 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/loader-circle-C0iTT0u2.js            0.14 kB │ gzip:   0.15 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/matchContext-BOlpzIYq.js             0.15 kB │ gzip:   0.13 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/x-vI52xdd7.js                        0.15 kB │ gzip:   0.15 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/arrow-up-right-DvCqVwWb.js           0.16 kB │ gzip:   0.15 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/info-Bkyz6sBV.js                     0.20 kB │ gzip:   0.17 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/activity-DXSut_GJ.js                 0.23 kB │ gzip:   0.19 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/use-current-user-BhX2v3QZ.js         0.23 kB │ gzip:   0.20 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/link-2-BsKoq3Hk.js                   0.24 kB │ gzip:   0.20 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/external-link-DpGda1YJ.js            0.25 kB │ gzip:   0.20 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/download-D7X8_B5x.js                 0.26 kB │ gzip:   0.21 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/flame-C6Uu-ida.js                    0.27 kB │ gzip:   0.22 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/rotate-ccw-COmBGr-t.js               0.30 kB │ gzip:   0.22 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/factory-D7Ayijlv.js                  0.30 kB │ gzip:   0.20 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/shield-check-DKQOYdCG.js             0.32 kB │ gzip:   0.25 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/refresh-cw-BqXjY1dB.js               0.32 kB │ gzip:   0.22 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/PageDisclaimer-Bo8ypbmo.js           0.32 kB │ gzip:   0.25 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/radio-obN8ZmG7.js                    0.36 kB │ gzip:   0.25 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/jsx-runtime-0vZSBttN.js              0.42 kB │ gzip:   0.29 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/eye-off-D_I-iC1q.js                  0.43 kB │ gzip:   0.27 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/sparkles-lBda9rqJ.js                 0.50 kB │ gzip:   0.29 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/input-DrztJxZo.js                    0.56 kB │ gzip:   0.37 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/sliders-horizontal-CP14bssK.js       0.58 kB │ gzip:   0.26 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/feed-fns-MG90xi7b.js                 0.59 kB │ gzip:   0.36 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/PageHeader-BOBTU9b_.js               0.59 kB │ gzip:   0.33 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/dist-CkOrkA3S.js                     0.62 kB │ gzip:   0.40 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/dist-BA_Uy57S.js                     0.64 kB │ gzip:   0.39 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/WatchButton-DA631GXk.js              0.64 kB │ gzip:   0.43 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/gates-BL3Mt0PQ.js                    0.72 kB │ gzip:   0.45 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/news.etf-DJP7o-7t.js                 0.74 kB │ gzip:   0.57 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/TimeStamp-DzCUqnII.js                0.75 kB │ gzip:   0.48 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/EmptyState-SomIAvdx.js               0.77 kB │ gzip:   0.47 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/open-original-BA_fg_eJ.js            0.81 kB │ gzip:   0.46 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/badge-D3-13Fbe.js                    0.85 kB │ gzip:   0.42 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/login-D_PlUG8D.js                    1.10 kB │ gzip:   0.71 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/createLucideIcon-BMzGw82M.js         1.17 kB │ gzip:   0.68 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/preload-helper-Czpn1I53.js           1.19 kB │ gzip:   0.67 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/session-lbxwWdib.js                  1.24 kB │ gzip:   0.69 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/DeskLayout-zAVZlYY7.js               1.31 kB │ gzip:   0.66 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/SourceLinks-E3V4QddO.js              1.40 kB │ gzip:   0.81 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/stocks-DBRQJUOD.js                   1.53 kB │ gzip:   0.72 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/format-C9a6CIpZ.js                   1.62 kB │ gzip:   0.63 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/ReadableProse-Be7SRRN9.js            1.88 kB │ gzip:   0.95 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/readable-text-DTjKUbDY.js            1.95 kB │ gzip:   1.05 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/us._symbol-DWc_CMJQ.js               1.99 kB │ gzip:   0.96 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/FeedList-beVvz_R6.js                 2.01 kB │ gzip:   1.09 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/use-market-stream-FDWwZO5U.js        2.08 kB │ gzip:   0.81 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/useStore-COp0KdlC.js                 2.20 kB │ gzip:   0.95 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/use-standard-sma-CJD4z-No.js         2.28 kB │ gzip:   1.12 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/useMutation--B_Pq1MT.js              2.37 kB │ gzip:   0.98 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/infer-sector-GJKAIjIH.js             2.45 kB │ gzip:   1.48 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/mappers-BkoppKQj.js                  2.58 kB │ gzip:   1.30 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/use-themes-D-99QsYA.js               2.62 kB │ gzip:   1.05 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/search-match-B-j5e0ew.js             2.86 kB │ gzip:   1.40 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/dist-pIHewt2b.js                     2.87 kB │ gzip:   1.26 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/market-fns-DWokC7nN.js               2.90 kB │ gzip:   1.29 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/research-taxonomy-DUVMuoEO.js        3.26 kB │ gzip:   1.51 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/chrome-BAZFtWeR.js                   3.64 kB │ gzip:   1.78 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/status.kiwoom-BnDtiutC.js            3.77 kB │ gzip:   1.89 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/news.us-BjKz-Uuq.js                  4.13 kB │ gzip:   2.15 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/us-research._reportId-CDiqMhWl.js    4.32 kB │ gzip:   1.50 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/lazyRouteComponent-u3vm1qUb.js       4.56 kB │ gzip:   1.60 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/CompanyOfficial-DucQibTd.js          4.58 kB │ gzip:   1.75 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/AiBriefingPanel-CSDrrYyy.js          4.79 kB │ gzip:   2.20 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/importance-D9BEExOs.js               5.02 kB │ gzip:   2.79 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/industry._sectorId-Byz_E0G1.js       5.05 kB │ gzip:   1.84 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/ResearchDetailSheet-Cyg5K4FI.js      5.06 kB │ gzip:   2.01 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/watchlist-hhxmqncl.js                5.08 kB │ gzip:   1.90 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/news.kr-CxdjQJ79.js                  5.37 kB │ gzip:   2.51 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/time-C68wiHjy.js                     5.42 kB │ gzip:   2.17 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/kiwoom-middleware-bBpT4W1A.js        5.75 kB │ gzip:   2.82 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/use-feed-D8r8RUGU.js                 5.86 kB │ gzip:   2.58 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/us-link-AbwAb_cD.js                  6.08 kB │ gzip:   2.35 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/DisclosureViewer-DQtD1xGL.js         6.31 kB │ gzip:   2.51 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/disclosures-C5gnVcJB.js              6.41 kB │ gzip:   2.49 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/filters-5Qnj6r95.js                  6.80 kB │ gzip:   3.28 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/briefing-BfCWpjLR.js                 7.39 kB │ gzip:   2.90 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/EtfNewsDesk-Bfwbth8C.js              7.54 kB │ gzip:   2.80 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/chart-M7f1haLi.js                    7.61 kB │ gzip:   3.34 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/FeedRow-D29N8nAC.js                  7.80 kB │ gzip:   2.77 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/saved-reports-BXMkzzll.js            7.91 kB │ gzip:   3.11 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/react-SIfiwpqq.js                    8.18 kB │ gzip:   3.16 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/settings.alerts-BGS7MMmX.js          8.23 kB │ gzip:   3.15 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/status.sources-BHf5POtT.js           8.26 kB │ gzip:   3.45 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/StockTable-DPcIhA5J.js               8.40 kB │ gzip:   2.93 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/dist-CoGkargQ.js                     8.45 kB │ gzip:   3.26 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/ResearchCard-QPT3FKIn.js             9.66 kB │ gzip:   4.09 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/UsResearchKit-DY6ylik-.js            9.92 kB │ gzip:   3.85 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/etfs.index-DdWT3_UW.js              10.30 kB │ gzip:   3.67 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/use-market-D-9NTMVW.js              10.43 kB │ gzip:   3.67 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/us-research.index-NsaZARo_.js       12.18 kB │ gzip:   4.33 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/universe-DlWDaJ2l.js                13.84 kB │ gzip:   3.56 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/UsResearchDesk-BV5mhpwg.js          14.74 kB │ gzip:   4.04 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/us-link-IVun08gL.js                 15.66 kB │ gzip:   4.86 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/store-DqXTQavj.js                   17.46 kB │ gzip:   6.21 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/link-43iuey8q.js                    19.54 kB │ gzip:   7.53 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/etfs._code-ZF1jZyXv.js              19.61 kB │ gzip:   5.63 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/research-CMPl8EF8.js                19.70 kB │ gzip:   6.39 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/TradingChart-BySnZNtY.js            26.13 kB │ gzip:   8.81 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/utils-CcTE-L35.js                   27.31 kB │ gzip:   8.71 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/robotics-A_rI0y8Q.js                28.16 kB │ gzip:   8.05 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/sheet-VjhLCzT7.js                   31.71 kB │ gzip:  10.86 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/client-CzXb5v9u.js                  32.67 kB │ gzip:  12.33 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/dist-DlPnQ8UJ.js                    33.54 kB │ gzip:   9.34 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/routes-Dsd6Urx4.js                  37.81 kB │ gzip:  10.69 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/tools-BrhnsINh.js                   54.98 kB │ gzip:  19.02 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/createServerFn-mjG1aBr5.js          61.84 kB │ gzip:  19.44 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/stock._ticker-BR8GPmOW.js           62.69 kB │ gzip:  19.65 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/use-chart-security-BZeo8Sut.js     135.50 kB │ gzip:  44.99 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/sma-labels-primitive-WygEnV18.js   214.56 kB │ gzip:  71.08 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/index-Bjzmjbsf.js                  428.69 kB │ gzip: 137.35 kB
+../.onboarding/builds/k-equity-desk-v4/static/assets/export-desk-BzhHqsGk.js            451.52 kB │ gzip: 124.92 kB
+
+✓ built in 2.36s
+vite v8.2.2 building ssr environment for production...
+transforming...
+✓ 578 modules transformed.
+rendering chunks...
+computing gzip size...
+node_modules/.nitro/vite/services/ssr/assets/styles-CTs3DYSX.css                      96.57 kB │ gzip: 16.50 kB
+node_modules/.nitro/vite/services/ssr/assets/kysely-adapter-Cj_QZw5p.js                0.05 kB │ gzip:  0.07 kB
+node_modules/.nitro/vite/services/ssr/assets/start-5Z2QO8AU.js                         0.14 kB │ gzip:  0.13 kB
+node_modules/.nitro/vite/services/ssr/assets/utils-C_uf36nf.js                         0.18 kB │ gzip:  0.15 kB
+node_modules/.nitro/vite/services/ssr/assets/empty-plugin-adapters-D9UWiqvJ.js         0.22 kB │ gzip:  0.16 kB
+node_modules/.nitro/vite/services/ssr/assets/providers-B-AR6wJz.js                     0.22 kB │ gzip:  0.17 kB
+node_modules/.nitro/vite/services/ssr/assets/etfs-BLEOHP_a.js                          0.25 kB │ gzip:  0.19 kB
+node_modules/.nitro/vite/services/ssr/assets/us-research-DXbQrPFI.js                   0.26 kB │ gzip:  0.19 kB
+node_modules/.nitro/vite/services/ssr/assets/rolldown-runtime-D7D4PA-g.js              0.36 kB │ gzip:  0.25 kB
+node_modules/.nitro/vite/services/ssr/assets/createServerRpc-CcvdN_gc.js               0.38 kB │ gzip:  0.26 kB
+node_modules/.nitro/vite/services/ssr/assets/adapters-fBNtatCf.js                      0.45 kB │ gzip:  0.26 kB
+node_modules/.nitro/vite/services/ssr/assets/PageDisclaimer-L30trzKX.js                0.57 kB │ gzip:  0.39 kB
+node_modules/.nitro/vite/services/ssr/assets/input-4oYknhNn.js                         0.65 kB │ gzip:  0.41 kB
+node_modules/.nitro/vite/services/ssr/assets/PageHeader-aQOrmONW.js                    0.91 kB │ gzip:  0.44 kB
+node_modules/.nitro/vite/services/ssr/assets/WatchButton-BIeRlFFv.js                   0.99 kB │ gzip:  0.55 kB
+node_modules/.nitro/vite/services/ssr/assets/news.etf-CuKvft0t.js                      1.00 kB │ gzip:  0.67 kB
+node_modules/.nitro/vite/services/ssr/assets/badge-CgqpWL27.js                         1.04 kB │ gzip:  0.51 kB
+node_modules/.nitro/vite/services/ssr/assets/EmptyState-DUMoSuK6.js                    1.11 kB │ gzip:  0.61 kB
+node_modules/.nitro/vite/services/ssr/assets/gates-Ce7R5Lnm.js                         1.25 kB │ gzip:  0.67 kB
+node_modules/.nitro/vite/services/ssr/assets/verify.server-v3kieFhL.js                 1.43 kB │ gzip:  0.78 kB
+node_modules/.nitro/vite/services/ssr/assets/login-Woy7KAyr.js                         1.48 kB │ gzip:  0.84 kB
+node_modules/.nitro/vite/services/ssr/assets/TimeStamp-Zz50LCia.js                     1.50 kB │ gzip:  0.84 kB
+node_modules/.nitro/vite/services/ssr/assets/button-DVF-Ua0H.js                        1.61 kB │ gzip:  0.77 kB
+node_modules/.nitro/vite/services/ssr/assets/open-original-B5YPLNZw.js                 1.61 kB │ gzip:  0.76 kB
+node_modules/.nitro/vite/services/ssr/assets/feed-fns-DPcFOLcY.js                      1.62 kB │ gzip:  0.91 kB
+node_modules/.nitro/vite/services/ssr/assets/DeskLayout-ShwhtDXH.js                    1.71 kB │ gzip:  0.71 kB
+node_modules/.nitro/vite/services/ssr/assets/isolation.server-CGNg1r0B.js              2.01 kB │ gzip:  1.05 kB
+node_modules/.nitro/vite/services/ssr/assets/SourceLinks-BhZNbLNu.js                   2.09 kB │ gzip:  1.05 kB
+node_modules/.nitro/vite/services/ssr/assets/use-current-user-DeOaE_mm.js              2.18 kB │ gzip:  1.06 kB
+node_modules/.nitro/vite/services/ssr/assets/snapshot-CrMhPXx3.js                      2.25 kB │ gzip:  1.11 kB
+node_modules/.nitro/vite/services/ssr/assets/text-2P-t067w.js                          2.32 kB │ gzip:  1.18 kB
+node_modules/.nitro/vite/services/ssr/assets/ai-fns-C4PC5uF8.js                        2.40 kB │ gzip:  0.86 kB
+node_modules/.nitro/vite/services/ssr/assets/sheet-D0Qc_tDi.js                         2.76 kB │ gzip:  0.91 kB
+node_modules/.nitro/vite/services/ssr/assets/format-CDIwCm5R.js                        2.78 kB │ gzip:  0.94 kB
+node_modules/.nitro/vite/services/ssr/assets/session-CI6EBFwL.js                       2.78 kB │ gzip:  1.22 kB
+node_modules/.nitro/vite/services/ssr/assets/ReadableProse-C0Kf0S2X.js                 2.80 kB │ gzip:  1.22 kB
+node_modules/.nitro/vite/services/ssr/assets/research-utils-_RqvZcrM.js                2.91 kB │ gzip:  1.26 kB
+node_modules/.nitro/vite/services/ssr/assets/us._symbol-GCkz9B0W.js                    2.95 kB │ gzip:  1.16 kB
+node_modules/.nitro/vite/services/ssr/assets/FeedList-BFDwYo1f.js                      2.96 kB │ gzip:  1.37 kB
+node_modules/.nitro/vite/services/ssr/assets/readable-text-D28LomX7.js                 3.02 kB │ gzip:  1.47 kB
+node_modules/.nitro/vite/services/ssr/assets/health-z1OjkYee.js                        3.05 kB │ gzip:  1.20 kB
+node_modules/.nitro/vite/services/ssr/assets/chart-security-Dt7TpXQ-.js                3.42 kB │ gzip:  1.25 kB
+node_modules/.nitro/vite/services/ssr/assets/runner-JXC75WOo.js                        3.53 kB │ gzip:  1.43 kB
+node_modules/.nitro/vite/services/ssr/assets/use-market-stream-Bd71nqjQ.js             3.64 kB │ gzip:  1.08 kB
+node_modules/.nitro/vite/services/ssr/assets/security-CkI8RJ8b.js                      3.78 kB │ gzip:  1.54 kB
+node_modules/.nitro/vite/services/ssr/assets/security-search-g1CnqCP9.js               3.83 kB │ gzip:  1.66 kB
+node_modules/.nitro/vite/services/ssr/assets/filters-2s-rUS4j.js                       4.00 kB │ gzip:  1.80 kB
+node_modules/.nitro/vite/services/ssr/assets/kiwoom-diagnostic-fns-BM3BnUSL.js         4.58 kB │ gzip:  1.91 kB
+node_modules/.nitro/vite/services/ssr/assets/briefing-CtWXT9FJ.js                      4.68 kB │ gzip:  2.42 kB
+node_modules/.nitro/vite/services/ssr/assets/use-standard-sma-fUAbDgsQ.js              4.86 kB │ gzip:  1.72 kB
+node_modules/.nitro/vite/services/ssr/assets/search-match-BMQS9B1C.js                  4.96 kB │ gzip:  2.10 kB
+node_modules/.nitro/vite/services/ssr/assets/use-themes-C2D7m0kr.js                    5.46 kB │ gzip:  1.85 kB
+node_modules/.nitro/vite/services/ssr/assets/chrome-DYjklvFW.js                        5.89 kB │ gzip:  2.39 kB
+node_modules/.nitro/vite/services/ssr/assets/status.kiwoom-Dbm5tZc8.js                 6.03 kB │ gzip:  2.40 kB
+node_modules/.nitro/vite/services/ssr/assets/theme-fns-DM1JWUna.js                     6.20 kB │ gzip:  2.05 kB
+node_modules/.nitro/vite/services/ssr/assets/news.us-CYX8qzSO.js                       6.45 kB │ gzip:  2.73 kB
+node_modules/.nitro/vite/services/ssr/assets/feed-fns-DeN-HKkZ.js                      6.58 kB │ gzip:  2.52 kB
+node_modules/.nitro/vite/services/ssr/assets/naver-C7W4a0B0.js                         6.73 kB │ gzip:  2.50 kB
+node_modules/.nitro/vite/services/ssr/assets/us-research._reportId-Cn3ZypmB.js         6.74 kB │ gzip:  1.86 kB
+node_modules/.nitro/vite/services/ssr/assets/hs-map-CWBcqt5N.js                        6.82 kB │ gzip:  3.09 kB
+node_modules/.nitro/vite/services/ssr/assets/CompanyOfficial-Bkfjsfei.js               6.86 kB │ gzip:  2.17 kB
+node_modules/.nitro/vite/services/ssr/assets/export-desk-CsNRqEUH.js                   6.88 kB │ gzip:  2.58 kB
+node_modules/.nitro/vite/services/ssr/assets/importance-C2QKgaE9.js                    6.93 kB │ gzip:  3.31 kB
+node_modules/.nitro/vite/services/ssr/assets/market-fns-DSyBC2kL.js                    7.07 kB │ gzip:  2.48 kB
+node_modules/.nitro/vite/services/ssr/assets/service-MLYR44OZ.js                       7.26 kB │ gzip:  2.90 kB
+node_modules/.nitro/vite/services/ssr/assets/watchlist-CuGSLOM_.js                     7.47 kB │ gzip:  2.35 kB
+node_modules/.nitro/vite/services/ssr/assets/industry._sectorId-BUlh0YTr.js            7.48 kB │ gzip:  2.19 kB
+node_modules/.nitro/vite/services/ssr/assets/AiBriefingPanel-DgsZyOrZ.js               7.64 kB │ gzip:  2.97 kB
+node_modules/.nitro/vite/services/ssr/assets/generic-CkkW1ZKu.js                       7.83 kB │ gzip:  2.79 kB
+node_modules/.nitro/vite/services/ssr/assets/news.kr-Dfqm_LWo.js                       8.15 kB │ gzip:  3.18 kB
+node_modules/.nitro/vite/services/ssr/assets/ResearchDetailSheet-B8KZ2nTk.js           8.40 kB │ gzip:  2.59 kB
+node_modules/.nitro/vite/services/ssr/assets/disclosures-SpEjfCTL.js                   8.76 kB │ gzip:  2.79 kB
+node_modules/.nitro/vite/services/ssr/assets/mappers-DlpCqw-E.js                       8.82 kB │ gzip:  3.18 kB
+node_modules/.nitro/vite/services/ssr/assets/DisclosureViewer-Bar4PYJQ.js              8.89 kB │ gzip:  2.80 kB
+node_modules/.nitro/vite/services/ssr/assets/saved-reports-hooLJGV6.js                 9.00 kB │ gzip:  2.51 kB
+node_modules/.nitro/vite/services/ssr/assets/sectors-CSrSXBVT.js                       9.09 kB │ gzip:  2.59 kB
+node_modules/.nitro/vite/services/ssr/assets/NewsDesk-CaQ6xtVy.js                      9.10 kB │ gzip:  3.20 kB
+node_modules/.nitro/vite/services/ssr/assets/etf-news-D8YKQLOx.js                      9.15 kB │ gzip:  3.62 kB
+node_modules/.nitro/vite/services/ssr/assets/store-BVRlbyec.js                         9.57 kB │ gzip:  3.11 kB
+node_modules/.nitro/vite/services/ssr/assets/time-By5ScNNo.js                         10.01 kB │ gzip:  3.44 kB
+node_modules/.nitro/vite/services/ssr/assets/naver-v2-C8XzGZTP.js                     10.21 kB │ gzip:  3.82 kB
+node_modules/.nitro/vite/services/ssr/assets/valuation-series-C-o6S2XC.js             10.37 kB │ gzip:  4.21 kB
+node_modules/.nitro/vite/services/ssr/assets/export-live-CtRDAEfF.js                  10.46 kB │ gzip:  3.93 kB
+node_modules/.nitro/vite/services/ssr/assets/research-v2-sKnJ6WVo.js                  10.67 kB │ gzip:  3.65 kB
+node_modules/.nitro/vite/services/ssr/assets/krx-disclosures-CIF4Ihdf.js              10.81 kB │ gzip:  4.13 kB
+node_modules/.nitro/vite/services/ssr/assets/kiwoom-middleware-rKL-2nXa.js            11.07 kB │ gzip:  4.24 kB
+node_modules/.nitro/vite/services/ssr/assets/chart-sn6UgnBS.js                        11.11 kB │ gzip:  4.05 kB
+node_modules/.nitro/vite/services/ssr/assets/use-feed-DiGvhnCd.js                     11.19 kB │ gzip:  4.31 kB
+node_modules/.nitro/vite/services/ssr/assets/_tanstack-start-manifest_v-BQa3kv8p.js   11.39 kB │ gzip:  2.51 kB
+node_modules/.nitro/vite/services/ssr/assets/briefing-B7DoDTVL.js                     11.43 kB │ gzip:  3.79 kB
+node_modules/.nitro/vite/services/ssr/assets/FeedRow-UaTbHdCA.js                      11.46 kB │ gzip:  3.57 kB
+node_modules/.nitro/vite/services/ssr/assets/EtfNewsDesk-tbzI-CVa.js                  11.53 kB │ gzip:  3.65 kB
+node_modules/.nitro/vite/services/ssr/assets/settings.alerts-BuI-Cb3r.js              12.02 kB │ gzip:  3.53 kB
+node_modules/.nitro/vite/services/ssr/assets/ResearchCard-Bv9VExEO.js                 12.28 kB │ gzip:  4.53 kB
+node_modules/.nitro/vite/services/ssr/assets/status.sources-C7-4n6fJ.js               12.45 kB │ gzip:  4.04 kB
+node_modules/.nitro/vite/services/ssr/assets/db-DeVxE-vM.js                           12.53 kB │ gzip:  4.66 kB
+node_modules/.nitro/vite/services/ssr/assets/us-link-feed-BjdN3v8l.js                 13.26 kB │ gzip:  5.58 kB
+node_modules/.nitro/vite/services/ssr/assets/StockTable-CAGh0kmI.js                   13.34 kB │ gzip:  3.74 kB
+node_modules/.nitro/vite/services/ssr/assets/robotics-CRdka33k.js                     14.19 kB │ gzip:  4.90 kB
+node_modules/.nitro/vite/services/ssr/assets/UsResearchKit-DK5mRrrP.js                14.32 kB │ gzip:  4.71 kB
+node_modules/.nitro/vite/services/ssr/assets/us-street-Dx2s8JR4.js                    15.33 kB │ gzip:  5.72 kB
+node_modules/.nitro/vite/services/ssr/assets/use-live-wire-BLhkv6rM.js                15.61 kB │ gzip:  5.78 kB
+node_modules/.nitro/vite/services/ssr/assets/http-CCgilygj.js                         15.63 kB │ gzip:  5.76 kB
+node_modules/.nitro/vite/services/ssr/assets/classify-DZIwcn3I.js                     15.70 kB │ gzip:  5.74 kB
+node_modules/.nitro/vite/services/ssr/assets/url-DwGxbmbA.js                          15.82 kB │ gzip:  4.94 kB
+node_modules/.nitro/vite/services/ssr/assets/etfs.index-Z0jqPA6F.js                   15.83 kB │ gzip:  4.40 kB
+node_modules/.nitro/vite/services/ssr/assets/us-official-parse-DdEnQc7w.js            16.19 kB │ gzip:  5.82 kB
+node_modules/.nitro/vite/services/ssr/assets/us-research.index-BNh5REDp.js            18.48 kB │ gzip:  5.35 kB
+node_modules/.nitro/vite/services/ssr/assets/chart-flow-fns-CuTKktXO.js               18.65 kB │ gzip:  6.44 kB
+node_modules/.nitro/vite/services/ssr/assets/news-DxJZGpZd.js                         18.75 kB │ gzip:  6.28 kB
+node_modules/.nitro/vite/services/ssr/assets/us-link-7--eFHFs.js                      19.32 kB │ gzip:  6.11 kB
+node_modules/.nitro/vite/services/ssr/assets/universe-BLkYDatc.js                     21.39 kB │ gzip:  5.26 kB
+node_modules/.nitro/vite/services/ssr/assets/kiwoom-store-DTuYfQRT.js                 22.13 kB │ gzip:  7.45 kB
+node_modules/.nitro/vite/services/ssr/assets/us-link-BwBsBdUL.js                      23.47 kB │ gzip:  6.02 kB
+node_modules/.nitro/vite/services/ssr/assets/UsResearchDesk-B70mVfUB.js               24.38 kB │ gzip:  5.24 kB
+node_modules/.nitro/vite/services/ssr/assets/registry-BWVqhaYN.js                     29.21 kB │ gzip:  6.52 kB
+node_modules/.nitro/vite/services/ssr/assets/etfs._code-CkRvN44W.js                   30.52 kB │ gzip:  6.75 kB
+node_modules/.nitro/vite/services/ssr/assets/research-DrcL82z8.js                     30.62 kB │ gzip:  8.43 kB
+node_modules/.nitro/vite/services/ssr/assets/us-official-research-B2JCCI2h.js         36.78 kB │ gzip: 11.01 kB
+node_modules/.nitro/vite/services/ssr/assets/client-C_SNNFs7.js                       38.01 kB │ gzip: 11.67 kB
+node_modules/.nitro/vite/services/ssr/assets/market-fns-DLUQoC98.js                   41.16 kB │ gzip: 12.02 kB
+node_modules/.nitro/vite/services/ssr/assets/TradingChart-bUQWo7HB.js                 42.54 kB │ gzip: 11.41 kB
+node_modules/.nitro/vite/services/ssr/assets/robotics-DB9wmmMC.js                     42.65 kB │ gzip: 10.20 kB
+node_modules/.nitro/vite/services/ssr/assets/research-taxonomy-BpoDpMeG.js            43.89 kB │ gzip: 12.74 kB
+node_modules/.nitro/vite/services/ssr/assets/naver-market-C_dml5Yi.js                 44.25 kB │ gzip: 12.84 kB
+node_modules/.nitro/vite/services/ssr/assets/etf-market-S8CEBu8d.js                   50.36 kB │ gzip: 15.79 kB
+node_modules/.nitro/vite/services/ssr/assets/routes-BoiYG3uo.js                       57.54 kB │ gzip: 13.72 kB
+node_modules/.nitro/vite/services/ssr/assets/sma-labels-primitive-lnNsSIMJ.js         65.47 kB │ gzip: 21.35 kB
+node_modules/.nitro/vite/services/ssr/assets/tools-CQ0re27R.js                        70.19 kB │ gzip: 20.65 kB
+node_modules/.nitro/vite/services/ssr/index.js                                        79.25 kB │ gzip: 21.06 kB
+node_modules/.nitro/vite/services/ssr/assets/stock._ticker-l-_OpcOx.js                95.40 kB │ gzip: 25.14 kB
+node_modules/.nitro/vite/services/ssr/assets/router-C0AAmSgl.js                      108.57 kB │ gzip: 31.81 kB
+node_modules/.nitro/vite/services/ssr/assets/export-desk-NfBzmA0c.js                 120.93 kB │ gzip: 31.50 kB
+node_modules/.nitro/vite/services/ssr/assets/use-chart-security-B36DhW4w.js          202.78 kB │ gzip: 56.18 kB
+node_modules/.nitro/vite/services/ssr/assets/server-BqA_lF9h.js                      341.28 kB │ gzip: 79.68 kB
+
+✓ built in 2.30s
+
+[nitro] ◐ Building [Nitro] (preset: vercel, compatibility: 2026-10-04)
+[nitro] ✔ Generated public ../.onboarding/builds/k-equity-desk-v4/static
+vite v8.2.2 building nitro environment for production...
+transforming...
+✓ 3397 modules transformed.
+ℹ Tracing dependencies:
+- tslib (2.8.1)
+✔ Traced 1 dependencies (4 files) in 92ms.
+ℹ Ensure your production environment matches the builder OS and architecture (linux-x64) to avoid native module issues.
+rendering chunks...
+computing gzip size...
+../.onboarding/builds/k-equity-desk-v4/functions/__server.func/index.mjs  8,344.83 kB │ gzip: 1,832.95 kB
+
+✓ built in 1.56s
+ℹ Generated ../.onboarding/builds/k-equity-desk-v4/nitro.json
+
+[nitro] ✔ You can preview this build using npx vite preview
+[nitro] ✔ You can deploy this build using npx nitro deploy --prebuilt
+
+> db:migrate
+> node scripts/migrate.mjs
+
+[migrate] DATABASE_URL not set — skipping (the PGLite fallback migrates itself).
+npm notice
+npm notice New major version of npm available! 10.9.9 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice
