@@ -1,0 +1,8 @@
+{
+  "credentialsStatus": "CREDENTIALS_CONFIGURED",
+  "authentication": "NOT_TESTED",
+  "kiwoomRequests": 0,
+  "scope": "isolated-config-check-child-only",
+  "keyPairValidity": "UNVERIFIED",
+  "environmentTypeOfIssuedKeys": "UNVERIFIED"
+}

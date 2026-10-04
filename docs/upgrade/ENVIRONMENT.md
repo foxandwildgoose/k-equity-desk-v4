@@ -31,3 +31,7 @@ F9 동작 요약: 네 변수(`AI_BRIEFING_ENABLED=true`, `AI_MODEL`, 공급자 �
 - Bloomberg 인앱 토글: `알림 설정`/뉴스 설정의 소스 토글(브라우저에 저장).
 - 네트워크가 제한된 환경에서 작업했다면, 일반 인터넷이 되는 머신에서
   `npm run verify:sources`를 실행해 `docs/upgrade/SOURCES_STATUS.md`를 갱신하세요.
+
+## 키움 수급 지표 (2026-10-04)
+
+세 차트 지표는 `KIWOOM_APP_KEY`, `KIWOOM_APP_SECRET`을 서버에서만 읽습니다. `KIWOOM_ENV`, `KIWOOM_FLOW_ENABLED`, `KIWOOM_FLOW_MODE`, `KIWOOM_EXPECTED_EGRESS_IP`, `KIWOOM_REQUESTS_PER_SECOND`, `KIWOOM_OWNER_USER_ID`, `DATABASE_URL`의 설정과 PowerShell 주입·수집 명령은 [KIWOOM_FLOW_SETUP.md](KIWOOM_FLOW_SETUP.md)를 참조하세요. 다른 기능의 KIS·네이버 연결은 유지합니다. collector 웹앱은 키 없이 공유 DB만 읽으며, 운영 DB가 없으면 메모리 저장으로 대체하지 않습니다.

@@ -1,0 +1,17 @@
+
+> verify:kiwoom
+> node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/kiwoom-cli.mjs verify --check-config
+
+{
+  "credentialsStatus": "CREDENTIALS_NOT_CONFIGURED",
+  "authentication": "NOT_TESTED",
+  "environment": "real",
+  "mode": "direct",
+  "enabled": false,
+  "expectedEgressConfigured": false,
+  "egress": "NOT_CHECKED",
+  "databaseConfigured": false,
+  "ownerConfigured": false,
+  "requestsPerSecond": 2,
+  "note": "No network request or database connection. Credentials configured does not mean authentication succeeded."
+}
