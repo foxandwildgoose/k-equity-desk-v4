@@ -293,6 +293,13 @@ async function interact(page, item, result) {
   if (item.panes) await check('Local price alert and event overlays stay in price pane', async () => {
     const canvasImages = () => page.evaluate(() => Object.fromEntries([...document.querySelectorAll('[data-hts-pane]')].map(el =>
       [el.getAttribute('data-hts-pane'), [...el.querySelectorAll('canvas')].map(canvas => canvas.toDataURL()).join('|')])));
+    // New readability defaults keep annotations OFF; make the tested state
+    // explicit and use the common category controls rather than the old menu.
+    const annotationCategories = ['disclosures', 'research', 'targets', 'signals'];
+    for (const category of annotationCategories) {
+      const toggle = shell.getByTestId(`overlay-toggle-${category}`);
+      if (await toggle.getAttribute('aria-pressed') !== 'true') await toggle.click();
+    }
     await page.mouse.move(15, 15);
     await page.waitForTimeout(250);
     const before = await canvasImages();
@@ -320,14 +327,14 @@ async function interact(page, item, result) {
     const alerts = page.getByTestId('alerts-panel');
     assert.match(await alerts.textContent(), new RegExp(`가격 ${linked.anchors[0].p.toLocaleString('ko-KR').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
     await page.keyboard.press('Escape');
-    const overlay = page.getByTestId('overlay-menu').filter({ visible: true }).first();
-    await overlay.locator('summary').click();
-    for (const label of ['공시', '리서치 목표가', 'RSI 다이버전스·MACD 교차']) await overlay.getByLabel(label, { exact: true }).uncheck();
-    await overlay.locator('summary').click();
+    for (const category of annotationCategories) {
+      const toggle = shell.getByTestId(`overlay-toggle-${category}`);
+      if (await toggle.getAttribute('aria-pressed') === 'true') await toggle.click();
+    }
     await page.mouse.move(15, 15);
     await page.waitForTimeout(400);
     const afterMarkers = await canvasImages();
-    assert.notEqual(afterMarkers.price, afterAlert.price, 'real event/signal marker toggles did not change price pane');
+    assert.notEqual(afterMarkers.price, afterAlert.price, 'event/signal marker toggles did not change price pane');
     assert(otherPanes.every(id => afterMarkers[id] === afterAlert[id]), 'event marker toggle changed another pane canvas');
     await shell.screenshot({ path: join(output, `${item.id}-price-alert-markers.png`) });
     return { drawingType: linked.type, level: linked.anchors[0].p, alertLinked: true, unaffectedPanes: otherPanes, markerToggleChangedOnlyPrice: true };

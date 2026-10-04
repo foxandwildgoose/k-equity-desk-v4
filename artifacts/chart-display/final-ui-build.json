@@ -1,0 +1,720 @@
+{
+  "mode": "QA SYNTHETIC (실데이터 아님)",
+  "at": "2026-10-04T09:17:14.002Z",
+  "results": [
+    {
+      "id": "stock-desktop-light-dpr1-legacy",
+      "code": "005930",
+      "mode": "QA SYNTHETIC (실데이터 아님)",
+      "viewport": "desktop",
+      "theme": "light",
+      "dpr": 1,
+      "legacy": true,
+      "status": "passed",
+      "checks": [
+        {
+          "name": "independent categories and dense event details",
+          "status": "passed",
+          "detail": {
+            "disclosures": {
+              "items": 30,
+              "groups": 1,
+              "markers": 1,
+              "categories": {
+                "disclosures": 30
+              },
+              "candleRectangles": 1250,
+              "priceAxisLabels": 8,
+              "canvasLabels": [
+                "기준 2026-09-10 · 출처 QA SYNTHETIC (실데이터 아님) OHLCV",
+                "일부 기간 제공 · 갱신됨 · QA SYNTHETIC API → 격리된 메모리 PGlite → 실제 서버 서비스 · 모의 응답 · 실수급 검증 아님 · 요청 시작일까지 확보 · KRX 시장 · 공급자 기준일/공표시각/확정 여부 미확인 · 오래된 데이터 · 최종 관측",
+                "기준 2026-09-10 · 출처 키움증권 · QA SYNTHETIC (실데이터 아님)",
+                "공시 30"
+              ],
+              "canvasHoverAndClick": true,
+              "hitLocal": {
+                "x": 898.5,
+                "y": 116.2679972228018
+              }
+            },
+            "research": {
+              "items": 38,
+              "groups": 1,
+              "markers": 1,
+              "categories": {
+                "research": 38
+              },
+              "candleRectangles": 1250,
+              "priceAxisLabels": 8,
+              "canvasLabels": [
+                "기준 2026-09-10 · 출처 QA SYNTHETIC (실데이터 아님) OHLCV",
+                "일부 기간 제공 · 갱신됨 · QA SYNTHETIC API → 격리된 메모리 PGlite → 실제 서버 서비스 · 모의 응답 · 실수급 검증 아님 · 요청 시작일까지 확보 · KRX 시장 · 공급자 기준일/공표시각/확정 여부 미확인 · 오래된 데이터 · 최종 관측",
+                "기준 2026-09-10 · 출처 키움증권 · QA SYNTHETIC (실데이터 아님)",
+                "리포트 38"
+              ],
+              "identicalSourceRefreshPreservedDetail": true
+            },
+            "targets": {
+              "items": 12,
+              "groups": 1,
+              "markers": 1,
+              "categories": {
+                "targets": 12
+              },
+              "candleRectangles": 1250,
+              "priceAxisLabels": 8,
+              "canvasLabels": [
+                "기준 2026-09-10 · 출처 QA SYNTHETIC (실데이터 아님) OHLCV",
+                "일부 기간 제공 · 갱신됨 · QA SYNTHETIC API → 격리된 메모리 PGlite → 실제 서버 서비스 · 모의 응답 · 실수급 검증 아님 · 요청 시작일까지 확보 · KRX 시장 · 공급자 기준일/공표시각/확정 여부 미확인 · 오래된 데이터 · 최종 관측",
+                "기준 2026-09-10 · 출처 키움증권 · QA SYNTHETIC (실데이터 아님)"
+              ]
+            },
+            "signals": {
+              "items": 2,
+              "groups": 2,
+              "markers": 2,
+              "categories": {
+                "signals": 2
+              },
+              "candleRectangles": 1250,
+              "priceAxisLabels": 8,
+              "canvasLabels": [
+                "기준 2026-09-10 · 출처 QA SYNTHETIC (실데이터 아님) OHLCV",
+                "일부 기간 제공 · 갱신됨 · QA SYNTHETIC API → 격리된 메모리 PGlite → 실제 서버 서비스 · 모의 응답 · 실수급 검증 아님 · 요청 시작일까지 확보 · KRX 시장 · 공급자 기준일/공표시각/확정 여부 미확인 · 오래된 데이터 · 최종 관측",
+                "기준 2026-09-10 · 출처 키움증권 · QA SYNTHETIC (실데이터 아님)",
+                "신호 1"
+              ]
+            }
+          }
+        }
+      ],
+      "errors": [],
+      "externalFailures": [
+        {
+          "origin": "https://fonts.googleapis.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://cdn.jsdelivr.net",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://grok.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        }
+      ],
+      "fixtureCalls": [
+        {
+          "name": "getStockBundle",
+          "code": "005930",
+          "method": "GET"
+        },
+        {
+          "name": "getChartData",
+          "code": "005930",
+          "method": "GET"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "005930",
+          "method": "POST"
+        }
+      ],
+      "initial": {
+        "layoutKey": "ked:chart:v2:KR:005930:day:stock:detail",
+        "layout": {
+          "v": 2,
+          "indicators": [
+            {
+              "uid": "sma-mutlwsmp-1",
+              "id": "sma",
+              "params": {
+                "period": 5
+              },
+              "visible": true,
+              "color": "#f59e0b"
+            },
+            {
+              "uid": "sma-mutlwsmq-2",
+              "id": "sma",
+              "params": {
+                "period": 20
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            },
+            {
+              "uid": "sma-mutlwsmq-3",
+              "id": "sma",
+              "params": {
+                "period": 60
+              },
+              "visible": true,
+              "color": "#38bdf8"
+            },
+            {
+              "uid": "bb-mutlwsmq-4",
+              "id": "bb",
+              "params": {
+                "period": 20,
+                "mult": 2
+              },
+              "visible": true,
+              "color": "#64748b"
+            },
+            {
+              "uid": "volume-mutlwsmq-5",
+              "id": "volume",
+              "params": {
+                "ma": 20
+              },
+              "visible": true
+            },
+            {
+              "uid": "rsi-mutlwsmq-6",
+              "id": "rsi",
+              "params": {
+                "period": 14
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            }
+          ],
+          "drawings": [
+            {
+              "id": "qa-kept-hline",
+              "type": "hline",
+              "anchors": [
+                {
+                  "t": "2026-03-02",
+                  "p": 10000
+                }
+              ],
+              "color": "#f59e0b",
+              "width": 2,
+              "locked": false,
+              "hidden": false
+            }
+          ],
+          "chartType": "candles",
+          "scale": "normal",
+          "overlays": {
+            "disclosures": true,
+            "news": true,
+            "research": true,
+            "targets": true,
+            "dividends": true,
+            "splits": true,
+            "signals": true
+          }
+        },
+        "htsKey": "ked:hts:v1:KR:stock:005930:day:detail",
+        "hts": {
+          "v": 1,
+          "enabled": true,
+          "panelHeights": {
+            "rsi": 100,
+            "price": 400,
+            "credit": 90,
+            "foreign": 90,
+            "investmentTrust": 110,
+            "volume": 120
+          },
+          "collapsed": {
+            "rsi": false,
+            "price": false,
+            "credit": false,
+            "foreign": false,
+            "investmentTrust": false,
+            "volume": false
+          },
+          "rsiPeriod": 14,
+          "signalPeriod": 9,
+          "signalMethod": "sma",
+          "rsiZones": false,
+          "volumeMa": {
+            "5": true,
+            "20": true,
+            "60": true
+          },
+          "trustMode": "cumulative",
+          "trustStartDate": "2026-01-05",
+          "profile": {
+            "enabled": true,
+            "preset": "hts",
+            "rows": 50,
+            "widthRatio": 0.1,
+            "colorMode": "custom",
+            "color": "#e7b157",
+            "opacity": 0.22,
+            "showLabels": true,
+            "showVa": true,
+            "showPoc": true,
+            "basis": "volume",
+            "rangeMode": "all",
+            "startDate": "",
+            "endDate": "",
+            "rangeOn": true,
+            "recentSpan": "52W"
+          }
+        },
+        "visible": [
+          "0",
+          "184"
+        ],
+        "markerCount": 2,
+        "eventItems": 96,
+        "eventGroups": 2,
+        "categories": {
+          "research": 38,
+          "splits": 1,
+          "signals": 2,
+          "disclosures": 30,
+          "dividends": 1,
+          "news": 12,
+          "targets": 12
+        },
+        "rangeEnabled": "true",
+        "paneHeights": {
+          "rsi": 100,
+          "price": 400,
+          "credit": 90,
+          "foreign": 90,
+          "investmentTrust": 110,
+          "volume": 121
+        },
+        "overflow": 0,
+        "devicePixelRatio": 1
+      },
+      "beforeScreenshot": "/workspace/screenshots/chart-display/final-ui-build/stock-desktop-light-dpr1-legacy-before.png",
+      "geometry": {
+        "measuredWidth": 909.5,
+        "plotWidth": 1070,
+        "expectedWidth": 909.5,
+        "dpr": 1,
+        "actualTransformScale": 1,
+        "color": "#e6b77c",
+        "fillAlpha": 0.32,
+        "pricePaneOnly": true
+      },
+      "screenshot": "/workspace/screenshots/chart-display/final-ui-build/stock-desktop-light-dpr1-legacy-annotations-off.png",
+      "chartScreenshot": "/workspace/screenshots/chart-display/final-ui-build/stock-desktop-light-dpr1-legacy-chart.png",
+      "exports": [
+        {
+          "path": "/workspace/screenshots/chart-display/final-ui-build/stock-desktop-light-dpr1-legacy-annotations-off-export.png",
+          "width": 1138,
+          "height": 1202,
+          "bytes": 476072,
+          "pixels": {
+            "expectedBackground": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "nativeHeight": 944,
+            "backgroundFraction": 0.7340027441686416,
+            "transparentFraction": 0,
+            "sampledColors": 715
+          }
+        },
+        {
+          "path": "/workspace/screenshots/chart-display/final-ui-build/stock-desktop-light-dpr1-legacy-annotations-on-export.png",
+          "width": 1138,
+          "height": 1220,
+          "bytes": 495351,
+          "pixels": {
+            "expectedBackground": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "nativeHeight": 944,
+            "backgroundFraction": 0.7314456779343894,
+            "transparentFraction": 0,
+            "sampledColors": 737
+          }
+        },
+        {
+          "path": "/workspace/screenshots/chart-display/final-ui-build/stock-desktop-light-dpr1-legacy-annotations-off-export.png",
+          "width": 1138,
+          "height": 1202,
+          "bytes": 476072,
+          "pixels": {
+            "expectedBackground": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "nativeHeight": 944,
+            "backgroundFraction": 0.7340027441686416,
+            "transparentFraction": 0,
+            "sampledColors": 715
+          }
+        }
+      ],
+      "annotationsOnUi": "/workspace/screenshots/chart-display/final-ui-build/stock-desktop-light-dpr1-legacy-annotations-on-ui.png",
+      "annotationsOffUi": "/workspace/screenshots/chart-display/final-ui-build/stock-desktop-light-dpr1-legacy-annotations-off-ui.png"
+    },
+    {
+      "id": "stock-desktop-dark-dpr1-legacy",
+      "code": "005930",
+      "mode": "QA SYNTHETIC (실데이터 아님)",
+      "viewport": "desktop",
+      "theme": "dark",
+      "dpr": 1,
+      "legacy": true,
+      "status": "passed",
+      "checks": [
+        {
+          "name": "independent categories and dense event details",
+          "status": "passed",
+          "detail": {
+            "disclosures": {
+              "items": 30,
+              "groups": 1,
+              "markers": 1,
+              "categories": {
+                "disclosures": 30
+              },
+              "candleRectangles": 1250,
+              "priceAxisLabels": 8,
+              "canvasLabels": [
+                "기준 2026-09-10 · 출처 QA SYNTHETIC (실데이터 아님) OHLCV",
+                "일부 기간 제공 · 갱신됨 · QA SYNTHETIC API → 격리된 메모리 PGlite → 실제 서버 서비스 · 모의 응답 · 실수급 검증 아님 · 요청 시작일까지 확보 · KRX 시장 · 공급자 기준일/공표시각/확정 여부 미확인 · 오래된 데이터 · 최종 관측",
+                "기준 2026-09-10 · 출처 키움증권 · QA SYNTHETIC (실데이터 아님)",
+                "공시 30"
+              ],
+              "canvasHoverAndClick": true,
+              "hitLocal": {
+                "x": 898.5,
+                "y": 116.2679972228018
+              }
+            },
+            "research": {
+              "items": 38,
+              "groups": 1,
+              "markers": 1,
+              "categories": {
+                "research": 38
+              },
+              "candleRectangles": 1250,
+              "priceAxisLabels": 8,
+              "canvasLabels": [
+                "기준 2026-09-10 · 출처 QA SYNTHETIC (실데이터 아님) OHLCV",
+                "일부 기간 제공 · 갱신됨 · QA SYNTHETIC API → 격리된 메모리 PGlite → 실제 서버 서비스 · 모의 응답 · 실수급 검증 아님 · 요청 시작일까지 확보 · KRX 시장 · 공급자 기준일/공표시각/확정 여부 미확인 · 오래된 데이터 · 최종 관측",
+                "기준 2026-09-10 · 출처 키움증권 · QA SYNTHETIC (실데이터 아님)",
+                "리포트 38"
+              ],
+              "identicalSourceRefreshPreservedDetail": true
+            },
+            "targets": {
+              "items": 12,
+              "groups": 1,
+              "markers": 1,
+              "categories": {
+                "targets": 12
+              },
+              "candleRectangles": 1250,
+              "priceAxisLabels": 8,
+              "canvasLabels": [
+                "기준 2026-09-10 · 출처 QA SYNTHETIC (실데이터 아님) OHLCV",
+                "일부 기간 제공 · 갱신됨 · QA SYNTHETIC API → 격리된 메모리 PGlite → 실제 서버 서비스 · 모의 응답 · 실수급 검증 아님 · 요청 시작일까지 확보 · KRX 시장 · 공급자 기준일/공표시각/확정 여부 미확인 · 오래된 데이터 · 최종 관측",
+                "기준 2026-09-10 · 출처 키움증권 · QA SYNTHETIC (실데이터 아님)"
+              ]
+            },
+            "signals": {
+              "items": 2,
+              "groups": 2,
+              "markers": 2,
+              "categories": {
+                "signals": 2
+              },
+              "candleRectangles": 1250,
+              "priceAxisLabels": 8,
+              "canvasLabels": [
+                "기준 2026-09-10 · 출처 QA SYNTHETIC (실데이터 아님) OHLCV",
+                "일부 기간 제공 · 갱신됨 · QA SYNTHETIC API → 격리된 메모리 PGlite → 실제 서버 서비스 · 모의 응답 · 실수급 검증 아님 · 요청 시작일까지 확보 · KRX 시장 · 공급자 기준일/공표시각/확정 여부 미확인 · 오래된 데이터 · 최종 관측",
+                "기준 2026-09-10 · 출처 키움증권 · QA SYNTHETIC (실데이터 아님)",
+                "신호 1"
+              ]
+            }
+          }
+        }
+      ],
+      "errors": [],
+      "externalFailures": [
+        {
+          "origin": "https://cdn.jsdelivr.net",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://fonts.googleapis.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://grok.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        }
+      ],
+      "fixtureCalls": [
+        {
+          "name": "getStockBundle",
+          "code": "005930",
+          "method": "GET"
+        },
+        {
+          "name": "getChartData",
+          "code": "005930",
+          "method": "GET"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "005930",
+          "method": "POST"
+        }
+      ],
+      "initial": {
+        "layoutKey": "ked:chart:v2:KR:005930:day:stock:detail",
+        "layout": {
+          "v": 2,
+          "indicators": [
+            {
+              "uid": "sma-mutlx67z-8",
+              "id": "sma",
+              "params": {
+                "period": 5
+              },
+              "visible": true,
+              "color": "#f59e0b"
+            },
+            {
+              "uid": "sma-mutlx67z-9",
+              "id": "sma",
+              "params": {
+                "period": 20
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            },
+            {
+              "uid": "sma-mutlx67z-10",
+              "id": "sma",
+              "params": {
+                "period": 60
+              },
+              "visible": true,
+              "color": "#38bdf8"
+            },
+            {
+              "uid": "bb-mutlx67z-11",
+              "id": "bb",
+              "params": {
+                "period": 20,
+                "mult": 2
+              },
+              "visible": true,
+              "color": "#64748b"
+            },
+            {
+              "uid": "volume-mutlx67z-12",
+              "id": "volume",
+              "params": {
+                "ma": 20
+              },
+              "visible": true
+            },
+            {
+              "uid": "rsi-mutlx67z-13",
+              "id": "rsi",
+              "params": {
+                "period": 14
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            }
+          ],
+          "drawings": [
+            {
+              "id": "qa-kept-hline",
+              "type": "hline",
+              "anchors": [
+                {
+                  "t": "2026-03-02",
+                  "p": 10000
+                }
+              ],
+              "color": "#f59e0b",
+              "width": 2,
+              "locked": false,
+              "hidden": false
+            }
+          ],
+          "chartType": "candles",
+          "scale": "normal",
+          "overlays": {
+            "disclosures": true,
+            "news": true,
+            "research": true,
+            "targets": true,
+            "dividends": true,
+            "splits": true,
+            "signals": true
+          }
+        },
+        "htsKey": "ked:hts:v1:KR:stock:005930:day:detail",
+        "hts": {
+          "v": 1,
+          "enabled": true,
+          "panelHeights": {
+            "rsi": 100,
+            "price": 400,
+            "credit": 90,
+            "foreign": 90,
+            "investmentTrust": 110,
+            "volume": 120
+          },
+          "collapsed": {
+            "rsi": false,
+            "price": false,
+            "credit": false,
+            "foreign": false,
+            "investmentTrust": false,
+            "volume": false
+          },
+          "rsiPeriod": 14,
+          "signalPeriod": 9,
+          "signalMethod": "sma",
+          "rsiZones": false,
+          "volumeMa": {
+            "5": true,
+            "20": true,
+            "60": true
+          },
+          "trustMode": "cumulative",
+          "trustStartDate": "2026-01-05",
+          "profile": {
+            "enabled": true,
+            "preset": "hts",
+            "rows": 50,
+            "widthRatio": 0.1,
+            "colorMode": "custom",
+            "color": "#e7b157",
+            "opacity": 0.22,
+            "showLabels": true,
+            "showVa": true,
+            "showPoc": true,
+            "basis": "volume",
+            "rangeMode": "all",
+            "startDate": "",
+            "endDate": "",
+            "rangeOn": true,
+            "recentSpan": "52W"
+          }
+        },
+        "visible": [
+          "0",
+          "184"
+        ],
+        "markerCount": 2,
+        "eventItems": 96,
+        "eventGroups": 2,
+        "categories": {
+          "research": 38,
+          "splits": 1,
+          "signals": 2,
+          "disclosures": 30,
+          "dividends": 1,
+          "news": 12,
+          "targets": 12
+        },
+        "rangeEnabled": "true",
+        "paneHeights": {
+          "rsi": 100,
+          "price": 400,
+          "credit": 90,
+          "foreign": 90,
+          "investmentTrust": 110,
+          "volume": 121
+        },
+        "overflow": 0,
+        "devicePixelRatio": 1
+      },
+      "beforeScreenshot": "/workspace/screenshots/chart-display/final-ui-build/stock-desktop-dark-dpr1-legacy-before.png",
+      "geometry": {
+        "measuredWidth": 909.5,
+        "plotWidth": 1070,
+        "expectedWidth": 909.5,
+        "dpr": 1,
+        "actualTransformScale": 1,
+        "color": "#d9a15a",
+        "fillAlpha": 0.28,
+        "pricePaneOnly": true
+      },
+      "screenshot": "/workspace/screenshots/chart-display/final-ui-build/stock-desktop-dark-dpr1-legacy-annotations-off.png",
+      "chartScreenshot": "/workspace/screenshots/chart-display/final-ui-build/stock-desktop-dark-dpr1-legacy-chart.png",
+      "exports": [
+        {
+          "path": "/workspace/screenshots/chart-display/final-ui-build/stock-desktop-dark-dpr1-legacy-annotations-off-export.png",
+          "width": 1138,
+          "height": 1202,
+          "bytes": 543120,
+          "pixels": {
+            "expectedBackground": [
+              13,
+              21,
+              36,
+              255
+            ],
+            "nativeHeight": 944,
+            "backgroundFraction": 0.7320069851565424,
+            "transparentFraction": 0,
+            "sampledColors": 755
+          }
+        },
+        {
+          "path": "/workspace/screenshots/chart-display/final-ui-build/stock-desktop-dark-dpr1-legacy-annotations-on-export.png",
+          "width": 1138,
+          "height": 1220,
+          "bytes": 567498,
+          "pixels": {
+            "expectedBackground": [
+              13,
+              21,
+              36,
+              255
+            ],
+            "nativeHeight": 944,
+            "backgroundFraction": 0.7292004490457777,
+            "transparentFraction": 0,
+            "sampledColors": 781
+          }
+        },
+        {
+          "path": "/workspace/screenshots/chart-display/final-ui-build/stock-desktop-dark-dpr1-legacy-annotations-off-export.png",
+          "width": 1138,
+          "height": 1202,
+          "bytes": 543120,
+          "pixels": {
+            "expectedBackground": [
+              13,
+              21,
+              36,
+              255
+            ],
+            "nativeHeight": 944,
+            "backgroundFraction": 0.7320069851565424,
+            "transparentFraction": 0,
+            "sampledColors": 755
+          }
+        }
+      ],
+      "annotationsOnUi": "/workspace/screenshots/chart-display/final-ui-build/stock-desktop-dark-dpr1-legacy-annotations-on-ui.png",
+      "annotationsOffUi": "/workspace/screenshots/chart-display/final-ui-build/stock-desktop-dark-dpr1-legacy-annotations-off-ui.png"
+    }
+  ],
+  "evidenceSource": "/workspace/screenshots/chart-display/final-ui-build/verdict.json",
+  "compaction": "Large raw canvas call arrays are represented by counts; statuses, assertions, geometry and other detail retain the executed values. Original JSON remains at evidenceSource."
+}

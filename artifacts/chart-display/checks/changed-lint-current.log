@@ -1,0 +1,12 @@
+
+/workspace/k-equity-desk-v4/src/components/charts/pro/ChartPanels.tsx
+  17:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/workspace/k-equity-desk-v4/src/components/charts/pro/ProChart.tsx
+   417:39  warning  The ref value 'drawingPrim.current' will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by React, copy 'drawingPrim.current' to a variable inside the effect, and use that variable in the cleanup function  react-hooks/exhaustive-deps
+   418:37  warning  The ref value 'rangePrim.current' will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by React, copy 'rangePrim.current' to a variable inside the effect, and use that variable in the cleanup function      react-hooks/exhaustive-deps
+   419:34  warning  The ref value 'vpPrim.current' will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by React, copy 'vpPrim.current' to a variable inside the effect, and use that variable in the cleanup function            react-hooks/exhaustive-deps
+   420:39  warning  The ref value 'sessionPrim.current' will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by React, copy 'sessionPrim.current' to a variable inside the effect, and use that variable in the cleanup function  react-hooks/exhaustive-deps
+  1088:9   warning  'autoSR' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                                      @typescript-eslint/no-unused-vars
+
+✖ 6 problems (0 errors, 6 warnings)

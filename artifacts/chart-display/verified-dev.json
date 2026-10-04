@@ -1,0 +1,5414 @@
+{
+  "mode": "QA SYNTHETIC (실데이터 아님)",
+  "at": "2026-10-04T08:57:23.374Z",
+  "results": [
+    {
+      "id": "stock-desktop-light-dpr1",
+      "code": "005930",
+      "mode": "QA SYNTHETIC (실데이터 아님)",
+      "viewport": "desktop",
+      "theme": "light",
+      "dpr": 1,
+      "legacy": false,
+      "status": "passed",
+      "checks": [],
+      "errors": [],
+      "externalFailures": [
+        {
+          "origin": "https://fonts.googleapis.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://cdn.jsdelivr.net",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://grok.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        }
+      ],
+      "fixtureCalls": [
+        {
+          "name": "getStockBundle",
+          "code": "005930",
+          "method": "GET"
+        },
+        {
+          "name": "getChartData",
+          "code": "005930",
+          "method": "GET"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "005930",
+          "method": "POST"
+        }
+      ],
+      "initial": {
+        "layoutKey": "ked:chart:v2:KR:005930:day:stock:detail",
+        "layout": {
+          "v": 2,
+          "indicators": [
+            {
+              "uid": "sma-mutl5pur-29",
+              "id": "sma",
+              "params": {
+                "period": 5
+              },
+              "visible": true,
+              "color": "#f59e0b"
+            },
+            {
+              "uid": "sma-mutl5pur-30",
+              "id": "sma",
+              "params": {
+                "period": 20
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            },
+            {
+              "uid": "sma-mutl5pur-31",
+              "id": "sma",
+              "params": {
+                "period": 60
+              },
+              "visible": true,
+              "color": "#38bdf8"
+            },
+            {
+              "uid": "bb-mutl5pur-32",
+              "id": "bb",
+              "params": {
+                "period": 20,
+                "mult": 2
+              },
+              "visible": true,
+              "color": "#64748b"
+            },
+            {
+              "uid": "volume-mutl5pur-33",
+              "id": "volume",
+              "params": {
+                "ma": 20
+              },
+              "visible": true
+            },
+            {
+              "uid": "rsi-mutl5pur-34",
+              "id": "rsi",
+              "params": {
+                "period": 14
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            }
+          ],
+          "drawings": [],
+          "chartType": "candles",
+          "scale": "normal",
+          "overlays": {
+            "disclosures": false,
+            "news": false,
+            "research": false,
+            "targets": false,
+            "dividends": false,
+            "splits": false,
+            "signals": false
+          }
+        },
+        "htsKey": "ked:hts:v1:KR:stock:005930:day:detail",
+        "hts": {
+          "v": 1,
+          "enabled": true,
+          "panelHeights": {
+            "rsi": 100,
+            "price": 400,
+            "credit": 90,
+            "foreign": 90,
+            "investmentTrust": 110,
+            "volume": 120
+          },
+          "collapsed": {
+            "rsi": false,
+            "price": false,
+            "credit": false,
+            "foreign": false,
+            "investmentTrust": false,
+            "volume": false
+          },
+          "rsiPeriod": 14,
+          "signalPeriod": 9,
+          "signalMethod": "sma",
+          "rsiZones": false,
+          "volumeMa": {
+            "5": true,
+            "20": true,
+            "60": true
+          },
+          "trustMode": "cumulative",
+          "trustStartDate": "",
+          "profile": {
+            "enabled": true,
+            "preset": "hts",
+            "rows": 10,
+            "widthRatio": 0.85,
+            "colorMode": "auto",
+            "color": "#E6B77C",
+            "opacity": 0.32,
+            "showLabels": true,
+            "showVa": false,
+            "showPoc": false,
+            "basis": "volume",
+            "rangeMode": "visible",
+            "startDate": "",
+            "endDate": "",
+            "rangeOn": false,
+            "recentSpan": "52W"
+          }
+        },
+        "visible": [
+          "0",
+          "184"
+        ],
+        "markerCount": 0,
+        "eventItems": 0,
+        "eventGroups": 0,
+        "categories": {},
+        "rangeEnabled": "false",
+        "paneHeights": {
+          "rsi": 100,
+          "price": 400,
+          "credit": 90,
+          "foreign": 90,
+          "investmentTrust": 110,
+          "volume": 121
+        },
+        "overflow": 0,
+        "devicePixelRatio": 1
+      },
+      "geometry": {
+        "measuredWidth": 909.5,
+        "plotWidth": 1070,
+        "expectedWidth": 909.5,
+        "dpr": 1,
+        "actualTransformScale": 1,
+        "color": "#e6b77c",
+        "fillAlpha": 0.32,
+        "pricePaneOnly": true
+      },
+      "screenshot": "/workspace/screenshots/chart-display/verified-dev/stock-desktop-light-dpr1-annotations-off.png",
+      "chartScreenshot": "/workspace/screenshots/chart-display/verified-dev/stock-desktop-light-dpr1-chart.png",
+      "exports": [
+        {
+          "path": "/workspace/screenshots/chart-display/verified-dev/stock-desktop-light-dpr1-annotations-off-export.png",
+          "width": 1138,
+          "height": 1202,
+          "bytes": 476007,
+          "pixels": {
+            "expectedBackground": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "nativeHeight": 944,
+            "backgroundFraction": 0.7338780092303855,
+            "transparentFraction": 0,
+            "sampledColors": 710
+          }
+        }
+      ]
+    },
+    {
+      "id": "stock-desktop-light-dpr2",
+      "code": "005930",
+      "mode": "QA SYNTHETIC (실데이터 아님)",
+      "viewport": "desktop",
+      "theme": "light",
+      "dpr": 2,
+      "legacy": false,
+      "status": "passed",
+      "checks": [],
+      "errors": [],
+      "externalFailures": [
+        {
+          "origin": "https://cdn.jsdelivr.net",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://fonts.googleapis.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://grok.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        }
+      ],
+      "fixtureCalls": [
+        {
+          "name": "getStockBundle",
+          "code": "005930",
+          "method": "GET"
+        },
+        {
+          "name": "getChartData",
+          "code": "005930",
+          "method": "GET"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "005930",
+          "method": "POST"
+        }
+      ],
+      "initial": {
+        "layoutKey": "ked:chart:v2:KR:005930:day:stock:detail",
+        "layout": {
+          "v": 2,
+          "indicators": [
+            {
+              "uid": "sma-mutl5uq8-43",
+              "id": "sma",
+              "params": {
+                "period": 5
+              },
+              "visible": true,
+              "color": "#f59e0b"
+            },
+            {
+              "uid": "sma-mutl5uq8-44",
+              "id": "sma",
+              "params": {
+                "period": 20
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            },
+            {
+              "uid": "sma-mutl5uq8-45",
+              "id": "sma",
+              "params": {
+                "period": 60
+              },
+              "visible": true,
+              "color": "#38bdf8"
+            },
+            {
+              "uid": "bb-mutl5uq8-46",
+              "id": "bb",
+              "params": {
+                "period": 20,
+                "mult": 2
+              },
+              "visible": true,
+              "color": "#64748b"
+            },
+            {
+              "uid": "volume-mutl5uq8-47",
+              "id": "volume",
+              "params": {
+                "ma": 20
+              },
+              "visible": true
+            },
+            {
+              "uid": "rsi-mutl5uq8-48",
+              "id": "rsi",
+              "params": {
+                "period": 14
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            }
+          ],
+          "drawings": [],
+          "chartType": "candles",
+          "scale": "normal",
+          "overlays": {
+            "disclosures": false,
+            "news": false,
+            "research": false,
+            "targets": false,
+            "dividends": false,
+            "splits": false,
+            "signals": false
+          }
+        },
+        "htsKey": "ked:hts:v1:KR:stock:005930:day:detail",
+        "hts": {
+          "v": 1,
+          "enabled": true,
+          "panelHeights": {
+            "rsi": 100,
+            "price": 400,
+            "credit": 90,
+            "foreign": 90,
+            "investmentTrust": 110,
+            "volume": 120
+          },
+          "collapsed": {
+            "rsi": false,
+            "price": false,
+            "credit": false,
+            "foreign": false,
+            "investmentTrust": false,
+            "volume": false
+          },
+          "rsiPeriod": 14,
+          "signalPeriod": 9,
+          "signalMethod": "sma",
+          "rsiZones": false,
+          "volumeMa": {
+            "5": true,
+            "20": true,
+            "60": true
+          },
+          "trustMode": "cumulative",
+          "trustStartDate": "2026-01-02",
+          "profile": {
+            "enabled": true,
+            "preset": "hts",
+            "rows": 10,
+            "widthRatio": 0.85,
+            "colorMode": "auto",
+            "color": "#E6B77C",
+            "opacity": 0.32,
+            "showLabels": true,
+            "showVa": false,
+            "showPoc": false,
+            "basis": "volume",
+            "rangeMode": "visible",
+            "startDate": "",
+            "endDate": "",
+            "rangeOn": false,
+            "recentSpan": "52W"
+          }
+        },
+        "visible": [
+          "0",
+          "184"
+        ],
+        "markerCount": 0,
+        "eventItems": 0,
+        "eventGroups": 0,
+        "categories": {},
+        "rangeEnabled": "false",
+        "paneHeights": {
+          "rsi": 100,
+          "price": 400.5,
+          "credit": 90,
+          "foreign": 90,
+          "investmentTrust": 110,
+          "volume": 120.5
+        },
+        "overflow": 0,
+        "devicePixelRatio": 2
+      },
+      "geometry": {
+        "measuredWidth": 909.5,
+        "plotWidth": 1070,
+        "expectedWidth": 909.5,
+        "dpr": 1,
+        "actualTransformScale": 1,
+        "color": "#e6b77c",
+        "fillAlpha": 0.32,
+        "pricePaneOnly": true
+      },
+      "screenshot": "/workspace/screenshots/chart-display/verified-dev/stock-desktop-light-dpr2-annotations-off.png",
+      "chartScreenshot": "/workspace/screenshots/chart-display/verified-dev/stock-desktop-light-dpr2-chart.png",
+      "exports": [
+        {
+          "path": "/workspace/screenshots/chart-display/verified-dev/stock-desktop-light-dpr2-annotations-off-export.png",
+          "width": 1138,
+          "height": 1789,
+          "bytes": 666359,
+          "pixels": {
+            "expectedBackground": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "nativeHeight": 944,
+            "backgroundFraction": 0.7241486840464014,
+            "transparentFraction": 0,
+            "sampledColors": 757
+          }
+        }
+      ]
+    },
+    {
+      "id": "stock-desktop-dark-dpr1",
+      "code": "005930",
+      "mode": "QA SYNTHETIC (실데이터 아님)",
+      "viewport": "desktop",
+      "theme": "dark",
+      "dpr": 1,
+      "legacy": false,
+      "status": "passed",
+      "checks": [],
+      "errors": [],
+      "externalFailures": [
+        {
+          "origin": "https://fonts.googleapis.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://grok.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://cdn.jsdelivr.net",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        }
+      ],
+      "fixtureCalls": [
+        {
+          "name": "getStockBundle",
+          "code": "005930",
+          "method": "GET"
+        },
+        {
+          "name": "getChartData",
+          "code": "005930",
+          "method": "GET"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "005930",
+          "method": "POST"
+        }
+      ],
+      "initial": {
+        "layoutKey": "ked:chart:v2:KR:005930:day:stock:detail",
+        "layout": {
+          "v": 2,
+          "indicators": [
+            {
+              "uid": "sma-mutl5yk0-29",
+              "id": "sma",
+              "params": {
+                "period": 5
+              },
+              "visible": true,
+              "color": "#f59e0b"
+            },
+            {
+              "uid": "sma-mutl5yk0-30",
+              "id": "sma",
+              "params": {
+                "period": 20
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            },
+            {
+              "uid": "sma-mutl5yk0-31",
+              "id": "sma",
+              "params": {
+                "period": 60
+              },
+              "visible": true,
+              "color": "#38bdf8"
+            },
+            {
+              "uid": "bb-mutl5yk0-32",
+              "id": "bb",
+              "params": {
+                "period": 20,
+                "mult": 2
+              },
+              "visible": true,
+              "color": "#64748b"
+            },
+            {
+              "uid": "volume-mutl5yk0-33",
+              "id": "volume",
+              "params": {
+                "ma": 20
+              },
+              "visible": true
+            },
+            {
+              "uid": "rsi-mutl5yk0-34",
+              "id": "rsi",
+              "params": {
+                "period": 14
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            }
+          ],
+          "drawings": [],
+          "chartType": "candles",
+          "scale": "normal",
+          "overlays": {
+            "disclosures": false,
+            "news": false,
+            "research": false,
+            "targets": false,
+            "dividends": false,
+            "splits": false,
+            "signals": false
+          }
+        },
+        "htsKey": "ked:hts:v1:KR:stock:005930:day:detail",
+        "hts": {
+          "v": 1,
+          "enabled": true,
+          "panelHeights": {
+            "rsi": 100,
+            "price": 400,
+            "credit": 90,
+            "foreign": 90,
+            "investmentTrust": 110,
+            "volume": 120
+          },
+          "collapsed": {
+            "rsi": false,
+            "price": false,
+            "credit": false,
+            "foreign": false,
+            "investmentTrust": false,
+            "volume": false
+          },
+          "rsiPeriod": 14,
+          "signalPeriod": 9,
+          "signalMethod": "sma",
+          "rsiZones": false,
+          "volumeMa": {
+            "5": true,
+            "20": true,
+            "60": true
+          },
+          "trustMode": "cumulative",
+          "trustStartDate": "2026-01-02",
+          "profile": {
+            "enabled": true,
+            "preset": "hts",
+            "rows": 10,
+            "widthRatio": 0.85,
+            "colorMode": "auto",
+            "color": "#E6B77C",
+            "opacity": 0.32,
+            "showLabels": true,
+            "showVa": false,
+            "showPoc": false,
+            "basis": "volume",
+            "rangeMode": "visible",
+            "startDate": "",
+            "endDate": "",
+            "rangeOn": false,
+            "recentSpan": "52W"
+          }
+        },
+        "visible": [
+          "0",
+          "184"
+        ],
+        "markerCount": 0,
+        "eventItems": 0,
+        "eventGroups": 0,
+        "categories": {},
+        "rangeEnabled": "false",
+        "paneHeights": {
+          "rsi": 100,
+          "price": 400,
+          "credit": 90,
+          "foreign": 90,
+          "investmentTrust": 110,
+          "volume": 121
+        },
+        "overflow": 0,
+        "devicePixelRatio": 1
+      },
+      "geometry": {
+        "measuredWidth": 909.5,
+        "plotWidth": 1070,
+        "expectedWidth": 909.5,
+        "dpr": 1,
+        "actualTransformScale": 1,
+        "color": "#d9a15a",
+        "fillAlpha": 0.28,
+        "pricePaneOnly": true
+      },
+      "screenshot": "/workspace/screenshots/chart-display/verified-dev/stock-desktop-dark-dpr1-annotations-off.png",
+      "chartScreenshot": "/workspace/screenshots/chart-display/verified-dev/stock-desktop-dark-dpr1-chart.png",
+      "exports": [
+        {
+          "path": "/workspace/screenshots/chart-display/verified-dev/stock-desktop-dark-dpr1-annotations-off-export.png",
+          "width": 1138,
+          "height": 1202,
+          "bytes": 542981,
+          "pixels": {
+            "expectedBackground": [
+              13,
+              21,
+              36,
+              255
+            ],
+            "nativeHeight": 944,
+            "backgroundFraction": 0.7316951478109018,
+            "transparentFraction": 0,
+            "sampledColors": 754
+          }
+        }
+      ]
+    },
+    {
+      "id": "stock-desktop-dark-dpr2",
+      "code": "005930",
+      "mode": "QA SYNTHETIC (실데이터 아님)",
+      "viewport": "desktop",
+      "theme": "dark",
+      "dpr": 2,
+      "legacy": false,
+      "status": "passed",
+      "checks": [],
+      "errors": [],
+      "externalFailures": [
+        {
+          "origin": "https://fonts.googleapis.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://cdn.jsdelivr.net",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://grok.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        }
+      ],
+      "fixtureCalls": [
+        {
+          "name": "getStockBundle",
+          "code": "005930",
+          "method": "GET"
+        },
+        {
+          "name": "getChartData",
+          "code": "005930",
+          "method": "GET"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "005930",
+          "method": "POST"
+        }
+      ],
+      "initial": {
+        "layoutKey": "ked:chart:v2:KR:005930:day:stock:detail",
+        "layout": {
+          "v": 2,
+          "indicators": [
+            {
+              "uid": "sma-mutl61pi-29",
+              "id": "sma",
+              "params": {
+                "period": 5
+              },
+              "visible": true,
+              "color": "#f59e0b"
+            },
+            {
+              "uid": "sma-mutl61pi-30",
+              "id": "sma",
+              "params": {
+                "period": 20
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            },
+            {
+              "uid": "sma-mutl61pi-31",
+              "id": "sma",
+              "params": {
+                "period": 60
+              },
+              "visible": true,
+              "color": "#38bdf8"
+            },
+            {
+              "uid": "bb-mutl61pi-32",
+              "id": "bb",
+              "params": {
+                "period": 20,
+                "mult": 2
+              },
+              "visible": true,
+              "color": "#64748b"
+            },
+            {
+              "uid": "volume-mutl61pi-33",
+              "id": "volume",
+              "params": {
+                "ma": 20
+              },
+              "visible": true
+            },
+            {
+              "uid": "rsi-mutl61pi-34",
+              "id": "rsi",
+              "params": {
+                "period": 14
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            }
+          ],
+          "drawings": [],
+          "chartType": "candles",
+          "scale": "normal",
+          "overlays": {
+            "disclosures": false,
+            "news": false,
+            "research": false,
+            "targets": false,
+            "dividends": false,
+            "splits": false,
+            "signals": false
+          }
+        },
+        "htsKey": "ked:hts:v1:KR:stock:005930:day:detail",
+        "hts": {
+          "v": 1,
+          "enabled": true,
+          "panelHeights": {
+            "rsi": 100,
+            "price": 400,
+            "credit": 90,
+            "foreign": 90,
+            "investmentTrust": 110,
+            "volume": 120
+          },
+          "collapsed": {
+            "rsi": false,
+            "price": false,
+            "credit": false,
+            "foreign": false,
+            "investmentTrust": false,
+            "volume": false
+          },
+          "rsiPeriod": 14,
+          "signalPeriod": 9,
+          "signalMethod": "sma",
+          "rsiZones": false,
+          "volumeMa": {
+            "5": true,
+            "20": true,
+            "60": true
+          },
+          "trustMode": "cumulative",
+          "trustStartDate": "2026-01-02",
+          "profile": {
+            "enabled": true,
+            "preset": "hts",
+            "rows": 10,
+            "widthRatio": 0.85,
+            "colorMode": "auto",
+            "color": "#E6B77C",
+            "opacity": 0.32,
+            "showLabels": true,
+            "showVa": false,
+            "showPoc": false,
+            "basis": "volume",
+            "rangeMode": "visible",
+            "startDate": "",
+            "endDate": "",
+            "rangeOn": false,
+            "recentSpan": "52W"
+          }
+        },
+        "visible": [
+          "0",
+          "184"
+        ],
+        "markerCount": 0,
+        "eventItems": 0,
+        "eventGroups": 0,
+        "categories": {},
+        "rangeEnabled": "false",
+        "paneHeights": {
+          "rsi": 100,
+          "price": 400.5,
+          "credit": 90,
+          "foreign": 90,
+          "investmentTrust": 110,
+          "volume": 120.5
+        },
+        "overflow": 0,
+        "devicePixelRatio": 2
+      },
+      "geometry": {
+        "measuredWidth": 909.5,
+        "plotWidth": 1070,
+        "expectedWidth": 909.5,
+        "dpr": 1,
+        "actualTransformScale": 1,
+        "color": "#d9a15a",
+        "fillAlpha": 0.28,
+        "pricePaneOnly": true
+      },
+      "screenshot": "/workspace/screenshots/chart-display/verified-dev/stock-desktop-dark-dpr2-annotations-off.png",
+      "chartScreenshot": "/workspace/screenshots/chart-display/verified-dev/stock-desktop-dark-dpr2-chart.png",
+      "exports": [
+        {
+          "path": "/workspace/screenshots/chart-display/verified-dev/stock-desktop-dark-dpr2-annotations-off-export.png",
+          "width": 1138,
+          "height": 1789,
+          "bytes": 741549,
+          "pixels": {
+            "expectedBackground": [
+              13,
+              21,
+              36,
+              255
+            ],
+            "nativeHeight": 944,
+            "backgroundFraction": 0.7221529250343021,
+            "transparentFraction": 0,
+            "sampledColors": 790
+          }
+        }
+      ]
+    },
+    {
+      "id": "stock-mobile-light-dpr1",
+      "code": "005930",
+      "mode": "QA SYNTHETIC (실데이터 아님)",
+      "viewport": "mobile",
+      "theme": "light",
+      "dpr": 1,
+      "legacy": false,
+      "status": "passed",
+      "checks": [],
+      "errors": [],
+      "externalFailures": [
+        {
+          "origin": "https://fonts.googleapis.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://cdn.jsdelivr.net",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://grok.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        }
+      ],
+      "fixtureCalls": [
+        {
+          "name": "getStockBundle",
+          "code": "005930",
+          "method": "GET"
+        },
+        {
+          "name": "getChartData",
+          "code": "005930",
+          "method": "GET"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "005930",
+          "method": "POST"
+        }
+      ],
+      "initial": {
+        "layoutKey": "ked:chart:v2:KR:005930:day:stock:detail",
+        "layout": {
+          "v": 2,
+          "indicators": [
+            {
+              "uid": "sma-mutl6600-29",
+              "id": "sma",
+              "params": {
+                "period": 5
+              },
+              "visible": true,
+              "color": "#f59e0b"
+            },
+            {
+              "uid": "sma-mutl6600-30",
+              "id": "sma",
+              "params": {
+                "period": 20
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            },
+            {
+              "uid": "sma-mutl6600-31",
+              "id": "sma",
+              "params": {
+                "period": 60
+              },
+              "visible": true,
+              "color": "#38bdf8"
+            },
+            {
+              "uid": "bb-mutl6600-32",
+              "id": "bb",
+              "params": {
+                "period": 20,
+                "mult": 2
+              },
+              "visible": true,
+              "color": "#64748b"
+            },
+            {
+              "uid": "volume-mutl6600-33",
+              "id": "volume",
+              "params": {
+                "ma": 20
+              },
+              "visible": true
+            },
+            {
+              "uid": "rsi-mutl6600-34",
+              "id": "rsi",
+              "params": {
+                "period": 14
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            }
+          ],
+          "drawings": [],
+          "chartType": "candles",
+          "scale": "normal",
+          "overlays": {
+            "disclosures": false,
+            "news": false,
+            "research": false,
+            "targets": false,
+            "dividends": false,
+            "splits": false,
+            "signals": false
+          }
+        },
+        "htsKey": "ked:hts:v1:KR:stock:005930:day:detail",
+        "hts": {
+          "v": 1,
+          "enabled": true,
+          "panelHeights": {
+            "rsi": 100,
+            "price": 400,
+            "credit": 90,
+            "foreign": 90,
+            "investmentTrust": 110,
+            "volume": 120
+          },
+          "collapsed": {
+            "rsi": false,
+            "price": false,
+            "credit": false,
+            "foreign": false,
+            "investmentTrust": false,
+            "volume": false
+          },
+          "rsiPeriod": 14,
+          "signalPeriod": 9,
+          "signalMethod": "sma",
+          "rsiZones": false,
+          "volumeMa": {
+            "5": true,
+            "20": true,
+            "60": true
+          },
+          "trustMode": "cumulative",
+          "trustStartDate": "2026-01-02",
+          "profile": {
+            "enabled": true,
+            "preset": "hts",
+            "rows": 10,
+            "widthRatio": 0.85,
+            "colorMode": "auto",
+            "color": "#E6B77C",
+            "opacity": 0.32,
+            "showLabels": true,
+            "showVa": false,
+            "showPoc": false,
+            "basis": "volume",
+            "rangeMode": "visible",
+            "startDate": "",
+            "endDate": "",
+            "rangeOn": false,
+            "recentSpan": "52W"
+          }
+        },
+        "visible": [
+          "0",
+          "184"
+        ],
+        "markerCount": 0,
+        "eventItems": 0,
+        "eventGroups": 0,
+        "categories": {},
+        "rangeEnabled": "false",
+        "paneHeights": {
+          "rsi": 100,
+          "price": 400,
+          "credit": 90,
+          "foreign": 90,
+          "investmentTrust": 110,
+          "volume": 121
+        },
+        "overflow": 0,
+        "devicePixelRatio": 1
+      },
+      "geometry": {
+        "measuredWidth": 241.4,
+        "plotWidth": 284,
+        "expectedWidth": 241.4,
+        "dpr": 1,
+        "actualTransformScale": 1,
+        "color": "#e6b77c",
+        "fillAlpha": 0.32,
+        "pricePaneOnly": true
+      },
+      "screenshot": "/workspace/screenshots/chart-display/verified-dev/stock-mobile-light-dpr1-annotations-off.png",
+      "chartScreenshot": "/workspace/screenshots/chart-display/verified-dev/stock-mobile-light-dpr1-chart.png",
+      "exports": [
+        {
+          "path": "/workspace/screenshots/chart-display/verified-dev/stock-mobile-light-dpr1-annotations-off-export.png",
+          "width": 352,
+          "height": 1580,
+          "bytes": 347673,
+          "pixels": {
+            "expectedBackground": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "nativeHeight": 944,
+            "backgroundFraction": 0.6817333734577189,
+            "transparentFraction": 0,
+            "sampledColors": 1346
+          }
+        }
+      ]
+    },
+    {
+      "id": "stock-mobile-light-dpr2",
+      "code": "005930",
+      "mode": "QA SYNTHETIC (실데이터 아님)",
+      "viewport": "mobile",
+      "theme": "light",
+      "dpr": 2,
+      "legacy": false,
+      "status": "passed",
+      "checks": [],
+      "errors": [],
+      "externalFailures": [
+        {
+          "origin": "https://cdn.jsdelivr.net",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://fonts.googleapis.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://grok.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        }
+      ],
+      "fixtureCalls": [
+        {
+          "name": "getStockBundle",
+          "code": "005930",
+          "method": "GET"
+        },
+        {
+          "name": "getChartData",
+          "code": "005930",
+          "method": "GET"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "005930",
+          "method": "POST"
+        }
+      ],
+      "initial": {
+        "layoutKey": "ked:chart:v2:KR:005930:day:stock:detail",
+        "layout": {
+          "v": 2,
+          "indicators": [
+            {
+              "uid": "sma-mutl692f-43",
+              "id": "sma",
+              "params": {
+                "period": 5
+              },
+              "visible": true,
+              "color": "#f59e0b"
+            },
+            {
+              "uid": "sma-mutl692f-44",
+              "id": "sma",
+              "params": {
+                "period": 20
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            },
+            {
+              "uid": "sma-mutl692f-45",
+              "id": "sma",
+              "params": {
+                "period": 60
+              },
+              "visible": true,
+              "color": "#38bdf8"
+            },
+            {
+              "uid": "bb-mutl692f-46",
+              "id": "bb",
+              "params": {
+                "period": 20,
+                "mult": 2
+              },
+              "visible": true,
+              "color": "#64748b"
+            },
+            {
+              "uid": "volume-mutl692f-47",
+              "id": "volume",
+              "params": {
+                "ma": 20
+              },
+              "visible": true
+            },
+            {
+              "uid": "rsi-mutl692f-48",
+              "id": "rsi",
+              "params": {
+                "period": 14
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            }
+          ],
+          "drawings": [],
+          "chartType": "candles",
+          "scale": "normal",
+          "overlays": {
+            "disclosures": false,
+            "news": false,
+            "research": false,
+            "targets": false,
+            "dividends": false,
+            "splits": false,
+            "signals": false
+          }
+        },
+        "htsKey": "ked:hts:v1:KR:stock:005930:day:detail",
+        "hts": {
+          "v": 1,
+          "enabled": true,
+          "panelHeights": {
+            "rsi": 100,
+            "price": 400,
+            "credit": 90,
+            "foreign": 90,
+            "investmentTrust": 110,
+            "volume": 120
+          },
+          "collapsed": {
+            "rsi": false,
+            "price": false,
+            "credit": false,
+            "foreign": false,
+            "investmentTrust": false,
+            "volume": false
+          },
+          "rsiPeriod": 14,
+          "signalPeriod": 9,
+          "signalMethod": "sma",
+          "rsiZones": false,
+          "volumeMa": {
+            "5": true,
+            "20": true,
+            "60": true
+          },
+          "trustMode": "cumulative",
+          "trustStartDate": "2026-01-02",
+          "profile": {
+            "enabled": true,
+            "preset": "hts",
+            "rows": 10,
+            "widthRatio": 0.85,
+            "colorMode": "auto",
+            "color": "#E6B77C",
+            "opacity": 0.32,
+            "showLabels": true,
+            "showVa": false,
+            "showPoc": false,
+            "basis": "volume",
+            "rangeMode": "visible",
+            "startDate": "",
+            "endDate": "",
+            "rangeOn": false,
+            "recentSpan": "52W"
+          }
+        },
+        "visible": [
+          "0",
+          "184"
+        ],
+        "markerCount": 0,
+        "eventItems": 0,
+        "eventGroups": 0,
+        "categories": {},
+        "rangeEnabled": "false",
+        "paneHeights": {
+          "rsi": 100,
+          "price": 400.5,
+          "credit": 90,
+          "foreign": 90,
+          "investmentTrust": 110,
+          "volume": 120.5
+        },
+        "overflow": 0,
+        "devicePixelRatio": 2
+      },
+      "geometry": {
+        "measuredWidth": 241.4,
+        "plotWidth": 284,
+        "expectedWidth": 241.4,
+        "dpr": 1,
+        "actualTransformScale": 1,
+        "color": "#e6b77c",
+        "fillAlpha": 0.32,
+        "pricePaneOnly": true
+      },
+      "screenshot": "/workspace/screenshots/chart-display/verified-dev/stock-mobile-light-dpr2-annotations-off.png",
+      "chartScreenshot": "/workspace/screenshots/chart-display/verified-dev/stock-mobile-light-dpr2-chart.png",
+      "exports": [
+        {
+          "path": "/workspace/screenshots/chart-display/verified-dev/stock-mobile-light-dpr2-annotations-off-export.png",
+          "width": 352,
+          "height": 3481,
+          "bytes": 577238,
+          "pixels": {
+            "expectedBackground": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "nativeHeight": 944,
+            "backgroundFraction": 0.6729461330123383,
+            "transparentFraction": 0,
+            "sampledColors": 1340
+          }
+        }
+      ]
+    },
+    {
+      "id": "stock-mobile-dark-dpr1",
+      "code": "005930",
+      "mode": "QA SYNTHETIC (실데이터 아님)",
+      "viewport": "mobile",
+      "theme": "dark",
+      "dpr": 1,
+      "legacy": false,
+      "status": "passed",
+      "checks": [],
+      "errors": [],
+      "externalFailures": [
+        {
+          "origin": "https://fonts.googleapis.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://cdn.jsdelivr.net",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://grok.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        }
+      ],
+      "fixtureCalls": [
+        {
+          "name": "getStockBundle",
+          "code": "005930",
+          "method": "GET"
+        },
+        {
+          "name": "getChartData",
+          "code": "005930",
+          "method": "GET"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "005930",
+          "method": "POST"
+        }
+      ],
+      "initial": {
+        "layoutKey": "ked:chart:v2:KR:005930:day:stock:detail",
+        "layout": {
+          "v": 2,
+          "indicators": [
+            {
+              "uid": "sma-mutl6c22-29",
+              "id": "sma",
+              "params": {
+                "period": 5
+              },
+              "visible": true,
+              "color": "#f59e0b"
+            },
+            {
+              "uid": "sma-mutl6c22-30",
+              "id": "sma",
+              "params": {
+                "period": 20
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            },
+            {
+              "uid": "sma-mutl6c22-31",
+              "id": "sma",
+              "params": {
+                "period": 60
+              },
+              "visible": true,
+              "color": "#38bdf8"
+            },
+            {
+              "uid": "bb-mutl6c22-32",
+              "id": "bb",
+              "params": {
+                "period": 20,
+                "mult": 2
+              },
+              "visible": true,
+              "color": "#64748b"
+            },
+            {
+              "uid": "volume-mutl6c22-33",
+              "id": "volume",
+              "params": {
+                "ma": 20
+              },
+              "visible": true
+            },
+            {
+              "uid": "rsi-mutl6c22-34",
+              "id": "rsi",
+              "params": {
+                "period": 14
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            }
+          ],
+          "drawings": [],
+          "chartType": "candles",
+          "scale": "normal",
+          "overlays": {
+            "disclosures": false,
+            "news": false,
+            "research": false,
+            "targets": false,
+            "dividends": false,
+            "splits": false,
+            "signals": false
+          }
+        },
+        "htsKey": "ked:hts:v1:KR:stock:005930:day:detail",
+        "hts": {
+          "v": 1,
+          "enabled": true,
+          "panelHeights": {
+            "rsi": 100,
+            "price": 400,
+            "credit": 90,
+            "foreign": 90,
+            "investmentTrust": 110,
+            "volume": 120
+          },
+          "collapsed": {
+            "rsi": false,
+            "price": false,
+            "credit": false,
+            "foreign": false,
+            "investmentTrust": false,
+            "volume": false
+          },
+          "rsiPeriod": 14,
+          "signalPeriod": 9,
+          "signalMethod": "sma",
+          "rsiZones": false,
+          "volumeMa": {
+            "5": true,
+            "20": true,
+            "60": true
+          },
+          "trustMode": "cumulative",
+          "trustStartDate": "2026-01-02",
+          "profile": {
+            "enabled": true,
+            "preset": "hts",
+            "rows": 10,
+            "widthRatio": 0.85,
+            "colorMode": "auto",
+            "color": "#E6B77C",
+            "opacity": 0.32,
+            "showLabels": true,
+            "showVa": false,
+            "showPoc": false,
+            "basis": "volume",
+            "rangeMode": "visible",
+            "startDate": "",
+            "endDate": "",
+            "rangeOn": false,
+            "recentSpan": "52W"
+          }
+        },
+        "visible": [
+          "0",
+          "184"
+        ],
+        "markerCount": 0,
+        "eventItems": 0,
+        "eventGroups": 0,
+        "categories": {},
+        "rangeEnabled": "false",
+        "paneHeights": {
+          "rsi": 100,
+          "price": 400,
+          "credit": 90,
+          "foreign": 90,
+          "investmentTrust": 110,
+          "volume": 121
+        },
+        "overflow": 0,
+        "devicePixelRatio": 1
+      },
+      "geometry": {
+        "measuredWidth": 241.4,
+        "plotWidth": 284,
+        "expectedWidth": 241.4,
+        "dpr": 1,
+        "actualTransformScale": 1,
+        "color": "#d9a15a",
+        "fillAlpha": 0.28,
+        "pricePaneOnly": true
+      },
+      "screenshot": "/workspace/screenshots/chart-display/verified-dev/stock-mobile-dark-dpr1-annotations-off.png",
+      "chartScreenshot": "/workspace/screenshots/chart-display/verified-dev/stock-mobile-dark-dpr1-chart.png",
+      "exports": [
+        {
+          "path": "/workspace/screenshots/chart-display/verified-dev/stock-mobile-dark-dpr1-annotations-off-export.png",
+          "width": 352,
+          "height": 1580,
+          "bytes": 388975,
+          "pixels": {
+            "expectedBackground": [
+              13,
+              21,
+              36,
+              255
+            ],
+            "nativeHeight": 944,
+            "backgroundFraction": 0.6780619921757448,
+            "transparentFraction": 0,
+            "sampledColors": 1430
+          }
+        }
+      ]
+    },
+    {
+      "id": "stock-mobile-dark-dpr2",
+      "code": "005930",
+      "mode": "QA SYNTHETIC (실데이터 아님)",
+      "viewport": "mobile",
+      "theme": "dark",
+      "dpr": 2,
+      "legacy": false,
+      "status": "passed",
+      "checks": [],
+      "errors": [],
+      "externalFailures": [
+        {
+          "origin": "https://cdn.jsdelivr.net",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://fonts.googleapis.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://grok.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        }
+      ],
+      "fixtureCalls": [
+        {
+          "name": "getStockBundle",
+          "code": "005930",
+          "method": "GET"
+        },
+        {
+          "name": "getChartData",
+          "code": "005930",
+          "method": "GET"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "005930",
+          "method": "POST"
+        }
+      ],
+      "initial": {
+        "layoutKey": "ked:chart:v2:KR:005930:day:stock:detail",
+        "layout": {
+          "v": 2,
+          "indicators": [
+            {
+              "uid": "sma-mutl6euf-29",
+              "id": "sma",
+              "params": {
+                "period": 5
+              },
+              "visible": true,
+              "color": "#f59e0b"
+            },
+            {
+              "uid": "sma-mutl6euf-30",
+              "id": "sma",
+              "params": {
+                "period": 20
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            },
+            {
+              "uid": "sma-mutl6euf-31",
+              "id": "sma",
+              "params": {
+                "period": 60
+              },
+              "visible": true,
+              "color": "#38bdf8"
+            },
+            {
+              "uid": "bb-mutl6euf-32",
+              "id": "bb",
+              "params": {
+                "period": 20,
+                "mult": 2
+              },
+              "visible": true,
+              "color": "#64748b"
+            },
+            {
+              "uid": "volume-mutl6euf-33",
+              "id": "volume",
+              "params": {
+                "ma": 20
+              },
+              "visible": true
+            },
+            {
+              "uid": "rsi-mutl6euf-34",
+              "id": "rsi",
+              "params": {
+                "period": 14
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            }
+          ],
+          "drawings": [],
+          "chartType": "candles",
+          "scale": "normal",
+          "overlays": {
+            "disclosures": false,
+            "news": false,
+            "research": false,
+            "targets": false,
+            "dividends": false,
+            "splits": false,
+            "signals": false
+          }
+        },
+        "htsKey": "ked:hts:v1:KR:stock:005930:day:detail",
+        "hts": {
+          "v": 1,
+          "enabled": true,
+          "panelHeights": {
+            "rsi": 100,
+            "price": 400,
+            "credit": 90,
+            "foreign": 90,
+            "investmentTrust": 110,
+            "volume": 120
+          },
+          "collapsed": {
+            "rsi": false,
+            "price": false,
+            "credit": false,
+            "foreign": false,
+            "investmentTrust": false,
+            "volume": false
+          },
+          "rsiPeriod": 14,
+          "signalPeriod": 9,
+          "signalMethod": "sma",
+          "rsiZones": false,
+          "volumeMa": {
+            "5": true,
+            "20": true,
+            "60": true
+          },
+          "trustMode": "cumulative",
+          "trustStartDate": "2026-01-02",
+          "profile": {
+            "enabled": true,
+            "preset": "hts",
+            "rows": 10,
+            "widthRatio": 0.85,
+            "colorMode": "auto",
+            "color": "#E6B77C",
+            "opacity": 0.32,
+            "showLabels": true,
+            "showVa": false,
+            "showPoc": false,
+            "basis": "volume",
+            "rangeMode": "visible",
+            "startDate": "",
+            "endDate": "",
+            "rangeOn": false,
+            "recentSpan": "52W"
+          }
+        },
+        "visible": [
+          "0",
+          "184"
+        ],
+        "markerCount": 0,
+        "eventItems": 0,
+        "eventGroups": 0,
+        "categories": {},
+        "rangeEnabled": "false",
+        "paneHeights": {
+          "rsi": 100,
+          "price": 400.5,
+          "credit": 90,
+          "foreign": 90,
+          "investmentTrust": 110,
+          "volume": 120.5
+        },
+        "overflow": 0,
+        "devicePixelRatio": 2
+      },
+      "geometry": {
+        "measuredWidth": 241.4,
+        "plotWidth": 284,
+        "expectedWidth": 241.4,
+        "dpr": 1,
+        "actualTransformScale": 1,
+        "color": "#d9a15a",
+        "fillAlpha": 0.28,
+        "pricePaneOnly": true
+      },
+      "screenshot": "/workspace/screenshots/chart-display/verified-dev/stock-mobile-dark-dpr2-annotations-off.png",
+      "chartScreenshot": "/workspace/screenshots/chart-display/verified-dev/stock-mobile-dark-dpr2-chart.png",
+      "exports": [
+        {
+          "path": "/workspace/screenshots/chart-display/verified-dev/stock-mobile-dark-dpr2-annotations-off-export.png",
+          "width": 352,
+          "height": 3481,
+          "bytes": 621069,
+          "pixels": {
+            "expectedBackground": [
+              13,
+              21,
+              36,
+              255
+            ],
+            "nativeHeight": 944,
+            "backgroundFraction": 0.6684923262112549,
+            "transparentFraction": 0,
+            "sampledColors": 1453
+          }
+        }
+      ]
+    },
+    {
+      "id": "etf-desktop-light-dpr1",
+      "code": "069500",
+      "mode": "QA SYNTHETIC (실데이터 아님)",
+      "viewport": "desktop",
+      "theme": "light",
+      "dpr": 1,
+      "legacy": false,
+      "status": "passed",
+      "checks": [],
+      "errors": [],
+      "externalFailures": [
+        {
+          "origin": "https://fonts.googleapis.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://cdn.jsdelivr.net",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://grok.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        }
+      ],
+      "fixtureCalls": [
+        {
+          "name": "getChartSecurity",
+          "code": "069500",
+          "method": "GET"
+        },
+        {
+          "name": "getEtfBundle",
+          "code": "069500",
+          "method": "GET"
+        },
+        {
+          "name": "getChartData",
+          "code": "069500",
+          "method": "GET"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "069500",
+          "method": "POST"
+        }
+      ],
+      "initial": {
+        "layoutKey": "ked:chart:v2:KR:069500:day:etf:detail",
+        "layout": {
+          "v": 2,
+          "indicators": [
+            {
+              "uid": "sma-mutl6hw9-29",
+              "id": "sma",
+              "params": {
+                "period": 5
+              },
+              "visible": true,
+              "color": "#f59e0b"
+            },
+            {
+              "uid": "sma-mutl6hw9-30",
+              "id": "sma",
+              "params": {
+                "period": 20
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            },
+            {
+              "uid": "sma-mutl6hw9-31",
+              "id": "sma",
+              "params": {
+                "period": 60
+              },
+              "visible": true,
+              "color": "#38bdf8"
+            },
+            {
+              "uid": "bb-mutl6hw9-32",
+              "id": "bb",
+              "params": {
+                "period": 20,
+                "mult": 2
+              },
+              "visible": true,
+              "color": "#64748b"
+            },
+            {
+              "uid": "volume-mutl6hw9-33",
+              "id": "volume",
+              "params": {
+                "ma": 20
+              },
+              "visible": true
+            },
+            {
+              "uid": "rsi-mutl6hw9-34",
+              "id": "rsi",
+              "params": {
+                "period": 14
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            }
+          ],
+          "drawings": [],
+          "chartType": "candles",
+          "scale": "normal",
+          "overlays": {
+            "disclosures": false,
+            "news": false,
+            "research": false,
+            "targets": false,
+            "dividends": false,
+            "splits": false,
+            "signals": false
+          }
+        },
+        "htsKey": "ked:hts:v1:KR:etf:069500:day:detail",
+        "hts": {
+          "v": 1,
+          "enabled": true,
+          "panelHeights": {
+            "rsi": 100,
+            "price": 400,
+            "credit": 90,
+            "foreign": 90,
+            "investmentTrust": 110,
+            "volume": 120
+          },
+          "collapsed": {
+            "rsi": false,
+            "price": false,
+            "credit": false,
+            "foreign": false,
+            "investmentTrust": false,
+            "volume": false
+          },
+          "rsiPeriod": 14,
+          "signalPeriod": 9,
+          "signalMethod": "sma",
+          "rsiZones": false,
+          "volumeMa": {
+            "5": true,
+            "20": true,
+            "60": true
+          },
+          "trustMode": "cumulative",
+          "trustStartDate": "2026-01-02",
+          "profile": {
+            "enabled": true,
+            "preset": "hts",
+            "rows": 10,
+            "widthRatio": 0.85,
+            "colorMode": "auto",
+            "color": "#E6B77C",
+            "opacity": 0.32,
+            "showLabels": true,
+            "showVa": false,
+            "showPoc": false,
+            "basis": "volume",
+            "rangeMode": "visible",
+            "startDate": "",
+            "endDate": "",
+            "rangeOn": false,
+            "recentSpan": "52W"
+          }
+        },
+        "visible": [
+          "0",
+          "184"
+        ],
+        "markerCount": 0,
+        "eventItems": 0,
+        "eventGroups": 0,
+        "categories": {},
+        "rangeEnabled": "false",
+        "paneHeights": {
+          "rsi": 100,
+          "price": 400,
+          "credit": 90,
+          "foreign": 90,
+          "investmentTrust": 110,
+          "volume": 121
+        },
+        "overflow": 0,
+        "devicePixelRatio": 1
+      },
+      "geometry": {
+        "measuredWidth": 909.5,
+        "plotWidth": 1070,
+        "expectedWidth": 909.5,
+        "dpr": 1,
+        "actualTransformScale": 1,
+        "color": "#e6b77c",
+        "fillAlpha": 0.32,
+        "pricePaneOnly": true
+      },
+      "screenshot": "/workspace/screenshots/chart-display/verified-dev/etf-desktop-light-dpr1-annotations-off.png",
+      "chartScreenshot": "/workspace/screenshots/chart-display/verified-dev/etf-desktop-light-dpr1-chart.png",
+      "exports": [
+        {
+          "path": "/workspace/screenshots/chart-display/verified-dev/etf-desktop-light-dpr1-annotations-off-export.png",
+          "width": 1138,
+          "height": 1238,
+          "bytes": 489163,
+          "pixels": {
+            "expectedBackground": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "nativeHeight": 944,
+            "backgroundFraction": 0.7318822502182861,
+            "transparentFraction": 0,
+            "sampledColors": 720
+          }
+        }
+      ]
+    },
+    {
+      "id": "etf-desktop-light-dpr2",
+      "code": "069500",
+      "mode": "QA SYNTHETIC (실데이터 아님)",
+      "viewport": "desktop",
+      "theme": "light",
+      "dpr": 2,
+      "legacy": false,
+      "status": "passed",
+      "checks": [],
+      "errors": [],
+      "externalFailures": [
+        {
+          "origin": "https://fonts.googleapis.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://cdn.jsdelivr.net",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://grok.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        }
+      ],
+      "fixtureCalls": [
+        {
+          "name": "getChartSecurity",
+          "code": "069500",
+          "method": "GET"
+        },
+        {
+          "name": "getEtfBundle",
+          "code": "069500",
+          "method": "GET"
+        },
+        {
+          "name": "getChartData",
+          "code": "069500",
+          "method": "GET"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "069500",
+          "method": "POST"
+        }
+      ],
+      "initial": {
+        "layoutKey": "ked:chart:v2:KR:069500:day:etf:detail",
+        "layout": {
+          "v": 2,
+          "indicators": [
+            {
+              "uid": "sma-mutl6lg3-29",
+              "id": "sma",
+              "params": {
+                "period": 5
+              },
+              "visible": true,
+              "color": "#f59e0b"
+            },
+            {
+              "uid": "sma-mutl6lg3-30",
+              "id": "sma",
+              "params": {
+                "period": 20
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            },
+            {
+              "uid": "sma-mutl6lg3-31",
+              "id": "sma",
+              "params": {
+                "period": 60
+              },
+              "visible": true,
+              "color": "#38bdf8"
+            },
+            {
+              "uid": "bb-mutl6lg3-32",
+              "id": "bb",
+              "params": {
+                "period": 20,
+                "mult": 2
+              },
+              "visible": true,
+              "color": "#64748b"
+            },
+            {
+              "uid": "volume-mutl6lg3-33",
+              "id": "volume",
+              "params": {
+                "ma": 20
+              },
+              "visible": true
+            },
+            {
+              "uid": "rsi-mutl6lg3-34",
+              "id": "rsi",
+              "params": {
+                "period": 14
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            }
+          ],
+          "drawings": [],
+          "chartType": "candles",
+          "scale": "normal",
+          "overlays": {
+            "disclosures": false,
+            "news": false,
+            "research": false,
+            "targets": false,
+            "dividends": false,
+            "splits": false,
+            "signals": false
+          }
+        },
+        "htsKey": "ked:hts:v1:KR:etf:069500:day:detail",
+        "hts": {
+          "v": 1,
+          "enabled": true,
+          "panelHeights": {
+            "rsi": 100,
+            "price": 400,
+            "credit": 90,
+            "foreign": 90,
+            "investmentTrust": 110,
+            "volume": 120
+          },
+          "collapsed": {
+            "rsi": false,
+            "price": false,
+            "credit": false,
+            "foreign": false,
+            "investmentTrust": false,
+            "volume": false
+          },
+          "rsiPeriod": 14,
+          "signalPeriod": 9,
+          "signalMethod": "sma",
+          "rsiZones": false,
+          "volumeMa": {
+            "5": true,
+            "20": true,
+            "60": true
+          },
+          "trustMode": "cumulative",
+          "trustStartDate": "2026-01-02",
+          "profile": {
+            "enabled": true,
+            "preset": "hts",
+            "rows": 10,
+            "widthRatio": 0.85,
+            "colorMode": "auto",
+            "color": "#E6B77C",
+            "opacity": 0.32,
+            "showLabels": true,
+            "showVa": false,
+            "showPoc": false,
+            "basis": "volume",
+            "rangeMode": "visible",
+            "startDate": "",
+            "endDate": "",
+            "rangeOn": false,
+            "recentSpan": "52W"
+          }
+        },
+        "visible": [
+          "0",
+          "184"
+        ],
+        "markerCount": 0,
+        "eventItems": 0,
+        "eventGroups": 0,
+        "categories": {},
+        "rangeEnabled": "false",
+        "paneHeights": {
+          "rsi": 100,
+          "price": 400.5,
+          "credit": 90,
+          "foreign": 90,
+          "investmentTrust": 110,
+          "volume": 120.5
+        },
+        "overflow": 0,
+        "devicePixelRatio": 2
+      },
+      "geometry": {
+        "measuredWidth": 909.5,
+        "plotWidth": 1070,
+        "expectedWidth": 909.5,
+        "dpr": 1,
+        "actualTransformScale": 1,
+        "color": "#e6b77c",
+        "fillAlpha": 0.32,
+        "pricePaneOnly": true
+      },
+      "screenshot": "/workspace/screenshots/chart-display/verified-dev/etf-desktop-light-dpr2-annotations-off.png",
+      "chartScreenshot": "/workspace/screenshots/chart-display/verified-dev/etf-desktop-light-dpr2-chart.png",
+      "exports": [
+        {
+          "path": "/workspace/screenshots/chart-display/verified-dev/etf-desktop-light-dpr2-annotations-off-export.png",
+          "width": 1138,
+          "height": 1861,
+          "bytes": 695425,
+          "pixels": {
+            "expectedBackground": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "nativeHeight": 944,
+            "backgroundFraction": 0.7225271298490707,
+            "transparentFraction": 0,
+            "sampledColors": 766
+          }
+        }
+      ]
+    },
+    {
+      "id": "etf-desktop-dark-dpr1",
+      "code": "069500",
+      "mode": "QA SYNTHETIC (실데이터 아님)",
+      "viewport": "desktop",
+      "theme": "dark",
+      "dpr": 1,
+      "legacy": false,
+      "status": "passed",
+      "checks": [],
+      "errors": [],
+      "externalFailures": [
+        {
+          "origin": "https://fonts.googleapis.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://cdn.jsdelivr.net",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://grok.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        }
+      ],
+      "fixtureCalls": [
+        {
+          "name": "getChartSecurity",
+          "code": "069500",
+          "method": "GET"
+        },
+        {
+          "name": "getEtfBundle",
+          "code": "069500",
+          "method": "GET"
+        },
+        {
+          "name": "getChartData",
+          "code": "069500",
+          "method": "GET"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "069500",
+          "method": "POST"
+        }
+      ],
+      "initial": {
+        "layoutKey": "ked:chart:v2:KR:069500:day:etf:detail",
+        "layout": {
+          "v": 2,
+          "indicators": [
+            {
+              "uid": "sma-mutl6oyb-29",
+              "id": "sma",
+              "params": {
+                "period": 5
+              },
+              "visible": true,
+              "color": "#f59e0b"
+            },
+            {
+              "uid": "sma-mutl6oyb-30",
+              "id": "sma",
+              "params": {
+                "period": 20
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            },
+            {
+              "uid": "sma-mutl6oyb-31",
+              "id": "sma",
+              "params": {
+                "period": 60
+              },
+              "visible": true,
+              "color": "#38bdf8"
+            },
+            {
+              "uid": "bb-mutl6oyb-32",
+              "id": "bb",
+              "params": {
+                "period": 20,
+                "mult": 2
+              },
+              "visible": true,
+              "color": "#64748b"
+            },
+            {
+              "uid": "volume-mutl6oyb-33",
+              "id": "volume",
+              "params": {
+                "ma": 20
+              },
+              "visible": true
+            },
+            {
+              "uid": "rsi-mutl6oyb-34",
+              "id": "rsi",
+              "params": {
+                "period": 14
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            }
+          ],
+          "drawings": [],
+          "chartType": "candles",
+          "scale": "normal",
+          "overlays": {
+            "disclosures": false,
+            "news": false,
+            "research": false,
+            "targets": false,
+            "dividends": false,
+            "splits": false,
+            "signals": false
+          }
+        },
+        "htsKey": "ked:hts:v1:KR:etf:069500:day:detail",
+        "hts": {
+          "v": 1,
+          "enabled": true,
+          "panelHeights": {
+            "rsi": 100,
+            "price": 400,
+            "credit": 90,
+            "foreign": 90,
+            "investmentTrust": 110,
+            "volume": 120
+          },
+          "collapsed": {
+            "rsi": false,
+            "price": false,
+            "credit": false,
+            "foreign": false,
+            "investmentTrust": false,
+            "volume": false
+          },
+          "rsiPeriod": 14,
+          "signalPeriod": 9,
+          "signalMethod": "sma",
+          "rsiZones": false,
+          "volumeMa": {
+            "5": true,
+            "20": true,
+            "60": true
+          },
+          "trustMode": "cumulative",
+          "trustStartDate": "2026-01-02",
+          "profile": {
+            "enabled": true,
+            "preset": "hts",
+            "rows": 10,
+            "widthRatio": 0.85,
+            "colorMode": "auto",
+            "color": "#E6B77C",
+            "opacity": 0.32,
+            "showLabels": true,
+            "showVa": false,
+            "showPoc": false,
+            "basis": "volume",
+            "rangeMode": "visible",
+            "startDate": "",
+            "endDate": "",
+            "rangeOn": false,
+            "recentSpan": "52W"
+          }
+        },
+        "visible": [
+          "0",
+          "184"
+        ],
+        "markerCount": 0,
+        "eventItems": 0,
+        "eventGroups": 0,
+        "categories": {},
+        "rangeEnabled": "false",
+        "paneHeights": {
+          "rsi": 100,
+          "price": 400,
+          "credit": 90,
+          "foreign": 90,
+          "investmentTrust": 110,
+          "volume": 121
+        },
+        "overflow": 0,
+        "devicePixelRatio": 1
+      },
+      "geometry": {
+        "measuredWidth": 909.5,
+        "plotWidth": 1070,
+        "expectedWidth": 909.5,
+        "dpr": 1,
+        "actualTransformScale": 1,
+        "color": "#d9a15a",
+        "fillAlpha": 0.28,
+        "pricePaneOnly": true
+      },
+      "screenshot": "/workspace/screenshots/chart-display/verified-dev/etf-desktop-dark-dpr1-annotations-off.png",
+      "chartScreenshot": "/workspace/screenshots/chart-display/verified-dev/etf-desktop-dark-dpr1-chart.png",
+      "exports": [
+        {
+          "path": "/workspace/screenshots/chart-display/verified-dev/etf-desktop-dark-dpr1-annotations-off-export.png",
+          "width": 1138,
+          "height": 1238,
+          "bytes": 559608,
+          "pixels": {
+            "expectedBackground": [
+              13,
+              21,
+              36,
+              255
+            ],
+            "nativeHeight": 944,
+            "backgroundFraction": 0.7295122863914182,
+            "transparentFraction": 0,
+            "sampledColors": 767
+          }
+        }
+      ]
+    },
+    {
+      "id": "etf-desktop-dark-dpr2",
+      "code": "069500",
+      "mode": "QA SYNTHETIC (실데이터 아님)",
+      "viewport": "desktop",
+      "theme": "dark",
+      "dpr": 2,
+      "legacy": false,
+      "status": "passed",
+      "checks": [],
+      "errors": [],
+      "externalFailures": [
+        {
+          "origin": "https://fonts.googleapis.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://grok.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://cdn.jsdelivr.net",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        }
+      ],
+      "fixtureCalls": [
+        {
+          "name": "getChartSecurity",
+          "code": "069500",
+          "method": "GET"
+        },
+        {
+          "name": "getEtfBundle",
+          "code": "069500",
+          "method": "GET"
+        },
+        {
+          "name": "getChartData",
+          "code": "069500",
+          "method": "GET"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "069500",
+          "method": "POST"
+        }
+      ],
+      "initial": {
+        "layoutKey": "ked:chart:v2:KR:069500:day:etf:detail",
+        "layout": {
+          "v": 2,
+          "indicators": [
+            {
+              "uid": "sma-mutl6s7q-29",
+              "id": "sma",
+              "params": {
+                "period": 5
+              },
+              "visible": true,
+              "color": "#f59e0b"
+            },
+            {
+              "uid": "sma-mutl6s7q-30",
+              "id": "sma",
+              "params": {
+                "period": 20
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            },
+            {
+              "uid": "sma-mutl6s7q-31",
+              "id": "sma",
+              "params": {
+                "period": 60
+              },
+              "visible": true,
+              "color": "#38bdf8"
+            },
+            {
+              "uid": "bb-mutl6s7q-32",
+              "id": "bb",
+              "params": {
+                "period": 20,
+                "mult": 2
+              },
+              "visible": true,
+              "color": "#64748b"
+            },
+            {
+              "uid": "volume-mutl6s7q-33",
+              "id": "volume",
+              "params": {
+                "ma": 20
+              },
+              "visible": true
+            },
+            {
+              "uid": "rsi-mutl6s7q-34",
+              "id": "rsi",
+              "params": {
+                "period": 14
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            }
+          ],
+          "drawings": [],
+          "chartType": "candles",
+          "scale": "normal",
+          "overlays": {
+            "disclosures": false,
+            "news": false,
+            "research": false,
+            "targets": false,
+            "dividends": false,
+            "splits": false,
+            "signals": false
+          }
+        },
+        "htsKey": "ked:hts:v1:KR:etf:069500:day:detail",
+        "hts": {
+          "v": 1,
+          "enabled": true,
+          "panelHeights": {
+            "rsi": 100,
+            "price": 400,
+            "credit": 90,
+            "foreign": 90,
+            "investmentTrust": 110,
+            "volume": 120
+          },
+          "collapsed": {
+            "rsi": false,
+            "price": false,
+            "credit": false,
+            "foreign": false,
+            "investmentTrust": false,
+            "volume": false
+          },
+          "rsiPeriod": 14,
+          "signalPeriod": 9,
+          "signalMethod": "sma",
+          "rsiZones": false,
+          "volumeMa": {
+            "5": true,
+            "20": true,
+            "60": true
+          },
+          "trustMode": "cumulative",
+          "trustStartDate": "2026-01-02",
+          "profile": {
+            "enabled": true,
+            "preset": "hts",
+            "rows": 10,
+            "widthRatio": 0.85,
+            "colorMode": "auto",
+            "color": "#E6B77C",
+            "opacity": 0.32,
+            "showLabels": true,
+            "showVa": false,
+            "showPoc": false,
+            "basis": "volume",
+            "rangeMode": "visible",
+            "startDate": "",
+            "endDate": "",
+            "rangeOn": false,
+            "recentSpan": "52W"
+          }
+        },
+        "visible": [
+          "0",
+          "184"
+        ],
+        "markerCount": 0,
+        "eventItems": 0,
+        "eventGroups": 0,
+        "categories": {},
+        "rangeEnabled": "false",
+        "paneHeights": {
+          "rsi": 100,
+          "price": 400.5,
+          "credit": 90,
+          "foreign": 90,
+          "investmentTrust": 110,
+          "volume": 120.5
+        },
+        "overflow": 0,
+        "devicePixelRatio": 2
+      },
+      "geometry": {
+        "measuredWidth": 909.5,
+        "plotWidth": 1070,
+        "expectedWidth": 909.5,
+        "dpr": 1,
+        "actualTransformScale": 1,
+        "color": "#d9a15a",
+        "fillAlpha": 0.28,
+        "pricePaneOnly": true
+      },
+      "screenshot": "/workspace/screenshots/chart-display/verified-dev/etf-desktop-dark-dpr2-annotations-off.png",
+      "chartScreenshot": "/workspace/screenshots/chart-display/verified-dev/etf-desktop-dark-dpr2-chart.png",
+      "exports": [
+        {
+          "path": "/workspace/screenshots/chart-display/verified-dev/etf-desktop-dark-dpr2-annotations-off-export.png",
+          "width": 1138,
+          "height": 1861,
+          "bytes": 774712,
+          "pixels": {
+            "expectedBackground": [
+              13,
+              21,
+              36,
+              255
+            ],
+            "nativeHeight": 944,
+            "backgroundFraction": 0.7205937383060995,
+            "transparentFraction": 0,
+            "sampledColors": 797
+          }
+        }
+      ]
+    },
+    {
+      "id": "etf-mobile-light-dpr1",
+      "code": "069500",
+      "mode": "QA SYNTHETIC (실데이터 아님)",
+      "viewport": "mobile",
+      "theme": "light",
+      "dpr": 1,
+      "legacy": false,
+      "status": "passed",
+      "checks": [],
+      "errors": [],
+      "externalFailures": [
+        {
+          "origin": "https://fonts.googleapis.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://grok.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://cdn.jsdelivr.net",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        }
+      ],
+      "fixtureCalls": [
+        {
+          "name": "getChartSecurity",
+          "code": "069500",
+          "method": "GET"
+        },
+        {
+          "name": "getEtfBundle",
+          "code": "069500",
+          "method": "GET"
+        },
+        {
+          "name": "getChartData",
+          "code": "069500",
+          "method": "GET"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "069500",
+          "method": "POST"
+        }
+      ],
+      "initial": {
+        "layoutKey": "ked:chart:v2:KR:069500:day:etf:detail",
+        "layout": {
+          "v": 2,
+          "indicators": [
+            {
+              "uid": "sma-mutl6w42-43",
+              "id": "sma",
+              "params": {
+                "period": 5
+              },
+              "visible": true,
+              "color": "#f59e0b"
+            },
+            {
+              "uid": "sma-mutl6w42-44",
+              "id": "sma",
+              "params": {
+                "period": 20
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            },
+            {
+              "uid": "sma-mutl6w42-45",
+              "id": "sma",
+              "params": {
+                "period": 60
+              },
+              "visible": true,
+              "color": "#38bdf8"
+            },
+            {
+              "uid": "bb-mutl6w42-46",
+              "id": "bb",
+              "params": {
+                "period": 20,
+                "mult": 2
+              },
+              "visible": true,
+              "color": "#64748b"
+            },
+            {
+              "uid": "volume-mutl6w42-47",
+              "id": "volume",
+              "params": {
+                "ma": 20
+              },
+              "visible": true
+            },
+            {
+              "uid": "rsi-mutl6w42-48",
+              "id": "rsi",
+              "params": {
+                "period": 14
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            }
+          ],
+          "drawings": [],
+          "chartType": "candles",
+          "scale": "normal",
+          "overlays": {
+            "disclosures": false,
+            "news": false,
+            "research": false,
+            "targets": false,
+            "dividends": false,
+            "splits": false,
+            "signals": false
+          }
+        },
+        "htsKey": "ked:hts:v1:KR:etf:069500:day:detail",
+        "hts": {
+          "v": 1,
+          "enabled": true,
+          "panelHeights": {
+            "rsi": 100,
+            "price": 400,
+            "credit": 90,
+            "foreign": 90,
+            "investmentTrust": 110,
+            "volume": 120
+          },
+          "collapsed": {
+            "rsi": false,
+            "price": false,
+            "credit": false,
+            "foreign": false,
+            "investmentTrust": false,
+            "volume": false
+          },
+          "rsiPeriod": 14,
+          "signalPeriod": 9,
+          "signalMethod": "sma",
+          "rsiZones": false,
+          "volumeMa": {
+            "5": true,
+            "20": true,
+            "60": true
+          },
+          "trustMode": "cumulative",
+          "trustStartDate": "2026-01-02",
+          "profile": {
+            "enabled": true,
+            "preset": "hts",
+            "rows": 10,
+            "widthRatio": 0.85,
+            "colorMode": "auto",
+            "color": "#E6B77C",
+            "opacity": 0.32,
+            "showLabels": true,
+            "showVa": false,
+            "showPoc": false,
+            "basis": "volume",
+            "rangeMode": "visible",
+            "startDate": "",
+            "endDate": "",
+            "rangeOn": false,
+            "recentSpan": "52W"
+          }
+        },
+        "visible": [
+          "0",
+          "184"
+        ],
+        "markerCount": 0,
+        "eventItems": 0,
+        "eventGroups": 0,
+        "categories": {},
+        "rangeEnabled": "false",
+        "paneHeights": {
+          "rsi": 100,
+          "price": 400,
+          "credit": 90,
+          "foreign": 90,
+          "investmentTrust": 110,
+          "volume": 121
+        },
+        "overflow": 0,
+        "devicePixelRatio": 1
+      },
+      "geometry": {
+        "measuredWidth": 241.4,
+        "plotWidth": 284,
+        "expectedWidth": 241.4,
+        "dpr": 1,
+        "actualTransformScale": 1,
+        "color": "#e6b77c",
+        "fillAlpha": 0.32,
+        "pricePaneOnly": true
+      },
+      "screenshot": "/workspace/screenshots/chart-display/verified-dev/etf-mobile-light-dpr1-annotations-off.png",
+      "chartScreenshot": "/workspace/screenshots/chart-display/verified-dev/etf-mobile-light-dpr1-chart.png",
+      "exports": [
+        {
+          "path": "/workspace/screenshots/chart-display/verified-dev/etf-mobile-light-dpr1-annotations-off-export.png",
+          "width": 352,
+          "height": 1616,
+          "bytes": 353665,
+          "pixels": {
+            "expectedBackground": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "nativeHeight": 944,
+            "backgroundFraction": 0.6812518808305748,
+            "transparentFraction": 0,
+            "sampledColors": 1356
+          }
+        }
+      ]
+    },
+    {
+      "id": "etf-mobile-light-dpr2",
+      "code": "069500",
+      "mode": "QA SYNTHETIC (실데이터 아님)",
+      "viewport": "mobile",
+      "theme": "light",
+      "dpr": 2,
+      "legacy": false,
+      "status": "passed",
+      "checks": [],
+      "errors": [],
+      "externalFailures": [
+        {
+          "origin": "https://fonts.googleapis.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://cdn.jsdelivr.net",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://grok.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        }
+      ],
+      "fixtureCalls": [
+        {
+          "name": "getChartSecurity",
+          "code": "069500",
+          "method": "GET"
+        },
+        {
+          "name": "getEtfBundle",
+          "code": "069500",
+          "method": "GET"
+        },
+        {
+          "name": "getChartData",
+          "code": "069500",
+          "method": "GET"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "069500",
+          "method": "POST"
+        }
+      ],
+      "initial": {
+        "layoutKey": "ked:chart:v2:KR:069500:day:etf:detail",
+        "layout": {
+          "v": 2,
+          "indicators": [
+            {
+              "uid": "sma-mutl6ywg-43",
+              "id": "sma",
+              "params": {
+                "period": 5
+              },
+              "visible": true,
+              "color": "#f59e0b"
+            },
+            {
+              "uid": "sma-mutl6ywg-44",
+              "id": "sma",
+              "params": {
+                "period": 20
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            },
+            {
+              "uid": "sma-mutl6ywg-45",
+              "id": "sma",
+              "params": {
+                "period": 60
+              },
+              "visible": true,
+              "color": "#38bdf8"
+            },
+            {
+              "uid": "bb-mutl6ywg-46",
+              "id": "bb",
+              "params": {
+                "period": 20,
+                "mult": 2
+              },
+              "visible": true,
+              "color": "#64748b"
+            },
+            {
+              "uid": "volume-mutl6ywg-47",
+              "id": "volume",
+              "params": {
+                "ma": 20
+              },
+              "visible": true
+            },
+            {
+              "uid": "rsi-mutl6ywg-48",
+              "id": "rsi",
+              "params": {
+                "period": 14
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            }
+          ],
+          "drawings": [],
+          "chartType": "candles",
+          "scale": "normal",
+          "overlays": {
+            "disclosures": false,
+            "news": false,
+            "research": false,
+            "targets": false,
+            "dividends": false,
+            "splits": false,
+            "signals": false
+          }
+        },
+        "htsKey": "ked:hts:v1:KR:etf:069500:day:detail",
+        "hts": {
+          "v": 1,
+          "enabled": true,
+          "panelHeights": {
+            "rsi": 100,
+            "price": 400,
+            "credit": 90,
+            "foreign": 90,
+            "investmentTrust": 110,
+            "volume": 120
+          },
+          "collapsed": {
+            "rsi": false,
+            "price": false,
+            "credit": false,
+            "foreign": false,
+            "investmentTrust": false,
+            "volume": false
+          },
+          "rsiPeriod": 14,
+          "signalPeriod": 9,
+          "signalMethod": "sma",
+          "rsiZones": false,
+          "volumeMa": {
+            "5": true,
+            "20": true,
+            "60": true
+          },
+          "trustMode": "cumulative",
+          "trustStartDate": "2026-01-02",
+          "profile": {
+            "enabled": true,
+            "preset": "hts",
+            "rows": 10,
+            "widthRatio": 0.85,
+            "colorMode": "auto",
+            "color": "#E6B77C",
+            "opacity": 0.32,
+            "showLabels": true,
+            "showVa": false,
+            "showPoc": false,
+            "basis": "volume",
+            "rangeMode": "visible",
+            "startDate": "",
+            "endDate": "",
+            "rangeOn": false,
+            "recentSpan": "52W"
+          }
+        },
+        "visible": [
+          "0",
+          "184"
+        ],
+        "markerCount": 0,
+        "eventItems": 0,
+        "eventGroups": 0,
+        "categories": {},
+        "rangeEnabled": "false",
+        "paneHeights": {
+          "rsi": 100,
+          "price": 400.5,
+          "credit": 90,
+          "foreign": 90,
+          "investmentTrust": 110,
+          "volume": 120.5
+        },
+        "overflow": 0,
+        "devicePixelRatio": 2
+      },
+      "geometry": {
+        "measuredWidth": 241.4,
+        "plotWidth": 284,
+        "expectedWidth": 241.4,
+        "dpr": 1,
+        "actualTransformScale": 1,
+        "color": "#e6b77c",
+        "fillAlpha": 0.32,
+        "pricePaneOnly": true
+      },
+      "screenshot": "/workspace/screenshots/chart-display/verified-dev/etf-mobile-light-dpr2-annotations-off.png",
+      "chartScreenshot": "/workspace/screenshots/chart-display/verified-dev/etf-mobile-light-dpr2-chart.png",
+      "exports": [
+        {
+          "path": "/workspace/screenshots/chart-display/verified-dev/etf-mobile-light-dpr2-annotations-off-export.png",
+          "width": 352,
+          "height": 3589,
+          "bytes": 595594,
+          "pixels": {
+            "expectedBackground": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "nativeHeight": 944,
+            "backgroundFraction": 0.6708396027685826,
+            "transparentFraction": 0,
+            "sampledColors": 1348
+          }
+        }
+      ]
+    },
+    {
+      "id": "etf-mobile-dark-dpr1",
+      "code": "069500",
+      "mode": "QA SYNTHETIC (실데이터 아님)",
+      "viewport": "mobile",
+      "theme": "dark",
+      "dpr": 1,
+      "legacy": false,
+      "status": "passed",
+      "checks": [],
+      "errors": [],
+      "externalFailures": [
+        {
+          "origin": "https://cdn.jsdelivr.net",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://fonts.googleapis.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://grok.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        }
+      ],
+      "fixtureCalls": [
+        {
+          "name": "getChartSecurity",
+          "code": "069500",
+          "method": "GET"
+        },
+        {
+          "name": "getEtfBundle",
+          "code": "069500",
+          "method": "GET"
+        },
+        {
+          "name": "getChartData",
+          "code": "069500",
+          "method": "GET"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "069500",
+          "method": "POST"
+        }
+      ],
+      "initial": {
+        "layoutKey": "ked:chart:v2:KR:069500:day:etf:detail",
+        "layout": {
+          "v": 2,
+          "indicators": [
+            {
+              "uid": "sma-mutl72bo-29",
+              "id": "sma",
+              "params": {
+                "period": 5
+              },
+              "visible": true,
+              "color": "#f59e0b"
+            },
+            {
+              "uid": "sma-mutl72bo-30",
+              "id": "sma",
+              "params": {
+                "period": 20
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            },
+            {
+              "uid": "sma-mutl72bo-31",
+              "id": "sma",
+              "params": {
+                "period": 60
+              },
+              "visible": true,
+              "color": "#38bdf8"
+            },
+            {
+              "uid": "bb-mutl72bo-32",
+              "id": "bb",
+              "params": {
+                "period": 20,
+                "mult": 2
+              },
+              "visible": true,
+              "color": "#64748b"
+            },
+            {
+              "uid": "volume-mutl72bo-33",
+              "id": "volume",
+              "params": {
+                "ma": 20
+              },
+              "visible": true
+            },
+            {
+              "uid": "rsi-mutl72bo-34",
+              "id": "rsi",
+              "params": {
+                "period": 14
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            }
+          ],
+          "drawings": [],
+          "chartType": "candles",
+          "scale": "normal",
+          "overlays": {
+            "disclosures": false,
+            "news": false,
+            "research": false,
+            "targets": false,
+            "dividends": false,
+            "splits": false,
+            "signals": false
+          }
+        },
+        "htsKey": "ked:hts:v1:KR:etf:069500:day:detail",
+        "hts": {
+          "v": 1,
+          "enabled": true,
+          "panelHeights": {
+            "rsi": 100,
+            "price": 400,
+            "credit": 90,
+            "foreign": 90,
+            "investmentTrust": 110,
+            "volume": 120
+          },
+          "collapsed": {
+            "rsi": false,
+            "price": false,
+            "credit": false,
+            "foreign": false,
+            "investmentTrust": false,
+            "volume": false
+          },
+          "rsiPeriod": 14,
+          "signalPeriod": 9,
+          "signalMethod": "sma",
+          "rsiZones": false,
+          "volumeMa": {
+            "5": true,
+            "20": true,
+            "60": true
+          },
+          "trustMode": "cumulative",
+          "trustStartDate": "",
+          "profile": {
+            "enabled": true,
+            "preset": "hts",
+            "rows": 10,
+            "widthRatio": 0.85,
+            "colorMode": "auto",
+            "color": "#E6B77C",
+            "opacity": 0.32,
+            "showLabels": true,
+            "showVa": false,
+            "showPoc": false,
+            "basis": "volume",
+            "rangeMode": "visible",
+            "startDate": "",
+            "endDate": "",
+            "rangeOn": false,
+            "recentSpan": "52W"
+          }
+        },
+        "visible": [
+          "0",
+          "184"
+        ],
+        "markerCount": 0,
+        "eventItems": 0,
+        "eventGroups": 0,
+        "categories": {},
+        "rangeEnabled": "false",
+        "paneHeights": {
+          "rsi": 100,
+          "price": 400,
+          "credit": 90,
+          "foreign": 90,
+          "investmentTrust": 110,
+          "volume": 121
+        },
+        "overflow": 0,
+        "devicePixelRatio": 1
+      },
+      "geometry": {
+        "measuredWidth": 241.4,
+        "plotWidth": 284,
+        "expectedWidth": 241.4,
+        "dpr": 1,
+        "actualTransformScale": 1,
+        "color": "#d9a15a",
+        "fillAlpha": 0.28,
+        "pricePaneOnly": true
+      },
+      "screenshot": "/workspace/screenshots/chart-display/verified-dev/etf-mobile-dark-dpr1-annotations-off.png",
+      "chartScreenshot": "/workspace/screenshots/chart-display/verified-dev/etf-mobile-dark-dpr1-chart.png",
+      "exports": [
+        {
+          "path": "/workspace/screenshots/chart-display/verified-dev/etf-mobile-dark-dpr1-annotations-off-export.png",
+          "width": 352,
+          "height": 1616,
+          "bytes": 395040,
+          "pixels": {
+            "expectedBackground": [
+              13,
+              21,
+              36,
+              255
+            ],
+            "nativeHeight": 944,
+            "backgroundFraction": 0.6775203129702076,
+            "transparentFraction": 0,
+            "sampledColors": 1438
+          }
+        }
+      ]
+    },
+    {
+      "id": "etf-mobile-dark-dpr2",
+      "code": "069500",
+      "mode": "QA SYNTHETIC (실데이터 아님)",
+      "viewport": "mobile",
+      "theme": "dark",
+      "dpr": 2,
+      "legacy": false,
+      "status": "passed",
+      "checks": [],
+      "errors": [],
+      "externalFailures": [
+        {
+          "origin": "https://cdn.jsdelivr.net",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://fonts.googleapis.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://grok.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        }
+      ],
+      "fixtureCalls": [
+        {
+          "name": "getChartSecurity",
+          "code": "069500",
+          "method": "GET"
+        },
+        {
+          "name": "getEtfBundle",
+          "code": "069500",
+          "method": "GET"
+        },
+        {
+          "name": "getChartData",
+          "code": "069500",
+          "method": "GET"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "069500",
+          "method": "POST"
+        }
+      ],
+      "initial": {
+        "layoutKey": "ked:chart:v2:KR:069500:day:etf:detail",
+        "layout": {
+          "v": 2,
+          "indicators": [
+            {
+              "uid": "sma-mutl75rq-29",
+              "id": "sma",
+              "params": {
+                "period": 5
+              },
+              "visible": true,
+              "color": "#f59e0b"
+            },
+            {
+              "uid": "sma-mutl75rq-30",
+              "id": "sma",
+              "params": {
+                "period": 20
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            },
+            {
+              "uid": "sma-mutl75rq-31",
+              "id": "sma",
+              "params": {
+                "period": 60
+              },
+              "visible": true,
+              "color": "#38bdf8"
+            },
+            {
+              "uid": "bb-mutl75rq-32",
+              "id": "bb",
+              "params": {
+                "period": 20,
+                "mult": 2
+              },
+              "visible": true,
+              "color": "#64748b"
+            },
+            {
+              "uid": "volume-mutl75rq-33",
+              "id": "volume",
+              "params": {
+                "ma": 20
+              },
+              "visible": true
+            },
+            {
+              "uid": "rsi-mutl75rq-34",
+              "id": "rsi",
+              "params": {
+                "period": 14
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            }
+          ],
+          "drawings": [],
+          "chartType": "candles",
+          "scale": "normal",
+          "overlays": {
+            "disclosures": false,
+            "news": false,
+            "research": false,
+            "targets": false,
+            "dividends": false,
+            "splits": false,
+            "signals": false
+          }
+        },
+        "htsKey": "ked:hts:v1:KR:etf:069500:day:detail",
+        "hts": {
+          "v": 1,
+          "enabled": true,
+          "panelHeights": {
+            "rsi": 100,
+            "price": 400,
+            "credit": 90,
+            "foreign": 90,
+            "investmentTrust": 110,
+            "volume": 120
+          },
+          "collapsed": {
+            "rsi": false,
+            "price": false,
+            "credit": false,
+            "foreign": false,
+            "investmentTrust": false,
+            "volume": false
+          },
+          "rsiPeriod": 14,
+          "signalPeriod": 9,
+          "signalMethod": "sma",
+          "rsiZones": false,
+          "volumeMa": {
+            "5": true,
+            "20": true,
+            "60": true
+          },
+          "trustMode": "cumulative",
+          "trustStartDate": "2026-01-02",
+          "profile": {
+            "enabled": true,
+            "preset": "hts",
+            "rows": 10,
+            "widthRatio": 0.85,
+            "colorMode": "auto",
+            "color": "#E6B77C",
+            "opacity": 0.32,
+            "showLabels": true,
+            "showVa": false,
+            "showPoc": false,
+            "basis": "volume",
+            "rangeMode": "visible",
+            "startDate": "",
+            "endDate": "",
+            "rangeOn": false,
+            "recentSpan": "52W"
+          }
+        },
+        "visible": [
+          "0",
+          "184"
+        ],
+        "markerCount": 0,
+        "eventItems": 0,
+        "eventGroups": 0,
+        "categories": {},
+        "rangeEnabled": "false",
+        "paneHeights": {
+          "rsi": 100,
+          "price": 400.5,
+          "credit": 90,
+          "foreign": 90,
+          "investmentTrust": 110,
+          "volume": 120.5
+        },
+        "overflow": 0,
+        "devicePixelRatio": 2
+      },
+      "geometry": {
+        "measuredWidth": 241.4,
+        "plotWidth": 284,
+        "expectedWidth": 241.4,
+        "dpr": 1,
+        "actualTransformScale": 1,
+        "color": "#d9a15a",
+        "fillAlpha": 0.28,
+        "pricePaneOnly": true
+      },
+      "screenshot": "/workspace/screenshots/chart-display/verified-dev/etf-mobile-dark-dpr2-annotations-off.png",
+      "chartScreenshot": "/workspace/screenshots/chart-display/verified-dev/etf-mobile-dark-dpr2-chart.png",
+      "exports": [
+        {
+          "path": "/workspace/screenshots/chart-display/verified-dev/etf-mobile-dark-dpr2-annotations-off-export.png",
+          "width": 352,
+          "height": 3589,
+          "bytes": 640145,
+          "pixels": {
+            "expectedBackground": [
+              13,
+              21,
+              36,
+              255
+            ],
+            "nativeHeight": 944,
+            "backgroundFraction": 0.6672284080650015,
+            "transparentFraction": 0,
+            "sampledColors": 1443
+          }
+        }
+      ]
+    },
+    {
+      "id": "us-desktop-light-dpr1",
+      "code": "NVDA",
+      "mode": "QA SYNTHETIC (실데이터 아님)",
+      "viewport": "desktop",
+      "theme": "light",
+      "dpr": 1,
+      "legacy": false,
+      "status": "passed",
+      "checks": [],
+      "errors": [],
+      "externalFailures": [
+        {
+          "origin": "https://fonts.googleapis.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://grok.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://cdn.jsdelivr.net",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        }
+      ],
+      "fixtureCalls": [
+        {
+          "name": "getUsChartSecurity",
+          "code": "NVDA",
+          "method": "GET"
+        },
+        {
+          "name": "getChartData",
+          "code": "NVDA",
+          "method": "GET"
+        }
+      ],
+      "initial": {
+        "layoutKey": "ked:chart:v2:US:NVDA:day:stock:detail",
+        "layout": {
+          "v": 2,
+          "indicators": [
+            {
+              "uid": "sma-mutl7964-73",
+              "id": "sma",
+              "params": {
+                "period": 5
+              },
+              "visible": true,
+              "color": "#f59e0b"
+            },
+            {
+              "uid": "sma-mutl7964-74",
+              "id": "sma",
+              "params": {
+                "period": 20
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            },
+            {
+              "uid": "sma-mutl7964-75",
+              "id": "sma",
+              "params": {
+                "period": 60
+              },
+              "visible": true,
+              "color": "#38bdf8"
+            },
+            {
+              "uid": "bb-mutl7964-76",
+              "id": "bb",
+              "params": {
+                "period": 20,
+                "mult": 2
+              },
+              "visible": true,
+              "color": "#64748b"
+            },
+            {
+              "uid": "volume-mutl7964-77",
+              "id": "volume",
+              "params": {
+                "ma": 20
+              },
+              "visible": true
+            },
+            {
+              "uid": "rsi-mutl7964-78",
+              "id": "rsi",
+              "params": {
+                "period": 14
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            },
+            {
+              "uid": "macd-mutl7964-79",
+              "id": "macd",
+              "params": {
+                "fast": 12,
+                "slow": 26,
+                "signal": 9
+              },
+              "visible": true,
+              "color": "#38bdf8"
+            },
+            {
+              "uid": "sma-mutl7964-80",
+              "id": "sma",
+              "params": {
+                "period": 50
+              },
+              "visible": true,
+              "color": "#f97316"
+            },
+            {
+              "uid": "sma-mutl7964-81",
+              "id": "sma",
+              "params": {
+                "period": 200
+              },
+              "visible": true,
+              "color": "#2563eb"
+            }
+          ],
+          "drawings": [],
+          "chartType": "candles",
+          "scale": "normal",
+          "overlays": {
+            "disclosures": false,
+            "news": false,
+            "research": false,
+            "targets": false,
+            "dividends": false,
+            "splits": false,
+            "signals": false
+          }
+        },
+        "htsKey": "ked:hts:v1:US:stock:NVDA:day:detail",
+        "hts": {
+          "v": 1,
+          "enabled": false,
+          "panelHeights": {
+            "rsi": 100,
+            "price": 400,
+            "credit": 90,
+            "foreign": 90,
+            "investmentTrust": 110,
+            "volume": 120
+          },
+          "collapsed": {
+            "rsi": false,
+            "price": false,
+            "credit": false,
+            "foreign": false,
+            "investmentTrust": false,
+            "volume": false
+          },
+          "rsiPeriod": 14,
+          "signalPeriod": 9,
+          "signalMethod": "sma",
+          "rsiZones": false,
+          "volumeMa": {
+            "5": true,
+            "20": true,
+            "60": true
+          },
+          "trustMode": "cumulative",
+          "trustStartDate": "2026-01-02",
+          "profile": {
+            "enabled": true,
+            "preset": "hts",
+            "rows": 10,
+            "widthRatio": 0.85,
+            "colorMode": "auto",
+            "color": "#E6B77C",
+            "opacity": 0.32,
+            "showLabels": true,
+            "showVa": false,
+            "showPoc": false,
+            "basis": "volume",
+            "rangeMode": "visible",
+            "startDate": "",
+            "endDate": "",
+            "rangeOn": false,
+            "recentSpan": "52W"
+          }
+        },
+        "visible": [
+          "0",
+          "184"
+        ],
+        "markerCount": 0,
+        "eventItems": 0,
+        "eventGroups": 0,
+        "categories": {},
+        "rangeEnabled": "false",
+        "paneHeights": {},
+        "overflow": 0,
+        "devicePixelRatio": 1
+      },
+      "geometry": {
+        "measuredWidth": 895.9,
+        "plotWidth": 1054,
+        "expectedWidth": 895.9,
+        "dpr": 1,
+        "actualTransformScale": 1,
+        "color": "#e6b77c",
+        "fillAlpha": 0.32,
+        "pricePaneOnly": true
+      },
+      "screenshot": "/workspace/screenshots/chart-display/verified-dev/us-desktop-light-dpr1-annotations-off.png",
+      "chartScreenshot": "/workspace/screenshots/chart-display/verified-dev/us-desktop-light-dpr1-chart.png",
+      "exports": [
+        {
+          "path": "/workspace/screenshots/chart-display/verified-dev/us-desktop-light-dpr1-annotations-off-export.png",
+          "width": 1138,
+          "height": 714,
+          "bytes": 219702,
+          "pixels": {
+            "expectedBackground": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "nativeHeight": 636,
+            "backgroundFraction": 0.6929868191992041,
+            "transparentFraction": 0,
+            "sampledColors": 642
+          }
+        }
+      ]
+    },
+    {
+      "id": "us-desktop-light-dpr2",
+      "code": "NVDA",
+      "mode": "QA SYNTHETIC (실데이터 아님)",
+      "viewport": "desktop",
+      "theme": "light",
+      "dpr": 2,
+      "legacy": false,
+      "status": "passed",
+      "checks": [],
+      "errors": [],
+      "externalFailures": [
+        {
+          "origin": "https://cdn.jsdelivr.net",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://fonts.googleapis.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://grok.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        }
+      ],
+      "fixtureCalls": [
+        {
+          "name": "getUsChartSecurity",
+          "code": "NVDA",
+          "method": "GET"
+        },
+        {
+          "name": "getChartData",
+          "code": "NVDA",
+          "method": "GET"
+        }
+      ],
+      "initial": {
+        "layoutKey": "ked:chart:v2:US:NVDA:day:stock:detail",
+        "layout": {
+          "v": 2,
+          "indicators": [
+            {
+              "uid": "sma-mutl7c1h-73",
+              "id": "sma",
+              "params": {
+                "period": 5
+              },
+              "visible": true,
+              "color": "#f59e0b"
+            },
+            {
+              "uid": "sma-mutl7c1h-74",
+              "id": "sma",
+              "params": {
+                "period": 20
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            },
+            {
+              "uid": "sma-mutl7c1h-75",
+              "id": "sma",
+              "params": {
+                "period": 60
+              },
+              "visible": true,
+              "color": "#38bdf8"
+            },
+            {
+              "uid": "bb-mutl7c1h-76",
+              "id": "bb",
+              "params": {
+                "period": 20,
+                "mult": 2
+              },
+              "visible": true,
+              "color": "#64748b"
+            },
+            {
+              "uid": "volume-mutl7c1h-77",
+              "id": "volume",
+              "params": {
+                "ma": 20
+              },
+              "visible": true
+            },
+            {
+              "uid": "rsi-mutl7c1h-78",
+              "id": "rsi",
+              "params": {
+                "period": 14
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            },
+            {
+              "uid": "macd-mutl7c1h-79",
+              "id": "macd",
+              "params": {
+                "fast": 12,
+                "slow": 26,
+                "signal": 9
+              },
+              "visible": true,
+              "color": "#38bdf8"
+            },
+            {
+              "uid": "sma-mutl7c1h-80",
+              "id": "sma",
+              "params": {
+                "period": 50
+              },
+              "visible": true,
+              "color": "#f97316"
+            },
+            {
+              "uid": "sma-mutl7c1h-81",
+              "id": "sma",
+              "params": {
+                "period": 200
+              },
+              "visible": true,
+              "color": "#2563eb"
+            }
+          ],
+          "drawings": [],
+          "chartType": "candles",
+          "scale": "normal",
+          "overlays": {
+            "disclosures": false,
+            "news": false,
+            "research": false,
+            "targets": false,
+            "dividends": false,
+            "splits": false,
+            "signals": false
+          }
+        },
+        "htsKey": "ked:hts:v1:US:stock:NVDA:day:detail",
+        "hts": {
+          "v": 1,
+          "enabled": false,
+          "panelHeights": {
+            "rsi": 100,
+            "price": 400,
+            "credit": 90,
+            "foreign": 90,
+            "investmentTrust": 110,
+            "volume": 120
+          },
+          "collapsed": {
+            "rsi": false,
+            "price": false,
+            "credit": false,
+            "foreign": false,
+            "investmentTrust": false,
+            "volume": false
+          },
+          "rsiPeriod": 14,
+          "signalPeriod": 9,
+          "signalMethod": "sma",
+          "rsiZones": false,
+          "volumeMa": {
+            "5": true,
+            "20": true,
+            "60": true
+          },
+          "trustMode": "cumulative",
+          "trustStartDate": "2026-01-02",
+          "profile": {
+            "enabled": true,
+            "preset": "hts",
+            "rows": 10,
+            "widthRatio": 0.85,
+            "colorMode": "auto",
+            "color": "#E6B77C",
+            "opacity": 0.32,
+            "showLabels": true,
+            "showVa": false,
+            "showPoc": false,
+            "basis": "volume",
+            "rangeMode": "visible",
+            "startDate": "",
+            "endDate": "",
+            "rangeOn": false,
+            "recentSpan": "52W"
+          }
+        },
+        "visible": [
+          "0",
+          "184"
+        ],
+        "markerCount": 0,
+        "eventItems": 0,
+        "eventGroups": 0,
+        "categories": {},
+        "rangeEnabled": "false",
+        "paneHeights": {},
+        "overflow": 0,
+        "devicePixelRatio": 2
+      },
+      "geometry": {
+        "measuredWidth": 895.9,
+        "plotWidth": 1054,
+        "expectedWidth": 895.9,
+        "dpr": 1,
+        "actualTransformScale": 1,
+        "color": "#e6b77c",
+        "fillAlpha": 0.32,
+        "pricePaneOnly": true
+      },
+      "screenshot": "/workspace/screenshots/chart-display/verified-dev/us-desktop-light-dpr2-annotations-off.png",
+      "chartScreenshot": "/workspace/screenshots/chart-display/verified-dev/us-desktop-light-dpr2-chart.png",
+      "exports": [
+        {
+          "path": "/workspace/screenshots/chart-display/verified-dev/us-desktop-light-dpr2-annotations-off-export.png",
+          "width": 1138,
+          "height": 795,
+          "bytes": 248431,
+          "pixels": {
+            "expectedBackground": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "nativeHeight": 636,
+            "backgroundFraction": 0.6880129321064412,
+            "transparentFraction": 0,
+            "sampledColors": 650
+          }
+        }
+      ]
+    },
+    {
+      "id": "us-desktop-dark-dpr1",
+      "code": "NVDA",
+      "mode": "QA SYNTHETIC (실데이터 아님)",
+      "viewport": "desktop",
+      "theme": "dark",
+      "dpr": 1,
+      "legacy": false,
+      "status": "passed",
+      "checks": [],
+      "errors": [],
+      "externalFailures": [
+        {
+          "origin": "https://fonts.googleapis.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://cdn.jsdelivr.net",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://grok.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        }
+      ],
+      "fixtureCalls": [
+        {
+          "name": "getUsChartSecurity",
+          "code": "NVDA",
+          "method": "GET"
+        },
+        {
+          "name": "getChartData",
+          "code": "NVDA",
+          "method": "GET"
+        }
+      ],
+      "initial": {
+        "layoutKey": "ked:chart:v2:US:NVDA:day:stock:detail",
+        "layout": {
+          "v": 2,
+          "indicators": [
+            {
+              "uid": "sma-mutl7g65-55",
+              "id": "sma",
+              "params": {
+                "period": 5
+              },
+              "visible": true,
+              "color": "#f59e0b"
+            },
+            {
+              "uid": "sma-mutl7g65-56",
+              "id": "sma",
+              "params": {
+                "period": 20
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            },
+            {
+              "uid": "sma-mutl7g65-57",
+              "id": "sma",
+              "params": {
+                "period": 60
+              },
+              "visible": true,
+              "color": "#38bdf8"
+            },
+            {
+              "uid": "bb-mutl7g65-58",
+              "id": "bb",
+              "params": {
+                "period": 20,
+                "mult": 2
+              },
+              "visible": true,
+              "color": "#64748b"
+            },
+            {
+              "uid": "volume-mutl7g65-59",
+              "id": "volume",
+              "params": {
+                "ma": 20
+              },
+              "visible": true
+            },
+            {
+              "uid": "rsi-mutl7g65-60",
+              "id": "rsi",
+              "params": {
+                "period": 14
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            },
+            {
+              "uid": "macd-mutl7g65-61",
+              "id": "macd",
+              "params": {
+                "fast": 12,
+                "slow": 26,
+                "signal": 9
+              },
+              "visible": true,
+              "color": "#38bdf8"
+            },
+            {
+              "uid": "sma-mutl7g65-62",
+              "id": "sma",
+              "params": {
+                "period": 50
+              },
+              "visible": true,
+              "color": "#f97316"
+            },
+            {
+              "uid": "sma-mutl7g65-63",
+              "id": "sma",
+              "params": {
+                "period": 200
+              },
+              "visible": true,
+              "color": "#2563eb"
+            }
+          ],
+          "drawings": [],
+          "chartType": "candles",
+          "scale": "normal",
+          "overlays": {
+            "disclosures": false,
+            "news": false,
+            "research": false,
+            "targets": false,
+            "dividends": false,
+            "splits": false,
+            "signals": false
+          }
+        },
+        "htsKey": "ked:hts:v1:US:stock:NVDA:day:detail",
+        "hts": {
+          "v": 1,
+          "enabled": false,
+          "panelHeights": {
+            "rsi": 100,
+            "price": 400,
+            "credit": 90,
+            "foreign": 90,
+            "investmentTrust": 110,
+            "volume": 120
+          },
+          "collapsed": {
+            "rsi": false,
+            "price": false,
+            "credit": false,
+            "foreign": false,
+            "investmentTrust": false,
+            "volume": false
+          },
+          "rsiPeriod": 14,
+          "signalPeriod": 9,
+          "signalMethod": "sma",
+          "rsiZones": false,
+          "volumeMa": {
+            "5": true,
+            "20": true,
+            "60": true
+          },
+          "trustMode": "cumulative",
+          "trustStartDate": "2026-01-02",
+          "profile": {
+            "enabled": true,
+            "preset": "hts",
+            "rows": 10,
+            "widthRatio": 0.85,
+            "colorMode": "auto",
+            "color": "#E6B77C",
+            "opacity": 0.32,
+            "showLabels": true,
+            "showVa": false,
+            "showPoc": false,
+            "basis": "volume",
+            "rangeMode": "visible",
+            "startDate": "",
+            "endDate": "",
+            "rangeOn": false,
+            "recentSpan": "52W"
+          }
+        },
+        "visible": [
+          "0",
+          "184"
+        ],
+        "markerCount": 0,
+        "eventItems": 0,
+        "eventGroups": 0,
+        "categories": {},
+        "rangeEnabled": "false",
+        "paneHeights": {},
+        "overflow": 0,
+        "devicePixelRatio": 1
+      },
+      "geometry": {
+        "measuredWidth": 895.9,
+        "plotWidth": 1054,
+        "expectedWidth": 895.9,
+        "dpr": 1,
+        "actualTransformScale": 1,
+        "color": "#d9a15a",
+        "fillAlpha": 0.28,
+        "pricePaneOnly": true
+      },
+      "screenshot": "/workspace/screenshots/chart-display/verified-dev/us-desktop-dark-dpr1-annotations-off.png",
+      "chartScreenshot": "/workspace/screenshots/chart-display/verified-dev/us-desktop-dark-dpr1-chart.png",
+      "exports": [
+        {
+          "path": "/workspace/screenshots/chart-display/verified-dev/us-desktop-dark-dpr1-annotations-off-export.png",
+          "width": 1138,
+          "height": 714,
+          "bytes": 226167,
+          "pixels": {
+            "expectedBackground": [
+              13,
+              21,
+              36,
+              255
+            ],
+            "nativeHeight": 636,
+            "backgroundFraction": 0.6928624720218851,
+            "transparentFraction": 0,
+            "sampledColors": 674
+          }
+        }
+      ]
+    },
+    {
+      "id": "us-desktop-dark-dpr2",
+      "code": "NVDA",
+      "mode": "QA SYNTHETIC (실데이터 아님)",
+      "viewport": "desktop",
+      "theme": "dark",
+      "dpr": 2,
+      "legacy": false,
+      "status": "passed",
+      "checks": [],
+      "errors": [],
+      "externalFailures": [
+        {
+          "origin": "https://fonts.googleapis.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://cdn.jsdelivr.net",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://grok.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        }
+      ],
+      "fixtureCalls": [
+        {
+          "name": "getUsChartSecurity",
+          "code": "NVDA",
+          "method": "GET"
+        },
+        {
+          "name": "getChartData",
+          "code": "NVDA",
+          "method": "GET"
+        }
+      ],
+      "initial": {
+        "layoutKey": "ked:chart:v2:US:NVDA:day:stock:detail",
+        "layout": {
+          "v": 2,
+          "indicators": [
+            {
+              "uid": "sma-mutl7jij-55",
+              "id": "sma",
+              "params": {
+                "period": 5
+              },
+              "visible": true,
+              "color": "#f59e0b"
+            },
+            {
+              "uid": "sma-mutl7jij-56",
+              "id": "sma",
+              "params": {
+                "period": 20
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            },
+            {
+              "uid": "sma-mutl7jij-57",
+              "id": "sma",
+              "params": {
+                "period": 60
+              },
+              "visible": true,
+              "color": "#38bdf8"
+            },
+            {
+              "uid": "bb-mutl7jij-58",
+              "id": "bb",
+              "params": {
+                "period": 20,
+                "mult": 2
+              },
+              "visible": true,
+              "color": "#64748b"
+            },
+            {
+              "uid": "volume-mutl7jij-59",
+              "id": "volume",
+              "params": {
+                "ma": 20
+              },
+              "visible": true
+            },
+            {
+              "uid": "rsi-mutl7jij-60",
+              "id": "rsi",
+              "params": {
+                "period": 14
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            },
+            {
+              "uid": "macd-mutl7jij-61",
+              "id": "macd",
+              "params": {
+                "fast": 12,
+                "slow": 26,
+                "signal": 9
+              },
+              "visible": true,
+              "color": "#38bdf8"
+            },
+            {
+              "uid": "sma-mutl7jij-62",
+              "id": "sma",
+              "params": {
+                "period": 50
+              },
+              "visible": true,
+              "color": "#f97316"
+            },
+            {
+              "uid": "sma-mutl7jij-63",
+              "id": "sma",
+              "params": {
+                "period": 200
+              },
+              "visible": true,
+              "color": "#2563eb"
+            }
+          ],
+          "drawings": [],
+          "chartType": "candles",
+          "scale": "normal",
+          "overlays": {
+            "disclosures": false,
+            "news": false,
+            "research": false,
+            "targets": false,
+            "dividends": false,
+            "splits": false,
+            "signals": false
+          }
+        },
+        "htsKey": "ked:hts:v1:US:stock:NVDA:day:detail",
+        "hts": {
+          "v": 1,
+          "enabled": false,
+          "panelHeights": {
+            "rsi": 100,
+            "price": 400,
+            "credit": 90,
+            "foreign": 90,
+            "investmentTrust": 110,
+            "volume": 120
+          },
+          "collapsed": {
+            "rsi": false,
+            "price": false,
+            "credit": false,
+            "foreign": false,
+            "investmentTrust": false,
+            "volume": false
+          },
+          "rsiPeriod": 14,
+          "signalPeriod": 9,
+          "signalMethod": "sma",
+          "rsiZones": false,
+          "volumeMa": {
+            "5": true,
+            "20": true,
+            "60": true
+          },
+          "trustMode": "cumulative",
+          "trustStartDate": "2026-01-02",
+          "profile": {
+            "enabled": true,
+            "preset": "hts",
+            "rows": 10,
+            "widthRatio": 0.85,
+            "colorMode": "auto",
+            "color": "#E6B77C",
+            "opacity": 0.32,
+            "showLabels": true,
+            "showVa": false,
+            "showPoc": false,
+            "basis": "volume",
+            "rangeMode": "visible",
+            "startDate": "",
+            "endDate": "",
+            "rangeOn": false,
+            "recentSpan": "52W"
+          }
+        },
+        "visible": [
+          "0",
+          "184"
+        ],
+        "markerCount": 0,
+        "eventItems": 0,
+        "eventGroups": 0,
+        "categories": {},
+        "rangeEnabled": "false",
+        "paneHeights": {},
+        "overflow": 0,
+        "devicePixelRatio": 2
+      },
+      "geometry": {
+        "measuredWidth": 895.9,
+        "plotWidth": 1054,
+        "expectedWidth": 895.9,
+        "dpr": 1,
+        "actualTransformScale": 1,
+        "color": "#d9a15a",
+        "fillAlpha": 0.28,
+        "pricePaneOnly": true
+      },
+      "screenshot": "/workspace/screenshots/chart-display/verified-dev/us-desktop-dark-dpr2-annotations-off.png",
+      "chartScreenshot": "/workspace/screenshots/chart-display/verified-dev/us-desktop-dark-dpr2-chart.png",
+      "exports": [
+        {
+          "path": "/workspace/screenshots/chart-display/verified-dev/us-desktop-dark-dpr2-annotations-off-export.png",
+          "width": 1138,
+          "height": 795,
+          "bytes": 255887,
+          "pixels": {
+            "expectedBackground": [
+              13,
+              21,
+              36,
+              255
+            ],
+            "nativeHeight": 636,
+            "backgroundFraction": 0.6875777169858244,
+            "transparentFraction": 0,
+            "sampledColors": 695
+          }
+        }
+      ]
+    },
+    {
+      "id": "us-mobile-light-dpr1",
+      "code": "NVDA",
+      "mode": "QA SYNTHETIC (실데이터 아님)",
+      "viewport": "mobile",
+      "theme": "light",
+      "dpr": 1,
+      "legacy": false,
+      "status": "passed",
+      "checks": [],
+      "errors": [],
+      "externalFailures": [
+        {
+          "origin": "https://fonts.googleapis.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://cdn.jsdelivr.net",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://grok.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        }
+      ],
+      "fixtureCalls": [
+        {
+          "name": "getUsChartSecurity",
+          "code": "NVDA",
+          "method": "GET"
+        },
+        {
+          "name": "getChartData",
+          "code": "NVDA",
+          "method": "GET"
+        }
+      ],
+      "initial": {
+        "layoutKey": "ked:chart:v2:US:NVDA:day:stock:detail",
+        "layout": {
+          "v": 2,
+          "indicators": [
+            {
+              "uid": "sma-mutl7n4n-73",
+              "id": "sma",
+              "params": {
+                "period": 5
+              },
+              "visible": true,
+              "color": "#f59e0b"
+            },
+            {
+              "uid": "sma-mutl7n4n-74",
+              "id": "sma",
+              "params": {
+                "period": 20
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            },
+            {
+              "uid": "sma-mutl7n4n-75",
+              "id": "sma",
+              "params": {
+                "period": 60
+              },
+              "visible": true,
+              "color": "#38bdf8"
+            },
+            {
+              "uid": "bb-mutl7n4n-76",
+              "id": "bb",
+              "params": {
+                "period": 20,
+                "mult": 2
+              },
+              "visible": true,
+              "color": "#64748b"
+            },
+            {
+              "uid": "volume-mutl7n4n-77",
+              "id": "volume",
+              "params": {
+                "ma": 20
+              },
+              "visible": true
+            },
+            {
+              "uid": "rsi-mutl7n4n-78",
+              "id": "rsi",
+              "params": {
+                "period": 14
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            },
+            {
+              "uid": "macd-mutl7n4n-79",
+              "id": "macd",
+              "params": {
+                "fast": 12,
+                "slow": 26,
+                "signal": 9
+              },
+              "visible": true,
+              "color": "#38bdf8"
+            },
+            {
+              "uid": "sma-mutl7n4n-80",
+              "id": "sma",
+              "params": {
+                "period": 50
+              },
+              "visible": true,
+              "color": "#f97316"
+            },
+            {
+              "uid": "sma-mutl7n4n-81",
+              "id": "sma",
+              "params": {
+                "period": 200
+              },
+              "visible": true,
+              "color": "#2563eb"
+            }
+          ],
+          "drawings": [],
+          "chartType": "candles",
+          "scale": "normal",
+          "overlays": {
+            "disclosures": false,
+            "news": false,
+            "research": false,
+            "targets": false,
+            "dividends": false,
+            "splits": false,
+            "signals": false
+          }
+        },
+        "htsKey": "ked:hts:v1:US:stock:NVDA:day:detail",
+        "hts": {
+          "v": 1,
+          "enabled": false,
+          "panelHeights": {
+            "rsi": 100,
+            "price": 400,
+            "credit": 90,
+            "foreign": 90,
+            "investmentTrust": 110,
+            "volume": 120
+          },
+          "collapsed": {
+            "rsi": false,
+            "price": false,
+            "credit": false,
+            "foreign": false,
+            "investmentTrust": false,
+            "volume": false
+          },
+          "rsiPeriod": 14,
+          "signalPeriod": 9,
+          "signalMethod": "sma",
+          "rsiZones": false,
+          "volumeMa": {
+            "5": true,
+            "20": true,
+            "60": true
+          },
+          "trustMode": "cumulative",
+          "trustStartDate": "2026-01-02",
+          "profile": {
+            "enabled": true,
+            "preset": "hts",
+            "rows": 10,
+            "widthRatio": 0.85,
+            "colorMode": "auto",
+            "color": "#E6B77C",
+            "opacity": 0.32,
+            "showLabels": true,
+            "showVa": false,
+            "showPoc": false,
+            "basis": "volume",
+            "rangeMode": "visible",
+            "startDate": "",
+            "endDate": "",
+            "rangeOn": false,
+            "recentSpan": "52W"
+          }
+        },
+        "visible": [
+          "0",
+          "184"
+        ],
+        "markerCount": 0,
+        "eventItems": 0,
+        "eventGroups": 0,
+        "categories": {},
+        "rangeEnabled": "false",
+        "paneHeights": {},
+        "overflow": 0,
+        "devicePixelRatio": 1
+      },
+      "geometry": {
+        "measuredWidth": 464.09999999999997,
+        "plotWidth": 546,
+        "expectedWidth": 464.09999999999997,
+        "dpr": 1,
+        "actualTransformScale": 1,
+        "color": "#e6b77c",
+        "fillAlpha": 0.32,
+        "pricePaneOnly": true
+      },
+      "screenshot": "/workspace/screenshots/chart-display/verified-dev/us-mobile-light-dpr1-annotations-off.png",
+      "chartScreenshot": "/workspace/screenshots/chart-display/verified-dev/us-mobile-light-dpr1-chart.png",
+      "exports": [
+        {
+          "path": "/workspace/screenshots/chart-display/verified-dev/us-mobile-light-dpr1-annotations-off-export.png",
+          "width": 630,
+          "height": 714,
+          "bytes": 164354,
+          "pixels": {
+            "expectedBackground": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "nativeHeight": 636,
+            "backgroundFraction": 0.7365235837284752,
+            "transparentFraction": 0,
+            "sampledColors": 805
+          }
+        }
+      ]
+    },
+    {
+      "id": "us-mobile-light-dpr2",
+      "code": "NVDA",
+      "mode": "QA SYNTHETIC (실데이터 아님)",
+      "viewport": "mobile",
+      "theme": "light",
+      "dpr": 2,
+      "legacy": false,
+      "status": "passed",
+      "checks": [],
+      "errors": [],
+      "externalFailures": [
+        {
+          "origin": "https://cdn.jsdelivr.net",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://grok.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://fonts.googleapis.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        }
+      ],
+      "fixtureCalls": [
+        {
+          "name": "getUsChartSecurity",
+          "code": "NVDA",
+          "method": "GET"
+        },
+        {
+          "name": "getChartData",
+          "code": "NVDA",
+          "method": "GET"
+        }
+      ],
+      "initial": {
+        "layoutKey": "ked:chart:v2:US:NVDA:day:stock:detail",
+        "layout": {
+          "v": 2,
+          "indicators": [
+            {
+              "uid": "sma-mutl7qp4-73",
+              "id": "sma",
+              "params": {
+                "period": 5
+              },
+              "visible": true,
+              "color": "#f59e0b"
+            },
+            {
+              "uid": "sma-mutl7qp4-74",
+              "id": "sma",
+              "params": {
+                "period": 20
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            },
+            {
+              "uid": "sma-mutl7qp4-75",
+              "id": "sma",
+              "params": {
+                "period": 60
+              },
+              "visible": true,
+              "color": "#38bdf8"
+            },
+            {
+              "uid": "bb-mutl7qp4-76",
+              "id": "bb",
+              "params": {
+                "period": 20,
+                "mult": 2
+              },
+              "visible": true,
+              "color": "#64748b"
+            },
+            {
+              "uid": "volume-mutl7qp4-77",
+              "id": "volume",
+              "params": {
+                "ma": 20
+              },
+              "visible": true
+            },
+            {
+              "uid": "rsi-mutl7qp4-78",
+              "id": "rsi",
+              "params": {
+                "period": 14
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            },
+            {
+              "uid": "macd-mutl7qp4-79",
+              "id": "macd",
+              "params": {
+                "fast": 12,
+                "slow": 26,
+                "signal": 9
+              },
+              "visible": true,
+              "color": "#38bdf8"
+            },
+            {
+              "uid": "sma-mutl7qp4-80",
+              "id": "sma",
+              "params": {
+                "period": 50
+              },
+              "visible": true,
+              "color": "#f97316"
+            },
+            {
+              "uid": "sma-mutl7qp4-81",
+              "id": "sma",
+              "params": {
+                "period": 200
+              },
+              "visible": true,
+              "color": "#2563eb"
+            }
+          ],
+          "drawings": [],
+          "chartType": "candles",
+          "scale": "normal",
+          "overlays": {
+            "disclosures": false,
+            "news": false,
+            "research": false,
+            "targets": false,
+            "dividends": false,
+            "splits": false,
+            "signals": false
+          }
+        },
+        "htsKey": "ked:hts:v1:US:stock:NVDA:day:detail",
+        "hts": {
+          "v": 1,
+          "enabled": false,
+          "panelHeights": {
+            "rsi": 100,
+            "price": 400,
+            "credit": 90,
+            "foreign": 90,
+            "investmentTrust": 110,
+            "volume": 120
+          },
+          "collapsed": {
+            "rsi": false,
+            "price": false,
+            "credit": false,
+            "foreign": false,
+            "investmentTrust": false,
+            "volume": false
+          },
+          "rsiPeriod": 14,
+          "signalPeriod": 9,
+          "signalMethod": "sma",
+          "rsiZones": false,
+          "volumeMa": {
+            "5": true,
+            "20": true,
+            "60": true
+          },
+          "trustMode": "cumulative",
+          "trustStartDate": "",
+          "profile": {
+            "enabled": true,
+            "preset": "hts",
+            "rows": 10,
+            "widthRatio": 0.85,
+            "colorMode": "auto",
+            "color": "#E6B77C",
+            "opacity": 0.32,
+            "showLabels": true,
+            "showVa": false,
+            "showPoc": false,
+            "basis": "volume",
+            "rangeMode": "visible",
+            "startDate": "",
+            "endDate": "",
+            "rangeOn": false,
+            "recentSpan": "52W"
+          }
+        },
+        "visible": [
+          "0",
+          "184"
+        ],
+        "markerCount": 0,
+        "eventItems": 0,
+        "eventGroups": 0,
+        "categories": {},
+        "rangeEnabled": "false",
+        "paneHeights": {},
+        "overflow": 0,
+        "devicePixelRatio": 2
+      },
+      "geometry": {
+        "measuredWidth": 464.09999999999997,
+        "plotWidth": 546,
+        "expectedWidth": 464.09999999999997,
+        "dpr": 1,
+        "actualTransformScale": 1,
+        "color": "#e6b77c",
+        "fillAlpha": 0.32,
+        "pricePaneOnly": true
+      },
+      "screenshot": "/workspace/screenshots/chart-display/verified-dev/us-mobile-light-dpr2-annotations-off.png",
+      "chartScreenshot": "/workspace/screenshots/chart-display/verified-dev/us-mobile-light-dpr2-chart.png",
+      "exports": [
+        {
+          "path": "/workspace/screenshots/chart-display/verified-dev/us-mobile-light-dpr2-annotations-off-export.png",
+          "width": 630,
+          "height": 903,
+          "bytes": 195123,
+          "pixels": {
+            "expectedBackground": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "nativeHeight": 636,
+            "backgroundFraction": 0.7282879960069878,
+            "transparentFraction": 0,
+            "sampledColors": 860
+          }
+        }
+      ]
+    },
+    {
+      "id": "us-mobile-dark-dpr1",
+      "code": "NVDA",
+      "mode": "QA SYNTHETIC (실데이터 아님)",
+      "viewport": "mobile",
+      "theme": "dark",
+      "dpr": 1,
+      "legacy": false,
+      "status": "passed",
+      "checks": [],
+      "errors": [],
+      "externalFailures": [
+        {
+          "origin": "https://fonts.googleapis.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://grok.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://cdn.jsdelivr.net",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        }
+      ],
+      "fixtureCalls": [
+        {
+          "name": "getUsChartSecurity",
+          "code": "NVDA",
+          "method": "GET"
+        },
+        {
+          "name": "getChartData",
+          "code": "NVDA",
+          "method": "GET"
+        }
+      ],
+      "initial": {
+        "layoutKey": "ked:chart:v2:US:NVDA:day:stock:detail",
+        "layout": {
+          "v": 2,
+          "indicators": [
+            {
+              "uid": "sma-mutl7u0s-55",
+              "id": "sma",
+              "params": {
+                "period": 5
+              },
+              "visible": true,
+              "color": "#f59e0b"
+            },
+            {
+              "uid": "sma-mutl7u0s-56",
+              "id": "sma",
+              "params": {
+                "period": 20
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            },
+            {
+              "uid": "sma-mutl7u0s-57",
+              "id": "sma",
+              "params": {
+                "period": 60
+              },
+              "visible": true,
+              "color": "#38bdf8"
+            },
+            {
+              "uid": "bb-mutl7u0s-58",
+              "id": "bb",
+              "params": {
+                "period": 20,
+                "mult": 2
+              },
+              "visible": true,
+              "color": "#64748b"
+            },
+            {
+              "uid": "volume-mutl7u0s-59",
+              "id": "volume",
+              "params": {
+                "ma": 20
+              },
+              "visible": true
+            },
+            {
+              "uid": "rsi-mutl7u0s-60",
+              "id": "rsi",
+              "params": {
+                "period": 14
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            },
+            {
+              "uid": "macd-mutl7u0s-61",
+              "id": "macd",
+              "params": {
+                "fast": 12,
+                "slow": 26,
+                "signal": 9
+              },
+              "visible": true,
+              "color": "#38bdf8"
+            },
+            {
+              "uid": "sma-mutl7u0s-62",
+              "id": "sma",
+              "params": {
+                "period": 50
+              },
+              "visible": true,
+              "color": "#f97316"
+            },
+            {
+              "uid": "sma-mutl7u0s-63",
+              "id": "sma",
+              "params": {
+                "period": 200
+              },
+              "visible": true,
+              "color": "#2563eb"
+            }
+          ],
+          "drawings": [],
+          "chartType": "candles",
+          "scale": "normal",
+          "overlays": {
+            "disclosures": false,
+            "news": false,
+            "research": false,
+            "targets": false,
+            "dividends": false,
+            "splits": false,
+            "signals": false
+          }
+        },
+        "htsKey": "ked:hts:v1:US:stock:NVDA:day:detail",
+        "hts": {
+          "v": 1,
+          "enabled": false,
+          "panelHeights": {
+            "rsi": 100,
+            "price": 400,
+            "credit": 90,
+            "foreign": 90,
+            "investmentTrust": 110,
+            "volume": 120
+          },
+          "collapsed": {
+            "rsi": false,
+            "price": false,
+            "credit": false,
+            "foreign": false,
+            "investmentTrust": false,
+            "volume": false
+          },
+          "rsiPeriod": 14,
+          "signalPeriod": 9,
+          "signalMethod": "sma",
+          "rsiZones": false,
+          "volumeMa": {
+            "5": true,
+            "20": true,
+            "60": true
+          },
+          "trustMode": "cumulative",
+          "trustStartDate": "2026-01-02",
+          "profile": {
+            "enabled": true,
+            "preset": "hts",
+            "rows": 10,
+            "widthRatio": 0.85,
+            "colorMode": "auto",
+            "color": "#E6B77C",
+            "opacity": 0.32,
+            "showLabels": true,
+            "showVa": false,
+            "showPoc": false,
+            "basis": "volume",
+            "rangeMode": "visible",
+            "startDate": "",
+            "endDate": "",
+            "rangeOn": false,
+            "recentSpan": "52W"
+          }
+        },
+        "visible": [
+          "0",
+          "184"
+        ],
+        "markerCount": 0,
+        "eventItems": 0,
+        "eventGroups": 0,
+        "categories": {},
+        "rangeEnabled": "false",
+        "paneHeights": {},
+        "overflow": 0,
+        "devicePixelRatio": 1
+      },
+      "geometry": {
+        "measuredWidth": 464.09999999999997,
+        "plotWidth": 546,
+        "expectedWidth": 464.09999999999997,
+        "dpr": 1,
+        "actualTransformScale": 1,
+        "color": "#d9a15a",
+        "fillAlpha": 0.28,
+        "pricePaneOnly": true
+      },
+      "screenshot": "/workspace/screenshots/chart-display/verified-dev/us-mobile-dark-dpr1-annotations-off.png",
+      "chartScreenshot": "/workspace/screenshots/chart-display/verified-dev/us-mobile-dark-dpr1-chart.png",
+      "exports": [
+        {
+          "path": "/workspace/screenshots/chart-display/verified-dev/us-mobile-dark-dpr1-annotations-off-export.png",
+          "width": 630,
+          "height": 714,
+          "bytes": 168367,
+          "pixels": {
+            "expectedBackground": [
+              13,
+              21,
+              36,
+              255
+            ],
+            "nativeHeight": 636,
+            "backgroundFraction": 0.7364611929124033,
+            "transparentFraction": 0,
+            "sampledColors": 843
+          }
+        }
+      ]
+    },
+    {
+      "id": "us-mobile-dark-dpr2",
+      "code": "NVDA",
+      "mode": "QA SYNTHETIC (실데이터 아님)",
+      "viewport": "mobile",
+      "theme": "dark",
+      "dpr": 2,
+      "legacy": false,
+      "status": "passed",
+      "checks": [],
+      "errors": [],
+      "externalFailures": [
+        {
+          "origin": "https://fonts.googleapis.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://cdn.jsdelivr.net",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://grok.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        }
+      ],
+      "fixtureCalls": [
+        {
+          "name": "getUsChartSecurity",
+          "code": "NVDA",
+          "method": "GET"
+        },
+        {
+          "name": "getChartData",
+          "code": "NVDA",
+          "method": "GET"
+        }
+      ],
+      "initial": {
+        "layoutKey": "ked:chart:v2:US:NVDA:day:stock:detail",
+        "layout": {
+          "v": 2,
+          "indicators": [
+            {
+              "uid": "sma-mutl7x1c-37",
+              "id": "sma",
+              "params": {
+                "period": 5
+              },
+              "visible": true,
+              "color": "#f59e0b"
+            },
+            {
+              "uid": "sma-mutl7x1c-38",
+              "id": "sma",
+              "params": {
+                "period": 20
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            },
+            {
+              "uid": "sma-mutl7x1c-39",
+              "id": "sma",
+              "params": {
+                "period": 60
+              },
+              "visible": true,
+              "color": "#38bdf8"
+            },
+            {
+              "uid": "bb-mutl7x1c-40",
+              "id": "bb",
+              "params": {
+                "period": 20,
+                "mult": 2
+              },
+              "visible": true,
+              "color": "#64748b"
+            },
+            {
+              "uid": "volume-mutl7x1c-41",
+              "id": "volume",
+              "params": {
+                "ma": 20
+              },
+              "visible": true
+            },
+            {
+              "uid": "rsi-mutl7x1c-42",
+              "id": "rsi",
+              "params": {
+                "period": 14
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            },
+            {
+              "uid": "macd-mutl7x1c-43",
+              "id": "macd",
+              "params": {
+                "fast": 12,
+                "slow": 26,
+                "signal": 9
+              },
+              "visible": true,
+              "color": "#38bdf8"
+            },
+            {
+              "uid": "sma-mutl7x1c-44",
+              "id": "sma",
+              "params": {
+                "period": 50
+              },
+              "visible": true,
+              "color": "#f97316"
+            },
+            {
+              "uid": "sma-mutl7x1c-45",
+              "id": "sma",
+              "params": {
+                "period": 200
+              },
+              "visible": true,
+              "color": "#2563eb"
+            }
+          ],
+          "drawings": [],
+          "chartType": "candles",
+          "scale": "normal",
+          "overlays": {
+            "disclosures": false,
+            "news": false,
+            "research": false,
+            "targets": false,
+            "dividends": false,
+            "splits": false,
+            "signals": false
+          }
+        },
+        "htsKey": "ked:hts:v1:US:stock:NVDA:day:detail",
+        "hts": {
+          "v": 1,
+          "enabled": false,
+          "panelHeights": {
+            "rsi": 100,
+            "price": 400,
+            "credit": 90,
+            "foreign": 90,
+            "investmentTrust": 110,
+            "volume": 120
+          },
+          "collapsed": {
+            "rsi": false,
+            "price": false,
+            "credit": false,
+            "foreign": false,
+            "investmentTrust": false,
+            "volume": false
+          },
+          "rsiPeriod": 14,
+          "signalPeriod": 9,
+          "signalMethod": "sma",
+          "rsiZones": false,
+          "volumeMa": {
+            "5": true,
+            "20": true,
+            "60": true
+          },
+          "trustMode": "cumulative",
+          "trustStartDate": "",
+          "profile": {
+            "enabled": true,
+            "preset": "hts",
+            "rows": 10,
+            "widthRatio": 0.85,
+            "colorMode": "auto",
+            "color": "#E6B77C",
+            "opacity": 0.32,
+            "showLabels": true,
+            "showVa": false,
+            "showPoc": false,
+            "basis": "volume",
+            "rangeMode": "visible",
+            "startDate": "",
+            "endDate": "",
+            "rangeOn": false,
+            "recentSpan": "52W"
+          }
+        },
+        "visible": [
+          "0",
+          "184"
+        ],
+        "markerCount": 0,
+        "eventItems": 0,
+        "eventGroups": 0,
+        "categories": {},
+        "rangeEnabled": "false",
+        "paneHeights": {},
+        "overflow": 0,
+        "devicePixelRatio": 2
+      },
+      "geometry": {
+        "measuredWidth": 464.09999999999997,
+        "plotWidth": 546,
+        "expectedWidth": 464.09999999999997,
+        "dpr": 1,
+        "actualTransformScale": 1,
+        "color": "#d9a15a",
+        "fillAlpha": 0.28,
+        "pricePaneOnly": true
+      },
+      "screenshot": "/workspace/screenshots/chart-display/verified-dev/us-mobile-dark-dpr2-annotations-off.png",
+      "chartScreenshot": "/workspace/screenshots/chart-display/verified-dev/us-mobile-dark-dpr2-chart.png",
+      "exports": [
+        {
+          "path": "/workspace/screenshots/chart-display/verified-dev/us-mobile-dark-dpr2-annotations-off-export.png",
+          "width": 630,
+          "height": 903,
+          "bytes": 200724,
+          "pixels": {
+            "expectedBackground": [
+              13,
+              21,
+              36,
+              255
+            ],
+            "nativeHeight": 636,
+            "backgroundFraction": 0.7277888694784128,
+            "transparentFraction": 0,
+            "sampledColors": 894
+          }
+        }
+      ]
+    }
+  ]
+}

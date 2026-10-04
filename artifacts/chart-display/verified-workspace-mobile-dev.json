@@ -1,0 +1,88 @@
+{
+  "mode": "QA SYNTHETIC (실데이터 아님)",
+  "at": "2026-10-04T09:13:46.500Z",
+  "results": [
+    {
+      "id": "workspace-split-mobile-dark-dpr1",
+      "code": "005930",
+      "mode": "QA SYNTHETIC (실데이터 아님)",
+      "viewport": "mobile",
+      "theme": "dark",
+      "dpr": 1,
+      "legacy": false,
+      "status": "passed",
+      "checks": [
+        {
+          "name": "split chart controls, independent toggles and overflow",
+          "status": "passed",
+          "detail": {
+            "width": 390,
+            "scrollWidth": 390,
+            "controls": [
+              {
+                "disabled": false,
+                "text": "차트 정리"
+              },
+              {
+                "disabled": false,
+                "text": "차트 정리"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mobile compact split display controls and settings reachable",
+          "status": "passed",
+          "detail": {
+            "bothChartsReachable": true
+          }
+        }
+      ],
+      "errors": [],
+      "externalFailures": [
+        {
+          "origin": "https://cdn.jsdelivr.net",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://fonts.googleapis.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://grok.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        }
+      ],
+      "fixtureCalls": [
+        {
+          "name": "getChartSecurity",
+          "code": "069500",
+          "method": "GET"
+        },
+        {
+          "name": "getChartData",
+          "code": "005930",
+          "method": "GET"
+        },
+        {
+          "name": "getChartData",
+          "code": "069500",
+          "method": "GET"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "005930",
+          "method": "POST"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "069500",
+          "method": "POST"
+        }
+      ],
+      "screenshot": "/workspace/screenshots/chart-display/verified-workspace-mobile-dev/workspace-split-mobile-dark-dpr1-split.png"
+    }
+  ],
+  "evidenceSource": "/workspace/screenshots/chart-display/verified-workspace-mobile-dev/verdict.json",
+  "compaction": "Large raw canvas call arrays are represented by counts; statuses, assertions, geometry and other detail retain the executed values. Original JSON remains at evidenceSource."
+}

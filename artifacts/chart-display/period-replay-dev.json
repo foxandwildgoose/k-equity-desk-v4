@@ -1,0 +1,268 @@
+{
+  "mode": "QA SYNTHETIC (실데이터 아님)",
+  "at": "2026-10-04T09:13:55.020Z",
+  "results": [
+    {
+      "id": "stock-desktop-dark-dpr1",
+      "code": "005930",
+      "mode": "QA SYNTHETIC (실데이터 아님)",
+      "viewport": "desktop",
+      "theme": "dark",
+      "dpr": 1,
+      "legacy": false,
+      "status": "passed",
+      "checks": [
+        {
+          "name": "week-month scope restoration and replay future boundaries",
+          "status": "passed",
+          "detail": {
+            "weeklyReportOriginals": 38,
+            "weeklyToggleRestored": true,
+            "monthlyDefaultIndependent": true,
+            "futureDisclosuresHidden": 30,
+            "restoredAfterReplay": 30
+          }
+        }
+      ],
+      "errors": [],
+      "externalFailures": [
+        {
+          "origin": "https://cdn.jsdelivr.net",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://fonts.googleapis.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        },
+        {
+          "origin": "https://grok.com",
+          "error": "net::ERR_CERT_AUTHORITY_INVALID"
+        }
+      ],
+      "fixtureCalls": [
+        {
+          "name": "getStockBundle",
+          "code": "005930",
+          "method": "GET"
+        },
+        {
+          "name": "getChartData",
+          "code": "005930",
+          "method": "GET"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "005930",
+          "method": "POST"
+        },
+        {
+          "name": "getChartData",
+          "code": "005930",
+          "method": "GET"
+        },
+        {
+          "name": "getChartData",
+          "code": "005930",
+          "method": "GET"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "005930",
+          "method": "POST"
+        },
+        {
+          "name": "getChartData",
+          "code": "005930",
+          "method": "GET"
+        },
+        {
+          "name": "getChartData",
+          "code": "005930",
+          "method": "GET"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "005930",
+          "method": "POST"
+        }
+      ],
+      "initial": {
+        "layoutKey": "ked:chart:v2:KR:005930:day:stock:detail",
+        "layout": {
+          "v": 2,
+          "indicators": [
+            {
+              "uid": "sma-mutlszf5-29",
+              "id": "sma",
+              "params": {
+                "period": 5
+              },
+              "visible": true,
+              "color": "#f59e0b"
+            },
+            {
+              "uid": "sma-mutlszf5-30",
+              "id": "sma",
+              "params": {
+                "period": 20
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            },
+            {
+              "uid": "sma-mutlszf5-31",
+              "id": "sma",
+              "params": {
+                "period": 60
+              },
+              "visible": true,
+              "color": "#38bdf8"
+            },
+            {
+              "uid": "bb-mutlszf5-32",
+              "id": "bb",
+              "params": {
+                "period": 20,
+                "mult": 2
+              },
+              "visible": true,
+              "color": "#64748b"
+            },
+            {
+              "uid": "volume-mutlszf5-33",
+              "id": "volume",
+              "params": {
+                "ma": 20
+              },
+              "visible": true
+            },
+            {
+              "uid": "rsi-mutlszf5-34",
+              "id": "rsi",
+              "params": {
+                "period": 14
+              },
+              "visible": true,
+              "color": "#a78bfa"
+            }
+          ],
+          "drawings": [],
+          "chartType": "candles",
+          "scale": "normal",
+          "overlays": {
+            "disclosures": false,
+            "news": false,
+            "research": false,
+            "targets": false,
+            "dividends": false,
+            "splits": false,
+            "signals": false
+          }
+        },
+        "htsKey": "ked:hts:v1:KR:stock:005930:day:detail",
+        "hts": {
+          "v": 1,
+          "enabled": true,
+          "panelHeights": {
+            "rsi": 100,
+            "price": 400,
+            "credit": 90,
+            "foreign": 90,
+            "investmentTrust": 110,
+            "volume": 120
+          },
+          "collapsed": {
+            "rsi": false,
+            "price": false,
+            "credit": false,
+            "foreign": false,
+            "investmentTrust": false,
+            "volume": false
+          },
+          "rsiPeriod": 14,
+          "signalPeriod": 9,
+          "signalMethod": "sma",
+          "rsiZones": false,
+          "volumeMa": {
+            "5": true,
+            "20": true,
+            "60": true
+          },
+          "trustMode": "cumulative",
+          "trustStartDate": "2026-01-02",
+          "profile": {
+            "enabled": true,
+            "preset": "hts",
+            "rows": 10,
+            "widthRatio": 0.85,
+            "colorMode": "auto",
+            "color": "#E6B77C",
+            "opacity": 0.32,
+            "showLabels": true,
+            "showVa": false,
+            "showPoc": false,
+            "basis": "volume",
+            "rangeMode": "visible",
+            "startDate": "",
+            "endDate": "",
+            "rangeOn": false,
+            "recentSpan": "52W"
+          }
+        },
+        "visible": [
+          "0",
+          "184"
+        ],
+        "markerCount": 0,
+        "eventItems": 0,
+        "eventGroups": 0,
+        "categories": {},
+        "rangeEnabled": "false",
+        "paneHeights": {
+          "rsi": 100,
+          "price": 400,
+          "credit": 90,
+          "foreign": 90,
+          "investmentTrust": 110,
+          "volume": 121
+        },
+        "overflow": 0,
+        "devicePixelRatio": 1
+      },
+      "geometry": {
+        "measuredWidth": 909.5,
+        "plotWidth": 1070,
+        "expectedWidth": 909.5,
+        "dpr": 1,
+        "actualTransformScale": 1,
+        "color": "#d9a15a",
+        "fillAlpha": 0.28,
+        "pricePaneOnly": true
+      },
+      "screenshot": "/workspace/screenshots/chart-display/period-replay-dev/stock-desktop-dark-dpr1-annotations-off.png",
+      "chartScreenshot": "/workspace/screenshots/chart-display/period-replay-dev/stock-desktop-dark-dpr1-chart.png",
+      "exports": [
+        {
+          "path": "/workspace/screenshots/chart-display/period-replay-dev/stock-desktop-dark-dpr1-annotations-off-export.png",
+          "width": 1138,
+          "height": 1202,
+          "bytes": 541926,
+          "pixels": {
+            "expectedBackground": [
+              13,
+              21,
+              36,
+              255
+            ],
+            "nativeHeight": 944,
+            "backgroundFraction": 0.7318822502182861,
+            "transparentFraction": 0,
+            "sampledColors": 752
+          }
+        }
+      ]
+    }
+  ],
+  "evidenceSource": "/workspace/screenshots/chart-display/period-replay-dev/verdict.json",
+  "compaction": "Large raw canvas call arrays are represented by counts; statuses, assertions, geometry and other detail retain the executed values. Original JSON remains at evidenceSource."
+}

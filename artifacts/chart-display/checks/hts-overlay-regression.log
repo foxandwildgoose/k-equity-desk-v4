@@ -1,0 +1,14 @@
+
+> qa:chart-hts
+> node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/qa-chart-hts.mjs --mode fixture --cases stock-403870,etf-069500 --viewports desktop --interactions --checks Local price alert --out /workspace/screenshots/chart-display/hts-overlay-regression
+
+  PASS stock-403870: Local price alert and event overlays stay in price pane
+PASSED fixture stock-403870 desktop
+  PASS etf-069500: Local price alert and event overlays stay in price pane
+PASSED fixture etf-069500 desktop
+{"mode":"fixture","passed":2,"failed":0,"verdict":"/workspace/screenshots/chart-display/hts-overlay-regression/verdict.json"}
+npm notice
+npm notice New major version of npm available! 10.9.9 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice
