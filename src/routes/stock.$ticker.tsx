@@ -282,6 +282,7 @@ function StockPage() {
       />
 
       <InvestorFlow
+        code={meta.code}
         days={flow?.days ?? []}
         source={flow?.source}
         loading={isLoading}

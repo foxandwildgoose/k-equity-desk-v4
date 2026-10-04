@@ -13,6 +13,8 @@ import {
 } from "lightweight-charts";
 import { computeRangePosition } from "@/lib/chart-indicators";
 import { ChartShell } from "@/components/charts/core/ChartShell";
+import { useStandardSma } from "@/components/charts/core/use-standard-sma";
+import { SmaControls } from "@/components/charts/core/SmaControls";
 import { createProChart } from "@/components/charts/core/create-pro-chart";
 import { readChartTheme } from "@/components/charts/core/theme";
 import { exportChartPng, exportRowsCsv } from "@/components/charts/core/chrome";
@@ -258,10 +260,12 @@ function corrFlowPrice(days: FlowDay[], key: FlowKey): number | null {
 }
 
 export function InvestorFlow({
+  code,
   days,
   source,
   loading,
 }: {
+  code?: string;
   days: FlowDay[];
   source?: string;
   loading?: boolean;
@@ -277,6 +281,7 @@ export function InvestorFlow({
   const [hover, setHover] = useState<FlowDay | null>(null);
   const [chartH, setChartH] = useState(320);
   const [showGuide, setShowGuide] = useState(false);
+  const hasFlowData = days.length > 0;
   const colors = usePriceColors();
   const convention = useAppStore((s) => s.colorConvention);
   const upColor = convention === "korea" ? "#ef4444" : "#22c55e";
@@ -360,6 +365,28 @@ export function InvestorFlow({
   const lineRefs = useRef<Partial<Record<FlowKey, ISeriesApi<"Line">>>>({});
   const priceRef = useRef<ISeriesApi<"Line"> | null>(null);
   const smartRef = useRef<ISeriesApi<"Line"> | null>(null);
+  const [smaFocus, setSmaFocus] = useState<FlowKey | "smart" | "price">("smart");
+  const smaData = useMemo(() => {
+    const start = slice[0]?.date;
+    let cumulative = 0;
+    const points = days.map(d => {
+      const value = smaFocus === "price" ? d.close > 0 ? d.close : null : smaFocus === "smart" ? d.foreign + d.institution : d[smaFocus];
+      // Existing cumulative flows are anchored at the chosen range. Extend that
+      // same definition backwards from zero; no silent change to source lines.
+      return { time: d.date.slice(0, 10), value };
+    });
+    if (smaFocus !== "price" && mode === "cumulative") {
+      const before = points.filter(p => start && p.time < start.slice(0, 10)).reduce((sum, p) => sum + (p.value ?? 0), 0);
+      cumulative = -before;
+      for (const point of points) { cumulative += point.value ?? 0; point.value = cumulative; }
+    }
+    return { history: points, points: points.filter(p => start && p.time >= start.slice(0, 10)) };
+  }, [days, slice, smaFocus, mode]);
+  const averages = useStandardSma({ chart: chartApi,
+    source: smaFocus === "price" ? priceRef.current : smaFocus === "smart" ? smartRef.current : mode === "daily" ? histRefs.current[smaFocus] ?? null : lineRefs.current[smaFocus] ?? null,
+    points: smaData.points, history: smaData.history, scope: `investor-flow:${code ?? "unknown"}:${mode}:${smaFocus}`,
+    scaleId: smaFocus === "price" ? "left" : "right", formatValue: n => n.toLocaleString("ko-KR", { maximumFractionDigits: 0 }),
+    available: smaFocus === "price" ? showPrice : smaFocus === "smart" || visible[smaFocus] });
 
   // chart init
   useEffect(() => {
@@ -424,11 +451,15 @@ export function InvestorFlow({
 
     return () => {
       setChartApi(null);
-      chart.remove();
+      queueMicrotask(() => chart.remove());
       chartRef.current = null;
+      histRefs.current = {};
+      lineRefs.current = {};
+      smartRef.current = null;
+      priceRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [hasFlowData, code]);
 
   // data push
   useEffect(() => {
@@ -732,6 +763,7 @@ export function InvestorFlow({
           {/* Interactive chart (F7.16: shared chart core + chrome) */}
           <ChartShell
             title={mode === "daily" ? "주체별 일별 순매수 (주)" : "주체별 누적 순매수 (주)"}
+            displayControls={<><label className="flex min-h-11 items-center gap-1 text-xs">SMA 대상<select aria-label="SMA 대상 시계열" value={smaFocus} onChange={event => setSmaFocus(event.target.value as typeof smaFocus)} className="h-9 rounded border border-border bg-background px-1"><option value="smart">스마트머니</option><option value="foreign">외국인</option><option value="institution">기관</option><option value="individual">개인</option><option value="price">종가 (좌)</option></select></label><SmaControls instances={averages.instances} unavailable={averages.unavailable} mode={averages.mode} onToggle={averages.toggle} disabled={!averages.ready} /></>}
             status={days.length ? { source: source || "네이버 증권", mode: `${slice.length}거래일 · 수량(주) · 좌축 종가`, asOfLabel: last?.date ? `${last.date.slice(0, 10)} (일별 집계)` : null } : null}
             onExportPng={days.length ? () => exportChartPng(chartApi, "KR", "FLOW", `investor-flow-${mode}`) : undefined}
             onExportCsv={

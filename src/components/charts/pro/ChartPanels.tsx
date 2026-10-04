@@ -4,6 +4,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Input } from "@/components/ui/input";
 import {
   INDICATOR_BY_ID,
+  instanceLabel,
   PALETTE,
   sanitizeParams,
   searchIndicators,
@@ -13,16 +14,10 @@ import {
 import { DRAWING_TOOLS, type Drawing } from "@/lib/charts/drawings";
 import type { PriceAlert } from "@/lib/store-migrate";
 import { cn } from "@/lib/utils";
+import { resolveSmaStyle } from "@/lib/charts/standard-sma";
+import { useAppStore } from "@/lib/store";
 
-export function instanceLabel(inst: IndicatorInstance): string {
-  const def = INDICATOR_BY_ID.get(inst.id);
-  if (!def) return inst.id;
-  const short = def.label.split(" ")[0]!;
-  const ps = def.params.filter((p) => p.type !== "select").map((p) => inst.params[p.key]);
-  const sel = def.params.filter((p) => p.type === "select").map((p) => inst.params[p.key]);
-  const all = [...ps, ...sel];
-  return all.length ? `${short}(${all.join(",")})` : short;
-}
+export { instanceLabel } from "@/lib/charts/catalog";
 
 /** Searchable catalog + per-instance params / color / visibility / remove + templates (F7.6). */
 export function IndicatorPanel({
@@ -53,6 +48,7 @@ export function IndicatorPanel({
   const [q, setQ] = useState("");
   const [edit, setEdit] = useState<string | null>(null);
   const [tplName, setTplName] = useState("");
+  const themeMode = useAppStore(s => s.theme);
   const results = useMemo(() => searchIndicators(q), [q]);
   const groups = useMemo(() => {
     const m = new Map<string, IndicatorDef[]>();
@@ -77,11 +73,12 @@ export function IndicatorPanel({
                     <div className="flex items-center gap-1">
                       <input
                         type="color"
-                        value={inst.color ?? PALETTE[0]}
-                        onChange={(e) => onChange(inst.uid, { color: e.target.value })}
+                        value={resolveSmaStyle(inst, themeMode)?.color ?? inst.color ?? PALETTE[0]}
+                        onChange={(e) => onChange(inst.uid, { color: e.target.value, colorMode: "custom" })}
                         className="size-7 cursor-pointer rounded border-0 bg-transparent p-0"
                         aria-label="색"
                       />
+                      {resolveSmaStyle(inst, themeMode) && <button type="button" className="min-h-9 rounded px-1 text-xs text-muted-foreground hover:bg-muted" onClick={() => onChange(inst.uid, { color: undefined, colorMode: "theme" })} title="현재 테마의 표준 SMA 색상 적용">테마 자동</button>}
                       <button type="button" className="min-w-0 flex-1 truncate text-left font-medium" onClick={() => setEdit(edit === inst.uid ? null : inst.uid)}>
                         {instanceLabel(inst)}
                         {def?.anchored && <span className="ml-1 text-[10px] text-muted-foreground">{inst.anchorTime != null ? `기준 ${inst.anchorTime}` : "기준봉 미지정"}</span>}

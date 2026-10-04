@@ -173,6 +173,7 @@ export function StockTable({
                     <div className="flex justify-center">
                       {st.sparkline.length > 1 ? (
                         <Sparkline
+                          code={st.code}
                           data={st.sparkline}
                           changePct={st.changePct}
                           label={`${st.nameKo} 최근 ${st.sparkline.length}개 시세 추이 (네이버 시세)`}

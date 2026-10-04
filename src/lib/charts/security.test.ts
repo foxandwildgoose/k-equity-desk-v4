@@ -95,4 +95,8 @@ test("only documented matching endpoint price bases share warmup/daily history",
   assert.equal(sameChartPriceBasis("yahoo-us-BOTZ-1wk", "yahoo-us-NVDA-1d"), false);
   assert.equal(sameChartPriceBasis("naver-fchart-week", "naver-fchart-day"), false);
   assert.equal(sameChartPriceBasis("yahoo-005930.KS", "naver-fchart-day"), false);
+  assert.equal(sameChartPriceBasis("yahoo-005930.KS-5m-1d", "yahoo-005930.KS-5m-60d"), true);
+  assert.equal(sameChartPriceBasis("yahoo-005930.KS-60m-1mo", "yahoo-005930.KS-60m-2y"), true);
+  assert.equal(sameChartPriceBasis("yahoo-005930.KS-5m-1d", "yahoo-403870.KQ-5m-60d"), false);
+  assert.equal(sameChartPriceBasis("naver-minute-5m", "yahoo-005930.KS-5m-60d"), false);
 });

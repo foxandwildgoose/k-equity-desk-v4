@@ -1,12 +1,20 @@
 /** Client-side technical indicators used by the pro trading chart. */
 
 export function sma(values: number[], period: number): (number | null)[] {
-  const out: (number | null)[] = [];
+  const out: (number | null)[] = new Array(values.length).fill(null);
+  if (!Number.isSafeInteger(period) || period < 1) return out;
   let sum = 0;
+  let missing = 0;
   for (let i = 0; i < values.length; i++) {
-    sum += values[i]!;
-    if (i >= period) sum -= values[i - period]!;
-    out.push(i >= period - 1 ? sum / period : null);
+    const value = values[i]!;
+    if (Number.isFinite(value)) sum += value;
+    else missing++;
+    if (i >= period) {
+      const old = values[i - period]!;
+      if (Number.isFinite(old)) sum -= old;
+      else missing--;
+    }
+    if (i >= period - 1 && missing === 0) out[i] = sum / period;
   }
   return out;
 }

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { OhlcBar, StockValuation } from "@/server/naver-market";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { useChartData } from "@/lib/use-market";
+import { useAnalysisChartData } from "@/lib/charts/use-analysis-chart-data";
 import { computeRangePosition } from "@/lib/chart-indicators";
 import { RangePositionStrip } from "@/components/stocks/RangePositionStrip";
 import {
@@ -18,6 +18,8 @@ import { createProChart } from "@/components/charts/core/create-pro-chart";
 import { readChartTheme } from "@/components/charts/core/theme";
 import { exportChartPng, exportRowsCsv, RangePresets, ScaleToggle, useChartChrome } from "@/components/charts/core/chrome";
 import { Loader2, LineChart } from "lucide-react";
+import { useStandardSma } from "@/components/charts/core/use-standard-sma";
+import { SmaControls } from "@/components/charts/core/SmaControls";
 
 type Metric = "per" | "pbr" | "psr";
 type Basis = "ttm" | "cns";
@@ -106,16 +108,16 @@ export function ValuationBandChart({
   const [midStr, setMidStr] = useState("1");
   const seeded = useRef("");
 
-  const own = useChartData({
+  const own = useAnalysisChartData({
     code: code ?? "",
     market: market ?? "KOSPI",
     interval: "day",
     range: "2y",
     enabled: !!code,
   });
-  const bars =
+  const bars = useMemo(() =>
     (own.data?.bars?.length ? own.data.bars : null) ??
-    (barsProp.length > 0 ? barsProp : []);
+    (barsProp.length > 0 ? barsProp : []), [own.data?.bars, barsProp]);
   const loading = loadingProp || own.isLoading;
 
   const { fund, currentMultiple, label: fundLabel } = fundFor(metric, basis, basic);
@@ -153,6 +155,10 @@ export function ValuationBandChart({
   const lowerRef = useRef<ISeriesApi<"Line"> | null>(null);
   const linesRef = useRef<IPriceLine[]>([]);
   const [chartApi, setChartApi] = useState<IChartApi | null>(null);
+  const smaPoints = useMemo(() => bars.map(b => ({ time: b.date.slice(0, 10), value: b.close > 0 ? b.close : null })), [bars]);
+  const smaHistory = useMemo(() => own.indicatorBars?.map(b => ({ time: b.date.slice(0, 10), value: b.close > 0 ? b.close : null })), [own.indicatorBars]);
+  const averages = useStandardSma({ chart: chartApi, source: priceRef.current, points: smaPoints,
+    history: smaHistory, scope: `valuation-band:${code ?? "unknown"}:day`, formatValue: formatPrice });
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -198,7 +204,7 @@ export function ValuationBandChart({
     setChartApi(chart);
     return () => {
       setChartApi(null);
-      chart.remove();
+      queueMicrotask(() => chart.remove());
       chartRef.current = null;
       priceRef.current = null;
       midRef.current = null;
@@ -455,6 +461,7 @@ export function ValuationBandChart({
 
       <ChartShell
         title={`${METRICS.find((m) => m.id === metric)?.label} 밴드 · ${fundLabel}`}
+        displayControls={<SmaControls instances={averages.instances} unavailable={averages.unavailable} mode={averages.mode} onToggle={averages.toggle} disabled={!averages.ready} />}
         toolbar={
           <>
             <RangePresets chart={chartApi} first={csvRows[0]?.time} last={csvRows.at(-1)?.time} />

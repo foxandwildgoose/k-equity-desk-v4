@@ -114,6 +114,9 @@ import { pricePanePoint, periodEndDay, profileRangeBars } from "@/lib/charts/hts
 import { alignChartFlow, availableFlowStart, emptyChartFlow, FLOW_METRICS, type FlowRequest } from "@/lib/charts/hts-flow";
 import { chartReplayInstant, flowToCsv } from "@/lib/charts/hts-flow-export";
 import { useChartFlow } from "@/lib/use-chart-flow";
+import { alignSmaValues, latestSmaPoint, migrateStandardSmas, prepareSmaHistory, resolveSmaStyle, STANDARD_SMA_PERIODS, toggleStandardSma } from "@/lib/charts/standard-sma";
+import { SmaControls } from "@/components/charts/core/SmaControls";
+import { SmaLabelsPrimitive } from "@/components/charts/core/sma-labels-primitive";
 
 type Tool = "cursor" | DrawingType | "avwap-anchor" | "replay-pick";
 
@@ -337,20 +340,32 @@ export function ProChart(props: ProChartProps) {
   const times = useMemo(() => bars.map((b) => barTimeOf(b.date, market)), [bars, market]);
   const timeIndex = useMemo(() => new Map(times.map((t, i) => [t, i])), [times]);
   // Identity and every input field participate: a volume correction must invalidate cached indicators.
-  const version = useMemo(() => `${market}:${code}:${intervalKey}:${props.source}:${JSON.stringify(bars)}`, [market, code, intervalKey, props.source, bars]);
+  const calculationBars = useMemo(() => prepareSmaHistory(
+    bars.map(b => ({ ...b, time: barTimeOf(b.date, market) })),
+    (props.indicatorBars ?? rawBars).map(b => ({ ...b, time: barTimeOf(b.date, market) })),
+  ), [bars, props.indicatorBars, rawBars, market]);
+  const calculationTimes = useMemo(() => calculationBars.map(b => b.time), [calculationBars]);
+  const version = useMemo(() => `${market}:${code}:${intervalKey}:${props.source}:${JSON.stringify(calculationBars)}:${times[0]}`, [market, code, intervalKey, props.source, calculationBars, times]);
   const renderedIndicators = layout.indicators.filter((i) => !htsEnabled || (i.id !== "rsi" && i.id !== "volume"));
   const extraCount = renderedIndicators.filter((i) => i.visible && INDICATOR_BY_ID.get(i.id)?.pane === "separate" && INDICATOR_BY_ID.get(i.id)?.render === "series").length;
   const catalogBars = useMemo<CatalogBars>(
     () => ({
-      open: bars.map((b) => b.open),
-      high: bars.map((b) => b.high),
-      low: bars.map((b) => b.low),
-      close: bars.map((b) => b.close),
-      volume: bars.map((b) => b.volume),
-      sessionKeys: interval === "minute" ? bars.map((b) => b.date.slice(0, 10)) : undefined,
+      open: calculationBars.map((b) => b.open),
+      high: calculationBars.map((b) => b.high),
+      low: calculationBars.map((b) => b.low),
+      close: calculationBars.map((b) => b.close),
+      volume: calculationBars.map((b) => b.volumeValid === false ? NaN : b.volume),
+      sessionKeys: interval === "minute" ? calculationBars.map((b) => b.date.slice(0, 10)) : undefined,
     }),
-    [bars, interval],
+    [calculationBars, interval],
   );
+  // Keep the existing calculation origin for unrelated indicators (notably
+  // non-intraday VWAP). SMA alone consumes the additional selected-frame history.
+  const displayCatalogBars = useMemo<CatalogBars>(() => ({
+    open: bars.map(b => b.open), high: bars.map(b => b.high), low: bars.map(b => b.low),
+    close: bars.map(b => b.close), volume: bars.map(b => b.volumeValid === false ? NaN : b.volume),
+    sessionKeys: interval === "minute" ? bars.map(b => b.date.slice(0, 10)) : undefined,
+  }), [bars, interval]);
 
   // ── Indicator values (memoized by data version + params) ───────────────
   const cacheRef = useRef(new Map<string, Record<string, Series>>());
@@ -362,14 +377,17 @@ export function ProChart(props: ProChartProps) {
       const key = indicatorCacheKey(version, inst);
       let v = cache.get(key);
       if (!v) {
-        v = computeInstance(inst, catalogBars, times);
+        if (inst.id === "sma") {
+          const calculated = computeInstance(inst, catalogBars, calculationTimes);
+          v = Object.fromEntries(Object.entries(calculated).map(([key, array]) => [key, alignSmaValues(calculationBars, array, bars.map(b => ({ time: barTimeOf(b.date, market) })))]));
+        } else v = computeInstance(inst, displayCatalogBars, times);
         cache.set(key, v);
         if (cache.size > 200) cache.delete(cache.keys().next().value!);
       }
       out.set(inst.uid, v);
     }
     return out;
-  }, [layout.indicators, version, catalogBars, times]);
+  }, [layout.indicators, version, catalogBars, calculationTimes, calculationBars, bars, market, displayCatalogBars, times]);
 
   // ── Main series ────────────────────────────────────────────────────────
   const mainRef = useRef<ISeriesApi<SeriesType> | null>(null);
@@ -378,6 +396,7 @@ export function ProChart(props: ProChartProps) {
   const sessionPrim = useRef(new SessionPrimitive());
   const vpPrim = useRef(new VolumeProfilePrimitive());
   const rangePrim = useRef(new RangeMarkerPrimitive());
+  const smaLabels = useRef(new SmaLabelsPrimitive());
   const [mainEpoch, setMainEpoch] = useState(0);
   const compareActive = useRef(false);
 
@@ -408,12 +427,15 @@ export function ProChart(props: ProChartProps) {
     s.attachPrimitive(vpPrim.current);
     s.attachPrimitive(drawingPrim.current);
     s.attachPrimitive(rangePrim.current);
+    const smaPrimitive = smaLabels.current;
+    s.attachPrimitive(smaPrimitive);
     markersRef.current = createSeriesMarkers(s, [], { autoScale: false });
     setMainEpoch((e) => e + 1);
     return () => {
       markersRef.current?.detach();
       markersRef.current = null;
       try {
+        s.detachPrimitive(smaPrimitive);
         s.detachPrimitive(drawingPrim.current);
         s.detachPrimitive(rangePrim.current);
         s.detachPrimitive(vpPrim.current);
@@ -488,12 +510,15 @@ export function ProChart(props: ProChartProps) {
   // ── Indicator series ───────────────────────────────────────────────────
   const indSeries = useRef(new Map<string, { series: Map<string, ISeriesApi<SeriesType>>; lines: IPriceLine[] }>());
   const pivotLines = useRef<IPriceLine[]>([]);
-  const structureKey = JSON.stringify([htsEnabled, renderedIndicators.filter(i => INDICATOR_BY_ID.get(i.id)?.render === "series").map((i) => [i.uid, i.id, i.visible, i.color, i.params])]);
+  const structureKey = JSON.stringify([htsEnabled, renderedIndicators.filter(i => INDICATOR_BY_ID.get(i.id)?.render === "series").map((i) => [i.uid, i.id, INDICATOR_BY_ID.get(i.id)?.pane === "separate" ? i.visible : null])]);
   useEffect(() => {
     if (!chart) return;
     const store = indSeries.current;
-    for (const [, v] of store) for (const s of v.series.values()) chart.removeSeries(s);
-    store.clear();
+    const retained = new Set(renderedIndicators.filter(i => i.visible || INDICATOR_BY_ID.get(i.id)?.pane === "overlay").map(i => i.uid));
+    for (const [id, entry] of store) if (!retained.has(id)) {
+      for (const series of entry.series.values()) chart.removeSeries(series);
+      store.delete(id);
+    }
     if (htsEnabled) ensureHtsPanes(chart, extraCount);
     for (let i = chart.panes().length - 1; !htsEnabled && i >= 1; i--) {
       const pane = chart.panes()[i];
@@ -501,10 +526,15 @@ export function ProChart(props: ProChartProps) {
     }
     let pane = htsEnabled ? 5 : 1;
     renderedIndicators.forEach((inst, idx) => {
-      if (!inst.visible) return;
       const def = INDICATOR_BY_ID.get(inst.id);
       if (!def || def.render !== "series") return;
+      if (!inst.visible && def.pane === "separate") return;
       const paneIndex = def.pane === "separate" ? pane++ : pricePaneIndex;
+      const existing = store.get(inst.uid);
+      if (existing) {
+        for (const series of existing.series.values()) series.moveToPane(paneIndex);
+        return;
+      }
       const color = inst.color ?? PALETTE[idx % PALETTE.length]!;
       const series = new Map<string, ISeriesApi<SeriesType>>();
       const lines: IPriceLine[] = [];
@@ -518,7 +548,7 @@ export function ProChart(props: ProChartProps) {
             LineSeries,
             {
               color: o.style === "dots" ? color : oi === 0 ? c : def.outputs.length > 2 && oi === 1 ? `${color}` : c,
-              lineWidth: 1,
+              lineWidth: resolveSmaStyle(inst, themeMode)?.lineWidth ?? 1,
               lineStyle: def.id === "ichimoku" && (o.key === "spanA" || o.key === "spanB") ? LineStyle.Dotted : LineStyle.Solid,
               lineVisible: o.style !== "dots",
               pointMarkersVisible: o.style === "dots",
@@ -547,6 +577,31 @@ export function ProChart(props: ProChartProps) {
   }, [chart, structureKey, market]);
   const [indEpoch, setIndEpoch] = useState(0);
 
+  // Presentation-only changes never rebuild price/indicator series or reset zoom.
+  useEffect(() => {
+    renderedIndicators.forEach((instance, index) => {
+      const entry = indSeries.current.get(instance.uid);
+      const style = resolveSmaStyle(instance, themeMode);
+      const color = style?.color ?? instance.color ?? PALETTE[index % PALETTE.length]!;
+      for (const [key, series] of entry?.series ?? []) if (series.seriesType() === "Line") {
+        series.applyOptions({ color: key === "signal" || key === "d" || key === "minusDi" ? "#f97316" : key === "plusDi" ? "#22c55e" : color, lineWidth: style?.lineWidth ?? 1,
+          visible: instance.visible && (INDICATOR_BY_ID.get(instance.id)?.pane !== "overlay" || !htsEnabled || !hts.collapsed.price) });
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layout.indicators, themeMode, indEpoch, htsEnabled, hts.collapsed.price]);
+
+  useEffect(() => {
+    const endpoints = STANDARD_SMA_PERIODS.flatMap(period => {
+      const instance = layout.indicators.find(i => i.id === "sma" && Number(i.params?.period) === period && i.visible);
+      if (!instance || (htsEnabled && hts.collapsed.price)) return [];
+      const point = latestSmaPoint(bars.map((b, i) => ({ time: times[i]! })), values.get(instance.uid)?.v ?? [], instance.visible);
+      if (point?.value == null) return [];
+      return [{ period, time: point.time, value: point.value, color: resolveSmaStyle(instance, themeMode)!.color, text: `SMA${period} ${fmt(point.value)}`, coordinateSeries: indSeries.current.get(instance.uid)?.series.get("v") }];
+    });
+    smaLabels.current.set(endpoints, theme.background, htsEnabled ? 42 : 16);
+  }, [layout.indicators, values, bars, times, themeMode, theme.background, fmt, htsEnabled, hts.collapsed.price, mainEpoch, indEpoch]);
+
   // Indicator data.
   useEffect(() => {
     for (const inst of layout.indicators) {
@@ -573,7 +628,7 @@ export function ProChart(props: ProChartProps) {
     for (const series of compareSeries.current.values()) series.applyOptions({ visible });
     for (const instance of renderedIndicators) {
       if (INDICATOR_BY_ID.get(instance.id)?.pane !== "overlay") continue;
-      for (const series of indSeries.current.get(instance.uid)?.series.values() ?? []) series.applyOptions({ visible });
+      for (const series of indSeries.current.get(instance.uid)?.series.values() ?? []) series.applyOptions({ visible: visible && instance.visible });
     }
     // Series identities are tracked by their construction epochs.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -635,17 +690,17 @@ export function ProChart(props: ProChartProps) {
   const flowRequest = useMemo<FlowRequest>(() => ({ code, market, instrument, exchange: props.exchange ?? (market === "KR" ? "KRX" : "US"),
     currency, quantityUnit, from: hts.trustStartDate && hts.trustStartDate < (rawBars[0]?.date.slice(0, 10) ?? "") ? hts.trustStartDate : rawBars[0]?.date.slice(0, 10) ?? "",
     to: rawBars.at(-1) ? periodEndDay(rawBars.at(-1)!.date, interval).slice(0, 10) : "", interval,
-    expectedDailyDates: (props.profileBars ?? props.indicatorBars ?? (interval === "day" ? rawBars : [])).map((b) => b.date.slice(0, 10)) }),
+    expectedDailyDates: (props.profileBars ?? (interval === "day" ? props.indicatorBars ?? rawBars : [])).map((b) => b.date.slice(0, 10)) }),
   [code, market, instrument, props.exchange, currency, quantityUnit, hts.trustStartDate, rawBars, interval, props.profileBars, props.indicatorBars]);
   const flowQuery = useChartFlow(flowRequest, htsEnabled && Boolean(props.instrument) && htsLoaded === scopeKey && Boolean(hts.trustStartDate));
   const flow = useMemo(() => flowQuery.data ?? emptyChartFlow(flowRequest, flowQuery.isError ? "데이터 요청 실패 · 재시도 필요" : props.instrument ? "데이터 확인 중" : "상품 유형 확인 중"), [flowQuery.data, flowQuery.isError, flowRequest, props.instrument]);
   const effectiveTrustStart = useMemo(() => hts.trustMode === "available-cumulative"
-    ? availableFlowStart(flow, (props.profileBars ?? props.indicatorBars ?? (interval === "day" ? rawBars : [])).map((b) => b.date.slice(0, 10)), hts.trustStartDate) ?? hts.trustStartDate
+    ? availableFlowStart(flow, (props.profileBars ?? (interval === "day" ? props.indicatorBars ?? rawBars : [])).map((b) => b.date.slice(0, 10)), hts.trustStartDate) ?? hts.trustStartDate
     : hts.trustStartDate, [flow, hts.trustMode, hts.trustStartDate, props.profileBars, props.indicatorBars, interval, rawBars]);
   const replayAt = replay && bars.at(-1) ? chartReplayInstant(periodEndDay(bars.at(-1)!.date, interval).slice(0, 10), market) : undefined;
   const alignedFlow = useMemo(() => alignChartFlow(flow, { dates: bars.map((b) => b.date.slice(0, 10)), interval,
     cumulativeStart: hts.trustStartDate, investmentTrustMode: hts.trustMode,
-    expectedDailyDates: (props.profileBars ?? props.indicatorBars ?? (interval === "day" ? rawBars : [])).map((b) => b.date.slice(0, 10)),
+    expectedDailyDates: (props.profileBars ?? (interval === "day" ? props.indicatorBars ?? rawBars : [])).map((b) => b.date.slice(0, 10)),
     replayAt,
   }), [flow, bars, interval, hts.trustStartDate, hts.trustMode, props.profileBars, props.indicatorBars, rawBars, replayAt]);
 
@@ -1159,7 +1214,7 @@ export function ProChart(props: ProChartProps) {
       return {
         id: inst.uid,
         label: instanceLabel(inst),
-        color: inst.color,
+        color: resolveSmaStyle(inst, themeMode)?.color ?? inst.color,
         value: val != null ? (def?.pane === "overlay" ? fmt(val) : inst.id === "volume" ? formatChartVolume(val, market) : val.toFixed(2)) : null,
         visible: inst.id === "vprofile" ? vp.enabled : inst.visible,
         onToggle: () => inst.id === "vprofile" ? profileVisible(!vp.enabled) : setLayout((l) => ({ ...l, indicators: l.indicators.map((i) => (i.uid === inst.uid ? { ...i, visible: !i.visible } : i)) })),
@@ -1330,7 +1385,7 @@ export function ProChart(props: ProChartProps) {
         title={props.name ? `${props.name} · ${code}` : code}
         toolbarExtra={props.toolbarExtra}
         toolbar={toolbar}
-        displayControls={<ChartDisplayControls overlays={overlays} rangeOn={vp.rangeOn} profileOn={vp.enabled}
+        displayControls={<><SmaControls instances={layout.indicators} unavailable={STANDARD_SMA_PERIODS.filter(period => layout.indicators.some(i => i.id === "sma" && Number(i.params.period) === period && i.visible) && !layout.indicators.filter(i => i.id === "sma" && Number(i.params.period) === period).some(i => values.get(i.uid)?.v?.some(value => value != null)))} mode={themeMode} disabled={loadedKey !== layoutKey} onToggle={period => setLayout(previous => ({ ...previous, indicators: toggleStandardSma(previous.indicators, period) }))} /><ChartDisplayControls overlays={overlays} rangeOn={vp.rangeOn} profileOn={vp.enabled}
           legacyProfile={vp.widthRatio < 0.4 || vp.rangeMode === "all" || vp.rows > 20}
           ready={loadedKey === layoutKey && htsLoaded === scopeKey}
           onToggle={key => setLayout(previous => ({ ...previous, overlays: { ...previous.overlays, [key]: !previous.overlays[key] } }))}
@@ -1338,7 +1393,7 @@ export function ProChart(props: ProChartProps) {
           onProfile={() => profileVisible(!vp.enabled)} onAll={changeAnnotations} onReadability={readability}
           onSettings={trigger => { htsTriggerRef.current = trigger; setPanel("hts"); }}
           onIndicators={() => setPanel("indicators")} onObjects={() => setPanel("objects")}
-          eventCount={chartEvents.length} onEvents={trigger => { eventTriggerRef.current = trigger; setEventSelection({ scope: layoutKey, items: chartEvents }); }} /> }
+          eventCount={chartEvents.length} onEvents={trigger => { eventTriggerRef.current = trigger; setEventSelection({ scope: layoutKey, items: chartEvents }); }} /></> }
         hud={hud}
         legend={legend}
         status={status}
@@ -1457,7 +1512,7 @@ export function ProChart(props: ProChartProps) {
         }}
         templates={templates}
         onSaveTemplate={(name) =>
-          setChartPrefs({ templates: { ...(chartPrefs.templates ?? {}), [name]: { indicators: layout.indicators, chartType: layout.chartType, scale: layout.scale, savedAt: new Date().toISOString() } } })
+          setChartPrefs({ templates: { ...(chartPrefs.templates ?? {}), [name]: { indicators: layout.indicators, smaBundleVersion: 1, chartType: layout.chartType, scale: layout.scale, savedAt: new Date().toISOString() } } })
         }
         onApplyTemplate={(name) => {
           const t = chartPrefs.templates?.[name];
@@ -1466,7 +1521,7 @@ export function ProChart(props: ProChartProps) {
           if (profiles.length) setVp(previous => ({ ...previous, enabled: profiles.some(item => item.visible) }));
           setLayout((l) => ({
             ...l,
-            indicators: (t.indicators as IndicatorInstance[]).map((i) => ({ ...i, uid: `${i.id}-${uid()}` })),
+            indicators: (t.smaBundleVersion === 1 ? t.indicators as IndicatorInstance[] : migrateStandardSmas(t.indicators as IndicatorInstance[])).map((i) => ({ ...i, uid: `${i.id}-${uid()}` })),
             chartType: (t.chartType as ChartType) ?? l.chartType,
             scale: (t.scale as ChartScale) ?? l.scale,
           }));

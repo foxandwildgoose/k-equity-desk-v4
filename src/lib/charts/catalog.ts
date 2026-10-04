@@ -29,6 +29,7 @@ import {
   williamsR,
   wma,
 } from "../chart-indicators.ts";
+import { isStandardSmaPeriod, STANDARD_SMA_PERIODS, standardSmaInstance } from "./standard-sma.ts";
 
 export type Series = (number | null)[];
 
@@ -83,6 +84,8 @@ export interface IndicatorInstance {
   params: Record<string, number | string>;
   visible: boolean;
   color?: string;
+  /** Standard SMA defaults resolve live from theme; color is an explicit override. */
+  colorMode?: "theme" | "custom";
   /** Anchored VWAP anchor bar time. */
   anchorTime?: string | number | null;
 }
@@ -307,6 +310,15 @@ export function indicatorCacheKey(version: string | number, inst: IndicatorInsta
 
 export const PALETTE = ["#f59e0b", "#a78bfa", "#38bdf8", "#94a3b8", "#f97316", "#2563eb", "#2dd4bf", "#e879f9", "#84cc16", "#f43f5e"];
 
+export function instanceLabel(inst: IndicatorInstance): string {
+  const def = INDICATOR_BY_ID.get(inst.id);
+  if (!def) return inst.id;
+  if (inst.id === "sma") return `SMA${inst.params.period}`;
+  const short = def.label.split(" ")[0]!;
+  const params = [...def.params.filter(p => p.type !== "select"), ...def.params.filter(p => p.type === "select")].map(p => inst.params[p.key]);
+  return params.length ? `${short}(${params.join(",")})` : short;
+}
+
 let seq = 0;
 export function newInstance(id: string, params?: Record<string, number | string>, color?: string): IndicatorInstance {
   const def = INDICATOR_BY_ID.get(id);
@@ -317,21 +329,19 @@ export function newInstance(id: string, params?: Record<string, number | string>
     params: def ? sanitizeParams(def, { ...defaultParams(def), ...(params ?? {}) }) : { ...(params ?? {}) },
     visible: true,
     color,
+    ...(id === "sma" && isStandardSmaPeriod(Number(params?.period ?? 20)) ? { colorMode: color ? "custom" as const : "theme" as const } : {}),
   };
 }
 
 /** Default layout indicators (keeps the pre-v3 chart's defaults). */
-export function defaultIndicators(market: "KR" | "US"): IndicatorInstance[] {
+export function defaultIndicators(_market: "KR" | "US"): IndicatorInstance[] {
   const out = [
-    newInstance("sma", { period: 5 }, PALETTE[0]),
-    newInstance("sma", { period: 20 }, PALETTE[1]),
-    newInstance("sma", { period: 60 }, PALETTE[2]),
+    ...STANDARD_SMA_PERIODS.map(standardSmaInstance),
     newInstance("bb", { period: 20, mult: 2 }, "#64748b"),
     newInstance("volume", { ma: 20 }),
     newInstance("rsi", { period: 14 }, "#a78bfa"),
     newInstance("macd", {}, "#38bdf8"),
   ];
-  if (market === "US") out.push(newInstance("sma", { period: 50 }, PALETTE[4]), newInstance("sma", { period: 200 }, PALETTE[5]));
   return out;
 }
 

@@ -80,7 +80,7 @@ async function fixtures(page, fixtureCalls) {
   const { fromJSON, toCrossJSONAsync } = await import('seroval');
   await page.route('**/_serverFn/**', async route => {
     const name = serverFunctionName(route.request().url());
-    if (!['getChartData', 'getChartFlow'].includes(name)) return route.continue();
+    if (!['getChartData', 'getChartFlow', 'getChartSecurity', 'getUsChartSecurity'].includes(name)) return route.continue();
     let data = {};
     try {
       const raw = route.request().method() === 'POST' ? route.request().postData() : new URL(route.request().url()).searchParams.get('payload');
@@ -89,6 +89,11 @@ async function fixtures(page, fixtureCalls) {
     } catch { /* Invalid transport will fail normal assertions rather than forge data. */ }
     const rows = fixtureBars(data.code ?? 'QA');
     let result = { bars: rows, source: 'QA SYNTHETIC OHLCV FIXTURE — NOT MARKET DATA' };
+    if (name === 'getChartSecurity' || name === 'getUsChartSecurity') {
+      const us = name === 'getUsChartSecurity';
+      const etf = ['069500', '379800', '0005A0', 'SPY', 'BOTZ'].includes(data.code);
+      result = { code: data.code, market: us ? 'US' : 'KR', exchange: us ? 'US' : 'KRX', instrument: etf ? 'etf' : 'stock', currency: us ? 'USD' : 'KRW', quantityUnit: etf && !us ? '좌' : '주', source: 'QA SYNTHETIC SECURITY — NOT MARKET DATA' };
+    }
     if (name === 'getChartFlow') {
       const { kiwoomBrowserFixture } = await import('./qa-kiwoom-fixture.mjs');
       result = await kiwoomBrowserFixture(data, rows);

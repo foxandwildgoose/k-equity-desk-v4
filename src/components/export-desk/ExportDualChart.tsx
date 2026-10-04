@@ -9,6 +9,8 @@ import { readChartTheme } from "@/components/charts/core/theme";
 import { exportChartPng, exportRowsCsv, RangePresets, ScaleToggle, useChartChrome } from "@/components/charts/core/chrome";
 import { formatChartPercent } from "@/lib/chart-format";
 import { useAppStore } from "@/lib/store";
+import { useStandardSma } from "@/components/charts/core/use-standard-sma";
+import { SmaControls } from "@/components/charts/core/SmaControls";
 
 export type DualPoint = {
   time: string;
@@ -36,6 +38,7 @@ function marksFor(stats: RangePositionStats | null, times: string[], formatValue
 /** Export × KOSPI dual-axis chart. Export amount series never get a volume profile. */
 export function ExportDualChart({
   data,
+  history,
   aName,
   bName,
   aColor = "#d4a017",
@@ -45,6 +48,8 @@ export function ExportDualChart({
   mode = "월간",
 }: {
   data: DualPoint[];
+  /** Same transformations/base/scales, before the parent clips its date range. */
+  history?: DualPoint[];
   aName: string;
   bName: string;
   aColor?: string;
@@ -58,6 +63,7 @@ export function ExportDualChart({
   const bPrim = useRef(new RangeMarkerPrimitive());
   const [chart, setChart] = useState<IChartApi | null>(null);
   const [series, setSeries] = useState<{ a: ISeriesApi<SeriesType> | null; b: ISeriesApi<SeriesType> | null }>({ a: null, b: null });
+  const [smaFocus, setSmaFocus] = useState<"a" | "b">("a");
   const convention = useAppStore((s) => s.colorConvention);
   const up = convention === "korea" ? "#ef4444" : "#22c55e";
   const down = convention === "korea" ? "#3b82f6" : "#ef4444";
@@ -66,6 +72,10 @@ export function ExportDualChart({
   const aPoints = useMemo(() => rows.filter((d) => d.a != null && Number.isFinite(d.a)), [rows]);
   const bPoints = useMemo(() => rows.filter((d) => d.b != null && Number.isFinite(d.b)), [rows]);
   const fmt = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  const smaPoints = useMemo(() => rows.map(row => ({ time: row.time, value: row[smaFocus] })), [rows, smaFocus]);
+  const smaHistory = useMemo(() => history?.map(row => ({ time: toDay(row.time), value: row[smaFocus] })), [history, smaFocus]);
+  const averages = useStandardSma({ chart, source: series[smaFocus], points: smaPoints,
+    history: smaHistory, scope: `export-dual:${aName}:${bName}:${mode}`, formatValue: fmt, scaleId: smaFocus === "a" ? "left" : "right" });
 
   const aStats = useMemo(
     () => computeSeriesRangePosition(aPoints.map((d) => ({ value: d.a as number, date: d.time })), undefined, { recentSpan: "52W" }),
@@ -97,7 +107,7 @@ export function ExportDualChart({
     return () => {
       setChart(null);
       setSeries({ a: null, b: null });
-      c.remove();
+      queueMicrotask(() => c.remove());
     };
   }, [aPoints, bPoints, aName, bName, aColor, bColor, hasData]);
 
@@ -123,6 +133,7 @@ export function ExportDualChart({
       <RangePositionStrip stats={bStats} compact caption={`${bName} · 최근 12개월(52W) · 지수 라인에는 거래량 매물대 없음`} formatValue={fmt} />
       <ChartShell
         title={`${aName} × ${bName}`}
+        displayControls={<><label className="flex min-h-11 items-center gap-1 text-xs">SMA 대상<select aria-label="SMA 대상 시계열" value={smaFocus} onChange={event => setSmaFocus(event.target.value === "b" ? "b" : "a")} className="h-9 max-w-40 rounded border border-border bg-background px-1"><option value="a">{aName} (좌)</option><option value="b">{bName} (우)</option></select></label><SmaControls instances={averages.instances} unavailable={averages.unavailable} mode={averages.mode} onToggle={averages.toggle} disabled={!averages.ready} /></>}
         toolbar={
           <>
             <RangePresets chart={chart} first={rows[0]?.time} last={rows.at(-1)?.time} />
@@ -169,6 +180,9 @@ export function ExportAmountChart({
   const shown = series.slice(0, 6);
   const key = shown.map((s) => `${s.id}:${s.points.length}:${s.points.at(-1)?.time ?? ""}`).join("|");
   const focus = shown.find((s) => s.id === focusId) ?? shown[0];
+  const smaPoints = useMemo(() => focus?.points.map(p => ({ time: toDay(p.time), value: p.value })) ?? [], [focus]);
+  const averages = useStandardSma({ chart, source: apis[shown.findIndex(s => s.id === focus?.id)] ?? null,
+    points: smaPoints, scope: `export-amount:${focus?.id ?? "none"}`, formatValue: n => `$${n.toFixed(1)}bn` });
   const focusStats = useMemo(
     () => (focus ? computeSeriesRangePosition(focus.points.map((p) => ({ value: p.value, date: p.time })), undefined, { recentSpan: "52W" }) : null),
     [focus],
@@ -201,7 +215,7 @@ export function ExportAmountChart({
     return () => {
       setChart(null);
       setApis([]);
-      c.remove();
+      queueMicrotask(() => c.remove());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, focusId]);
@@ -227,6 +241,7 @@ export function ExportAmountChart({
       {focusStats && <RangePositionStrip stats={focusStats} compact caption={`${focus?.name ?? ""} · 최근 12개월 · 수출액 차트에는 매물대 없음`} formatValue={(n) => `$${n.toFixed(1)}bn`} />}
       <ChartShell
         title="주력 품목 수출 (HS 근사, 십억달러)"
+        displayControls={<><span className="text-xs text-muted-foreground">SMA 대상: {focus?.name}</span><SmaControls instances={averages.instances} unavailable={averages.unavailable} mode={averages.mode} onToggle={averages.toggle} disabled={!averages.ready} /></>}
         toolbar={<RangePresets chart={chart} first={shown[0]?.points[0] ? toDay(shown[0].points[0].time) : undefined} last={focus?.points.at(-1) ? toDay(focus.points.at(-1)!.time) : undefined} />}
         hud={hud}
         legend={legend}

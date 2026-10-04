@@ -59,7 +59,7 @@ export interface ChartPrefs {
   chartType: "candles" | "hollow" | "bars" | "heikin-ashi" | "line" | "area" | "baseline";
   scale: "normal" | "log" | "percent" | "indexed";
   syncInterval: boolean;
-  templates: Record<string, { indicators: unknown[]; chartType?: string; scale?: string; savedAt: string }>;
+  templates: Record<string, { indicators: unknown[]; chartType?: string; scale?: string; savedAt: string; smaBundleVersion?: 1 }>;
 }
 
 export interface RoboticsCustomEntry {

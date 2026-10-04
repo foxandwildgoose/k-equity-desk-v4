@@ -354,7 +354,7 @@ function TotalPanel() {
     [macro.data?.kospi],
   );
 
-  const chart = useMemo(() => {
+  const fullChart = useMemo(() => {
     const values = exports.map((e) => e.valueUsd);
     const wad = exports.map((e) =>
       calculateWorkingDayAdjusted(e.valueUsd, e.workingDays ?? 0) ?? NaN,
@@ -382,12 +382,15 @@ function TotalPanel() {
     const clipped = clipRange(aligned, settings.range).filter(
       (r) => Number.isFinite(r.exp) || Number.isFinite(r.kospi),
     );
-    const expIdx = normalizeToBase100(clipped.map((r) => r.exp));
-    const kIdx = normalizeToBase100(clipped.map((r) => r.kospi));
-    const kYoy = calculateYoYGrowth(clipped.map((r) => r.kospi), 12);
+    // Preserve the visible range's index base in the pre-roll history as well.
+    const expBase = clipped.find(r => Number.isFinite(r.exp) && r.exp !== 0)?.exp;
+    const kBase = clipped.find(r => Number.isFinite(r.kospi) && r.kospi !== 0)?.kospi;
+    const expIdx = aligned.map(r => expBase ? r.exp / expBase * 100 : NaN);
+    const kIdx = aligned.map(r => kBase ? r.kospi / kBase * 100 : NaN);
+    const kYoy = calculateYoYGrowth(aligned.map((r) => r.kospi), 12);
     const fxSeries = macro.data?.fx ?? [];
     const spot = macro.data?.spotUsdKrw ?? 0;
-    return clipped.map((r, i) => {
+    return aligned.map((r, i) => {
       const fx = fxRateForPeriod(r.period, fxSeries, spot);
       return {
         ...r,
@@ -402,6 +405,11 @@ function TotalPanel() {
       };
     });
   }, [exports, kospiMonth, settings.levelSeries, settings.range, macro.data?.fx, macro.data?.spotUsdKrw]);
+
+  const chart = useMemo(() => clipRange(fullChart, settings.range), [fullChart, settings.range]);
+  const dualRow = (r: typeof fullChart[number]) => ({ time: r.period,
+    a: settings.chartMode === "absolute" ? r.exp : settings.chartMode === "growth" ? r.yoy : settings.chartMode === "krw" ? r.expKrw : r.expIdx,
+    b: settings.chartMode === "krw" ? null : settings.chartMode === "growth" ? r.kYoy : settings.chartMode === "absolute" ? r.kospi : r.kIdx });
 
   const last = chart.filter((r) => r.exp != null).at(-1);
   const lastK = chart.filter((r) => r.kospi != null).at(-1);
@@ -452,25 +460,8 @@ function TotalPanel() {
             <span>드래그로 이동 · 휠로 확대</span>
           </div>
           <ExportDualChart
-            data={chart.map((r) => ({
-              time: r.period,
-              a:
-                settings.chartMode === "absolute"
-                  ? r.exp
-                  : settings.chartMode === "growth"
-                    ? r.yoy
-                    : settings.chartMode === "krw"
-                      ? r.expKrw
-                      : r.expIdx,
-              b:
-                settings.chartMode === "krw"
-                  ? null
-                  : settings.chartMode === "growth"
-                    ? r.kYoy
-                    : settings.chartMode === "absolute"
-                      ? r.kospi
-                      : r.kIdx,
-            }))}
+            data={chart.map(dualRow)}
+            history={fullChart.map(dualRow)}
             aName={
               settings.chartMode === "growth"
                 ? "수출 YoY"
@@ -998,6 +989,7 @@ function IndustryPanel({
             a: typeof r.expIdx === "number" ? r.expIdx : null,
             b: typeof r.compIdx === "number" ? r.compIdx : null,
           }))}
+          history={overlay.map(r => ({ time: String(r.period), a: typeof r.expIdx === "number" ? r.expIdx : null, b: typeof r.compIdx === "number" ? r.compIdx : null }))}
           aName={`${catLabel} 수출`}
           bName="노출가중 주가"
         />

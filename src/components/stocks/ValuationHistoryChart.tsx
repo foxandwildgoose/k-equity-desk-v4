@@ -10,7 +10,7 @@ import {
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { RangePositionStrip, StreetTapeRow } from "@/components/stocks/RangePositionStrip";
-import { computeSeriesRangePosition, sma, streetTape } from "@/lib/chart-indicators";
+import { computeSeriesRangePosition, streetTape } from "@/lib/chart-indicators";
 import {
   createChart,
   CrosshairMode,
@@ -27,6 +27,8 @@ import { ChartShell } from "@/components/charts/core/ChartShell";
 import { proChartOptions } from "@/components/charts/core/create-pro-chart";
 import { readChartTheme } from "@/components/charts/core/theme";
 import { exportChartPng, exportRowsCsv } from "@/components/charts/core/chrome";
+import { useStandardSma } from "@/components/charts/core/use-standard-sma";
+import { SmaControls } from "@/components/charts/core/SmaControls";
 
 export type ChartViewMode = "price" | "per" | "fwdPer" | "evEbitda" | "evSales" | "band";
 export type ValuationMode = Exclude<ChartViewMode, "price">;
@@ -162,12 +164,17 @@ function WeeklyPriceChart({ code }: { code: string }) {
   const [fault, setFault] = useState<string | null>(null);
   const [api, setApi] = useState<IChartApi | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const smaSource = useRef<ISeriesApi<"Line"> | null>(null);
   const view = useMemo(() => {
     const pack = q.data;
     if (!pack) return null;
     return resliceValuation(pack, cutoff(pack.window.to, range));
   }, [q.data, range]);
   const points = view?.drivers.filter((row) => row.price > 0) ?? [];
+  const smaPoints = useMemo(() => (view?.drivers ?? []).map(p => ({ time: p.date.slice(0, 10), value: p.price > 0 ? p.price : null })), [view]);
+  const smaHistory = useMemo(() => (q.data?.drivers ?? []).map(p => ({ time: p.date.slice(0, 10), value: p.price > 0 ? p.price : null })), [q.data]);
+  const averages = useStandardSma({ chart: api, source: smaSource.current, points: smaPoints, history: smaHistory,
+    scope: `weekly-price:${code}:week`, formatValue: n => fmtQuote(n, view?.currency ?? "KRW") });
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -192,6 +199,7 @@ function WeeklyPriceChart({ code }: { code: string }) {
           formatter: (v: number) => fmtQuote(v, view.currency),
         },
       });
+      smaSource.current = line;
       line.setData(finiteLine(points.map((p) => ({ date: p.date, value: p.price }))));
       chart.timeScale().fitContent();
     } catch {
@@ -203,7 +211,8 @@ function WeeklyPriceChart({ code }: { code: string }) {
     setApi(live);
     return () => {
       setApi(null);
-      live.remove();
+      smaSource.current = null;
+      queueMicrotask(() => live.remove());
     };
   }, [view, points.length, range]);
 
@@ -245,6 +254,7 @@ function WeeklyPriceChart({ code }: { code: string }) {
       ) : (
         <ChartShell
           title="수정주가 · 주봉"
+          displayControls={<SmaControls instances={averages.instances} unavailable={averages.unavailable} mode={averages.mode} onToggle={averages.toggle} disabled={!averages.ready} />}
           status={{ source: view?.source ? `Yahoo 수정종가 · ${view.source}` : "Yahoo 수정종가", mode: `주봉 · ${view?.currency ?? ""}`, asOfLabel: view?.window.to ?? null }}
           onExportPng={() => exportChartPng(api, view?.currency === "USD" ? "US" : "KR", code, "weekly-price")}
           onExportCsv={() => exportRowsCsv(api, points.map((p) => ({ time: p.date.slice(0, 10), price: p.price })), [{ name: "adj_close", get: (r) => r.price }], view?.currency === "USD" ? "US" : "KR", code, "weekly-price")}
@@ -269,10 +279,10 @@ function MultipleChart({
   const [range, setRange] = useState<RangeId>("5y");
   const [fault, setFault] = useState<string | null>(null);
   const [hover, setHover] = useState<Hover | null>(null);
-  const [showAvg, setShowAvg] = useState(true);
   const [logScale, setLogScale] = useState(false);
   const [api, setApi] = useState<IChartApi | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const smaSource = useRef<ISeriesApi<"Line"> | null>(null);
 
   const view = useMemo(() => {
     const pack = q.data;
@@ -345,6 +355,16 @@ function MultipleChart({
   );
   const valueFmt = (n: number) =>
     layout === "price" && view ? fmtQuote(n, view.currency) : fmtMult(n);
+  const smaHistory = useMemo(() => {
+    const pack = q.data;
+    if (!pack) return [];
+    if (layout === "price") return (mode === "band" ? pack.valuationBand.points : pack.evSales.priceBands).map(p => ({ time: p.date.slice(0, 10), value: p.price }));
+    const multiple = mode === "per" ? pack.per : mode === "fwdPer" ? pack.forwardPer : mode === "evEbitda" ? pack.evEbitda : pack.evSales;
+    return multiple.points.map(p => ({ time: p.date.slice(0, 10), value: p.value }));
+  }, [q.data, mode, layout]);
+  const smaPoints = useMemo(() => smaHistory.filter(p => !view?.window.from || p.time >= view.window.from.slice(0, 10)), [smaHistory, view?.window.from]);
+  const averages = useStandardSma({ chart: api, source: smaSource.current, points: smaPoints, history: smaHistory,
+    scope: `valuation:${code}:${mode}:week`, formatValue: valueFmt });
 
   useEffect(() => {
     setFault(null);
@@ -376,33 +396,6 @@ function MultipleChart({
       const multFmt = (v: number) => v.toFixed(Math.abs(v) >= 10 ? 1 : 2);
       const lookup = new Map<string, { label: string; value: string }[]>();
 
-      const addAverages = (
-        rows: { date: string; value: number }[],
-        formatter: (v: number) => string,
-      ) => {
-        if (!showAvg || rows.length < 20) return;
-        const values = rows.map((row) => row.value);
-        const specs = [
-          { period: 20, color: "#a78bfa", title: "20주" },
-          { period: 60, color: "#38bdf8", title: "60주" },
-        ];
-        for (const spec of specs) {
-          const avg = sma(values, spec.period);
-          const data = finiteLine(rows.map((row, i) => ({ date: row.date, value: avg[i] ?? null })));
-          if (data.length < 2) continue;
-          const series = chart!.addSeries(LineSeries, {
-            color: spec.color,
-            lineWidth: 1,
-            priceLineVisible: false,
-            lastValueVisible: false,
-            crosshairMarkerVisible: false,
-            title: spec.title,
-            priceFormat: { type: "custom", minMove: 0.01, formatter },
-          });
-          series.setData(data);
-        }
-      };
-
       if (layout === "multiple" && active) {
         const line = chart.addSeries(LineSeries, {
           color: "#22d3ee",
@@ -413,15 +406,12 @@ function MultipleChart({
           priceFormat: { type: "custom", minMove: 0.01, formatter: multFmt },
         });
         const data = finiteLine(active.points.map((p) => ({ date: p.date, value: p.value })));
+        smaSource.current = line;
         line.setData(data);
         for (const row of data) {
           lookup.set(String(row.time), [{ label: TITLES[mode], value: fmtMult(row.value) }]);
         }
         addLevelLines(line, active);
-        addAverages(
-          data.map((row) => ({ date: String(row.time), value: row.value })),
-          multFmt,
-        );
         try {
         const pct = chart.addSeries(
           HistogramSeries,
@@ -460,11 +450,8 @@ function MultipleChart({
           priceFormat: { type: "custom", minMove: 0.01, formatter: quote },
         });
         const priceRows = finiteLine(bands.map((p) => ({ date: p.date, value: p.price })));
+        smaSource.current = price;
         price.setData(priceRows);
-        addAverages(
-          priceRows.map((row) => ({ date: String(row.time), value: row.value })),
-          quote,
-        );
         const specs: { key: keyof PriceBandPoint; color: string; title: string; style: number }[] = [
           { key: "mean", color: "#facc15", title: "평균", style: LineStyle.Solid },
           { key: "p1", color: "#fb7185", title: "+1σ", style: LineStyle.Dashed },
@@ -600,9 +587,10 @@ function MultipleChart({
     setApi(live);
     return () => {
       setApi(null);
-      live.remove();
+      smaSource.current = null;
+      queueMicrotask(() => live.remove());
     };
-  }, [view, mode, layout, defined, fault, active, showAvg, logScale]);
+  }, [view, mode, layout, defined, fault, active, logScale]);
 
   return (
     <section className="bg-card">
@@ -622,13 +610,13 @@ function MultipleChart({
         <div className="flex flex-wrap items-center gap-1">
           <button
             type="button"
-            onClick={() => setShowAvg((v) => !v)}
+            onClick={() => averages.setAll(!averages.instances.some(i => i.visible))}
             className={cn(
               "rounded px-2 py-1 text-[11px] font-semibold min-h-8",
-              showAvg ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
+              averages.instances.some(i => i.visible) ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
             )}
           >
-            20·60주
+            SMA 모두
           </button>
           <button
             type="button"
@@ -707,6 +695,7 @@ function MultipleChart({
           />
           <ChartShell
             title={TITLES[mode]}
+            displayControls={<SmaControls instances={averages.instances} unavailable={averages.unavailable} mode={averages.mode} onToggle={averages.toggle} disabled={!averages.ready} />}
             status={{ source: view?.source ? `${view.source} · Yahoo 수정주가` : "네이버 기업정보 · Yahoo", mode: `주간 · ${layout === "price" ? `가격(${view?.currency})` : "배수"}`, asOfLabel: view?.window.to ?? null }}
             onExportPng={() => exportChartPng(api, view?.currency === "USD" ? "US" : "KR", code, `valuation-${mode}`)}
             onExportCsv={() =>

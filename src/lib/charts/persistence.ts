@@ -6,6 +6,7 @@
  */
 import type { BarTime, Drawing } from "./drawings.ts";
 import type { IndicatorInstance } from "./catalog.ts";
+import { migrateStandardSmas } from "./standard-sma.ts";
 
 export type ChartType = "candles" | "hollow" | "bars" | "heikin-ashi" | "line" | "area" | "baseline";
 export type ChartScale = "normal" | "log" | "percent" | "indexed";
@@ -29,6 +30,7 @@ export const CHART_SCALES: { id: ChartScale; label: string }[] = [
 
 export interface ChartLayoutState {
   v: 2;
+  smaBundleVersion?: 1;
   indicators: IndicatorInstance[];
   drawings: Drawing[];
   chartType: ChartType;
@@ -40,6 +42,11 @@ export interface StorageLike {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
   removeItem(key: string): void;
+}
+
+export function safeChartStorage(): StorageLike | null {
+  try { return typeof window === "undefined" ? null : window.localStorage; }
+  catch { return null; }
 }
 
 export function chartStateKey(market: "KR" | "US", code: string, interval: string): string {
@@ -64,7 +71,7 @@ function validateOverlays(raw: unknown): ChartLayoutState["overlays"] {
 }
 
 export function defaultLayout(indicators: IndicatorInstance[], chartType: ChartType = "candles", scale: ChartScale = "normal"): ChartLayoutState {
-  return { v: 2, indicators, drawings: [], chartType, scale, overlays: { ...DEFAULT_OVERLAYS } };
+  return { v: 2, smaBundleVersion: 1, indicators, drawings: [], chartType, scale, overlays: { ...DEFAULT_OVERLAYS } };
 }
 
 function isAnchor(a: unknown): boolean {
@@ -85,7 +92,11 @@ export function parseChartState(raw: string | null): ChartLayoutState | null {
     if (v?.v !== 2) return null;
     return {
       v: 2,
-      indicators: Array.isArray(v.indicators) ? v.indicators.filter((i) => i && typeof i.id === "string" && typeof i.uid === "string") : [],
+      smaBundleVersion: 1,
+      indicators: (() => {
+        const indicators = Array.isArray(v.indicators) ? v.indicators.filter(i => i && typeof i.id === "string" && typeof i.uid === "string" && i.params && typeof i.params === "object").map(i => ({ ...i, visible: typeof i.visible === "boolean" ? i.visible : true })) : [];
+        return v.smaBundleVersion === 1 ? indicators : migrateStandardSmas(indicators);
+      })(),
       drawings: Array.isArray(v.drawings)
         ? v.drawings.filter(validDrawing).map((d) => ({ ...d, color: d.color ?? "#f59e0b", width: d.width ?? 2, locked: Boolean(d.locked), hidden: Boolean(d.hidden) }))
         : [],

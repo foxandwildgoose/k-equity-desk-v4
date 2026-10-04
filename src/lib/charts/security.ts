@@ -108,5 +108,8 @@ export function sameChartPriceBasis(first: string, second: string): boolean {
     return first.replace(/-(1d|1wk|1mo|3mo)$/, "") === second.replace(/-(1d|1wk|1mo|3mo)$/, "");
   }
   // Same symbol and same endpoint quote fields for Korean Yahoo bars.
-  return (first.startsWith("yahoo-") || first.startsWith("naver-")) && first === second;
+  // Korean minute labels include requested range, which does not change quote
+  // fields or interval. Strip only that suffix, never symbol/interval/provider.
+  const intervalBasis = (source: string) => source.replace(/-(1m|5m|15m|30m|60m)-(1d|5d|7d|1mo|3mo|6mo|60d|1y|2y)$/, "-$1");
+  return (first.startsWith("yahoo-") || first.startsWith("naver-")) && intervalBasis(first) === intervalBasis(second);
 }

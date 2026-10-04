@@ -17,7 +17,7 @@
     "preview:stop": "node scripts/preview.mjs stop",
     "typecheck": "tsc --noEmit",
     "check:auth": "node scripts/check-auth-invariant.mjs",
-    "test": "node --test 'scripts/**/*.test.mjs' && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/export-desk/export-desk.test.ts src/lib/infer-sector.test.ts src/lib/search-match.test.ts src/lib/chart-indicators.test.ts src/lib/valuation-series.test.ts src/lib/us-official-parse.test.ts src/data/universe.test.ts src/server/etf-market.test.ts src/server/etf-holdings-parse.test.ts src/lib/feed/feed-kernel.test.ts src/lib/feed/tickers.test.ts src/server/feeds/http.test.ts src/lib/store-migrate.test.ts src/lib/chart-format.test.ts src/lib/open-original.test.ts src/lib/feed/news-parsers.test.ts src/server/feeds/runner.test.ts src/lib/research/research-v2.test.ts src/lib/etf-news.test.ts src/lib/robotics/robotics.test.ts src/lib/wire/live-wire.test.ts src/lib/charts/charts.test.ts src/lib/ai/briefing.test.ts src/lib/charts/hts-layout.test.ts src/lib/charts/hts-settings.test.ts src/lib/charts/profile-labels.test.ts src/lib/charts/security.test.ts src/lib/charts/volume-validity.test.ts src/lib/charts/hts-flow.test.ts src/server/chart-flow.test.ts src/lib/charts/hts-flow-export.test.ts src/server/kiwoom.test.ts src/lib/charts/profile-style.test.ts src/lib/charts/chart-events.test.ts",
+    "test": "node --test 'scripts/**/*.test.mjs' && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/export-desk/export-desk.test.ts src/lib/infer-sector.test.ts src/lib/search-match.test.ts src/lib/chart-indicators.test.ts src/lib/valuation-series.test.ts src/lib/us-official-parse.test.ts src/data/universe.test.ts src/server/etf-market.test.ts src/server/etf-holdings-parse.test.ts src/lib/feed/feed-kernel.test.ts src/lib/feed/tickers.test.ts src/server/feeds/http.test.ts src/lib/store-migrate.test.ts src/lib/chart-format.test.ts src/lib/open-original.test.ts src/lib/feed/news-parsers.test.ts src/server/feeds/runner.test.ts src/lib/research/research-v2.test.ts src/lib/etf-news.test.ts src/lib/robotics/robotics.test.ts src/lib/wire/live-wire.test.ts src/lib/charts/charts.test.ts src/lib/ai/briefing.test.ts src/lib/charts/hts-layout.test.ts src/lib/charts/hts-settings.test.ts src/lib/charts/profile-labels.test.ts src/lib/charts/security.test.ts src/lib/charts/volume-validity.test.ts src/lib/charts/hts-flow.test.ts src/server/chart-flow.test.ts src/lib/charts/hts-flow-export.test.ts src/server/kiwoom.test.ts src/lib/charts/profile-style.test.ts src/lib/charts/chart-events.test.ts src/lib/charts/standard-sma.test.ts",
     "lint": "eslint .",
     "format": "prettier --write .",
     "verify:sources": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/verify-sources.mjs",
@@ -29,7 +29,8 @@
     "kiwoom:collect": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/kiwoom-cli.mjs sync",
     "test:kiwoom": "node --experimental-strip-types --disable-warning=ExperimentalWarning --test src/server/kiwoom.test.ts",
     "qa:chart-display": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/qa-chart-display.mjs",
-    "qa:kiwoom-path": "node scripts/qa-kiwoom-path.mjs"
+    "qa:kiwoom-path": "node scripts/qa-kiwoom-path.mjs",
+    "qa:sma": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/qa-standard-sma.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",
