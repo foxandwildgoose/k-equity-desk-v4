@@ -1,82 +1,101 @@
-# 키움 수급 지표 검증 기록
+# 키움 3개 패널 연결 검증 — 2026-10-04
 
-확인일: 2026-10-04. 작업 브랜치: `work`. 기준 커밋: `225949ec58d602cf1e0b7919bee9dfa06290e95a`.
+이번 작업은 기존 서버/클라이언트/DB/React Query/Lightweight Charts 경로를 수정했습니다. **CODE FIXED와 EXTERNAL CONFIGURATION STILL REQUIRED를 분리합니다.** 운영 배포·main 병합·운영 DB migration·등록 IP 변경은 실행하지 않았습니다.
 
-실제 구현 커밋: [`0b3389c`](https://github.com/foxandwildgoose/k-equity-desk-v4/commit/0b3389c). 변경 파일은 해당 커밋의 diff에 기록되어 있습니다. 비밀값이 들어간 파일은 포함하지 않았습니다.
+기준: 작업 브랜치 `work`, 시작 HEAD `3ec921c40ff4a430e0e76ea82de8964eaee86246`. 기존 차트 표시 개선 커밋을 보존했습니다. 조사 시 원격 main은 `7cbb1500072f994f451cae92a7f15feadebb6787`입니다. GitHub 검토 브랜치는 `codex/kiwoom-production-path`입니다.
 
 ## 완료 상태
 
-| 구분 | 상태 | 확인한 범위 / 남은 조건 |
+| 구분 | 상태 | 실제 확인 범위 |
 | --- | --- | --- |
-| A. 코드 구현·자동 테스트 | **완료** | 키움 전용 수집 → 기존 DB 계약 → 날짜 정렬/누적 → 기존 차트/CSV, CLI, PowerShell. 전체 자동 테스트 553개 및 typecheck·격리 빌드 통과. 아래 별도 lint·홈 화면 실패도 기록함. |
-| B. 허용 IP에서 키움 실데이터 수신 | **검증 대기** | 외부 IP 확인 서비스가 Codex 네트워크 프록시 CONNECT 403으로 차단됨. `IP_UNVERIFIED`. 키움 토큰/시장정보 요청은 **0회**. |
-| C. 영속 DB 저장·재시작 후 보존 | **검증 대기** | 운영 `DATABASE_URL` 미설정. 디스크형 PGlite 닫기/재열기 테스트는 통과했지만 운영 PostgreSQL·웹앱/수집기 공유·서버 재시작 검증은 미실시. |
-| D. 실제 배포 사이트 3개 차트 연결 | **검증 대기** | 개발/로컬 빌드 화면을 검사함. 배포 사이트·인증된 실제 소유자 세션·실수신 이력을 연결한 검증은 미실시. 운영 배포를 실행하지 않음. |
+| A. 코드·자동 테스트 | **완료** | 전체 582 통과, 키움 전용 35 통과, typecheck/production bundling 통과. 실제 Better Auth 세션과 합성 API → 격리 DB → 서버 RPC → React Query → 세 canvas를 검사했습니다. 전체 lint의 기존 오류는 아래에 분리합니다. |
+| B. 허용 IP의 키움 실수신 | **검증 대기** | 현재 키 두 개 미설정, 기대 IP 미설정. 등록 IP와의 최소 익명 비교는 `IP_UNVERIFIED`. 실전 키움 요청 **0회**, 005930/403870/069500 실제 수신 **0건**. |
+| C. 영속 PostgreSQL·재시작 보존 | **검증 대기** | 운영 `DATABASE_URL` 미설정. SQL 계약·upsert·디스크 PGlite 재열기 테스트는 통과했지만 운영 PostgreSQL 또는 collector/웹앱의 공유 영속 DB 검증은 아닙니다. |
+| D. 실제 배포 사이트 표시 | **검증 대기** | 개발/로컬 production 빌드 검사는 수행했습니다. 배포 URL·배포 설정·실제 소유자 세션·실전 DB 이력은 확인하지 못했고 배포를 실행하지 않았습니다. |
 
-**“세 지표 실연동 완료”로 판정하지 않습니다.** HTS 표와 동일 날짜·시장·단위·누적 기준일 대조도 미실시입니다. 키움의 종목별 지원, ETF 주/좌 해석, 최근/1년 제공 기간 및 실제 다중 페이지 수신은 B에서 확인해야 합니다.
+**세 지표 실연동 완료로 보고하지 않습니다.** HTS 표 대조도 미실시입니다. 제공 기간, 상품별 지원, ETF 주/좌 의미, 실제 최근/1년 다중 페이지 이력은 B/C/D에서 확인해야 합니다.
 
-## 자격증명과 실행 환경
+## 확인된 원인과 변경
 
-- 사용자는 App Key·App Secret **모두 수령**했고 첨부했습니다. 격리된 자식 프로세스에서 두 지정 파일을 검증·주입해 `CREDENTIALS_CONFIGURED`를 확인했습니다. [검사 출력](../../artifacts/kiwoom-flow/uploaded-config-check.json)은 상태만 포함합니다.
-- 키 쌍의 유효성, 실전/모의용 구분, 토큰 발급 성공은 확인하지 않았습니다. 파일 내용·일부 문자열·토큰은 출력하거나 커밋하지 않았습니다.
-- 일반 CLI/실행 중인 앱에는 두 환경변수가 자동 전달되지 않습니다. [일반 설정 검사](../../artifacts/kiwoom-flow/runtime-config.log)는 수집 비활성·자격증명/DB/소유자 미설정입니다. 이는 **현재 프로세스에 미설정**이라는 뜻이며 미발급이라는 뜻이 아닙니다.
-- 사용자가 제공한 등록 IP는 `220.72.76.41`입니다. 실제 Codex 외부 IP는 미확인입니다. 이 주소를 API 호스트·요청 Body·우회 헤더로 사용하지 않았습니다.
-- cloud-environment-onboarding 설정 초안에 공식 웹/API·IP 확인 서비스 도메인 4개를 추가했습니다. 기존 목록을 보존했으며 초안 저장은 실행 환경 적용/게시가 아닙니다.
-- 운영 DB 마이그레이션·운영 비밀값 변경·등록 IP 변경·유료 서비스 생성·주문/계좌 API 실행은 하지 않았습니다.
+| 확인된 내용 | 대응 | 코드 또는 운영 설정 |
+| --- | --- | --- |
+| 수집 플래그 기본 false | `DISABLED`를 키 누락과 분리하고 진단 boolean을 제공 | 운영에서 명시적 활성화 필요 |
+| 체크아웃 auth-off, 실제 owner 검증은 필수인데 login/API 라우트와 적용 대상 auth 스키마가 없었음 | 기존 Better Auth의 `/login`, `/api/auth/*`, 로그아웃, email/password 옵션을 연결. 원본 스키마의 동일 복사본을 기존 migration 목록에 추가 | 코드 수정 + 운영 인증/소유자 설정 필요 |
+| `not-configured`를 항상 인증 미설정으로 표시 | 플래그/키/owner/DB/schema/IP/token/API/parser/history 상태를 별도 전달 | 코드 수정 |
+| 종료 페이지의 선택적 `cont-yn` 누락을 파싱 오류로 처리 | 공식 스키마에 맞춰 종료의 누락/빈 값은 N, Y의 next-key 누락은 계속 실패/partial | 코드 수정 |
+| 같은 페이지의 invalid 중복이 valid 관측을 덮을 수 있었음 | 유효한 0/음수 포함 정상 관측 우선; 저장된 정상 값의 null 보호도 유지 | 코드 수정 |
+| direct의 5분 IP 확인 캐시 | 매 direct 작업 재확인; match 이전에 키움 호출 금지 | 코드 수정; 실제 고정 IP 필요 |
+| 운영 DB 설정/적용 여부를 진단할 명령 부족 | 세 테이블/마이그레이션 기록을 읽기 전용 검사. DB 누락/연결 실패/스키마 누락 분리 | 코드 수정; 운영 DB 연결/적용은 대기 |
+| 현재 Nitro/Rolldown이 빌드 성공 후 SSR chunk에 선언되지 않은 `ssr_exports`를 내보내 실제 서버가 500으로 시작 | Nitro의 지원 옵션 `inlineDynamicImports`로 서버 chunk를 내장하고 실제 production 프로세스를 새로 시작해 진단 페이지/인증 API 확인 | `vite.config.ts` 최소 설정 수정; 브라우저 chart/code splitting 유지 |
+
+**이미 올바르던 부분:** API ID/필드, signed `invtrt`, 퍼센트의 0~100 단위, KST 만료 해석, 공유 DB 제한기·토큰 single-flight, 기본 collector 구조는 존재했습니다. 이를 실패 원인이라고 단정하거나 재작성하지 않았습니다. 파서는 이미 날짜를 정렬했지만 페이지 범위 계산을 명시적 최소/최대로 바꿔 원래 행 순서에 의존하지 않도록 했습니다. 실제 Vercel 설정과 외부 IP는 미확인이며 체크아웃 상태를 운영 상태로 단정하지 않습니다.
+
+## 실제 데이터 경로와 API
+
+`ProChart → useChartFlow → POST getChartFlow → 같은 출처 검사/실제 세션 → assertKiwoomOwner → chart-flow → 기존 getSql/kiwoom-store → 일별 정렬·고정 누적 → useHtsPanes`입니다.
+
+- collector: 웹 요청은 공유 PostgreSQL만 읽습니다. 키움 키·IP 조회·토큰·API 호출이 필요하지 않습니다.
+- direct: 설정/DB/schema/소유자 검증과 출발 IP 확인 후 기존 클라이언트/수집기가 조회·저장합니다.
+- 로컬 CLI: OS 실행자 권한, 명시적 `--live`, IP match, 토큰, 세 API, bounded continuation/upsert/재개 순서입니다.
+- `ka10013`: `/api/dostk/stkinfo`, `qry_tp=1`, `crd_trde_trend[].remn_rt` (%), 참고 `remn`.
+- `ka10008`: `/api/dostk/frgnistt`, `stk_frgnr[].wght` (%), 참고 `poss_stkcnt`.
+- `ka10059`: `/api/dostk/stkinfo`, 수량/순매수/단주 조건, `stk_invsr_orgn[].invtrt` (일별 signed 주).
+- `ka10015`: 명시적 `verify --live --cross-check`에서만 `{stk_cd,strt_dt}`로 `daly_trde_dtl[].crd_remn_rt/for_wght` 대조. 같은 날짜만 비교하고 0.05 percentage points 초과 차이를 경고합니다. 원자료/차트/DB를 대체하지 않습니다.
+
+## 실행 환경·자격증명·접근통제
+
+사용자는 App Key와 App Secret **모두 수령**했습니다. 이전 파일 주입 검사 기록은 기존 `artifacts/kiwoom-flow`에 보존돼 있습니다. 이번의 일반 CLI/앱 프로세스에는 자동으로 주입되지 않았으며 실제 쌍/실전용 여부/토큰 성공을 확인하지 않았습니다. 키를 다시 채팅에 요청하지 않았습니다.
+
+[현재 프로세스 설정](../../artifacts/kiwoom-production-path/runtime-config.json): `appKeyConfigured=false`, `appSecretConfigured=false`, `databaseConfigured=false`, `ownerConfigured=false`, `flowEnabled=false`. CLI의 auth boolean은 해당 셸 환경만 반영하며 `.grok/app-env.json`을 적용한 앱의 auth-off 또는 실제 배포 설정과 동일하다고 단정하지 않습니다.
+
+[익명 IP 점검](../../artifacts/kiwoom-production-path/egress-check.json): `IP_UNVERIFIED`, OAuth `NOT_TESTED`, 키움 요청 0회. 등록 주소를 API 호스트·요청 Body·우회 헤더로 사용하지 않았으며 원격 프록시/IP 우회도 추가하지 않았습니다.
+
+소유자 ID는 실제 Better Auth 세션에서 얻고 서버 값과 비교합니다. 계정 생성은 자동 소유자 등록이 아닙니다. `dev-user`, auth-off, 다른 계정, 미인증 요청을 거절합니다. 운영의 DB/세션 secret/origin 설정이 없으면 새 auth API는 503으로 닫힙니다. 진단 화면은 공개 설정 boolean만 제공하며 저장 데이터는 소유자에게만 제공합니다. 같은 출처 보호의 형제 사이트 스크립트 요청은 브라우저 QA에서 HTTP **403**을 확인했습니다.
+
+세 비밀 파일 패턴과 `.env*`의 Git 추적 파일은 없습니다. 기존 `.gitignore` 보호를 유지했고 새 파일/번들에 실제 키를 넣지 않았습니다. 진단 결과는 키/토큰/헤더/IP/owner ID/cursor/공급자 원문을 반환하지 않습니다.
 
 ## 실행한 검사
 
-검증 런타임은 Node `22.23.3`, 시스템 Chromium, PowerShell `7.5.3`(Linux)입니다. PowerShell은 공식 배포 SHA256 확인 후 테스트에 사용했습니다. Windows PC의 실제 실행은 B/C와 함께 별도 확인해야 합니다.
+Node 22.23.3, TypeScript, 시스템 Chromium, PowerShell 7.5.3(Linux) 사용. PowerShell 테스트는 `KIWOOM_TEST_PWSH` 및 쓰기 가능한 XDG 테스트 경로를 지정해 **skip 없이** 실행했습니다. Windows 실전 PC에서의 실행은 별도 대기입니다.
 
-Linux 테스트에는 `KIWOOM_TEST_PWSH`로 실행 파일을 지정하고 `XDG_CACHE_HOME`/`XDG_CONFIG_HOME`/`XDG_DATA_HOME`을 쓰기 가능한 테스트 디렉터리로 지정했습니다. 실행 가능한 PowerShell이 없으면 해당 테스트가 skip되므로 그 실행은 PowerShell 검증 완료가 아닙니다.
-
-| 명령 / 검사 | 결과 |
+| 실제 명령 | 결과 / 근거 |
 | --- | --- |
-| `npm test` | 스크립트 206 + TypeScript 347 = **553 통과**, 실패/skip 0. [원본 로그](../../artifacts/kiwoom-flow/all-tests.log). |
-| `npm run typecheck` | 통과. [로그](../../artifacts/kiwoom-flow/typecheck.log). |
-| `env -u DATABASE_URL node scripts/with-app-env.mjs vite build` | 통과. Node 및 `node_modules/.bin`을 PATH에 넣음. `npm run build`의 DB 마이그레이션 단계를 실행하지 않음. [로그](../../artifacts/kiwoom-flow/build.log). |
-| `npm run check:auth` | `dev and build agree: sign-in off`. 기존 인증 설정 보존. |
-| `npm run lint` | **실패: 기존 오류 1개, 경고 61개**. 오류는 변경하지 않은 `src/lib/app-data/client.server.ts:214`의 `no-empty`이며 기준 커밋에도 해당 빈 catch가 존재함. [로그](../../artifacts/kiwoom-flow/lint.log). |
-| 새 서버/CLI/인증 미들웨어 파일 대상 ESLint | 통과. [로그](../../artifacts/kiwoom-flow/changed-lint.log). |
-| `npm run verify:kiwoom -- --check-config` | 네트워크/DB 접근 없이 현재 설정 진단. 두 키/한쪽 키/둘 다 없는 상태는 별도 자식 프로세스 테스트 통과. |
-| 첨부 키 원문 검색·Git 추적 검사 | 후보 소스/검증 출력/브라우저 번들에서 첨부 키 값 일치 없음. 세 비밀 파일 패턴의 추적 파일 없음. `.gitignore`에 세 패턴 추가. |
+| `npm test` | scripts 207 + TypeScript 375 = **582 통과**, 실패/skip 0. [로그](../../artifacts/kiwoom-production-path/tests.log) |
+| `npm run test:kiwoom` | **35 통과**, 실패/skip 0. [로그](../../artifacts/kiwoom-production-path/kiwoom-tests.log) |
+| `npm run typecheck` | 통과. [로그](../../artifacts/kiwoom-production-path/typecheck.log) |
+| `npm run lint` | **기존 오류 1, 경고 60**. 변경하지 않은 `src/lib/app-data/client.server.ts:214` no-empty. 기준 HEAD에도 존재. [로그](../../artifacts/kiwoom-production-path/lint.log) |
+| 변경 파일 대상 ESLint | **오류 0, 기존 Sidebar fast-refresh 경고 1**. [로그](../../artifacts/kiwoom-production-path/changed-lint.log) |
+| `env -u DATABASE_URL npm run build:bundle` | production client/server/Vercel bundling 통과. DB migration 없는 명령. [로그](../../artifacts/kiwoom-production-path/build.log) |
+| `npm run verify:kiwoom -- --check-config` | 네트워크/DB 접근 없이 안전한 설정 상태 확인. 현재 프로세스에는 키/DB/소유자 없음 |
+| `npm run qa:kiwoom-path` | 실제 인증/저장/RPC/React Query/3개 canvas 및 접근통제 통과. [결과](../../artifacts/kiwoom-production-path/browser/result.json) |
+| 로컬 production 진단 화면·auth API | 진단 HTTP 200 / DISABLED, 미설정 auth HTTP 503, 저장 표 비공개 확인. [결과](../../artifacts/kiwoom-production-path/production-smoke.json) |
 
-주요 자동 테스트는 다음을 포함합니다.
+추가한 회귀 검사는 config/owner/auth readiness, read-only schema, 외부 IP 변화, optional 종료 헤더, 정순/역순 다중 페이지와 키 전달, invalid 중복/0/음수, HTTP401/만료 토큰/안전 여유 갱신, ka10015 비교·미저장, 005930 전체 mock 경로를 포함합니다. 기존 HTTP200 업무 오류/잘못된 Secret/환경 분리/재시도/429/timeout/single-flight/공유 취소/전역 DB 제한기, upsert/정정/누락 누적/주월 집계/종목 분리/분봉/리플레이/CSV 테스트를 유지했습니다.
 
-- 세 정확한 응답 필드/요청 조건, 유사 필드 배제, 0·음수·쉼표/부호·빈 값·누락·잘못된 범위/날짜.
-- 2페이지 이상·중복 날짜·같은 커서·빈 페이지·필수 헤더/키 누락·예산 소진·재개·거절된 커서 1회 재시작.
-- HTTP 200 업무 오류·인증 오류·호출 제한·429 Retry-After·5xx·타임아웃·8005 토큰 갱신 1회. 8031/8103은 자동 반복 갱신하지 않음.
-- 공유 DB의 두 저장소 인스턴스 간 호출 승인 간격, 인증 single-flight, 호출자 취소 분리, 암호화 토큰 재사용·환경/IP 캐시 분리. 독립 DB/다른 외부 프로그램의 총량은 제어하지 못함.
-- 범위·환경·시장·상품·소유자 데이터 분리, 정정 upsert, 무효 정정/빈 수신 시 마지막 정상 값 보존, 디스크 PGlite 재열기.
-- 재개 조건의 SQL DATE를 명시적 `YYYY-MM-DD` 텍스트로 읽음. 한국 시간대·SQL/DMY DateStyle에서도 날짜가 하루 이동하지 않는 테스트 통과.
-- 고정 누적 기준일·중간 누락·주말 시작·최신 누락·일별/가용 연속 구간 선택·주/월 합계·정정 재계산. 다른 달의 결측이 완전한 일별 합계까지 가리지 않음.
-- 분봉 비활성·공표 시각 미확인 리플레이 비활성·차트 요청 키/종목 분리·미인증 소유자 접근 차단·collector의 웹 직접 조회 금지.
-- 기존 세션 훅을 사용해 브라우저 메모리 쿼리 키도 사용자별로 분리. 다른 사용자·로그아웃 쿼리가 소유자의 기존 응답을 재사용하지 않는 검사 통과.
-- `*_secretkey.txt`, BOM/주변 공백, 빈/다중 행/잘못된 파일, 두 파일 검증 전 변수 미변경, dot-source 자식 변수 상속, 래퍼 정리·원문 미출력.
+PowerShell collector의 mode를 수집 머신의 역할에 맞게 direct로 바꾸고 해당 테스트도 같은 동작을 검사하도록 갱신했습니다. 인증 schema opt-in 테스트는 원본 동일성과 이미 적용한 schema의 재적용 방지를 검사합니다. generic 상태 문구 변경 테스트도 정확한 새 문구와 공급자 이유 보존을 검사합니다. 실패를 숨기기 위해 테스트를 삭제하거나 값 허용 범위를 넓히지 않았습니다.
 
-휴장/정지/상장/미공표 원인을 확인할 달력이 없으면 unknown을 유지합니다. 실제 일별 가격 관측 날짜가 있을 때만 결측을 대조합니다. 테스트의 평일 목록은 합성 응답용이며 운영 달력으로 사용하지 않습니다.
+## 브라우저 증거와 한계
 
-## 브라우저 점검
+`qa:kiwoom-path`는 **제품 코드에 mock 스위치를 추가하지 않고** 명시적인 QA 프로세스의 Vite dependency injection만 사용합니다. 운영 키/DB가 있으면 실행을 거부합니다. 실제 Better Auth로 격리 테스트 계정을 만들고 서명된 세션을 확인한 뒤, 합성 OAuth/세 API 각각 2페이지를 기존 수집기에서 처리합니다. 같은 격리 PGlite에 지표별 180일을 저장하고 collector 웹 경로가 DB만 읽는지 확인합니다. 서버 함수 응답과 React Query/실제 canvas/음수 일별 투신 표시를 검사했습니다. 이 메모리 DB는 C의 영속성 증거가 아닙니다.
 
-합성 응답은 명시적인 QA 실행에서만 사용했습니다. 테스트 API → 실제 키움 클라이언트/수집 서비스 → 격리 메모리 PGlite → 서버 응답 → 기존 ProChart를 거칩니다. 화면에 `QA SYNTHETIC (실데이터 아님)`을 표시하며 운영 fallback으로 포함하지 않습니다.
+- [소유자 진단 화면](../../artifacts/kiwoom-production-path/browser/owner-diagnostic.png)
+- [005930 Light — 모의 응답/실제 세션](../../artifacts/kiwoom-production-path/browser/005930-light-mock-authenticated.png)
+- [005930 Dark — 모의 응답/실제 세션](../../artifacts/kiwoom-production-path/browser/005930-dark-mock-authenticated.png)
 
-- 개발 화면: HPSP `403870`·KODEX 200 `069500`, desktop/mobile **4/4**, 조작 검사 **22/22** 통과. 패널 순서·날짜/출처/상태·누락 이후 누적 null·일별 값·가용 누적 실제 시작일·종목 전환·확대/축소·주/월/분봉·리플레이·CSV·그리기/공시 표시 보존을 검사했습니다.
-- 현재 설정: 위 주식/ETF 및 미국 `NVDA`, desktop/mobile **6/6**. 실제 가격은 기존 공급자가 제공하며 키움 세 패널은 수집 비활성/미설정 상태입니다. 이 결과를 키움 실수신으로 사용하지 않습니다.
-- POST로 수정한 로컬 생산 빌드: 합성 주식/ETF desktop/mobile **4/4**, 조작 **22/22** 및 현재 설정의 주식/ETF/미국 화면 **6/6** 통과. HTTP 431 재발 없이 차트 요청을 처리했습니다. 배포된 운영 사이트의 검증은 아닙니다.
-- 최초 로컬 빌드 검사에서 긴 일별 날짜 목록을 GET URL에 담은 요청이 **HTTP 431**로 거절되는 것을 발견했습니다. `getChartFlow`만 POST로 변경해 본문으로 전달하도록 수정하고 재빌드했습니다. 생산용 함수 ID는 빌드 RPC 메타데이터에서 읽어 QA에 전달했습니다.
-- 일부 조작 실행에서는 이전 설정 창의 닫힘/포커스 복원 애니메이션 전에 재열기를 시도해 ETF 설정 창 대기 시간이 초과했습니다. QA에서 Radix dialog가 실제 닫힌 뒤 다음 조작을 하도록 보완했습니다. 원래 실패와 수정 후 최종 결과를 따로 보존합니다.
-- 기존 홈 `browser-smoke.mjs` 추가 검사에서는 외부 폰트/Grok 스크립트 인증서 오류, 변경하지 않은 Dashboard/PriceValue의 SSR·클라이언트 가격 표시 불일치가 관측됐습니다. 빌드/개발 홈 비교에도 차이가 있어 **홈 전체 스모크 통과를 주장하지 않습니다**. 이 지표 작업 범위 밖의 홈 코드를 재작성하거나 TLS 신뢰 설정을 바꾸지 않았습니다.
+순매수 +120000/-85000 등 화면 숫자는 **합성 fixture**이고 실제 삼성전자 수급으로 사용하지 않습니다. 공개 방문자는 저장 표에 접근하지 못합니다. 인증 검증을 위한 테스트 세션은 실제 broker OAuth나 운영 계정 검증이 아닙니다.
 
-현재 홈 오류는 이전 HTS 검증 기록의 pageErrors 0과 다릅니다. 과거 결과를 이번 통과 증거로 복사하지 않습니다. 차트 경로 검사에서 애플리케이션 pageErrors는 없었으며 외부 인증서 실패는 별도 항목으로 기록했습니다.
+초기 QA에는 잘못된 설정 버튼 locator와 HTTP 테스트 클라이언트의 loopback 시간 초과가 있었습니다. 실제 `open-hts-settings` trigger와 직접 loopback HTTP 요청으로 수정 후 최종 성공했습니다. 개발 서버의 외부 요청 취소/인증서 오류 로그는 전체 홈의 성공 증거로 사용하지 않습니다. 배포 사이트 브라우저·HTS 대조는 미실시입니다.
 
-최종 브라우저 JSON과 실제 캡처는 [artifacts/kiwoom-flow](../../artifacts/kiwoom-flow/README.md)를 참조하세요. 합성 캡처는 A의 화면 계약 검증이며 B/C/D 증거가 아닙니다.
+추가 production 실행에서 SSR `ssr_exports` 오류를 발견하여 서버 bundling 설정을 수정했습니다. 최종 서버 entry는 약 8 MiB의 단일 파일이며 client lazy chunks/차트 라이브러리는 유지합니다. `node --check` 및 새 production 프로세스의 브라우저 점검을 통과했습니다. 원래 빌드 성공만으로 완료 처리하지 않았습니다. 실제 배포의 cold start/메모리 특성은 별도 점검해야 합니다.
 
-## 운영 연결에 남은 순서
+## 남은 운영 순서
 
-1. 허용 IP 환경의 PC에서 [설정 문서](KIWOOM_FLOW_SETUP.md)의 PowerShell dot-source로 두 파일을 주입합니다. 현재 서버는 재시작해야 새 변수를 받습니다.
-2. `verify:kiwoom -- --check-config` 후 다른 자격증명 소비 프로세스를 종료하고 `--live --single-process --code 005930` 소량 진단을 실행합니다. IP가 맞지 않거나 확인 불가이면 API는 호출되지 않습니다.
-3. 공유 영속 PostgreSQL, 기존 로그인/소유자 ID, 명시적 마이그레이션 적용을 준비합니다. `sync:kiwoom-flow -- --live ...`로 최근/1년 구간을 수집하고 별도 `verify:kiwoom -- --read-stored ...`로 재조회합니다.
-4. 수집기·웹앱이 같은 DB/소유자/환경/시장/상품을 사용하는지 확인하고 서버 재시작/재배포 뒤 보존을 검사합니다. 웹 서버 IP가 적합하지 않으면 collector 모드로 DB만 읽습니다.
-5. 실제 배포된 인증 소유자 화면 및 가능한 HTS 대조 결과를 기록한 후 B/C/D를 각각 갱신합니다.
+현재 추천은 **고정 IP collector**입니다. 일반 Vercel Hobby에서 사용자의 등록 IP를 기대하는 direct 모드를 사용하지 않습니다. Vercel Pro Static IPs는 실제 설정/등록이 완료된 경우의 별도 대안입니다.
 
-공식 근거·확인한 차이·현재 호출 제한 정책 독립 재확인 대기 사항은 [설정 문서의 공식 출처](KIWOOM_FLOW_SETUP.md#공식-근거와-배포-후-점검)에 기록했습니다.
+1. 웹앱과 수집기에 동일 영속 PostgreSQL을 연결하고 기존 데이터 보존/백업 절차 후 `npm run db:migrate`로 auth/키움 schema를 적용합니다. `verify:kiwoom -- --check-database`로 조회 확인합니다.
+2. 웹앱에 인증 활성/안전한 세션 설정, collector/real/enabled를 등록하고 빌드·재시작합니다. `/login`에서 본인 계정을 만들고 내 계정 ID를 양쪽 서버의 `KIWOOM_OWNER_USER_ID`로 설정합니다.
+3. 등록 IP의 PC/NAS에서 지정 파일로 키 두 개를 dot-source 주입하고 direct/real/enabled/실제 expected IP를 설정합니다. `verify:kiwoom -- --check-config` 후 `--live --single-process`로 005930 소량 검증합니다.
+4. 정상 수신 뒤 `kiwoom:collect -- --live ... --resume`으로 최근/1년 구간을 저장합니다. 별도 CLI의 `--read-stored`, 수집기/웹 서버 재시작, 실제 로그인 차트에서 보존/표시를 확인합니다.
+5. 실제 확보 범위/누락/ETF 지원/단위/공표 시각 미확인을 점검하고 필요하면 진단 전용 `--cross-check`와 HTS 대조를 수행합니다.
+
+정확한 Windows 명령, 반복 수집, 환경변수 표, 공식 근거는 [KIWOOM_FLOW_SETUP.md](KIWOOM_FLOW_SETUP.md)에 있습니다. 운영 키·DB URL을 채팅이나 Git에 넣지 않습니다.

@@ -12,7 +12,14 @@ export const KIWOOM_APIS = {
     field: "invtrt",
   },
 } as const;
-export type KiwoomApiId = (typeof KIWOOM_APIS)[keyof typeof KIWOOM_APIS]["id"];
+/** Diagnostic only; never included in the three production metric adapters. */
+export const KIWOOM_CROSS_CHECK_API = {
+  id: "ka10015",
+  path: "/api/dostk/stkinfo",
+  array: "daly_trde_dtl",
+} as const;
+export type KiwoomApiId =
+  (typeof KIWOOM_APIS)[keyof typeof KIWOOM_APIS]["id"] | typeof KIWOOM_CROSS_CHECK_API.id;
 export interface KiwoomCoordination {
   exclusive<T>(
     key: string,
@@ -173,7 +180,13 @@ export function createKiwoomClient(
         );
         if (!response.ok)
           throw new KiwoomError(
-            response.status === 429 ? "rate-limit" : response.status >= 500 ? "network" : "access",
+            response.status === 401 || (!apiId && response.status === 403)
+              ? "authentication"
+              : response.status === 429
+                ? "rate-limit"
+                : response.status >= 500
+                  ? "network"
+                  : "access",
             `키움 HTTP ${response.status}`,
             response.status,
             retryAfter(response.headers.get("retry-after"), now()),
@@ -217,7 +230,9 @@ export function createKiwoomClient(
   }
   function accessToken(signal?: AbortSignal): Promise<string> {
     if (credentialsStatus(config) !== "CREDENTIALS_CONFIGURED")
-      return Promise.reject(new KiwoomError("configuration", credentialsStatus(config)));
+      return Promise.reject(
+        new KiwoomError("configuration", credentialsStatus(config), null, 0, "CREDENTIALS_MISSING"),
+      );
     sharedAuth ??= coordination
       .exclusive(
         `token:${key}`,
@@ -269,7 +284,9 @@ export function createKiwoomClient(
       signal: AbortSignal,
       continuation?: { nextKey: string },
     ) {
-      const api = Object.values(KIWOOM_APIS).find((value) => value.id === apiId);
+      const api = [...Object.values(KIWOOM_APIS), KIWOOM_CROSS_CHECK_API].find(
+        (value) => value.id === apiId,
+      );
       if (!api) throw new KiwoomError("configuration", "허용되지 않은 키움 API ID");
       let bearer = await accessToken(signal);
       const conditions = {

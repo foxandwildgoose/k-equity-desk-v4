@@ -11,10 +11,19 @@ import {
   assertKiwoomOwner,
   type KiwoomConfig,
   KiwoomError,
+  safeKiwoomConfig,
 } from "./kiwoom-config.ts";
 import { createKiwoomClient, parseKiwoomExpiry, kiwoomCredentialKey } from "./kiwoom-client.ts";
 import { createKiwoomStore, type FlowIdentity } from "./kiwoom-store.ts";
-import { collectKiwoomMetric, kiwoomConditions, parseKiwoomRows } from "./kiwoom-flow.ts";
+import {
+  collectKiwoomMetric,
+  kiwoomConditions,
+  kiwoomDateExtent,
+  parseKiwoomRows,
+} from "./kiwoom-flow.ts";
+import { diagnoseKiwoom } from "./kiwoom-diagnostics.ts";
+import { crossCheckKiwoom } from "./kiwoom-cross-check.ts";
+import { htsFlowPointDetails } from "../lib/charts/hts-layout.ts";
 import { createChartFlowService } from "./chart-flow.ts";
 import {
   alignChartFlow,
@@ -96,6 +105,397 @@ test("four credential presence states; defaults do not imply authentication or e
     { KIWOOM_EXPECTED_EGRESS_IP: "invalid" },
   ])
     assert.throws(() => readKiwoomConfig(env));
+});
+
+test("safe runtime flags distinguish collector requirements and reject disabled/dev/unready owner auth", () => {
+  const safe = safeKiwoomConfig({
+    ...config,
+    mode: "collector",
+    appKey: undefined,
+    appSecret: undefined,
+  });
+  assert.equal(safe.credentialsRequired, false);
+  assert.equal(safe.appKeyConfigured, false);
+  assert.equal(safe.databaseConfigured, true);
+  assert.equal(JSON.stringify(safe).includes(config.ownerUserId!), false);
+  for (const cfg of [
+    { ...config, authEnabled: false },
+    { ...config, authenticationReady: false },
+    { ...config, ownerUserId: "dev-user" },
+  ])
+    assert.throws(
+      () => assertKiwoomOwner(cfg, cfg.ownerUserId),
+      (error: unknown) => error instanceof KiwoomError && error.health === "OWNER_AUTH_FAILED",
+    );
+  assert.equal(
+    readKiwoomConfig({ NODE_ENV: "production", VITE_AUTH_ENABLED: "true" }).authenticationReady,
+    false,
+  );
+  assert.equal(
+    readKiwoomConfig({
+      DATABASE_URL: "postgresql://fixture.test/isolated",
+      VITE_AUTH_ENABLED: "true",
+    }).authenticationReady,
+    false,
+  );
+  assert.equal(
+    readKiwoomConfig({
+      NODE_ENV: "production",
+      VITE_AUTH_ENABLED: "true",
+      BETTER_AUTH_SECRET: "TEST_ONLY_AUTH_SECRET",
+      BETTER_AUTH_URL: "https://app.example.test",
+    }).authenticationReady,
+    true,
+  );
+});
+
+test("read-only diagnostics gate stored rows and distinguish every missing configuration", async () => {
+  let reads = 0;
+  const options = {
+    store: async () => {
+      reads++;
+      return store;
+    },
+    checkEgress: async () => {
+      throw new Error("collector must not check IP");
+    },
+  };
+  const unauthorized = await diagnoseKiwoom(
+    { ...config, mode: "collector" },
+    request,
+    "another-user",
+    options,
+  );
+  assert.equal(unauthorized.status, "OWNER_AUTH_FAILED");
+  assert.equal(Object.keys(unauthorized.metrics).length, 0);
+  assert.equal(reads, 0);
+  const disabled = await diagnoseKiwoom(
+    {
+      ...config,
+      enabled: false,
+      databaseConfigured: false,
+      appSecret: undefined,
+      expectedEgressIp: undefined,
+    },
+    request,
+    null,
+    options,
+  );
+  assert.deepEqual(disabled.issues, [
+    "DISABLED",
+    "CREDENTIALS_MISSING",
+    "EXPECTED_IP_MISSING",
+    "DATABASE_MISSING",
+    "OWNER_AUTH_FAILED",
+  ]);
+  assert.equal(reads, 0);
+  const diagnosticOwner = "diagnostic-owner-" + ++serial;
+  const id = {
+    scopeId: diagnosticOwner,
+    environment: "real" as const,
+    request: { ...request, code: "005930" },
+  };
+  await store.upsert(
+    id,
+    "foreign",
+    parseKiwoomRows(
+      [{ dt: "20260903", wght: "51.72", poss_stkcnt: "1,234" }],
+      "foreign",
+      new Date().toISOString(),
+      "real",
+      "KRX",
+    ).observations,
+  );
+  const result = await diagnoseKiwoom(
+    {
+      ...config,
+      ownerUserId: diagnosticOwner,
+      mode: "collector",
+      appKey: undefined,
+      appSecret: undefined,
+    },
+    request,
+    diagnosticOwner,
+    options,
+  );
+  assert.equal(result.ownerAuthorized, true);
+  assert.equal(result.latestStored.foreign, "2026-09-03");
+  assert.equal(result.egressStatus, "NOT_REQUIRED");
+  assert.equal(result.tokenStatus, "NOT_REQUIRED");
+  assert.equal(result.apis.ka10008, "NOT_TESTED");
+  for (const secret of [
+    config.appKey!,
+    config.appSecret!,
+    config.ownerUserId!,
+    config.expectedEgressIp!,
+  ])
+    assert.equal(JSON.stringify(result).includes(secret), false);
+});
+
+test("schema inspection reports missing/applied tables without creating them or swallowing DB errors", async () => {
+  const empty = new PGlite();
+  await empty.waitReady;
+  try {
+    const emptyStore = createKiwoomStore(sqlFor(empty));
+    assert.deepEqual(await emptyStore.schema(), {
+      observations: false,
+      jobs: false,
+      coordination: false,
+      ready: false,
+      migrationRecorded: null,
+    });
+    const before = await empty.query(
+      "select count(*)::int as n from pg_tables where schemaname='public'",
+    );
+    const response = await createChartFlowService({
+      config: () => config,
+      store: async () => emptyStore,
+    })(request, undefined, config.ownerUserId);
+    assert.equal(response.credit.health, "DATABASE_SCHEMA_MISSING");
+    const after = await empty.query(
+      "select count(*)::int as n from pg_tables where schemaname='public'",
+    );
+    assert.deepEqual(after.rows, before.rows);
+    await empty.exec(
+      schema +
+        "; create table _migrations(name text primary key); insert into _migrations values ('0002_kiwoom_flow.sql')",
+    );
+    assert.equal((await emptyStore.schema()).migrationRecorded, true);
+    assert.equal((await emptyStore.schema()).ready, true);
+  } finally {
+    await empty.close();
+  }
+});
+
+test("safe panel health preserves disabled/database/IP/auth/parser/API distinctions", async () => {
+  for (const [cfg, userId, expected] of [
+    [{ ...config, enabled: false }, config.ownerUserId, "DISABLED"],
+    [{ ...config, databaseConfigured: false }, config.ownerUserId, "DATABASE_MISSING"],
+    [{ ...config, appSecret: undefined }, config.ownerUserId, "CREDENTIALS_MISSING"],
+    [config, null, "OWNER_AUTH_FAILED"],
+  ] as const) {
+    const response = await createChartFlowService({ config: () => cfg, store: async () => store })(
+      request,
+      undefined,
+      userId,
+    );
+    assert.equal(response.credit.health, expected);
+    const aligned = alignChartFlow(response, {
+      dates: request.expectedDailyDates!,
+      interval: "day",
+      cumulativeStart: request.from,
+      investmentTrustMode: "daily",
+    });
+    const status = htsFlowPointDetails(
+      response.credit,
+      aligned.credit,
+      undefined,
+      response.fetchedAt,
+      true,
+    ).status;
+    assert.equal(status.includes("인증 미설정"), false);
+  }
+});
+
+test("page extent and continuation do not depend on provider row order; terminal headers are optional", async () => {
+  assert.deepEqual(
+    kiwoomDateExtent([
+      { date: "2026-09-03" },
+      { date: "invalid" },
+      { date: "2026-09-01" },
+      { date: "2026-09-02" },
+    ]),
+    { oldestDate: "2026-09-01", newestDate: "2026-09-03" },
+  );
+  for (const ascending of [true, false]) {
+    const id = identity();
+    let calls = 0;
+    const client = createKiwoomClient({ ...config, appKey: "order-" + ++serial }, quickStore(), {
+      fetch: async (url, init) => {
+        if (String(url).endsWith("/token")) return auth();
+        calls++;
+        if (calls === 2) assert.equal(new Headers(init?.headers).get("next-key"), "ordered-page");
+        const rows =
+          calls === 1
+            ? [
+                { dt: "20260903", invtrt: "0" },
+                { dt: "20260902", invtrt: "-85000" },
+              ]
+            : [{ dt: "20260901", invtrt: "+120000" }];
+        if (ascending) rows.reverse();
+        return new Response(JSON.stringify({ return_code: 0, stk_invsr_orgn: rows }), {
+          headers: calls === 1 ? { "cont-yn": "Y", "next-key": "ordered-page" } : {},
+        });
+      },
+    });
+    const job = await collectKiwoomMetric(store, client, id, "investmentTrust");
+    assert.equal(job.oldestDate, "2026-09-01");
+    assert.equal(job.newestDate, "2026-09-03");
+    assert.equal(job.complete, true);
+    assert.deepEqual(
+      (await store.read(id, "investmentTrust")).map((row) => row.value),
+      [120000, -85000, 0],
+    );
+  }
+});
+
+test("same-page invalid duplicate never erases valid zero or signed net sells", () => {
+  for (const value of ["0", "-85,000", "+120,000"]) {
+    for (const reversed of [false, true]) {
+      const rows = [
+        { dt: "20260903", invtrt: value },
+        { dt: "20260903", invtrt: "" },
+      ];
+      if (reversed) rows.reverse();
+      const parsed = parseKiwoomRows(
+        rows,
+        "investmentTrust",
+        new Date().toISOString(),
+        "real",
+        "KRX",
+      );
+      assert.equal(parsed.observations[0].value, Number(value.replaceAll(",", "")));
+      assert.equal(parsed.invalidRows, 1);
+    }
+  }
+});
+
+test("005930 mocked OAuth/API/persistence/collector response reaches all frontend modes without ka10015", async () => {
+  const owner = "integration-owner-" + ++serial;
+  const cfg = { ...config, ownerUserId: owner, appKey: "integration-key-" + ++serial };
+  let apiCalls = 0;
+  const service = createChartFlowService({
+    config: () => cfg,
+    store: async () => store,
+    checkEgress: async () => ({ status: "IP_MATCH", observedIp: "192.0.2.1" }),
+    client: (c, s) =>
+      createKiwoomClient(c, quickStore(s), {
+        fetch: async (url, init) => {
+          if (String(url).endsWith("/token")) return auth();
+          const api = new Headers(init?.headers).get("api-id");
+          apiCalls++;
+          const metric =
+            api === "ka10013" ? "credit" : api === "ka10008" ? "foreign" : "investmentTrust";
+          assert.notEqual(api, "ka10015");
+          return ok({
+            return_code: 0,
+            [arrayName(metric)]: ["20260903", "20260902", "20260901"].map((dt, i) => ({
+              dt,
+              remn_rt: "3.42",
+              wght: "51.72",
+              poss_stkcnt: "1,234",
+              invtrt: ["0", "-85000", "+120000"][i],
+            })),
+          });
+        },
+      }),
+  });
+  const response = await service(request, undefined, owner);
+  assert.equal(apiCalls, 3);
+  assert.equal(response.credit.observations.at(-1)?.value, 3.42);
+  assert.equal(response.foreign.observations.at(-1)?.referenceValue, 1234);
+  assert.deepEqual(
+    response.investmentTrust.observations.map((row) => row.value),
+    [120000, -85000, 0],
+  );
+  for (const metric of FLOW_METRICS) assert.equal(response[metric].health, "READY");
+  const collector = createChartFlowService({
+    config: () => ({ ...cfg, mode: "collector", appKey: undefined, appSecret: undefined }),
+    store: async () => store,
+    client: () => {
+      throw new Error("web must not call Kiwoom");
+    },
+  });
+  const stored = await collector(request, undefined, owner);
+  for (const mode of ["daily", "cumulative", "available-cumulative"] as const) {
+    const aligned = alignChartFlow(stored, {
+      dates: request.expectedDailyDates!,
+      interval: "day",
+      cumulativeStart: request.from,
+      investmentTrustMode: mode,
+    });
+    assert.deepEqual(
+      aligned.investmentTrust.points.map((point) => point.value),
+      mode === "daily" ? [120000, -85000, 0] : [120000, 35000, 35000],
+    );
+  }
+});
+
+test("direct mode revalidates egress before every operation despite a previous match", async () => {
+  let checks = 0;
+  let clients = 0;
+  const cfg = { ...config, ownerUserId: "repeat-ip-" + ++serial };
+  const service = createChartFlowService({
+    config: () => cfg,
+    store: async () => store,
+    checkEgress: async () => ({
+      status: ++checks === 1 ? "IP_MATCH" : "IP_MISMATCH",
+      observedIp: "192.0.2.1",
+    }),
+    client: (c, s) => {
+      clients++;
+      return createKiwoomClient({ ...c, appKey: "repeat-key-" + serial }, quickStore(s), {
+        fetch: async (url, init) => {
+          if (String(url).endsWith("/token")) return auth();
+          const api = new Headers(init?.headers).get("api-id");
+          const metric =
+            api === "ka10013" ? "credit" : api === "ka10008" ? "foreign" : "investmentTrust";
+          return ok({ return_code: 0, [arrayName(metric)]: fixtureRows(metric, "20260901") });
+        },
+      });
+    },
+  });
+  await service(request, undefined, cfg.ownerUserId);
+  const second = await service(request, undefined, cfg.ownerUserId);
+  assert.equal(checks, 2);
+  assert.equal(clients, 1);
+  assert.equal(second.credit.health, "IP_MISMATCH");
+  assert.equal(second.credit.observations.length, 1);
+});
+
+test("ka10015 is an explicit read-only date-aligned diagnostic using strt_dt and warning on disagreement", async () => {
+  let calls = 0;
+  const primary = {
+    credit: parseKiwoomRows(
+      [{ dt: "20260903", remn_rt: "3.42" }],
+      "credit",
+      new Date().toISOString(),
+      "real",
+      "KRX",
+    ).observations,
+    foreign: parseKiwoomRows(
+      [{ dt: "20260903", wght: "51.72" }],
+      "foreign",
+      new Date().toISOString(),
+      "real",
+      "KRX",
+    ).observations,
+  };
+  const original = JSON.stringify(primary);
+  const client = createKiwoomClient({ ...config, appKey: "cross-key-" + ++serial }, quickStore(), {
+    fetch: async (url, init) => {
+      if (String(url).endsWith("/token")) return auth();
+      calls++;
+      assert.equal(new Headers(init?.headers).get("api-id"), "ka10015");
+      assert.deepEqual(JSON.parse(String(init?.body)), { stk_cd: "005930", strt_dt: "20260903" });
+      return ok({
+        return_code: 0,
+        daly_trde_dtl: [
+          { dt: "20260902", crd_remn_rt: "80", for_wght: "90" },
+          { dt: "20260903", crd_remn_rt: "3.43", for_wght: "50.00" },
+        ],
+      });
+    },
+  });
+  const result = await crossCheckKiwoom(client, request, primary);
+  assert.equal(calls, 1);
+  assert.equal(result.comparedValues, 2);
+  assert.equal(result.discrepancies.length, 1);
+  assert.equal(result.discrepancies[0].metric, "foreign");
+  assert.equal(result.persisted, false);
+  assert.ok(result.warning);
+  assert.equal(JSON.stringify(primary), original);
+  assert.equal(JSON.stringify(result).includes("cross-key"), false);
 });
 test("egress distinguishes matched, mismatched, unknown and unset without credential headers", async () => {
   for (const [ip, status] of [
@@ -225,6 +625,58 @@ test("expiry parsing is explicit KST with strict date and time validation", () =
   assert.equal(parseKiwoomExpiry("20261004120000"), Date.parse("2026-10-04T03:00:00Z"));
   for (const value of ["20260230090000", "20261004240000", "20261004096000", "2026-10-04", null])
     assert.throws(() => parseKiwoomExpiry(value));
+});
+test("expired token response and HTTP401 reject without retries or secret leakage", async () => {
+  for (const response of [
+    ok({
+      return_code: 0,
+      token: "TEST_EXPIRED_TOKEN",
+      token_type: "bearer",
+      expires_dt: "20000101090000",
+    }),
+    new Response("must not expose provider authentication text", { status: 401 }),
+  ]) {
+    let calls = 0;
+    const client = createKiwoomClient(
+      { ...config, appKey: "expired-key-" + ++serial },
+      quickStore(),
+      {
+        fetch: async () => {
+          calls++;
+          return response;
+        },
+      },
+    );
+    await assert.rejects(
+      client.authenticate(),
+      (error: unknown) =>
+        error instanceof KiwoomError &&
+        error.health === "TOKEN_FAILED" &&
+        !error.message.includes("TEST_EXPIRED_TOKEN"),
+    );
+    assert.equal(calls, 1);
+  }
+});
+test("token expiry safety margin refreshes the cached token before actual KST expiry", async () => {
+  let current = Date.UTC(2026, 8, 3, 1, 0, 0); // KST 10:00
+  let calls = 0;
+  const client = createKiwoomClient({ ...config, appKey: "clock-key-" + ++serial }, quickStore(), {
+    now: () => current,
+    fetch: async () => {
+      calls++;
+      return ok({
+        return_code: 0,
+        token: `TEST_REFRESH_${calls}`,
+        token_type: "bearer",
+        expires_dt: calls === 1 ? "20260903100200" : "20260904100200",
+      });
+    },
+  });
+  assert.equal(await client.authenticate(), "TEST_REFRESH_1");
+  assert.equal(await client.authenticate(), "TEST_REFRESH_1");
+  current += 61000;
+  assert.equal(await client.authenticate(), "TEST_REFRESH_2");
+  assert.equal(calls, 2);
 });
 test("authentication single-flight across clients, encrypted cache, detached caller cancellation and reuse", async () => {
   const cfg = { ...config, appKey: "auth-" + ++serial };

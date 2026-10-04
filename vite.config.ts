@@ -171,6 +171,10 @@ export default defineConfig(({ command, isPreview }) => ({
       ? [
           nitro({
             preset: "vercel",
+            // This Nitro/Rolldown version emits an undeclared ssr_exports binding
+            // when splitting the Start server entry. Inline server chunks; client
+            // chart/code splitting remains unchanged. Verified by production preview.
+            inlineDynamicImports: true,
             // Auto-registers server/middleware/* (the PWA install page +
             // manifest + head-tag middleware). Nitro v3 defaults serverDir to
             // false, so removing this silently unwires /?install=1 on deploys.

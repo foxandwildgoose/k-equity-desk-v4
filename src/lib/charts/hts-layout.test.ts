@@ -154,7 +154,7 @@ test("flow captions preserve actionable provider reasons and never borrow a futu
   const point: AlignedFlowPoint = { date: "2026-01-01", value: null, asOf: null, partial: false, reason: "해당 날짜 관측값 없음", observations: [] };
   const aligned: AlignedFlowMetric = { capability: "not-configured", reason: "KIS 인증 미설정", points: [point] };
   const details = htsFlowPointDetails(metric, aligned, point, "2026-10-03T01:00:00Z", true);
-  assert.match(details.status, /인증 미설정 · KIS 인증 미설정/);
+  assert.match(details.status, /설정 필요 · KIS 인증 미설정/);
   assert.equal(details.capability, "not-configured", "raw capability remains available for structured details/exports");
   assert.match(details.status, /오래된 데이터/);
   assert.match(details.status, /조회 2026-10-03T01:00:00Z/);

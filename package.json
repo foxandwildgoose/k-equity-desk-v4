@@ -11,6 +11,7 @@
     "build": "node scripts/with-app-env.mjs vite build && npm run db:migrate",
     "db:migrate": "node scripts/migrate.mjs",
     "build:dev": "node scripts/with-app-env.mjs vite build --mode development",
+    "build:bundle": "node scripts/with-app-env.mjs vite build",
     "preview": "node scripts/with-app-env.mjs vite preview",
     "preview:restart": "node scripts/preview.mjs restart",
     "preview:stop": "node scripts/preview.mjs stop",
@@ -25,8 +26,10 @@
     "qa:chart-hts": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/qa-chart-hts.mjs",
     "verify:kiwoom": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/kiwoom-cli.mjs verify",
     "sync:kiwoom-flow": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/kiwoom-cli.mjs sync",
+    "kiwoom:collect": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/kiwoom-cli.mjs sync",
     "test:kiwoom": "node --experimental-strip-types --disable-warning=ExperimentalWarning --test src/server/kiwoom.test.ts",
-    "qa:chart-display": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/qa-chart-display.mjs"
+    "qa:chart-display": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/qa-chart-display.mjs",
+    "qa:kiwoom-path": "node scripts/qa-kiwoom-path.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",

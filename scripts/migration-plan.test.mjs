@@ -56,12 +56,16 @@ test("non-.sql entries are dropped (readdir also yields the auth/ directory)", (
   assert.deepEqual(pendingMigrations(["auth", "README.md"], []), []);
 });
 
-test("the auth schema ships outside the globbed directory", () => {
+test("personal-site auth opts into the unchanged schema once alongside Kiwoom", () => {
   const migrationsDir = join(projectRoot(), "migrations");
   const appMigrations = pendingMigrations(readdirSync(migrationsDir), []);
-  assert.ok(appMigrations.every(({ name }) => name !== AUTH_MIGRATION));
+  assert.equal(appMigrations.filter(({ name }) => name === AUTH_MIGRATION).length, 1);
   assert.ok(appMigrations.some(({ name }) => name === "0002_kiwoom_flow.sql"));
   assert.ok(readdirSync(join(migrationsDir, "auth")).includes("0001_auth.sql"));
+  const pair = authSchemaCopy(projectRoot());
+  assert.ok(pair);
+  assert.equal(pair.copy, pair.source);
+  assert.equal(pendingMigrations(readdirSync(migrationsDir), [AUTH_MIGRATION]).some(({ name }) => name === AUTH_MIGRATION), false);
 });
 
 test("this workspace's auth schema copy is byte-identical to its source", () => {

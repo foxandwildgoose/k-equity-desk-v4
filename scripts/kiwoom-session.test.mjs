@@ -83,7 +83,7 @@ test(
     const testScript = join(dir, "run.ps1");
     writeFileSync(
       testScript,
-      `function global:npm { if ($env:KIWOOM_APP_KEY -ceq 'FixtureKey-Case' -and $env:KIWOOM_APP_SECRET -ceq 'FixtureSecret-Case' -and $env:DATABASE_URL -ceq 'postgresql://fixture.test/isolated' -and $env:KIWOOM_FLOW_MODE -ceq 'collector') { 'CHILD_CONFIG_OK' }; $global:LASTEXITCODE=0 }\n& ${q(collector)} -AppKeyPath ${q(key)} -AppSecretPath ${q(secret)} -DatabaseUrlPath ${q(db)} -OwnerUserId 'fixture-owner' -ExpectedEgressIp '192.0.2.1' -FromDate '2026-09-01' -Symbols 'stock:005930','etf:069500'\nif (-not $env:KIWOOM_APP_KEY -and -not $env:KIWOOM_APP_SECRET -and -not $env:DATABASE_URL) { 'CLEARED' }`,
+      `function global:npm { if ($env:KIWOOM_APP_KEY -ceq 'FixtureKey-Case' -and $env:KIWOOM_APP_SECRET -ceq 'FixtureSecret-Case' -and $env:DATABASE_URL -ceq 'postgresql://fixture.test/isolated' -and $env:KIWOOM_FLOW_MODE -ceq 'direct') { 'CHILD_CONFIG_OK' }; $global:LASTEXITCODE=0 }\n& ${q(collector)} -AppKeyPath ${q(key)} -AppSecretPath ${q(secret)} -DatabaseUrlPath ${q(db)} -OwnerUserId 'fixture-owner' -ExpectedEgressIp '192.0.2.1' -FromDate '2026-09-01' -Symbols 'stock:005930','etf:069500'\nif (-not $env:KIWOOM_APP_KEY -and -not $env:KIWOOM_APP_SECRET -and -not $env:DATABASE_URL) { 'CLEARED' }`,
     );
     const result = spawnSync(pwsh, ["-NoProfile", "-File", testScript], { encoding: "utf8" });
     rmSync(dir, { recursive: true, force: true });

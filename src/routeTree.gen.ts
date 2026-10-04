@@ -14,6 +14,7 @@ import { Route as ChartRouteImport } from './routes/chart'
 import { Route as DisclosuresRouteImport } from './routes/disclosures'
 import { Route as EtfsRouteImport } from './routes/etfs'
 import { Route as ExportDeskRouteImport } from './routes/export-desk'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as ResearchRouteImport } from './routes/research'
 import { Route as RoboticsRouteImport } from './routes/robotics'
 import { Route as UsLinkRouteImport } from './routes/us-link'
@@ -30,11 +31,13 @@ import { Route as NewsEtfRouteImport } from './routes/news.etf'
 import { Route as NewsKrRouteImport } from './routes/news.kr'
 import { Route as NewsUsRouteImport } from './routes/news.us'
 import { Route as SettingsAlertsRouteImport } from './routes/settings.alerts'
+import { Route as StatusKiwoomRouteImport } from './routes/status.kiwoom'
 import { Route as StatusSourcesRouteImport } from './routes/status.sources'
 import { Route as StockTickerRouteImport } from './routes/stock.$ticker'
 import { Route as UsResearchIndexRouteImport } from './routes/us-research.index'
 import { Route as UsResearchReportIdRouteImport } from './routes/us-research.$reportId'
 import { Route as UsSymbolRouteImport } from './routes/us.$symbol'
+import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -59,6 +62,11 @@ const EtfsRoute = EtfsRouteImport.update({
 const ExportDeskRoute = ExportDeskRouteImport.update({
   id: '/export-desk',
   path: '/export-desk',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResearchRoute = ResearchRouteImport.update({
@@ -141,6 +149,11 @@ const SettingsAlertsRoute = SettingsAlertsRouteImport.update({
   path: '/settings/alerts',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StatusKiwoomRoute = StatusKiwoomRouteImport.update({
+  id: '/status/kiwoom',
+  path: '/status/kiwoom',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StatusSourcesRoute = StatusSourcesRouteImport.update({
   id: '/status/sources',
   path: '/status/sources',
@@ -166,6 +179,11 @@ const UsSymbolRoute = UsSymbolRouteImport.update({
   path: '/us/$symbol',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
+  id: '/api/auth/$',
+  path: '/api/auth/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -173,6 +191,7 @@ export interface FileRoutesByFullPath {
   '/disclosures': typeof DisclosuresRoute
   '/etfs': typeof EtfsRouteWithChildren
   '/export-desk': typeof ExportDeskRoute
+  '/login': typeof LoginRoute
   '/research': typeof ResearchRoute
   '/robotics': typeof RoboticsRoute
   '/us-link': typeof UsLinkRoute
@@ -187,6 +206,7 @@ export interface FileRoutesByFullPath {
   '/news/kr': typeof NewsKrRoute
   '/news/us': typeof NewsUsRoute
   '/settings/alerts': typeof SettingsAlertsRoute
+  '/status/kiwoom': typeof StatusKiwoomRoute
   '/status/sources': typeof StatusSourcesRoute
   '/stock/$ticker': typeof StockTickerRoute
   '/us-research/$reportId': typeof UsResearchReportIdRoute
@@ -194,12 +214,14 @@ export interface FileRoutesByFullPath {
   '/etfs/': typeof EtfsIndexRoute
   '/news/': typeof NewsIndexRoute
   '/us-research/': typeof UsResearchIndexRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/chart': typeof ChartRoute
   '/disclosures': typeof DisclosuresRoute
   '/export-desk': typeof ExportDeskRoute
+  '/login': typeof LoginRoute
   '/research': typeof ResearchRoute
   '/robotics': typeof RoboticsRoute
   '/us-link': typeof UsLinkRoute
@@ -213,6 +235,7 @@ export interface FileRoutesByTo {
   '/news/kr': typeof NewsKrRoute
   '/news/us': typeof NewsUsRoute
   '/settings/alerts': typeof SettingsAlertsRoute
+  '/status/kiwoom': typeof StatusKiwoomRoute
   '/status/sources': typeof StatusSourcesRoute
   '/stock/$ticker': typeof StockTickerRoute
   '/us-research/$reportId': typeof UsResearchReportIdRoute
@@ -220,6 +243,7 @@ export interface FileRoutesByTo {
   '/etfs': typeof EtfsIndexRoute
   '/news': typeof NewsIndexRoute
   '/us-research': typeof UsResearchIndexRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -228,6 +252,7 @@ export interface FileRoutesById {
   '/disclosures': typeof DisclosuresRoute
   '/etfs': typeof EtfsRouteWithChildren
   '/export-desk': typeof ExportDeskRoute
+  '/login': typeof LoginRoute
   '/research': typeof ResearchRoute
   '/robotics': typeof RoboticsRoute
   '/us-link': typeof UsLinkRoute
@@ -242,6 +267,7 @@ export interface FileRoutesById {
   '/news/kr': typeof NewsKrRoute
   '/news/us': typeof NewsUsRoute
   '/settings/alerts': typeof SettingsAlertsRoute
+  '/status/kiwoom': typeof StatusKiwoomRoute
   '/status/sources': typeof StatusSourcesRoute
   '/stock/$ticker': typeof StockTickerRoute
   '/us-research/$reportId': typeof UsResearchReportIdRoute
@@ -249,6 +275,7 @@ export interface FileRoutesById {
   '/etfs/': typeof EtfsIndexRoute
   '/news/': typeof NewsIndexRoute
   '/us-research/': typeof UsResearchIndexRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -258,6 +285,7 @@ export interface FileRouteTypes {
     | '/disclosures'
     | '/etfs'
     | '/export-desk'
+    | '/login'
     | '/research'
     | '/robotics'
     | '/us-link'
@@ -272,6 +300,7 @@ export interface FileRouteTypes {
     | '/news/kr'
     | '/news/us'
     | '/settings/alerts'
+    | '/status/kiwoom'
     | '/status/sources'
     | '/stock/$ticker'
     | '/us-research/$reportId'
@@ -279,12 +308,14 @@ export interface FileRouteTypes {
     | '/etfs/'
     | '/news/'
     | '/us-research/'
+    | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/chart'
     | '/disclosures'
     | '/export-desk'
+    | '/login'
     | '/research'
     | '/robotics'
     | '/us-link'
@@ -298,6 +329,7 @@ export interface FileRouteTypes {
     | '/news/kr'
     | '/news/us'
     | '/settings/alerts'
+    | '/status/kiwoom'
     | '/status/sources'
     | '/stock/$ticker'
     | '/us-research/$reportId'
@@ -305,6 +337,7 @@ export interface FileRouteTypes {
     | '/etfs'
     | '/news'
     | '/us-research'
+    | '/api/auth/$'
   id:
     | '__root__'
     | '/'
@@ -312,6 +345,7 @@ export interface FileRouteTypes {
     | '/disclosures'
     | '/etfs'
     | '/export-desk'
+    | '/login'
     | '/research'
     | '/robotics'
     | '/us-link'
@@ -326,6 +360,7 @@ export interface FileRouteTypes {
     | '/news/kr'
     | '/news/us'
     | '/settings/alerts'
+    | '/status/kiwoom'
     | '/status/sources'
     | '/stock/$ticker'
     | '/us-research/$reportId'
@@ -333,6 +368,7 @@ export interface FileRouteTypes {
     | '/etfs/'
     | '/news/'
     | '/us-research/'
+    | '/api/auth/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -341,6 +377,7 @@ export interface RootRouteChildren {
   DisclosuresRoute: typeof DisclosuresRoute
   EtfsRoute: typeof EtfsRouteWithChildren
   ExportDeskRoute: typeof ExportDeskRoute
+  LoginRoute: typeof LoginRoute
   ResearchRoute: typeof ResearchRoute
   RoboticsRoute: typeof RoboticsRoute
   UsLinkRoute: typeof UsLinkRoute
@@ -354,10 +391,12 @@ export interface RootRouteChildren {
   NewsKrRoute: typeof NewsKrRoute
   NewsUsRoute: typeof NewsUsRoute
   SettingsAlertsRoute: typeof SettingsAlertsRoute
+  StatusKiwoomRoute: typeof StatusKiwoomRoute
   StatusSourcesRoute: typeof StatusSourcesRoute
   StockTickerRoute: typeof StockTickerRoute
   UsSymbolRoute: typeof UsSymbolRoute
   NewsIndexRoute: typeof NewsIndexRoute
+  ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -395,6 +434,13 @@ declare module '@tanstack/react-router' {
       path: '/export-desk'
       fullPath: '/export-desk'
       preLoaderRoute: typeof ExportDeskRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/research': {
@@ -509,6 +555,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsAlertsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/status/kiwoom': {
+      id: '/status/kiwoom'
+      path: '/status/kiwoom'
+      fullPath: '/status/kiwoom'
+      preLoaderRoute: typeof StatusKiwoomRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/status/sources': {
       id: '/status/sources'
       path: '/status/sources'
@@ -542,6 +595,13 @@ declare module '@tanstack/react-router' {
       path: '/us/$symbol'
       fullPath: '/us/$symbol'
       preLoaderRoute: typeof UsSymbolRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/$': {
+      id: '/api/auth/$'
+      path: '/api/auth/$'
+      fullPath: '/api/auth/$'
+      preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -579,6 +639,7 @@ const rootRouteChildren: RootRouteChildren = {
   DisclosuresRoute: DisclosuresRoute,
   EtfsRoute: EtfsRouteWithChildren,
   ExportDeskRoute: ExportDeskRoute,
+  LoginRoute: LoginRoute,
   ResearchRoute: ResearchRoute,
   RoboticsRoute: RoboticsRoute,
   UsLinkRoute: UsLinkRoute,
@@ -592,10 +653,12 @@ const rootRouteChildren: RootRouteChildren = {
   NewsKrRoute: NewsKrRoute,
   NewsUsRoute: NewsUsRoute,
   SettingsAlertsRoute: SettingsAlertsRoute,
+  StatusKiwoomRoute: StatusKiwoomRoute,
   StatusSourcesRoute: StatusSourcesRoute,
   StockTickerRoute: StockTickerRoute,
   UsSymbolRoute: UsSymbolRoute,
   NewsIndexRoute: NewsIndexRoute,
+  ApiAuthSplatRoute: ApiAuthSplatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

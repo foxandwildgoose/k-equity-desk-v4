@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Local CLI only. No HTTP admin/collector endpoint and no implicit schema migrations.
+// Local collector CLI. Web diagnostics are read-only; no implicit schema migrations.
 import { readFile, open, unlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -10,6 +10,7 @@ import {
   checkKiwoomEgress,
   KiwoomError,
   safeKiwoomError,
+  safeKiwoomConfig,
 } from "../src/server/kiwoom-config.ts";
 import { createKiwoomClient, KIWOOM_APIS } from "../src/server/kiwoom-client.ts";
 import { createKiwoomStore } from "../src/server/kiwoom-store.ts";
@@ -19,6 +20,7 @@ import {
   parseKiwoomRows,
 } from "../src/server/kiwoom-flow.ts";
 import { FLOW_METRICS, isFlowDate } from "../src/lib/charts/hts-flow.ts";
+import { crossCheckKiwoom } from "../src/server/kiwoom-cross-check.ts";
 
 const argumentsList = process.argv.slice(2);
 const command = argumentsList.shift();
@@ -37,6 +39,8 @@ const allowed = new Set([
   "--incremental",
   "--calendar",
   "--read-stored",
+  "--check-database",
+  "--cross-check",
 ]);
 const switches = new Set([
   "--check-config",
@@ -45,6 +49,8 @@ const switches = new Set([
   "--resume",
   "--incremental",
   "--read-stored",
+  "--check-database",
+  "--cross-check",
 ]);
 const args = new Map();
 for (let i = 0; i < argumentsList.length; i++) {
@@ -66,10 +72,35 @@ try {
   if (!["verify", "sync"].includes(command))
     throw new KiwoomError("configuration", "Command must be verify or sync");
   if (
+    args.has("--cross-check") &&
+    (command !== "verify" ||
+      !args.has("--live") ||
+      args.has("--check-config") ||
+      args.has("--read-stored") ||
+      args.has("--check-database"))
+  )
+    throw new KiwoomError(
+      "configuration",
+      "Cross-check requires verify --live --single-process; diagnostic only",
+    );
+  if (args.has("--check-database")) {
+    if (!config.databaseConfigured)
+      throw new KiwoomError("storage", "Shared DATABASE_URL required", null, 0, "DATABASE_MISSING");
+    const { getSql } = await import("../src/lib/db.ts");
+    const schema = await createKiwoomStore(await getSql()).schema();
+    emit({
+      databaseConfigured: true,
+      schema,
+      status: schema.ready ? "READY" : "DATABASE_SCHEMA_MISSING",
+      note: "Read-only schema inspection; no migration or broker request",
+    });
+    if (!schema.ready) process.exitCode = 1;
+  } else if (
     args.has("--check-config") ||
     (command === "verify" && !args.has("--live") && !args.has("--read-stored"))
   ) {
     emit({
+      ...safeKiwoomConfig(config),
       credentialsStatus: status,
       authentication: "NOT_TESTED",
       environment: config.environment,
@@ -112,10 +143,16 @@ try {
       to,
       flowScope,
     };
-    if (!config.ownerUserId && (command === "sync" || args.has("--read-stored")))
+    if (
+      (!config.ownerUserId || config.ownerUserId === "dev-user") &&
+      (command === "sync" || args.has("--read-stored"))
+    )
       throw new KiwoomError(
         "access",
         "KIWOOM_OWNER_USER_ID required; local CLI runs under the authorized OS user",
+        null,
+        0,
+        "OWNER_AUTH_FAILED",
       );
     const identity = {
       scopeId: config.ownerUserId ?? "isolated-local-diagnostic",
@@ -125,9 +162,23 @@ try {
     let store;
     if (args.has("--read-stored")) {
       if (!config.databaseConfigured)
-        throw new KiwoomError("storage", "Shared DATABASE_URL required; no memory fallback");
+        throw new KiwoomError(
+          "storage",
+          "Shared DATABASE_URL required; no memory fallback",
+          null,
+          0,
+          "DATABASE_MISSING",
+        );
       const { getSql } = await import("../src/lib/db.ts");
       store = createKiwoomStore(await getSql());
+      if (!(await store.schema()).ready)
+        throw new KiwoomError(
+          "storage",
+          "Apply existing migrations before reading",
+          null,
+          0,
+          "DATABASE_SCHEMA_MISSING",
+        );
       for (const metric of FLOW_METRICS) {
         const storedJob = await store.job(identity, metric);
         const rows = await store.read(identity, metric);
@@ -136,7 +187,7 @@ try {
           metric,
           environment: config.environment,
           marketScope: flowScope,
-          stored: true,
+          stored: rows.length > 0,
           rows: rows.length,
           validValues: valid.length,
           from: valid[0]?.date ?? null,
@@ -150,9 +201,9 @@ try {
           "configuration",
           "Actual collection requires explicit --live; default tests use fixtures only",
         );
-      if (status !== "CREDENTIALS_CONFIGURED") throw new KiwoomError("configuration", status);
-      if (!config.enabled)
-        throw new KiwoomError("configuration", "KIWOOM_FLOW_ENABLED=true required");
+      if (!config.enabled) throw new KiwoomError("disabled", "KIWOOM_FLOW_ENABLED=true required");
+      if (status !== "CREDENTIALS_CONFIGURED")
+        throw new KiwoomError("configuration", status, null, 0, "CREDENTIALS_MISSING");
       if (config.environment !== "real")
         throw new KiwoomError(
           "configuration",
@@ -162,10 +213,10 @@ try {
       emit({
         credentialsStatus: status,
         egress: ip.status,
-        observedIp: ip.observedIp,
         authentication: "NOT_TESTED",
       });
-      if (ip.status !== "IP_MATCH") throw new KiwoomError("ip-check", ip.status);
+      if (ip.status !== "IP_MATCH")
+        throw new KiwoomError("ip-check", ip.status, null, 0, ip.status);
       // Prevent concurrent local CLI runs. Never remove a lock blindly after a crash.
       lockFile = join(
         tmpdir(),
@@ -213,9 +264,20 @@ try {
           throw new KiwoomError(
             "storage",
             "sync requires shared persistent DATABASE_URL; no memory fallback",
+            null,
+            0,
+            "DATABASE_MISSING",
           );
         const { getSql } = await import("../src/lib/db.ts");
         store = createKiwoomStore(await getSql());
+        if (!(await store.schema()).ready)
+          throw new KiwoomError(
+            "storage",
+            "Apply existing migrations before collection",
+            null,
+            0,
+            "DATABASE_SCHEMA_MISSING",
+          );
       }
       const client = createKiwoomClient(config, store);
       await client.authenticate();
@@ -235,6 +297,7 @@ try {
         expectedDates = [...new Set(parsed)].filter((date) => date >= from && date <= to).sort();
       }
       identity.request.expectedDailyDates = expectedDates.length ? expectedDates : undefined;
+      const primary = { credit: [], foreign: [] };
       for (const metric of FLOW_METRICS) {
         if (command === "verify") {
           try {
@@ -254,6 +317,7 @@ try {
               flowScope,
             );
             const valid = result.observations.filter((row) => row.value !== null);
+            if (metric !== "investmentTrust") primary[metric] = result.observations;
             emit({
               metric,
               apiId: KIWOOM_APIS[metric].id,
@@ -324,7 +388,7 @@ try {
             validValues: valid.length,
             from: valid[0]?.date ?? null,
             to: valid.at(-1)?.date ?? null,
-            stored: true,
+            stored: rows.length > 0,
             missingDates,
             missingSessions: expectedDates.length ? missingDates.length : null,
             calendarBasis: expectedDates.length
@@ -344,11 +408,12 @@ try {
             process.exitCode = 1;
         }
       }
+      if (args.has("--cross-check")) emit(await crossCheckKiwoom(client, request, primary));
     }
   }
 } catch (error) {
   const safe = safeKiwoomError(error);
-  emit({ status: safe.status, errorCode: safe.code, reason: safe.message });
+  emit({ status: safe.status, health: safe.health, errorCode: safe.code, reason: safe.message });
   process.exitCode = 1;
 } finally {
   await closeLocal();

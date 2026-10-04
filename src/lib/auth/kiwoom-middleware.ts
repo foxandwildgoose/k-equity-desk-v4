@@ -8,11 +8,16 @@ export const kiwoomAccessMiddleware = createMiddleware({ type: "function" })
   })
   .server(async ({ next, context }) => {
     let kiwoomUserId: string | null = null;
-    if (process.env.KIWOOM_FLOW_ENABLED === "true") {
-      const { assertSameSiteRequest } = await import("./isolation.server");
-      const { getSessionUser } = await import("./verify.server");
-      assertSameSiteRequest();
-      kiwoomUserId = (await getSessionUser(context.bearerToken))?.id ?? null;
+    const { assertSameSiteRequest } = await import("./isolation.server");
+    assertSameSiteRequest();
+    if (process.env.KIWOOM_FLOW_ENABLED === "true" && process.env.VITE_AUTH_ENABLED !== "false") {
+      try {
+        const { getSessionUser } = await import("./verify.server");
+        kiwoomUserId = (await getSessionUser(context.bearerToken))?.id ?? null;
+      } catch {
+        // Fail closed, without serializing a DB/session error (which may contain secrets).
+        kiwoomUserId = null;
+      }
     }
     return next({ context: { kiwoomUserId } });
   });

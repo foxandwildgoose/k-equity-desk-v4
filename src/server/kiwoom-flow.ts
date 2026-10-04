@@ -17,6 +17,17 @@ import {
 } from "./kiwoom-store.ts";
 
 export type KiwoomClient = ReturnType<typeof createKiwoomClient>;
+/** Provider order is not a contract, even if today's parser returns sorted rows. */
+export function kiwoomDateExtent(rows: readonly Pick<FlowObservation, "date">[]) {
+  let oldestDate: string | null = null;
+  let newestDate: string | null = null;
+  for (const { date } of rows) {
+    if (!isFlowDate(date)) continue;
+    if (oldestDate === null || date < oldestDate) oldestDate = date;
+    if (newestDate === null || date > newestDate) newestDate = date;
+  }
+  return { oldestDate, newestDate };
+}
 export function kiwoomConditions(
   request: FlowRequest,
   metric: FlowMetricId,
@@ -101,7 +112,11 @@ export function parseKiwoomRows(
           : {}),
     });
   }
-  return { observations: dedupeFlowObservations(observations), invalidRows };
+  const bestRows = new Map<string, FlowObservation>();
+  for (const row of observations) {
+    if (row.value !== null || bestRows.get(row.date)?.value == null) bestRows.set(row.date, row);
+  }
+  return { observations: dedupeFlowObservations([...bestRows.values()]), invalidRows };
 }
 export interface CollectOptions {
   maxPages?: number;
@@ -176,16 +191,19 @@ export async function collectKiwoomMetric(
           job.pages++;
           job.rows += rawRows.length;
           job.invalidRows += invalidRows;
-          const continuation = response.headers.get("cont-yn");
-          if (!continuation || !["Y", "N"].includes(continuation))
-            throw new KiwoomError("parsing", "키움 연속조회 헤더 누락/오류");
+          // Official response headers are optional on the terminal page. Only Y
+          // promises continuation; an invalid supplied value is still an error.
+          const continuation = response.headers.get("cont-yn")?.trim() || "N";
+          if (!["Y", "N"].includes(continuation))
+            throw new KiwoomError("parsing", "키움 연속조회 헤더 오류");
           if (!rawRows.length || !observations.length) {
             job.stopReason = rawRows.length ? "no-valid-dates" : "empty-page";
             job.status = rawRows.length ? "parsing" : "history";
             break;
           }
           const signature = observations.map((row) => row.date).join(",");
-          const pageOldest = observations[0]!.date;
+          const extent = kiwoomDateExtent(observations);
+          const pageOldest = extent.oldestDate!;
           if (signatures.has(signature) || (oldest !== null && pageOldest >= oldest)) {
             job.stopReason = "no-older-progress";
             job.status = "history";
@@ -202,23 +220,23 @@ export async function collectKiwoomMetric(
           oldest = pageOldest;
           job.oldestDate = pageOldest;
           job.newestDate =
-            job.newestDate && job.newestDate > observations.at(-1)!.date
+            job.newestDate && job.newestDate > extent.newestDate!
               ? job.newestDate
-              : observations.at(-1)!.date;
+              : extent.newestDate;
           if (observations.some((row) => row.value !== null))
             job.lastSuccessAt = new Date().toISOString();
           if (pageOldest <= identity.request.from) {
             job.complete = true;
             job.stopReason = "requested-start-reached";
             job.nextKey = null;
-            job.status = "ready";
+            job.status = job.invalidRows && !job.lastSuccessAt ? "parsing" : "ready";
             break;
           }
           if (continuation === "N") {
             job.complete = true;
             job.stopReason = "provider-end";
             job.nextKey = null;
-            job.status = "history";
+            job.status = job.invalidRows && !job.lastSuccessAt ? "parsing" : "history";
             break;
           }
           const returnedKey = response.headers.get("next-key");

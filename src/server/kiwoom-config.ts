@@ -1,5 +1,9 @@
 import { isIP } from "node:net";
-import type { FlowStatus } from "../lib/charts/hts-flow.ts";
+import {
+  kiwoomHealthFor,
+  type FlowStatus,
+  type KiwoomHealthStatus,
+} from "../lib/charts/hts-flow.ts";
 
 export interface KiwoomConfig {
   appKey?: string;
@@ -11,6 +15,8 @@ export interface KiwoomConfig {
   expectedEgressIp?: string;
   ownerUserId?: string;
   databaseConfigured: boolean;
+  authEnabled?: boolean;
+  authenticationReady?: boolean;
 }
 export type CredentialsStatus =
   | "CREDENTIALS_CONFIGURED"
@@ -57,6 +63,12 @@ export function readKiwoomConfig(
     expectedEgressIp,
     ownerUserId: value("KIWOOM_OWNER_USER_ID"),
     databaseConfigured: Boolean(value("DATABASE_URL")),
+    authEnabled: value("VITE_AUTH_ENABLED") !== "false",
+    // Never accept the preview's ephemeral session secret on a deployed broker path.
+    authenticationReady:
+      value("VITE_AUTH_ENABLED") !== "false" &&
+      (!(value("NODE_ENV") === "production" || value("VERCEL") || value("DATABASE_URL")) ||
+        Boolean(value("BETTER_AUTH_SECRET") && value("BETTER_AUTH_URL"))),
   };
 }
 /** Never contains provider text, credentials, request bodies, URLs or account details. */
@@ -64,12 +76,20 @@ export class KiwoomError extends Error {
   readonly status: FlowStatus;
   readonly code: number | null;
   readonly retryAfterMs: number;
-  constructor(status: FlowStatus, message: string, code: number | null = null, retryAfterMs = 0) {
+  readonly health: KiwoomHealthStatus;
+  constructor(
+    status: FlowStatus,
+    message: string,
+    code: number | null = null,
+    retryAfterMs = 0,
+    health?: KiwoomHealthStatus,
+  ) {
     super(message);
     this.name = "KiwoomError";
     this.status = status;
     this.code = code;
     this.retryAfterMs = retryAfterMs;
+    this.health = health ?? kiwoomHealthFor(status);
   }
 }
 export function safeKiwoomError(error: unknown): KiwoomError {
@@ -81,12 +101,38 @@ export function assertKiwoomOwner(
   config: KiwoomConfig,
   verifiedUserId: string | null | undefined,
 ): string {
-  if (!verifiedUserId || !config.ownerUserId || verifiedUserId !== config.ownerUserId)
+  if (
+    config.authEnabled === false ||
+    config.authenticationReady === false ||
+    !verifiedUserId ||
+    verifiedUserId === "dev-user" ||
+    !config.ownerUserId ||
+    verifiedUserId !== config.ownerUserId
+  )
     throw new KiwoomError(
       "access",
       "인증된 키움 소유자만 조회 가능 · 로그인/서버 소유자 설정 필요",
+      null,
+      0,
+      "OWNER_AUTH_FAILED",
     );
   return verifiedUserId;
+}
+/** Explicit allowlist of booleans and enums. Never spread the runtime config into responses. */
+export function safeKiwoomConfig(config: KiwoomConfig) {
+  return {
+    flowEnabled: config.enabled,
+    environment: config.environment,
+    mode: config.mode,
+    appKeyConfigured: Boolean(config.appKey),
+    appSecretConfigured: Boolean(config.appSecret),
+    credentialsRequired: config.mode === "direct",
+    databaseConfigured: config.databaseConfigured,
+    expectedEgressIpConfigured: Boolean(config.expectedEgressIp),
+    ownerConfigured: Boolean(config.ownerUserId),
+    authenticationEnabled: config.authEnabled !== false,
+    authenticationReady: config.authenticationReady !== false,
+  };
 }
 export type EgressStatus = "IP_MATCH" | "IP_MISMATCH" | "IP_UNVERIFIED" | "EXPECTED_IP_MISSING";
 /** This service sees no key/token/header. A missing/mismatched IP prevents broker calls. */

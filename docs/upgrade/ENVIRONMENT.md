@@ -35,3 +35,5 @@ F9 동작 요약: 네 변수(`AI_BRIEFING_ENABLED=true`, `AI_MODEL`, 공급자 �
 ## 키움 수급 지표 (2026-10-04)
 
 세 차트 지표는 `KIWOOM_APP_KEY`, `KIWOOM_APP_SECRET`을 서버에서만 읽습니다. `KIWOOM_ENV`, `KIWOOM_FLOW_ENABLED`, `KIWOOM_FLOW_MODE`, `KIWOOM_EXPECTED_EGRESS_IP`, `KIWOOM_REQUESTS_PER_SECOND`, `KIWOOM_OWNER_USER_ID`, `DATABASE_URL`의 설정과 PowerShell 주입·수집 명령은 [KIWOOM_FLOW_SETUP.md](KIWOOM_FLOW_SETUP.md)를 참조하세요. 다른 기능의 KIS·네이버 연결은 유지합니다. collector 웹앱은 키 없이 공유 DB만 읽으며, 운영 DB가 없으면 메모리 저장으로 대체하지 않습니다.
+
+개인 사이트의 키움 접근은 실제 Better Auth 소유자 세션이 필요합니다. 웹 배포에는 `VITE_AUTH_ENABLED=true`(인증 스위치만 공개), 서버 전용 `BETTER_AUTH_URL`, `BETTER_AUTH_SECRET`, 동일 PostgreSQL 및 검증된 `KIWOOM_OWNER_USER_ID`를 설정합니다. `/login`과 `/api/auth/*`를 연결했고 인증 스키마의 동일 복사본을 migration에 추가했습니다. 기본 개발 auth-off 설정을 운영의 소유자 인증으로 사용하지 않습니다. 운영 설정 변경·DB migration은 이번 코드 검증에서 실행하지 않았습니다.

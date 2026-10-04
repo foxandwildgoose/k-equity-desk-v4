@@ -33,6 +33,7 @@ export interface KiwoomJob {
   requestedTo?: string;
 }
 export interface KiwoomFlowStore extends KiwoomCoordination {
+  schema(): Promise<KiwoomSchemaStatus>;
   read(identity: FlowIdentity, metric: FlowMetricId): Promise<FlowObservation[]>;
   upsert(
     identity: FlowIdentity,
@@ -41,6 +42,42 @@ export interface KiwoomFlowStore extends KiwoomCoordination {
   ): Promise<void>;
   job(identity: FlowIdentity, metric: FlowMetricId, exact?: boolean): Promise<KiwoomJob | null>;
   saveJob(identity: FlowIdentity, metric: FlowMetricId, job: KiwoomJob): Promise<void>;
+}
+export interface KiwoomSchemaStatus {
+  observations: boolean;
+  jobs: boolean;
+  coordination: boolean;
+  ready: boolean;
+  migrationRecorded: boolean | null;
+}
+/** Read-only: do not make a diagnostic request an implicit schema migration. */
+export async function inspectKiwoomSchema(sql: Sql): Promise<KiwoomSchemaStatus> {
+  const [row] = await sql.query<{
+    observations: boolean;
+    jobs: boolean;
+    coordination: boolean;
+    migrations: boolean;
+  }>(
+    `select to_regclass('kiwoom_flow_observations') is not null as observations,
+      to_regclass('kiwoom_flow_jobs') is not null as jobs,
+      to_regclass('kiwoom_flow_coordination') is not null as coordination,
+      to_regclass('_migrations') is not null as migrations`,
+  );
+  const migrationRecorded = row?.migrations
+    ? ((
+        await sql.query<{ recorded: boolean }>(
+          "select exists(select 1 from _migrations where name=$1) as recorded",
+          ["0002_kiwoom_flow.sql"],
+        )
+      )[0]?.recorded ?? false)
+    : null;
+  return {
+    observations: Boolean(row?.observations),
+    jobs: Boolean(row?.jobs),
+    coordination: Boolean(row?.coordination),
+    ready: Boolean(row?.observations && row.jobs && row.coordination),
+    migrationRecorded,
+  };
 }
 export function kiwoomJobKey(identity: FlowIdentity, metric: FlowMetricId): string {
   const { request: r } = identity;
@@ -71,6 +108,7 @@ export function createKiwoomStore(sql: Sql): KiwoomFlowStore {
     metric,
   ];
   return {
+    schema: () => inspectKiwoomSchema(sql),
     async read(identity, metric) {
       const rows = await sql.query<{ observation: FlowObservation }>(
         `select observation from kiwoom_flow_observations

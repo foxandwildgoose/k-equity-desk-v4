@@ -57,6 +57,8 @@ npm run build
 
 `VITE_` 접두사를 붙이지 마세요. 브라우저로 키가 노출됩니다. 저장소에 `.env` 파일을 만들지 않습니다.
 
+키움 세 지표는 [설정/Windows 실행 순서](docs/upgrade/KIWOOM_FLOW_SETUP.md)와 [검증 상태](docs/upgrade/KIWOOM_FLOW_VERIFICATION.md)를 확인하세요. 현재 권장 배포는 **허용 IP 수집기 → 공유 PostgreSQL → Vercel의 collector 웹앱**입니다. 도구 메뉴의 **키움 연결 상태**와 `/login`을 제공합니다. `verify:kiwoom -- --check-config`는 설정만, `--check-database`는 스키마 조회만 수행합니다. `kiwoom:collect`는 기존 수집 명령의 별칭입니다. `build:bundle`은 마이그레이션 없는 production bundling이며 기존 `build`는 DB migration을 포함합니다. 공개되는 `VITE_AUTH_ENABLED`에는 인증 ON/OFF만 넣고 증권사 키는 서버에만 설정합니다.
+
 ## 소스 검증
 
 외부 소스(네이버·한경·Bloomberg RSS·연준·SEC·Google 뉴스 등)는 `src/server/feeds/registry.ts`에

@@ -1,5 +1,5 @@
 import { HTS_PANEL_ORDER, type HtsPanel } from "./hts-settings.ts";
-import { FLOW_STATUS_LABELS, type AlignedFlowMetric, type AlignedFlowPoint, type FlowMetric } from "./hts-flow.ts";
+import { FLOW_STATUS_LABELS, KIWOOM_HEALTH_LABELS, type AlignedFlowMetric, type AlignedFlowPoint, type FlowMetric } from "./hts-flow.ts";
 
 /** Extra oscillators preserve the six required panes' relative order; volume stays last. */
 export function htsPaneIndices(extraCount = 0): Record<HtsPanel, number> {
@@ -169,12 +169,12 @@ export function htsFlowPointDetails(metric: FlowMetric, aligned: AlignedFlowMetr
     : observations.every((observation) => observation.final === true) ? "확정" : "잠정";
   const acquisitionLabel = observations.length ? "취득" : "조회";
   const capabilityNames = {
-    available: "제공", partial: "일부 기간 제공", "not-configured": "인증 미설정",
+    available: "제공", partial: "일부 기간 제공", "not-configured": "설정 필요",
     "not-supported": "공급자 미지원", "not-applicable": "해당 없음", error: "요청 오류", unknown: "확인 중",
   };
   return {
     capability: aligned.capability,
-    status: [capabilityNames[aligned.capability], metric.status ? FLOW_STATUS_LABELS[metric.status] : "", reason, (metric.stale ?? stale) ? "오래된 데이터" : "", `최종 관측 ${metric.providedTo ?? "미확인"}`, `확보 ${metric.providedFrom ?? "—"}~${metric.providedTo ?? "—"}`, `${acquisitionLabel} ${acquisition}`, `기준 ${dateBasis}`, final].filter(Boolean).join(" · "),
+    status: [metric.health ? KIWOOM_HEALTH_LABELS[metric.health] : capabilityNames[aligned.capability], metric.health ? "" : metric.status ? FLOW_STATUS_LABELS[metric.status] : "", reason, (metric.stale ?? stale) ? "오래된 데이터" : "", `최종 관측 ${metric.providedTo ?? "미확인"}`, `확보 ${metric.providedFrom ?? "—"}~${metric.providedTo ?? "—"}`, `${acquisitionLabel} ${acquisition}`, `기준 ${dateBasis}`, final].filter(Boolean).join(" · "),
     asOf: point?.asOf || "미확인", fetchedAt: acquisition, dateBasis, final,
   };
 }

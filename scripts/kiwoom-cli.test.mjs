@@ -51,3 +51,34 @@ test("CLI sync rejects implicit live calls before IP check/auth/DB work", () => 
   assert.equal(JSON.parse(result.stdout).status, "configuration");
   assert.match(result.stdout, /explicit --live/);
 });
+test("collector config does not require broker keys and database check does not migrate or call APIs", () => {
+  const config = run(["verify", "--check-config"], {
+    KIWOOM_FLOW_ENABLED: "true",
+    KIWOOM_FLOW_MODE: "collector",
+  });
+  const flags = JSON.parse(config.stdout);
+  assert.equal(flags.flowEnabled, true);
+  assert.equal(flags.credentialsRequired, false);
+  assert.equal(flags.appKeyConfigured, false);
+  assert.equal(flags.appSecretConfigured, false);
+  const missing = run(["verify", "--check-database"]);
+  assert.equal(missing.status, 1);
+  assert.equal(JSON.parse(missing.stdout).health, "DATABASE_MISSING");
+  const cross = run(["verify", "--cross-check"]);
+  assert.equal(cross.status, 1);
+  assert.match(cross.stdout, /verify --live/);
+  const dates = ["--code", "005930", "--from", "2026-09-01", "--to", "2026-10-02"];
+  const disabled = run(["verify", "--live", ...dates]);
+  assert.equal(JSON.parse(disabled.stdout).health, "DISABLED");
+  const secretMissing = run(["verify", "--live", ...dates], {
+    KIWOOM_FLOW_ENABLED: "true",
+    KIWOOM_APP_KEY: "fixture-cli-key",
+  });
+  assert.equal(JSON.parse(secretMissing.stdout).health, "CREDENTIALS_MISSING");
+  const databaseMissing = run(["verify", "--read-stored", ...dates], {
+    KIWOOM_OWNER_USER_ID: "fixture-owner",
+  });
+  assert.equal(JSON.parse(databaseMissing.stdout).health, "DATABASE_MISSING");
+  const devOwner = run(["sync", "--live", ...dates], { KIWOOM_OWNER_USER_ID: "dev-user" });
+  assert.equal(JSON.parse(devOwner.stdout).health, "OWNER_AUTH_FAILED");
+});

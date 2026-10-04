@@ -2,6 +2,7 @@
 import {
   emptyChartFlow,
   FLOW_METRICS,
+  kiwoomHealthFor,
   type FlowMetricId,
   type FlowRequest,
   type FlowResponse,
@@ -28,6 +29,7 @@ export function unavailableKiwoomFlow(request: FlowRequest, error: KiwoomError):
       ...response[id],
       source: "키움증권",
       status: error.status,
+      health: error.health,
       capability:
         error.status === "configuration" ||
         error.status === "disabled" ||
@@ -49,7 +51,6 @@ export function createChartFlowService(
   const now = options.now ?? Date.now;
   const clients = new Map<string, KiwoomClient>();
   const inflight = new Map<string, Promise<FlowResponse>>();
-  let checkedIp: { expected: string; until: number } | null = null;
   async function run(
     request: FlowRequest,
     config: KiwoomConfig,
@@ -58,6 +59,14 @@ export function createChartFlowService(
     const store = await (options.store
       ? options.store()
       : import("../lib/db.ts").then(async ({ getSql }) => createKiwoomStore(await getSql())));
+    if (!(await store.schema()).ready)
+      throw new KiwoomError(
+        "storage",
+        "키움 DB 스키마 적용 필요 · 관리자 마이그레이션 확인",
+        null,
+        0,
+        "DATABASE_SCHEMA_MISSING",
+      );
     const identity: FlowIdentity = { scopeId: userId, environment: config.environment, request };
     let client: KiwoomClient | null = null;
     let directError: KiwoomError | null = null;
@@ -66,21 +75,22 @@ export function createChartFlowService(
         directError = new KiwoomError(
           "configuration",
           `${credentialsStatus(config)} · 현재 실행환경 설정 확인 필요`,
+          null,
+          0,
+          "CREDENTIALS_MISSING",
         );
       else {
-        if (
-          !checkedIp ||
-          checkedIp.expected !== config.expectedEgressIp ||
-          checkedIp.until < now()
-        ) {
-          const ip = await (options.checkEgress ?? checkKiwoomEgress)(config.expectedEgressIp);
-          if (ip.status !== "IP_MATCH")
-            directError = new KiwoomError(
-              "ip-check",
-              `${ip.status} · API 호출 서버의 외부 IP 확인 필요`,
-            );
-          else checkedIp = { expected: config.expectedEgressIp!, until: now() + 300_000 };
-        }
+        // A prior process-local match does not establish the outbound IP
+        // of a later serverless request.
+        const ip = await (options.checkEgress ?? checkKiwoomEgress)(config.expectedEgressIp);
+        if (ip.status !== "IP_MATCH")
+          directError = new KiwoomError(
+            "ip-check",
+            `${ip.status} · API 호출 서버의 외부 IP 확인 필요`,
+            null,
+            0,
+            ip.status,
+          );
         if (!directError) {
           const key = JSON.stringify([
             config.environment,
@@ -161,6 +171,16 @@ export function createChartFlowService(
             providedFrom: valid[0]?.date ?? null,
             providedTo: valid.at(-1)?.date ?? null,
             status: error?.status ?? job?.status ?? "collecting",
+            health:
+              error?.health ??
+              (valid.length && job && ["ready", "history"].includes(job.status)
+                ? stale ||
+                  !job.complete ||
+                  job.stopReason !== "requested-start-reached" ||
+                  missingDates?.length
+                  ? "PARTIAL"
+                  : "READY"
+                : kiwoomHealthFor(job?.status ?? "collecting", valid.length)),
             stale,
             lastSuccessAt: job?.lastSuccessAt ?? null,
             capability: valid.length
@@ -218,6 +238,9 @@ export function createChartFlowService(
         throw new KiwoomError(
           "storage",
           "공유 영속 PostgreSQL 미설정 · 메모리 DB로 운영 이력 대체 안 함",
+          null,
+          0,
+          "DATABASE_MISSING",
         );
       const key = JSON.stringify([
         "kiwoom-only-v1",

@@ -71,6 +71,7 @@ export const NAV_GROUPS: { id: string; label: string; items: NavItem[] }[] = [
       { to: "/watchlist", label: "관심종목", icon: Star },
       { to: "/settings/alerts", label: "알림 설정", icon: BellRing },
       { to: "/status/sources", label: "소스 상태", icon: Activity },
+      { to: "/status/kiwoom", label: "키움 연결 상태", icon: Activity },
     ],
   },
 ];

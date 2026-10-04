@@ -25,7 +25,7 @@ try {
     $env:KIWOOM_EXPECTED_EGRESS_IP = $ExpectedEgressIp
     $env:KIWOOM_ENV = 'real'
     $env:KIWOOM_FLOW_ENABLED = 'true'
-    $env:KIWOOM_FLOW_MODE = 'collector'
+    $env:KIWOOM_FLOW_MODE = 'direct'
     $env:KIWOOM_REQUESTS_PER_SECOND = '2'
     try { $SeoulZone = [TimeZoneInfo]::FindSystemTimeZoneById('Korea Standard Time') }
     catch { $SeoulZone = [TimeZoneInfo]::FindSystemTimeZoneById('Asia/Seoul') }

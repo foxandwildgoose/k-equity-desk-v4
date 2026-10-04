@@ -8,6 +8,28 @@ export type FlowCapability =
   | "error"
   | "unknown";
 export type FlowStatus = "disabled" | "configuration" | "authentication" | "access" | "ip-check" | "rate-limit" | "timeout" | "network" | "parsing" | "history" | "collecting" | "ready" | "unsupported" | "storage";
+/** Safe operational state; independent from value availability and partial coverage. */
+export type KiwoomHealthStatus = "DISABLED" | "CREDENTIALS_MISSING" | "OWNER_AUTH_FAILED" | "DATABASE_MISSING" | "DATABASE_SCHEMA_MISSING" | "DATABASE_FAILED" | "EXPECTED_IP_MISSING" | "IP_MISMATCH" | "IP_UNVERIFIED" | "TOKEN_FAILED" | "API_FAILED" | "PARSING_FAILED" | "NO_HISTORY" | "READY" | "PARTIAL" | "COLLECTING" | "RATE_LIMIT" | "CONFIGURATION_FAILED";
+export const KIWOOM_HEALTH_LABELS: Record<KiwoomHealthStatus, string> = {
+  DISABLED: "키움 수집 비활성", CREDENTIALS_MISSING: "키움 인증정보 미설정",
+  OWNER_AUTH_FAILED: "소유자 인증 필요", DATABASE_MISSING: "DB 미설정",
+  DATABASE_SCHEMA_MISSING: "키움 DB 스키마 적용 필요", DATABASE_FAILED: "키움 DB 연결/조회 실패",
+  EXPECTED_IP_MISSING: "키움 허용 IP 설정 필요", IP_MISMATCH: "키움 호출 서버 IP 불일치",
+  IP_UNVERIFIED: "키움 호출 서버 IP 확인 불가", TOKEN_FAILED: "키움 API 인증 실패",
+  API_FAILED: "키움 API 조회 실패", PARSING_FAILED: "키움 응답 파싱 실패",
+  NO_HISTORY: "제공 이력 없음 · 상품 지원 미확인", READY: "키움 데이터 수신·저장됨",
+  PARTIAL: "키움 이력 일부 확보", COLLECTING: "키움 수집 중/대기",
+  RATE_LIMIT: "키움 호출 제한", CONFIGURATION_FAILED: "키움 서버 설정 확인 필요",
+};
+export function kiwoomHealthFor(status: FlowStatus, validValues = 0): KiwoomHealthStatus {
+  const states: Partial<Record<FlowStatus, KiwoomHealthStatus>> = {
+    disabled: "DISABLED", configuration: "CONFIGURATION_FAILED", access: "API_FAILED",
+    authentication: "TOKEN_FAILED", "ip-check": "IP_UNVERIFIED", parsing: "PARSING_FAILED",
+    storage: "DATABASE_FAILED", "rate-limit": "RATE_LIMIT", collecting: "COLLECTING",
+    network: "API_FAILED", timeout: "API_FAILED", unsupported: "NO_HISTORY",
+  };
+  return states[status] ?? (validValues ? status === "ready" ? "READY" : "PARTIAL" : "NO_HISTORY");
+}
 export const FLOW_STATUS_LABELS: Record<FlowStatus, string> = {
   disabled: "수집 비활성", configuration: "서버 설정 미완료", authentication: "인증 오류", access: "로그인/권한 확인 필요",
   "ip-check": "호출 서버 IP 확인 필요", "rate-limit": "호출 제한", timeout: "응답 시간 초과", network: "통신 오류",
@@ -64,6 +86,7 @@ export interface FlowMetric {
   providedFrom: string | null;
   providedTo: string | null;
   status?: FlowStatus;
+  health?: KiwoomHealthStatus;
   stale?: boolean;
   lastSuccessAt?: string | null;
   diagnostics?: {
