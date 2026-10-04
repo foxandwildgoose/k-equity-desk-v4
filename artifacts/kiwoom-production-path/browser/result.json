@@ -1,0 +1,55 @@
+{
+  "synthetic": true,
+  "operationalDatabase": false,
+  "kiwoomNetworkRequests": 0,
+  "brokerPages": 6,
+  "checks": [
+    "Real Better Auth signup/session; unconfigured owner denied",
+    "Synthetic OAuth and six continuation pages parsed/upserted into same isolated web DB",
+    "Authorized diagnostic RPC reads stored rows without broker keys",
+    "Real session -> collector DB -> server RPC -> React Query -> signed daily values and actual pane canvas",
+    "Sibling scripted request blocked by existing same-site protection",
+    "Signed-out visitor cannot read stored observations"
+  ],
+  "screenshots": [
+    "owner-diagnostic.png",
+    "005930-light-mock-authenticated.png",
+    "005930-dark-mock-authenticated.png"
+  ],
+  "frontend": {
+    "credit": {
+      "rows": 180,
+      "last": 4.31,
+      "health": "READY"
+    },
+    "foreign": {
+      "rows": 180,
+      "last": 52.61,
+      "health": "READY"
+    },
+    "investmentTrust": {
+      "rows": 180,
+      "last": -85000,
+      "health": "READY"
+    }
+  },
+  "canvas": [
+    {
+      "id": "credit",
+      "canvases": 4,
+      "colors": 442
+    },
+    {
+      "id": "foreign",
+      "canvases": 4,
+      "colors": 439
+    },
+    {
+      "id": "investmentTrust",
+      "canvases": 4,
+      "colors": 808
+    }
+  ],
+  "siblingRequestStatus": 403,
+  "success": true
+}

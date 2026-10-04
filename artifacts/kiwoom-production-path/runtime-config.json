@@ -1,0 +1,20 @@
+{
+  "flowEnabled": false,
+  "environment": "real",
+  "mode": "direct",
+  "appKeyConfigured": false,
+  "appSecretConfigured": false,
+  "credentialsRequired": true,
+  "databaseConfigured": false,
+  "expectedEgressIpConfigured": false,
+  "ownerConfigured": false,
+  "authenticationEnabled": true,
+  "authenticationReady": true,
+  "credentialsStatus": "CREDENTIALS_NOT_CONFIGURED",
+  "authentication": "NOT_TESTED",
+  "enabled": false,
+  "expectedEgressConfigured": false,
+  "egress": "NOT_CHECKED",
+  "requestsPerSecond": 2,
+  "note": "No network request or database connection. Credentials configured does not mean authentication succeeded."
+}

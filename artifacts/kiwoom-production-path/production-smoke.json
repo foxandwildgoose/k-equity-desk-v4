@@ -1,0 +1,11 @@
+{
+  "localProductionBundle": true,
+  "deployedSite": false,
+  "diagnosticStatus": 200,
+  "health": "키움 수집 비활성 · direct · real",
+  "authApiStatus": 503,
+  "storedTables": 0,
+  "pageErrors": 0,
+  "kiwoomRequests": 0,
+  "success": true
+}
