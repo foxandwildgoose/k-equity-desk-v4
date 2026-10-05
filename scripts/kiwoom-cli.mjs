@@ -1,422 +1,187 @@
 #!/usr/bin/env node
-// Local collector CLI. Web diagnostics are read-only; no implicit schema migrations.
-import { readFile, open, unlink } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { createHash } from "node:crypto";
-import {
-  readKiwoomConfig,
-  credentialsStatus,
-  checkKiwoomEgress,
-  KiwoomError,
-  safeKiwoomError,
-  safeKiwoomConfig,
-} from "../src/server/kiwoom-config.ts";
-import { createKiwoomClient, KIWOOM_APIS } from "../src/server/kiwoom-client.ts";
-import { createKiwoomStore } from "../src/server/kiwoom-store.ts";
-import {
-  collectKiwoomMetric,
-  kiwoomConditions,
-  parseKiwoomRows,
-} from "../src/server/kiwoom-flow.ts";
+// OS-operator CLI. Actual broker operations require --live, real mode, persistent DB and matching egress.
+import { readFile } from "node:fs/promises";
+import { mergeAppEnv, readAppEnv, projectRoot } from "./with-app-env.mjs";
+import { readKiwoomConfig, checkKiwoomEgress, kiwoomDataScope, KiwoomError, safeKiwoomError, credentialsStatus } from "../src/server/kiwoom-config.ts";
+import { diagnoseKiwoomRuntime } from "../src/server/kiwoom-runtime.ts";
+import { openKiwoomDatabase } from "../src/server/kiwoom-db.ts";
+import { createKiwoomClient, KIWOOM_APIS, kiwoomCredentialKey } from "../src/server/kiwoom-client.ts";
+import { collectKiwoomMetric, kiwoomConditions, parseKiwoomRows } from "../src/server/kiwoom-flow.ts";
 import { FLOW_METRICS, isFlowDate } from "../src/lib/charts/hts-flow.ts";
+import { boundKiwoomTarget } from "../src/server/kiwoom-targets.ts";
 import { crossCheckKiwoom } from "../src/server/kiwoom-cross-check.ts";
+import { validateFlowRequest } from "../src/server/chart-flow-request.ts";
 
-const argumentsList = process.argv.slice(2);
-const command = argumentsList.shift();
-const allowed = new Set([
-  "--check-config",
-  "--live",
-  "--single-process",
-  "--code",
-  "--from",
-  "--to",
-  "--instrument",
-  "--scope",
-  "--max-pages",
-  "--budget-ms",
-  "--resume",
-  "--incremental",
-  "--calendar",
-  "--read-stored",
-  "--check-database",
-  "--cross-check",
-]);
-const switches = new Set([
-  "--check-config",
-  "--live",
-  "--single-process",
-  "--resume",
-  "--incremental",
-  "--read-stored",
-  "--check-database",
-  "--cross-check",
-]);
+const emit = value => process.stdout.write(JSON.stringify(value, null, 2) + "\n");
+const argv = process.argv.slice(2);
+const command = argv.shift();
+const switches = new Set(["--check-config", "--live", "--single-process", "--resume", "--incremental", "--read-stored", "--check-database", "--cross-check", "--targets", "--show-ip"]);
+const values = new Set(["--code", "--from", "--to", "--instrument", "--scope", "--max-pages", "--budget-ms", "--calendar", "--limit"]);
 const args = new Map();
-for (let i = 0; i < argumentsList.length; i++) {
-  const arg = argumentsList[i];
-  if (!allowed.has(arg) || args.has(arg)) throw new Error("Invalid CLI option");
-  if (switches.has(arg)) args.set(arg, true);
-  else {
-    const value = argumentsList[++i];
-    if (!value || value.startsWith("--")) throw new Error("Missing CLI argument");
-    args.set(arg, value);
-  }
-}
-const emit = (value) => process.stdout.write(JSON.stringify(value, null, 2) + "\n");
-let closeLocal = async () => {};
-let lockFile;
+let database;
 try {
-  const config = readKiwoomConfig();
-  const status = credentialsStatus(config);
-  if (!["verify", "sync"].includes(command))
-    throw new KiwoomError("configuration", "Command must be verify or sync");
-  if (
-    args.has("--cross-check") &&
-    (command !== "verify" ||
-      !args.has("--live") ||
-      args.has("--check-config") ||
-      args.has("--read-stored") ||
-      args.has("--check-database"))
-  )
-    throw new KiwoomError(
-      "configuration",
-      "Cross-check requires verify --live --single-process; diagnostic only",
-    );
-  if (args.has("--check-database")) {
-    if (!config.databaseConfigured)
-      throw new KiwoomError("storage", "Shared DATABASE_URL required", null, 0, "DATABASE_MISSING");
-    const { getSql } = await import("../src/lib/db.ts");
-    const schema = await createKiwoomStore(await getSql()).schema();
-    emit({
-      databaseConfigured: true,
-      schema,
-      status: schema.ready ? "READY" : "DATABASE_SCHEMA_MISSING",
-      note: "Read-only schema inspection; no migration or broker request",
-    });
-    if (!schema.ready) process.exitCode = 1;
-  } else if (
-    args.has("--check-config") ||
-    (command === "verify" && !args.has("--live") && !args.has("--read-stored"))
-  ) {
-    emit({
-      ...safeKiwoomConfig(config),
-      credentialsStatus: status,
-      authentication: "NOT_TESTED",
-      environment: config.environment,
-      mode: config.mode,
-      enabled: config.enabled,
-      expectedEgressConfigured: Boolean(config.expectedEgressIp),
-      egress: "NOT_CHECKED",
-      databaseConfigured: config.databaseConfigured,
-      ownerConfigured: Boolean(config.ownerUserId),
-      requestsPerSecond: config.requestsPerSecond,
-      note: "No network request or database connection. Credentials configured does not mean authentication succeeded.",
-    });
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (args.has(arg) || (!switches.has(arg) && !values.has(arg))) throw new KiwoomError("configuration", "Invalid CLI option");
+    if (switches.has(arg)) args.set(arg, true);
+    else {
+      const value = argv[++i];
+      if (!value || value.startsWith("--")) throw new KiwoomError("configuration", "Missing CLI argument");
+      args.set(arg, value);
+    }
+  }
+  if (!["doctor", "egress", "verify", "sync", "migrate-scope"].includes(command))
+    throw new KiwoomError("configuration", "Command must be doctor, egress, verify, sync or migrate-scope");
+  // Identical precedence even when CLI is invoked directly rather than via npm.
+  const config = readKiwoomConfig(mergeAppEnv(readAppEnv(projectRoot()), process.env));
+  if (args.has("--cross-check") && (command !== "verify" || !args.has("--live") || args.has("--read-stored") || args.has("--check-config") || args.has("--check-database")))
+    throw new KiwoomError("configuration", "Cross-check requires verify --live; diagnostic only");
+  const today = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Seoul" }).format(new Date());
+  const request = validateFlowRequest({
+    code: args.get("--code") ?? "005930", market: "KR",
+    instrument: args.get("--instrument") ?? "stock", exchange: "KRX", currency: "KRW", quantityUnit: "주",
+    interval: "day", flowScope: args.get("--scope") ?? "KRX",
+    from: args.get("--from") ?? new Date(Date.parse(today) - 366 * 86400000).toISOString().slice(0, 10),
+    to: args.get("--to") ?? today,
+  });
+  const getStore = async () => {
+    database ??= await openKiwoomDatabase();
+    return database.store;
+  };
+  const doctor = () => diagnoseKiwoomRuntime(config, request, { inspectOperational: true, store: getStore });
+  if (command === "egress") {
+    // Only this explicit local flag may show an address; never used in web payloads.
+    const ip = await checkKiwoomEgress(config.expectedEgressIp);
+    emit({ egressStatus: ip.status, ...(args.has("--show-ip") ? { observedIp: ip.observedIp } : {}) });
+    if (ip.status !== "IP_MATCH") process.exitCode = 1;
+  } else if (command === "doctor" || args.has("--check-config") || args.has("--check-database") ||
+      (command === "verify" && !args.has("--live") && !args.has("--read-stored"))) {
+    const result = args.has("--check-config")
+      ? { ...await diagnoseKiwoomRuntime(config, request), credentialsStatus: credentialsStatus(config), authentication: "NOT_TESTED", egress: "NOT_CHECKED" }
+      : await doctor();
+    emit(result);
+    if (!args.has("--check-config") && (result.status === "DEPLOYMENT_REVISION_MISMATCH" || !result.flowEnabled || !result.databaseConnected || !result.schemaReady ||
+        (config.mode === "direct" && (!result.appKeyConfigured || !result.appSecretConfigured || result.egressStatus !== "IP_MATCH")))
+      ) process.exitCode = 1;
   } else {
-    const code = args.get("--code") ?? "005930";
-    const from = args.get("--from");
-    const to = args.get("--to");
-    const instrument = args.get("--instrument") ?? "stock";
-    const flowScope = args.get("--scope") ?? "KRX";
-    if (
-      !/^[0-9A-Z]{6}$/.test(code) ||
-      !["stock", "etf", "etn"].includes(instrument) ||
-      !["KRX", "NXT", "SOR"].includes(flowScope) ||
-      !isFlowDate(from ?? "") ||
-      !isFlowDate(to ?? "") ||
-      from > to
-    )
-      throw new KiwoomError(
-        "configuration",
-        "Specify valid --code --from --to --instrument --scope",
-      );
-    const request = {
-      code,
-      market: "KR",
-      instrument,
-      exchange: "KRX",
-      currency: "KRW",
-      quantityUnit: "주",
-      interval: "day",
-      from,
-      to,
-      flowScope,
-    };
-    if (
-      (!config.ownerUserId || config.ownerUserId === "dev-user") &&
-      (command === "sync" || args.has("--read-stored"))
-    )
-      throw new KiwoomError(
-        "access",
-        "KIWOOM_OWNER_USER_ID required; local CLI runs under the authorized OS user",
-        null,
-        0,
-        "OWNER_AUTH_FAILED",
-      );
-    const identity = {
-      scopeId: config.ownerUserId ?? "isolated-local-diagnostic",
-      environment: config.environment,
-      request,
-    };
-    let store;
-    if (args.has("--read-stored")) {
-      if (!config.databaseConfigured)
-        throw new KiwoomError(
-          "storage",
-          "Shared DATABASE_URL required; no memory fallback",
-          null,
-          0,
-          "DATABASE_MISSING",
-        );
-      const { getSql } = await import("../src/lib/db.ts");
-      store = createKiwoomStore(await getSql());
-      if (!(await store.schema()).ready)
-        throw new KiwoomError(
-          "storage",
-          "Apply existing migrations before reading",
-          null,
-          0,
-          "DATABASE_SCHEMA_MISSING",
-        );
+    if (command !== "migrate-scope" && !args.has("--read-stored")) {
+      if (!args.has("--live")) throw new KiwoomError("configuration", "Broker operation requires explicit --live");
+      if (!config.enabled) throw new KiwoomError("disabled", "KIWOOM_FLOW_ENABLED=true required");
+      if (credentialsStatus(config) !== "CREDENTIALS_CONFIGURED")
+        throw new KiwoomError("configuration", "Collector credentials missing", null, 0, "CREDENTIALS_MISSING");
+      if (config.mode !== "direct" || config.environment !== "real") throw new KiwoomError("configuration", "Collector requires direct/real");
+    }
+    const store = await getStore();
+    if (!(await store.schema()).ready) throw new KiwoomError("storage", "Run npm run db:migrate explicitly", null, 0, "DATABASE_SCHEMA_MISSING");
+    const identity = { scopeId: kiwoomDataScope(config), environment: config.environment, request };
+    if (command === "migrate-scope") {
+      if (!config.legacyDataScopeId) throw new KiwoomError("configuration", "Set server-only KIWOOM_LEGACY_DATA_SCOPE_ID for additive copy");
+      const rowsCopied = await store.copyLegacyScope(config.legacyDataScopeId, identity.scopeId, identity.environment);
+      emit({ status: "SCOPE_COPY_COMPLETE", rowsCopied, existingRowsRetained: true, cursorsCopied: false });
+    } else if (args.has("--read-stored")) {
       for (const metric of FLOW_METRICS) {
-        const storedJob = await store.job(identity, metric);
         const rows = await store.read(identity, metric);
-        const valid = rows.filter((row) => row.value !== null);
-        emit({
-          metric,
-          environment: config.environment,
-          marketScope: flowScope,
-          stored: rows.length > 0,
-          rows: rows.length,
-          validValues: valid.length,
-          from: valid[0]?.date ?? null,
-          to: valid.at(-1)?.date ?? null,
-          job: storedJob ? { ...storedJob, nextKey: undefined } : null,
-        });
+        const valid = rows.filter(row => row.value !== null);
+        emit({ metric, rows: rows.length, validValues: valid.length, firstDate: valid[0]?.date ?? null,
+          lastDate: valid.at(-1)?.date ?? null,
+          status: !valid.length && await store.hasOtherScope(identity, metric) ? "DATA_SCOPE_MISMATCH" : valid.length ? "STORED" : "NO_HISTORY",
+          providerReal: valid.length > 0 && valid.every(row => row.provider === "kiwoom" && row.environment === "real" && !row.derived) });
+        if (!valid.length) process.exitCode = 1;
       }
     } else {
-      if (!args.has("--live"))
-        throw new KiwoomError(
-          "configuration",
-          "Actual collection requires explicit --live; default tests use fixtures only",
-        );
-      if (!config.enabled) throw new KiwoomError("disabled", "KIWOOM_FLOW_ENABLED=true required");
-      if (status !== "CREDENTIALS_CONFIGURED")
-        throw new KiwoomError("configuration", status, null, 0, "CREDENTIALS_MISSING");
-      if (config.environment !== "real")
-        throw new KiwoomError(
-          "configuration",
-          "--live verification is real only; mock is not real data evidence",
-        );
-      const ip = await checkKiwoomEgress(config.expectedEgressIp);
-      emit({
-        credentialsStatus: status,
-        egress: ip.status,
-        authentication: "NOT_TESTED",
-      });
-      if (ip.status !== "IP_MATCH")
-        throw new KiwoomError("ip-check", ip.status, null, 0, ip.status);
-      // Prevent concurrent local CLI runs. Never remove a lock blindly after a crash.
-      lockFile = join(
-        tmpdir(),
-        "ked-kiwoom-" +
-          createHash("sha256")
-            .update(config.environment + "\0" + config.appKey)
-            .digest("hex") +
-          ".lock",
-      );
-      try {
-        const handle = await open(lockFile, "wx", 0o600);
-        await handle.writeFile(String(process.pid));
-        await handle.close();
-      } catch {
-        lockFile = undefined;
-        throw new KiwoomError(
-          "collecting",
-          "Local CLI lock exists; confirm prior process ended before removing its lock",
-        );
-      }
-      if (command === "verify") {
-        // Read-only diagnostic w.r.t. the operational DB. Explicit exclusive diagnostic runs only.
-        if (!args.has("--single-process"))
-          throw new KiwoomError(
-            "configuration",
-            "Stop all other credential consumers; verify --live requires --single-process acknowledgment",
-          );
-        if (code !== "005930")
-          throw new KiwoomError(
-            "configuration",
-            "Initial small diagnostic uses 005930; use sync only after it succeeds",
-          );
-        const { PGlite } = await import("@electric-sql/pglite");
-        const pg = new PGlite();
-        await pg.waitReady;
-        await pg.exec(
-          await readFile(new URL("../migrations/0002_kiwoom_flow.sql", import.meta.url), "utf8"),
-        );
-        store = createKiwoomStore({
-          query: async (text, params) => (await pg.query(text, params)).rows,
-        });
-        closeLocal = () => pg.close();
-      } else {
-        if (!config.databaseConfigured)
-          throw new KiwoomError(
-            "storage",
-            "sync requires shared persistent DATABASE_URL; no memory fallback",
-            null,
-            0,
-            "DATABASE_MISSING",
-          );
-        const { getSql } = await import("../src/lib/db.ts");
-        store = createKiwoomStore(await getSql());
-        if (!(await store.schema()).ready)
-          throw new KiwoomError(
-            "storage",
-            "Apply existing migrations before collection",
-            null,
-            0,
-            "DATABASE_SCHEMA_MISSING",
-          );
-      }
-      const client = createKiwoomClient(config, store);
-      await client.authenticate();
-      emit({ authentication: "TOKEN_AVAILABLE", token: "REDACTED", environment: "real" });
-      let expectedDates = [];
+      if (!args.has("--live") || !config.enabled || config.mode !== "direct" || config.environment !== "real")
+        throw new KiwoomError("configuration", "Broker operations require --live, enabled, direct and real");
+      const readiness = await doctor();
+      emit(readiness);
+      if (!readiness.databaseConnected || !readiness.schemaReady || !readiness.appKeyConfigured || !readiness.appSecretConfigured ||
+          readiness.egressStatus !== "IP_MATCH")
+        throw new KiwoomError("configuration", "Collector runtime gate failed; inspect safe doctor statuses");
+      if (args.has("--cross-check") && command !== "verify") throw new KiwoomError("configuration", "ka10015 is verify-only");
+      if (command === "verify" && request.code !== "005930") throw new KiwoomError("configuration", "First page verification requires 005930");
+      const maxPages = Number(args.get("--max-pages") ?? 25);
+      const budgetMs = Number(args.get("--budget-ms") ?? 45000);
+      const limit = Number(args.get("--limit") ?? 10);
+      if (!Number.isInteger(maxPages) || maxPages < 1 || maxPages > 200 || !Number.isFinite(budgetMs) ||
+          budgetMs < 50 || budgetMs > 240000 || !Number.isInteger(limit) || limit < 1 || limit > 10)
+        throw new KiwoomError("configuration", "Invalid bounded collection budget");
       if (args.has("--calendar")) {
         const parsed = JSON.parse(await readFile(args.get("--calendar"), "utf8"));
-        if (
-          !Array.isArray(parsed) ||
-          parsed.length > 8000 ||
-          parsed.some((date) => typeof date !== "string" || !isFlowDate(date))
-        )
-          throw new KiwoomError(
-            "configuration",
-            "Calendar must be JSON array of observed exchange-local daily price dates",
-          );
-        expectedDates = [...new Set(parsed)].filter((date) => date >= from && date <= to).sort();
+        if (!Array.isArray(parsed) || parsed.length > 8000 || parsed.some(date => typeof date !== "string" || !isFlowDate(date)))
+          throw new KiwoomError("configuration", "Calendar must contain observed daily price dates");
+        request.expectedDailyDates = [...new Set(parsed)].filter(date => date >= request.from && date <= request.to).sort();
       }
-      identity.request.expectedDailyDates = expectedDates.length ? expectedDates : undefined;
-      const primary = { credit: [], foreign: [] };
-      for (const metric of FLOW_METRICS) {
+      // Database lease protects scheduled/manual CLI instances across machines; heartbeats handle long work.
+      await store.exclusive("collector-run:" + kiwoomCredentialKey(config), async signal => {
+        const client = createKiwoomClient(config, store);
+        await client.authenticate(signal);
+        emit({ authentication: "TOKEN_OK", environment: "real" });
+        const primary = { credit: [], foreign: [] };
         if (command === "verify") {
-          try {
-            const page = await client.page(
-              KIWOOM_APIS[metric].id,
-              kiwoomConditions(request, metric),
-              new AbortController().signal,
-            );
-            const rows = page.body[KIWOOM_APIS[metric].array];
-            if (!Array.isArray(rows))
-              throw new KiwoomError("parsing", "Required response array missing");
-            const result = parseKiwoomRows(
-              rows,
-              metric,
-              new Date().toISOString(),
-              "real",
-              flowScope,
-            );
-            const valid = result.observations.filter((row) => row.value !== null);
-            if (metric !== "investmentTrust") primary[metric] = result.observations;
-            emit({
-              metric,
-              apiId: KIWOOM_APIS[metric].id,
-              sourceField: KIWOOM_APIS[metric].field,
-              status: valid.length ? "RECEIVED" : "NO_VALID_FIELDS",
-              rows: rows.length,
-              validValues: valid.length,
-              invalidRows: result.invalidRows,
-              from: valid[0]?.date ?? null,
-              to: valid.at(-1)?.date ?? null,
-              pages: 1,
-              continuation: page.headers.get("cont-yn"),
-              stored: false,
-              note: "Small first page diagnostic; full history not verified. Operational DB untouched.",
-            });
-            if (!valid.length) process.exitCode = 1;
-          } catch (error) {
-            const safe = safeKiwoomError(error);
-            emit({ metric, status: safe.status, errorCode: safe.code });
-            process.exitCode = 1;
-          }
-        } else {
-          let collectionIdentity = identity;
-          if (args.has("--incremental")) {
-            const existing = await store.read(identity, metric);
-            const last = existing.filter((row) => row.value !== null).at(-1)?.date;
-            if (last) {
-              const date = new Date(last + "T00:00:00Z");
-              date.setUTCDate(date.getUTCDate() - 14);
-              collectionIdentity = {
-                ...identity,
-                request: {
-                  ...request,
-                  from:
-                    date.toISOString().slice(0, 10) > from ? date.toISOString().slice(0, 10) : from,
-                },
-              };
+          for (const metric of FLOW_METRICS) {
+            try {
+              const page = await client.page(KIWOOM_APIS[metric].id, kiwoomConditions(request, metric), signal);
+              const rows = page.body[KIWOOM_APIS[metric].array];
+              if (!Array.isArray(rows)) throw new KiwoomError("parsing", "Required response array missing");
+              const parsed = parseKiwoomRows(rows, metric, new Date().toISOString(), "real", request.flowScope);
+              const valid = parsed.observations.filter(row => row.value !== null);
+              if (metric !== "investmentTrust") primary[metric] = parsed.observations;
+              emit({ apiId: KIWOOM_APIS[metric].id, httpSuccess: true, businessSuccess: true,
+                rows: rows.length, validValues: valid.length, firstDate: valid[0]?.date ?? null, lastDate: valid.at(-1)?.date ?? null });
+              if (!valid.length) process.exitCode = 1;
+            } catch (error) {
+              const safe = safeKiwoomError(error);
+              emit({ apiId: KIWOOM_APIS[metric].id, status: safe.health, errorCode: safe.code });
+              process.exitCode = 1;
             }
           }
-          const maxPages = Number(args.get("--max-pages") ?? 25);
-          const budgetMs = Number(args.get("--budget-ms") ?? 45000);
-          if (
-            !Number.isInteger(maxPages) ||
-            maxPages < 1 ||
-            maxPages > 200 ||
-            !Number.isFinite(budgetMs) ||
-            budgetMs < 50 ||
-            budgetMs > 240000
-          )
-            throw new KiwoomError("configuration", "Invalid collection budget");
-          const job = await collectKiwoomMetric(store, client, collectionIdentity, metric, {
-            maxPages,
-            budgetMs,
-            resume: args.has("--resume"),
-          });
-          const rows = await store.read(identity, metric);
-          const valid = rows.filter((row) => row.value !== null);
-          const values = new Map(valid.map((row) => [row.date, row.value]));
-          const missingDates = expectedDates.filter((date) => !values.has(date));
-          // Record missing observed sessions with the job; absence of a calendar remains unknown.
-          const safeJob = { ...job, nextKey: undefined };
-          emit({
-            metric,
-            apiId: KIWOOM_APIS[metric].id,
-            status: job.status,
-            job: safeJob,
-            rows: rows.length,
-            validValues: valid.length,
-            from: valid[0]?.date ?? null,
-            to: valid.at(-1)?.date ?? null,
-            stored: rows.length > 0,
-            missingDates,
-            missingSessions: expectedDates.length ? missingDates.length : null,
-            calendarBasis: expectedDates.length
-              ? "observed daily price sessions"
-              : "UNVERIFIED; provide --calendar",
-            unit: metric === "investmentTrust" ? "주" : "%",
-            note:
-              instrument === "stock"
-                ? "Date basis/publication/finality unknown"
-                : "ETF/ETN support and share/unit interpretation require real response and HTS comparison",
-          });
-          if (
-            !job.complete ||
-            !valid.length ||
-            (job.status !== "ready" && job.status !== "history")
-          )
-            process.exitCode = 1;
+          if (args.has("--cross-check")) emit(await crossCheckKiwoom(client, request, primary));
+          return;
         }
-      }
-      if (args.has("--cross-check")) emit(await crossCheckKiwoom(client, request, primary));
+        const processIdentity = async (id, target = false) => {
+          if (target) await store.targets.start(id);
+          let complete = true, hasValues = true;
+          try {
+            for (const metric of FLOW_METRICS) {
+              const previous = await store.job(id, metric, true);
+              let collectionIdentity = id;
+              if (args.has("--incremental") && previous?.complete) {
+                const existing = await store.read(id, metric);
+                const last = existing.filter(row => row.value !== null).at(-1)?.date;
+                if (last) {
+                  const from = new Date(Date.parse(last) - 14 * 86400000).toISOString().slice(0, 10);
+                  collectionIdentity = { ...id, request: { ...id.request, from: from > id.request.from ? from : id.request.from } };
+                }
+              }
+              const job = await collectKiwoomMetric(store, client, collectionIdentity, metric, { maxPages, budgetMs, resume: target || args.has("--resume"), signal });
+              const rows = await store.read(id, metric);
+              const valid = rows.filter(row => row.value !== null);
+              complete &&= job.complete && ["ready", "history"].includes(job.status) && valid.length > 0;
+              hasValues &&= valid.length > 0;
+              emit({ metric, apiId: KIWOOM_APIS[metric].id, code: id.request.code, rows: rows.length, validValues: valid.length,
+                firstDate: valid[0]?.date ?? null, lastDate: valid.at(-1)?.date ?? null,
+                status: job.status, complete: job.complete, pages: job.pages, errorCode: job.errorCode,
+                providerReal: valid.length > 0 && valid.every(row => row.provider === "kiwoom" && row.environment === "real" && !row.derived) });
+            }
+          } catch (error) { complete = false; hasValues = false; throw error; }
+          finally { if (target) await store.targets.finish(id, complete, hasValues); }
+          if (!complete) process.exitCode = 1;
+        };
+        if (args.has("--targets")) {
+          await store.exclusive("collector-targets:" + identity.scopeId, async () => {
+            const pending = await store.targets.pending(identity.scopeId, config.environment, limit);
+            emit({ pendingTargets: pending.length, maxTargetsPerRun: limit });
+            for (const target of pending) {
+              const bounded = boundKiwoomTarget({ ...request, code: target.code, instrument: target.instrument,
+                flowScope: target.marketScope, from: target.requestedFrom, to: target.requestedTo });
+              await processIdentity({ ...identity, request: bounded }, true);
+            }
+          }, signal);
+        } else await processIdentity({ ...identity, request: boundKiwoomTarget(request) });
+      }, AbortSignal.timeout(30 * 60_000));
     }
   }
 } catch (error) {
   const safe = safeKiwoomError(error);
-  emit({ status: safe.status, health: safe.health, errorCode: safe.code, reason: safe.message });
+  emit({ status: safe.health, errorCode: safe.code, reason: safe.message });
   process.exitCode = 1;
-} finally {
-  await closeLocal();
-  if (lockFile) await unlink(lockFile).catch(() => {});
-}
-// Existing pg pool is process-scoped; allow its idle connections to close without printing secrets.
+} finally { await database?.close(); }

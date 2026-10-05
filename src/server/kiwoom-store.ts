@@ -8,6 +8,7 @@ import type {
 } from "../lib/charts/hts-flow.ts";
 import { KiwoomError } from "./kiwoom-config.ts";
 import { waitKiwoom, type KiwoomCoordination } from "./kiwoom-client.ts";
+import { createKiwoomTargets } from "./kiwoom-targets.ts";
 
 export interface FlowIdentity {
   scopeId: string;
@@ -42,11 +43,15 @@ export interface KiwoomFlowStore extends KiwoomCoordination {
   ): Promise<void>;
   job(identity: FlowIdentity, metric: FlowMetricId, exact?: boolean): Promise<KiwoomJob | null>;
   saveJob(identity: FlowIdentity, metric: FlowMetricId, job: KiwoomJob): Promise<void>;
+  targets: ReturnType<typeof createKiwoomTargets>;
+  hasOtherScope(identity: FlowIdentity, metric: FlowMetricId): Promise<boolean>;
+  copyLegacyScope(from: string, to: string, environment: string): Promise<number>;
 }
 export interface KiwoomSchemaStatus {
   observations: boolean;
   jobs: boolean;
   coordination: boolean;
+  targets: boolean;
   ready: boolean;
   migrationRecorded: boolean | null;
 }
@@ -56,11 +61,13 @@ export async function inspectKiwoomSchema(sql: Sql): Promise<KiwoomSchemaStatus>
     observations: boolean;
     jobs: boolean;
     coordination: boolean;
+    targets: boolean;
     migrations: boolean;
   }>(
     `select to_regclass('kiwoom_flow_observations') is not null as observations,
       to_regclass('kiwoom_flow_jobs') is not null as jobs,
       to_regclass('kiwoom_flow_coordination') is not null as coordination,
+      to_regclass('kiwoom_collection_targets') is not null as targets,
       to_regclass('_migrations') is not null as migrations`,
   );
   const migrationRecorded = row?.migrations
@@ -75,7 +82,8 @@ export async function inspectKiwoomSchema(sql: Sql): Promise<KiwoomSchemaStatus>
     observations: Boolean(row?.observations),
     jobs: Boolean(row?.jobs),
     coordination: Boolean(row?.coordination),
-    ready: Boolean(row?.observations && row.jobs && row.coordination),
+    targets: Boolean(row?.targets),
+    ready: Boolean(row?.observations && row.jobs && row.coordination && row.targets),
     migrationRecorded,
   };
 }
@@ -107,8 +115,27 @@ export function createKiwoomStore(sql: Sql): KiwoomFlowStore {
     identity.request.flowScope ?? "KRX",
     metric,
   ];
-  return {
+  const store = {
     schema: () => inspectKiwoomSchema(sql),
+    async hasOtherScope(identity, metric) {
+      const [row] = await sql.query<{ found: boolean }>(`select exists(select 1 from kiwoom_flow_observations
+        where scope_id<>$1 and provider='kiwoom' and environment=$2 and code=$3 and instrument=$4 and market_scope=$5 and metric=$6
+        and date >= $7::date and date <= $8::date and value is not null) as found`,
+        [...params(identity, metric), identity.request.from, identity.request.to]);
+      return Boolean(row?.found);
+    },
+    async copyLegacyScope(from, to, environment) {
+      if (from === to) return 0;
+      const rows = await sql.query(`insert into kiwoom_flow_observations
+        (scope_id,provider,environment,code,instrument,market_scope,metric,unit,date,value,observation,fetched_at,parsing_status)
+        select $2,provider,environment,code,instrument,market_scope,metric,unit,date,value,observation,fetched_at,parsing_status
+        from kiwoom_flow_observations where scope_id=$1 and environment=$3
+        on conflict(scope_id,provider,environment,code,instrument,market_scope,metric,unit,date)
+        do update set value=excluded.value,observation=excluded.observation,fetched_at=excluded.fetched_at,parsing_status=excluded.parsing_status
+        where excluded.fetched_at>=kiwoom_flow_observations.fetched_at and (excluded.value is not null or kiwoom_flow_observations.value is null)
+        returning date`, [from, to, environment]);
+      return rows.length;
+    },
     async read(identity, metric) {
       const rows = await sql.query<{ observation: FlowObservation }>(
         `select observation from kiwoom_flow_observations
@@ -248,5 +275,7 @@ export function createKiwoomStore(sql: Sql): KiwoomFlowStore {
         [`cached-token:${key}`, value?.encrypted ?? null, value?.expires ?? null],
       );
     },
-  };
+  } as KiwoomFlowStore;
+  store.targets = createKiwoomTargets(sql, store.exclusive);
+  return store;
 }

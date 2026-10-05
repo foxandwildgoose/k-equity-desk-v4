@@ -9,7 +9,7 @@ export type FlowCapability =
   | "unknown";
 export type FlowStatus = "disabled" | "configuration" | "authentication" | "access" | "ip-check" | "rate-limit" | "timeout" | "network" | "parsing" | "history" | "collecting" | "ready" | "unsupported" | "storage";
 /** Safe operational state; independent from value availability and partial coverage. */
-export type KiwoomHealthStatus = "DISABLED" | "CREDENTIALS_MISSING" | "OWNER_AUTH_FAILED" | "DATABASE_MISSING" | "DATABASE_SCHEMA_MISSING" | "DATABASE_FAILED" | "EXPECTED_IP_MISSING" | "IP_MISMATCH" | "IP_UNVERIFIED" | "TOKEN_FAILED" | "API_FAILED" | "PARSING_FAILED" | "NO_HISTORY" | "READY" | "PARTIAL" | "COLLECTING" | "RATE_LIMIT" | "CONFIGURATION_FAILED";
+export type KiwoomHealthStatus = "DISABLED" | "CREDENTIALS_MISSING" | "OWNER_AUTH_FAILED" | "DATABASE_MISSING" | "DATABASE_SCHEMA_MISSING" | "DATABASE_FAILED" | "EXPECTED_IP_MISSING" | "IP_MISMATCH" | "IP_UNVERIFIED" | "TOKEN_FAILED" | "API_FAILED" | "PARSING_FAILED" | "NO_HISTORY" | "READY" | "PARTIAL" | "COLLECTING" | "RATE_LIMIT" | "CONFIGURATION_FAILED" | "DATA_SCOPE_MISMATCH" | "COLLECTION_QUEUED" | "DEPLOYMENT_REVISION_MISMATCH" | "PRODUCT_TYPE_UNKNOWN";
 export const KIWOOM_HEALTH_LABELS: Record<KiwoomHealthStatus, string> = {
   DISABLED: "키움 수집 비활성", CREDENTIALS_MISSING: "키움 인증정보 미설정",
   OWNER_AUTH_FAILED: "소유자 인증 필요", DATABASE_MISSING: "DB 미설정",
@@ -20,6 +20,32 @@ export const KIWOOM_HEALTH_LABELS: Record<KiwoomHealthStatus, string> = {
   NO_HISTORY: "제공 이력 없음 · 상품 지원 미확인", READY: "키움 데이터 수신·저장됨",
   PARTIAL: "키움 이력 일부 확보", COLLECTING: "키움 수집 중/대기",
   RATE_LIMIT: "키움 호출 제한", CONFIGURATION_FAILED: "키움 서버 설정 확인 필요",
+  DATA_SCOPE_MISMATCH: "다른 저장 범위에 이력 존재", COLLECTION_QUEUED: "키움 수집 예약됨",
+  DEPLOYMENT_REVISION_MISMATCH: "배포 버전 불일치", PRODUCT_TYPE_UNKNOWN: "상품 유형 미확인",
+};
+export const KIWOOM_NEXT_STEPS: Record<KiwoomHealthStatus, string> = {
+  DISABLED: "실행 서버에 KIWOOM_FLOW_ENABLED=true를 설정하세요.",
+  DATABASE_MISSING: "수집기와 웹앱에 동일한 영속 PostgreSQL을 설정하세요.",
+  DATABASE_SCHEMA_MISSING: "공유 DB에 npm run db:migrate를 명시적으로 실행하세요.",
+  DATABASE_FAILED: "공유 PostgreSQL 연결과 서버 접근 권한을 확인하세요.",
+  DATA_SCOPE_MISMATCH: "두 프로세스의 KIWOOM_DATA_SCOPE_ID를 맞추거나 기존 범위를 이관하세요.",
+  OWNER_AUTH_FAILED: "실제 소유자로 로그인하고 서버의 소유자 설정을 확인하세요.",
+  CREDENTIALS_MISSING: "등록 IP 수집기에 App Key와 App Secret을 비공개로 주입하세요.",
+  EXPECTED_IP_MISSING: "수집기에 KIWOOM_EXPECTED_EGRESS_IP를 설정하세요.",
+  IP_MISMATCH: "키움에 등록된 공인 IP에서 수집기를 실행하거나 허용 IP를 갱신하세요.",
+  IP_UNVERIFIED: "수집기의 IP 확인 서비스 연결을 복구한 뒤 재검사하세요.",
+  TOKEN_FAILED: "실전 환경과 인증정보를 확인하고 등록 IP에서 토큰 검증을 실행하세요.",
+  API_FAILED: "수집기의 안전한 API 오류코드와 조회 권한을 확인하세요.",
+  PARSING_FAILED: "수집기의 실제 응답 유효 필드·날짜 검사 결과를 확인하세요.",
+  NO_HISTORY: "등록 IP 수집기를 실행하세요. 대기열이 가득 차면 운영자가 대상 목록을 점검하세요.",
+  COLLECTION_QUEUED: "등록 IP 수집기로 대기 대상을 수집하세요.",
+  COLLECTING: "수집기가 저장 중입니다. 완료 후 상태를 새로고침하세요.",
+  PARTIAL: "수집기를 다시 실행하여 부족한 구간을 재개하세요.",
+  READY: "표시 기준일을 저장된 실제 관측일과 대조하세요.",
+  RATE_LIMIT: "다른 키움 소비 프로세스를 확인하고 제한 해제 후 재개하세요.",
+  CONFIGURATION_FAILED: "서버의 환경·모드·범위 설정을 확인하세요.",
+  DEPLOYMENT_REVISION_MISMATCH: "현재 main 버전을 배포하고 표시된 짧은 SHA를 대조하세요.",
+  PRODUCT_TYPE_UNKNOWN: "상품 메타데이터를 재조회하거나 검증된 종목/ETF 경로에서 여세요.",
 };
 export function kiwoomHealthFor(status: FlowStatus, validValues = 0): KiwoomHealthStatus {
   const states: Partial<Record<FlowStatus, KiwoomHealthStatus>> = {

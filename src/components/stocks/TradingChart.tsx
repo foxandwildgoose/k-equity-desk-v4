@@ -4,6 +4,7 @@ import type { Market } from "@/data/types";
 import type { ChartInterval, MinuteSize } from "@/server/naver-market";
 import { useAnalysisChartData } from "@/lib/charts/use-analysis-chart-data";
 import { useChartSecurity } from "@/lib/charts/use-chart-security";
+import { resolveChartProduct } from "@/lib/charts/product-resolution";
 import { chartLayoutScope } from "@/lib/charts/security";
 import { formatPrice, formatUsd } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -106,8 +107,8 @@ export function TradingChart({
 }) {
   const isUs = market === "US";
   const mk: "KR" | "US" = isUs ? "US" : "KR";
-  const security = useChartSecurity(code, mk);
-  const product = instrument ?? security.data?.instrument;
+  const security = useChartSecurity(code, mk, instrument);
+  const product = resolveChartProduct(instrument, security.data).instrument;
   const layoutScope = chartLayoutScope("detail");
   const px = (n: number) => (isUs ? formatUsd(n) : formatPrice(n));
   const navigate = useNavigate();
@@ -235,6 +236,12 @@ export function TradingChart({
   return (
     <div className="desk-card desk-card-navy overflow-hidden">
       <ChartViewBar view={view} onChange={setView} />
+      {!product && mk === "KR" && !security.isPending && (
+        <div role="status" className="flex items-center gap-2 border-b border-border px-3 py-2 text-xs text-muted-foreground">
+          <span>PRODUCT_TYPE_UNKNOWN · 상품 유형 미확인으로 키움 조회를 보류합니다.</span>
+          <button type="button" disabled={security.isFetching} onClick={() => void security.refetch()} className="rounded border border-border px-2 py-1 disabled:opacity-50">상품 유형 다시 확인</button>
+        </div>
+      )}
       <div className={view === "price" ? "contents" : "hidden"} aria-hidden={view !== "price"}>
         <ProChart
           code={isUs ? code.toUpperCase() : code}

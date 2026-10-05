@@ -1,5 +1,5 @@
 import { HTS_PANEL_ORDER, type HtsPanel } from "./hts-settings.ts";
-import { FLOW_STATUS_LABELS, KIWOOM_HEALTH_LABELS, type AlignedFlowMetric, type AlignedFlowPoint, type FlowMetric } from "./hts-flow.ts";
+import { FLOW_STATUS_LABELS, KIWOOM_HEALTH_LABELS, type AlignedFlowMetric, type AlignedFlowPoint, type FlowMetric, type FlowObservation } from "./hts-flow.ts";
 
 /** Extra oscillators preserve the six required panes' relative order; volume stays last. */
 export function htsPaneIndices(extraCount = 0): Record<HtsPanel, number> {
@@ -150,6 +150,23 @@ export function changedHtsPanelHeights(
     if (persisted !== saved[id]) { next[id] = persisted; changed = true; }
   }
   return changed ? next : null;
+}
+
+/** Summary fallback never changes the chart's dated points or a historical hover. */
+export function htsFlowSummaryPoint(metric: FlowMetric, aligned: AlignedFlowMetric, date: string, hovering: boolean, daily = true): AlignedFlowPoint | undefined {
+  const exact = aligned.points.find(point => point.date === date);
+  if (hovering || exact?.value != null || !["available", "partial"].includes(aligned.capability)) return exact;
+  const real = (rows: FlowObservation[]) => rows.length > 0 && rows.every(row => row.provider === "kiwoom" && row.environment === "real");
+  const previous = aligned.points.filter(point => point.date <= date && point.value != null && real(point.observations)).at(-1);
+  if (previous) return { ...previous, reason: `최신 가격일 ${date} 자료 미공표/미수집 · 최근 실제 관측값` };
+  // Daily raw quantities/ratios can be summarized even if that provider date is
+  // absent from price bars. Cumulative/period sums must retain their coverage rules.
+  if (daily) {
+    const row = metric.observations.filter(row => row.date <= date && row.value != null && real([row])).at(-1);
+    if (row) return { date: row.date, value: row.value, asOf: row.asOf, observations: [row], partial: true,
+      reason: `최신 가격일 ${date} 자료 미공표/미수집 · 최근 실제 관측값` };
+  }
+  return exact;
 }
 
 /** A hovered missing observation cannot inherit the provider's latest as-of. */

@@ -1,0 +1,43 @@
+{
+  "flowEnabled": false,
+  "environment": "real",
+  "mode": "collector",
+  "appKeyConfigured": false,
+  "appSecretConfigured": false,
+  "credentialsRequired": false,
+  "databaseConfigured": false,
+  "expectedEgressIpConfigured": false,
+  "ownerConfigured": false,
+  "authenticationEnabled": false,
+  "authenticationReady": false,
+  "authEnabled": false,
+  "authReady": false,
+  "dataScopeConfigured": true,
+  "ownerAuthorizationRequired": false,
+  "readAuthRequired": false,
+  "deploymentRevision": null,
+  "deploymentStatus": "DEPLOYMENT_NOT_VERIFIED",
+  "expectedEgressConfigured": false,
+  "status": "DISABLED",
+  "databaseConnected": false,
+  "schemaReady": false,
+  "dataScopeMatched": false,
+  "schema": null,
+  "egressStatus": "NOT_REQUIRED",
+  "tokenStatus": "NOT_REQUIRED",
+  "apis": {
+    "ka10013": "NOT_TESTED",
+    "ka10008": "NOT_TESTED",
+    "ka10059": "NOT_TESTED"
+  },
+  "latestStored": {
+    "credit": null,
+    "foreign": null,
+    "investmentTrust": null
+  },
+  "metrics": {},
+  "issues": [
+    "DISABLED",
+    "DATABASE_MISSING"
+  ]
+}

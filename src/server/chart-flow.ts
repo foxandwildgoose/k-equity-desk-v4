@@ -10,6 +10,8 @@ import {
 import { validateFlowRequest } from "./chart-flow-request.ts";
 import {
   assertKiwoomOwner,
+  assertKiwoomReadAccess,
+  kiwoomDataScope,
   checkKiwoomEgress,
   credentialsStatus,
   KiwoomError,
@@ -19,7 +21,8 @@ import {
 } from "./kiwoom-config.ts";
 import { createKiwoomClient, detachedWait, KIWOOM_APIS } from "./kiwoom-client.ts";
 import { collectKiwoomMetric, type KiwoomClient } from "./kiwoom-flow.ts";
-import { createKiwoomStore, type FlowIdentity, type KiwoomFlowStore } from "./kiwoom-store.ts";
+import { type FlowIdentity, type KiwoomFlowStore } from "./kiwoom-store.ts";
+import { getKiwoomStore } from "./kiwoom-db.ts";
 
 export { validateFlowRequest } from "./chart-flow-request.ts";
 export function unavailableKiwoomFlow(request: FlowRequest, error: KiwoomError): FlowResponse {
@@ -54,11 +57,11 @@ export function createChartFlowService(
   async function run(
     request: FlowRequest,
     config: KiwoomConfig,
-    userId: string,
+    userId?: string | null,
   ): Promise<FlowResponse> {
     const store = await (options.store
       ? options.store()
-      : import("../lib/db.ts").then(async ({ getSql }) => createKiwoomStore(await getSql())));
+      : getKiwoomStore());
     if (!(await store.schema()).ready)
       throw new KiwoomError(
         "storage",
@@ -67,7 +70,7 @@ export function createChartFlowService(
         0,
         "DATABASE_SCHEMA_MISSING",
       );
-    const identity: FlowIdentity = { scopeId: userId, environment: config.environment, request };
+    const identity: FlowIdentity = { scopeId: kiwoomDataScope(config), environment: config.environment, request };
     let client: KiwoomClient | null = null;
     let directError: KiwoomError | null = null;
     if (config.mode === "direct") {
@@ -129,7 +132,11 @@ export function createChartFlowService(
               error = safeKiwoomError(raw);
             }
           }
-          const observations = await store.read(identity, metric);
+          let observations = await store.read(identity, metric);
+          // Explicit server-only compatibility setting; never derive a data scope from login.
+          if (!observations.length && config.legacyDataScopeId)
+            observations = await store.read({ ...identity, scopeId: config.legacyDataScopeId }, metric);
+          const scopeMismatch = !observations.length && await store.hasOtherScope(identity, metric);
           const valid = observations.filter((row) => row.value !== null);
           const validDates = new Set(valid.map((row) => row.date));
           const missingDates =
@@ -157,7 +164,7 @@ export function createChartFlowService(
             "repeated-cursor": "동일 연속조회 키 반복 · 조회 중단",
             collecting: "수집 중",
           };
-          const reason =
+          const reason = scopeMismatch ? "DATA_SCOPE_MISMATCH · 수집기/웹 저장 범위를 맞추거나 기존 범위를 이관하세요" :
             error?.message ??
             (job
               ? (stopLabels[job.stopReason] ?? job.stopReason)
@@ -172,7 +179,7 @@ export function createChartFlowService(
             providedTo: valid.at(-1)?.date ?? null,
             status: error?.status ?? job?.status ?? "collecting",
             health:
-              error?.health ??
+              error?.health ?? (scopeMismatch ? "DATA_SCOPE_MISMATCH" :
               (valid.length && job && ["ready", "history"].includes(job.status)
                 ? stale ||
                   !job.complete ||
@@ -180,7 +187,7 @@ export function createChartFlowService(
                   missingDates?.length
                   ? "PARTIAL"
                   : "READY"
-                : kiwoomHealthFor(job?.status ?? "collecting", valid.length)),
+                : kiwoomHealthFor(job?.status ?? "history", valid.length))),
             stale,
             lastSuccessAt: job?.lastSuccessAt ?? null,
             capability: valid.length
@@ -218,6 +225,24 @@ export function createChartFlowService(
         }
       }),
     );
+    if (config.mode === "collector" && FLOW_METRICS.some(id => response[id].stale || !response[id].observations.length)) {
+      let enqueueAllowed = !config.targetAuthRequired;
+      if (!enqueueAllowed) {
+        try { assertKiwoomOwner(config, userId); enqueueAllowed = true; } catch { /* Read remains public. */ }
+      }
+      if (enqueueAllowed && !FLOW_METRICS.some(id => response[id].health === "DATA_SCOPE_MISMATCH")) {
+        try {
+          const queued = await store.targets.enqueue(identity);
+          for (const id of FLOW_METRICS) {
+            if (!response[id].observations.length) response[id].health = queued;
+            response[id].reason += queued === "NO_HISTORY" ? " · 수집 대상 상한 도달 · 운영자 확인 필요" : " · 등록 IP 수집기 대기";
+          }
+        } catch {
+          // A queue failure must not erase already persisted market observations.
+          for (const id of FLOW_METRICS) response[id].reason += " · 수집 예약 실패 · 운영자 DB 상태 확인 필요";
+        }
+      }
+    }
     response.stale = FLOW_METRICS.some((id) => response[id].stale);
     return response;
   }
@@ -233,7 +258,7 @@ export function createChartFlowService(
     try {
       const config = (options.config ?? readKiwoomConfig)();
       if (!config.enabled) throw new KiwoomError("disabled", "키움 수집 비활성 · 서버 설정 필요");
-      const userId = assertKiwoomOwner(config, verifiedUserId);
+      assertKiwoomReadAccess(config, verifiedUserId);
       if (!config.databaseConfigured)
         throw new KiwoomError(
           "storage",
@@ -246,12 +271,15 @@ export function createChartFlowService(
         "kiwoom-only-v1",
         config.environment,
         config.mode,
-        userId,
+        kiwoomDataScope(config),
+        config.legacyDataScopeId,
+        // Sharing an in-flight result must not share enqueue authorization.
+        verifiedUserId ?? null,
         request,
       ]);
       let promise = inflight.get(key);
       if (!promise) {
-        promise = run(request, config, userId).finally(() => {
+        promise = run(request, config, verifiedUserId).finally(() => {
           inflight.delete(key);
         });
         inflight.set(key, promise);

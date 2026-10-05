@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { HistogramSeries, LineSeries, LineStyle, type IChartApi, type ISeriesApi, type Time } from "lightweight-charts";
 import { rsiWithSignal } from "@/lib/chart-indicators";
 import { HTS_PANEL_ORDER, HTS_PANEL_LABELS, type HtsPanel, type HtsSettings } from "@/lib/charts/hts-settings";
-import { changedHtsPanelHeights, contiguousHtsLineRuns, htsFlowPointDetails, htsPaneIndices, htsVolumeAverage, prepareHtsIndicatorHistory } from "@/lib/charts/hts-layout";
+import { changedHtsPanelHeights, contiguousHtsLineRuns, htsFlowPointDetails, htsFlowSummaryPoint, htsPaneIndices, htsVolumeAverage, prepareHtsIndicatorHistory } from "@/lib/charts/hts-layout";
 import type { AlignedFlowMetric, FlowCapability, FlowMetricId, FlowResponse } from "@/lib/charts/hts-flow";
 import type { OhlcBar } from "@/server/naver-market";
 import type { ChartTheme } from "@/components/charts/core/theme";
@@ -264,8 +264,9 @@ export function useHtsPanes(options: {
     if (id === "price") return { id, title: "가격·매물대", unit: "", value: number(bars[at]?.close), status: options.profileDescription, asOf: day, source: options.source };
     if (id === "volume") return { id, title: "거래량", unit: options.quantityUnit, value: number(bars[at]?.volumeValid === false ? null : bars[at]?.volume, 0),
       status: `SMA ${[5, 20, 60].filter((n) => settings.volumeMa[n as 5 | 20 | 60]).join("/")} · 최근 봉은 장중·기간 중 미완성 가능`, asOf: day, source: options.source };
-    const point = aligned[id].points.find((p) => p.date === day.slice(0, 10));
     const metric = flow[id];
+    const point = htsFlowSummaryPoint(metric, aligned[id], day.slice(0, 10), hoverIndex !== null,
+      id !== "investmentTrust" || settings.trustMode === "daily");
     const title = id === "investmentTrust" ? settings.trustMode !== "daily" ? `투신 누적순매수 · ${settings.trustMode === "available-cumulative" ? "가용 시작" : "기준"} ${options.effectiveTrustStart || settings.trustStartDate || "확인 중"}` : "투신 일별 순매수" : HTS_PANEL_LABELS[id].replace(/\s*\(%\)$/, "");
     const details = htsFlowPointDetails(metric, aligned[id], point, flow.fetchedAt, flow.stale);
     return { id, title, unit: metric.unit, value: number(point?.value, id === "investmentTrust" ? 0 : 2),
@@ -275,7 +276,7 @@ export function useHtsPanes(options: {
     if (!enabled) return;
     for (const item of summaries) captions.current.get(item.id)?.set({
       title: item.title, unit: item.unit, status: settings.collapsed[item.id] ? "접힘" : item.status,
-      hover: settings.collapsed[item.id] ? undefined : `${day || "날짜 미확인"} · ${item.value}`,
+      hover: settings.collapsed[item.id] ? undefined : `${item.asOf || "날짜 미확인"} · ${item.value}`,
       asOf: item.asOf, source: item.source, color: theme.text, mutedColor: theme.muted, backgroundColor: theme.card,
     });
     // Captions are lightweight; no indicator/profile calculation runs on pointer movement.

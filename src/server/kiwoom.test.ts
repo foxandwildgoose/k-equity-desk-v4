@@ -33,11 +33,16 @@ import {
   type FlowRequest,
 } from "../lib/charts/hts-flow.ts";
 import type { Sql } from "../lib/db.ts";
+import { kiwoomDataScope } from "./kiwoom-config.ts";
+import { diagnoseKiwoomRuntime } from "./kiwoom-runtime.ts";
+import { boundKiwoomTarget, KIWOOM_TARGET_LIMIT } from "./kiwoom-targets.ts";
+import { htsFlowSummaryPoint } from "../lib/charts/hts-layout.ts";
+import { resolveChartProduct } from "../lib/charts/product-resolution.ts";
 
-const schema = await readFile(
+const schema = (await readFile(
   new URL("../../migrations/0002_kiwoom_flow.sql", import.meta.url),
   "utf8",
-);
+)) + "\n" + await readFile(new URL("../../migrations/0003_kiwoom_collection_targets.sql", import.meta.url), "utf8");
 const pg = new PGlite();
 await pg.waitReady;
 await pg.exec(schema);
@@ -56,6 +61,7 @@ const config: KiwoomConfig = {
   requestsPerSecond: 2,
   expectedEgressIp: "192.0.2.1",
   ownerUserId: "fixture-owner",
+  dataScopeId: "fixture-owner",
   databaseConfigured: true,
 };
 const request: FlowRequest = {
@@ -183,9 +189,9 @@ test("read-only diagnostics gate stored rows and distinguish every missing confi
   );
   assert.deepEqual(disabled.issues, [
     "DISABLED",
+    "DATABASE_MISSING",
     "CREDENTIALS_MISSING",
     "EXPECTED_IP_MISSING",
-    "DATABASE_MISSING",
     "OWNER_AUTH_FAILED",
   ]);
   assert.equal(reads, 0);
@@ -210,6 +216,7 @@ test("read-only diagnostics gate stored rows and distinguish every missing confi
     {
       ...config,
       ownerUserId: diagnosticOwner,
+      dataScopeId: diagnosticOwner,
       mode: "collector",
       appKey: undefined,
       appSecret: undefined,
@@ -241,6 +248,7 @@ test("schema inspection reports missing/applied tables without creating them or 
       observations: false,
       jobs: false,
       coordination: false,
+      targets: false,
       ready: false,
       migrationRecorded: null,
     });
@@ -362,7 +370,7 @@ test("same-page invalid duplicate never erases valid zero or signed net sells", 
 
 test("005930 mocked OAuth/API/persistence/collector response reaches all frontend modes without ka10015", async () => {
   const owner = "integration-owner-" + ++serial;
-  const cfg = { ...config, ownerUserId: owner, appKey: "integration-key-" + ++serial };
+  const cfg = { ...config, ownerUserId: owner, dataScopeId: "integration-market-" + serial, appKey: "integration-key-" + ++serial };
   let apiCalls = 0;
   const service = createChartFlowService({
     config: () => cfg,
@@ -424,7 +432,7 @@ test("005930 mocked OAuth/API/persistence/collector response reaches all fronten
 test("direct mode revalidates egress before every operation despite a previous match", async () => {
   let checks = 0;
   let clients = 0;
-  const cfg = { ...config, ownerUserId: "repeat-ip-" + ++serial };
+  const cfg = { ...config, ownerUserId: "repeat-ip-" + ++serial, dataScopeId: "repeat-market-" + serial };
   const service = createChartFlowService({
     config: () => cfg,
     store: async () => store,
@@ -503,9 +511,8 @@ test("egress distinguishes matched, mismatched, unknown and unset without creden
     ["192.0.2.2", "IP_MISMATCH"],
   ] as const) {
     const value = await checkKiwoomEgress("192.0.2.1", (async (url, init) => {
-      assert.equal(url, "https://api.ipify.org?format=json");
       assert.equal(new Headers(init?.headers).get("authorization"), null);
-      return ok({ ip });
+      return String(url).includes("ipify") ? ok({ ip }) : new Response(ip + "\n");
     }) as typeof fetch);
     assert.equal(value.status, status);
   }
@@ -1022,7 +1029,7 @@ test("stored history survives closing/reopening an independent persistent test b
   await disk.close();
   await rm(dir, { recursive: true, force: true });
 });
-test("collector reads existing history without keys, IP probes or client creation; unauthorized reads denied", async () => {
+test("private collector reads existing history without keys or broker/IP calls; explicit private-read rejects visitors", async () => {
   const id = {
     scopeId: config.ownerUserId!,
     environment: "real" as const,
@@ -1036,7 +1043,7 @@ test("collector reads existing history without keys, IP probes or client creatio
   );
   let clients = 0;
   const service = createChartFlowService({
-    config: () => ({ ...config, mode: "collector", appKey: undefined, appSecret: undefined }),
+    config: () => ({ ...config, mode: "collector", readAuthRequired: true, appKey: undefined, appSecret: undefined }),
     store: async () => store,
     client: () => {
       clients++;
@@ -1117,7 +1124,7 @@ test("real/mock token namespaces and safe result metadata do not mix", async () 
 });
 test("a wider requested history collects immediately and an IP change creates a separate client", async () => {
   const id = identity();
-  const cfg = { ...config, ownerUserId: id.scopeId, appKey: "wider-history-" + ++serial };
+  const cfg = { ...config, ownerUserId: id.scopeId, dataScopeId: id.scopeId, appKey: "wider-history-" + ++serial };
   const clientIps: Array<string | undefined> = [];
   let pages = 0;
   const service = createChartFlowService({
@@ -1251,4 +1258,162 @@ test("empty ETF responses and malformed grouping remain unknown/partial, never u
     assert.notEqual(response[metric].capability, "not-supported");
     assert.equal(response[metric].status, "history");
   }
+});
+
+test("public collector read survives auth off and differing user IDs, with zero broker construction/IP probes", async () => {
+  const dataScopeId = "public-market-" + ++serial;
+  const cfg = { ...config, mode: "collector" as const, authEnabled: false, authenticationReady: false, dataScopeId,
+    ownerUserId: undefined, appKey: undefined, appSecret: undefined };
+  const id = { scopeId: dataScopeId, environment: "real" as const, request: { ...request, code: "005931" } };
+  for (const metric of FLOW_METRICS)
+    await store.upsert(id, metric, parseKiwoomRows(fixtureRows(metric, "20260903", metric === "investmentTrust" ? "-85000" : "52.61"), metric, new Date().toISOString(), "real", "KRX").observations);
+  const service = createChartFlowService({ config: () => cfg, store: async () => store,
+    client: () => { throw Error("collector constructed a broker client"); },
+    checkEgress: async () => { throw Error("collector probed external IP"); } });
+  const [visitor, differentLogin] = await Promise.all([service(id.request, undefined, null), service(id.request, undefined, "different-user")]);
+  for (const metric of FLOW_METRICS) assert.deepEqual(visitor[metric].observations, differentLogin[metric].observations);
+  assert.equal(visitor.investmentTrust.observations[0]?.value, -85000);
+  assert.equal(kiwoomDataScope(cfg), dataScopeId);
+  const diagnostic = await diagnoseKiwoom(cfg, id.request, null, {
+    store: async () => { throw Error("public diagnostic opened operational DB"); },
+    checkEgress: async () => { throw Error("public diagnostic probed IP"); },
+  });
+  assert.equal(Object.keys(diagnostic.metrics).length, 0);
+  assert.equal(diagnostic.ownerAuthorizationRequired, false);
+});
+
+test("direct web access with auth disabled cannot reach DB, OAuth, IP or API even with owner ID", async () => {
+  const service = createChartFlowService({ config: () => ({ ...config, authEnabled: false }),
+    store: async () => { throw Error("auth-off direct accessed DB"); },
+    client: () => { throw Error("auth-off direct created client"); },
+    checkEgress: async () => { throw Error("auth-off direct probed IP"); } });
+  assert.equal((await service(request, undefined, config.ownerUserId)).credit.health, "OWNER_AUTH_FAILED");
+});
+
+test("different market scope is explicit; additive legacy copy preserves rows and can be rerun", async () => {
+  const id = identity();
+  await store.upsert(id, "foreign", parseKiwoomRows(fixtureRows("foreign"), "foreign", new Date().toISOString(), "real", "KRX").observations);
+  const dataScopeId = "destination-" + ++serial;
+  const req = id.request;
+  const cfg = { ...config, mode: "collector" as const, dataScopeId, authEnabled: false };
+  const service = createChartFlowService({ config: () => cfg, store: async () => store });
+  assert.equal((await service(req)).foreign.health, "DATA_SCOPE_MISMATCH");
+  const compatible = createChartFlowService({ config: () => ({ ...cfg, legacyDataScopeId: id.scopeId }), store: async () => store });
+  assert.equal((await compatible(req)).foreign.observations.length, 1);
+  await store.copyLegacyScope(id.scopeId, dataScopeId, "real");
+  await store.copyLegacyScope(id.scopeId, dataScopeId, "real");
+  assert.equal((await store.read(id, "foreign")).length, 1, "owner-scoped data is retained");
+  assert.equal((await service(req)).foreign.observations.length, 1, "shared scope is readable");
+});
+
+test("bounded target is deduplicated under concurrent reads and processing keeps expansions pending", async () => {
+  const id = identity();
+  await Promise.all(Array.from({ length: 5 }, () => store.targets.enqueue(id)));
+  const [count] = await sqlFor(pg).query<{ n: number }>("select count(*)::int as n from kiwoom_collection_targets where scope_id=$1", [id.scopeId]);
+  assert.equal(count.n, 1);
+  assert.equal((await store.targets.pending(id.scopeId, "real")).length, 1);
+  await store.targets.start(id);
+  await store.targets.enqueue({ ...id, request: { ...id.request, from: "2026-08-01" } });
+  await store.targets.finish(id, true, true);
+  const [row] = await sqlFor(pg).query<{ state: string; due: boolean }>("select state,next_due_at>clock_timestamp() as due from kiwoom_collection_targets where scope_id=$1", [id.scopeId]);
+  assert.equal(row.state, "partial");
+  assert.equal(row.due, true);
+  assert.equal((await store.targets.pending(id.scopeId, "real")).length, 0, "repeated reads do not bypass refresh spacing");
+});
+
+test("target range clamps to five years/current Seoul day and rejects US/invalid instruments", () => {
+  const wide = boundKiwoomTarget({ ...request, from: "2010-01-01", to: "2029-01-01" }, Date.parse("2026-10-05T00:00:00Z"));
+  assert.equal(wide.to, "2026-10-05");
+  assert.equal((Date.parse(wide.to) - Date.parse(wide.from)) / 86400000, 1830);
+  assert.throws(() => boundKiwoomTarget({ ...request, code: "../005930" }));
+  assert.throws(() => boundKiwoomTarget({ ...request, market: "US", code: "AAPL" }));
+});
+
+test("target cap includes completed records so arbitrary public requests cannot create unlimited work", async () => {
+  const id = identity();
+  await pg.query(`insert into kiwoom_collection_targets(scope_id,environment,code,instrument,market_scope,requested_from,requested_to,state)
+    select $1,'real',lpad(n::text,6,'0'),'stock','KRX','2026-09-01','2026-09-03','ready' from generate_series(1,$2) n`, [id.scopeId, KIWOOM_TARGET_LIMIT]);
+  assert.equal(await store.targets.enqueue(id), "NO_HISTORY");
+});
+
+test("latest summary shows real dated provider values while hovered missing day and chart remain empty", () => {
+  const req = { ...request, from: "2026-10-01", to: "2026-10-02", expectedDailyDates: ["2026-10-01", "2026-10-02"] };
+  const response = emptyChartFlow(req);
+  for (const metric of FLOW_METRICS) response[metric] = { ...response[metric], capability: "partial",
+    observations: parseKiwoomRows(fixtureRows(metric, "20261001", metric === "investmentTrust" ? "-85000" : "52.61"), metric, "2026-10-02T00:00:00Z", "real", "KRX").observations };
+  const aligned = alignChartFlow(response, { dates: req.expectedDailyDates, interval: "day", cumulativeStart: req.from, investmentTrustMode: "daily" });
+  for (const metric of FLOW_METRICS) {
+    const point = htsFlowSummaryPoint(response[metric], aligned[metric], "2026-10-02", false);
+    assert.equal(point?.asOf, "2026-10-01");
+    assert.equal(point?.value, metric === "investmentTrust" ? -85000 : 52.61);
+    assert.match(point?.reason ?? "", /최근 실제 관측값/);
+    assert.equal(htsFlowSummaryPoint(response[metric], aligned[metric], "2026-10-02", true)?.value, null);
+    assert.equal(aligned[metric].points.at(-1)?.value, null, "no copied value on latest price date");
+  }
+  const mock = { ...response.foreign, observations: response.foreign.observations.map(row => ({ ...row, environment: "mock" as const })) };
+  assert.equal(htsFlowSummaryPoint(mock, { ...aligned.foreign, points: [] }, "2026-10-02", false), undefined);
+});
+
+test("validated stock/ETF route product survives remote failure; ambiguous codes remain explicitly unknown", async () => {
+  const remote = await Promise.reject(new Error("remote metadata offline")).catch(() => null);
+  assert.deepEqual(resolveChartProduct("stock", remote), { instrument: "stock", status: "RESOLVED" });
+  assert.deepEqual(resolveChartProduct("etf", remote), { instrument: "etf", status: "RESOLVED" });
+  assert.deepEqual(resolveChartProduct(undefined, remote), { instrument: undefined, status: "PRODUCT_TYPE_UNKNOWN" });
+});
+
+test("two agreeing egress sources required; disagreement/IPv6/one-source results fail closed", async () => {
+  for (const replies of [
+    ["192.0.2.1", "192.0.2.2", "192.0.2.1"],
+    ["192.0.2.1", null, null],
+    ["::1", "::1", "::1"],
+  ]) {
+    let n = 0;
+    const result = await checkKiwoomEgress("192.0.2.1", async (url, init) => {
+      assert.equal(new Headers(init?.headers).get("authorization"), null);
+      const ip = replies[n++];
+      return !ip ? new Response("", { status: 503 }) : String(url).includes("ipify") ? ok({ ip }) : new Response(ip);
+    });
+    assert.equal(result.status, "IP_UNVERIFIED");
+  }
+});
+
+test("shared doctor reports config safely, build SHA is short and revision disagreement explicit", async () => {
+  const cfg = readKiwoomConfig({ KIWOOM_FLOW_ENABLED: "true", KIWOOM_FLOW_MODE: "collector", VITE_AUTH_ENABLED: "false",
+    KIWOOM_BUILD_SHA: "abcdef0123456789abcdef0123456789abcdef01", KIWOOM_EXPECTED_REVISION: "1234567",
+    KIWOOM_APP_KEY: "never-print-key", KIWOOM_APP_SECRET: "never-print-secret", DATABASE_URL: "postgres://never-print-db",
+    KIWOOM_OWNER_USER_ID: "never-print-owner" });
+  const result = await diagnoseKiwoomRuntime(cfg, request, { inspectOperational: false });
+  assert.equal(result.deploymentRevision, "abcdef0");
+  assert.equal(result.status, "DEPLOYMENT_REVISION_MISMATCH");
+  assert.equal(result.authEnabled, false);
+  assert.equal(result.credentialsRequired, false);
+  for (const secret of ["never-print-key", "never-print-secret", "never-print-db", "never-print-owner"])
+    assert.equal(JSON.stringify(result).includes(secret), false);
+  assert.equal(readKiwoomConfig({}).mode, "collector");
+});
+
+test("operator doctor distinguishes queued work and stored API errors without new API requests", async () => {
+  const id = { ...identity(), request: { ...request, code: "908001" } };
+  await store.targets.enqueue(id);
+  const cfg = { ...config, mode: "collector" as const, dataScopeId: id.scopeId };
+  const diagnostic = () => diagnoseKiwoomRuntime(cfg, id.request, { inspectOperational: true,
+    store: async () => store, checkEgress: async () => { throw Error("collector probed IP"); } });
+  assert.equal((await diagnostic()).status, "COLLECTION_QUEUED");
+  await store.saveJob(id, "credit", { status: "network", stopReason: "request-error", pages: 1, rows: 0,
+    invalidRows: 0, oldestDate: null, newestDate: null, nextKey: null, complete: false,
+    updatedAt: new Date().toISOString(), lastSuccessAt: null, errorCode: 999 });
+  assert.equal((await diagnostic()).status, "API_FAILED");
+});
+
+test("owner-only target enqueue never prevents public stored reads", async () => {
+  const id = { ...identity(), request: { ...request, code: "908002" } };
+  const cfg = { ...config, mode: "collector" as const, dataScopeId: id.scopeId, targetAuthRequired: true,
+    authEnabled: false, authenticationReady: false };
+  const service = createChartFlowService({ config: () => cfg, store: async () => store,
+    client: () => { throw Error("collector called broker"); } });
+  const result = await service(id.request);
+  assert.equal(result.credit.health, "NO_HISTORY");
+  assert.equal(await store.targets.state(id), null);
+  await store.upsert(id, "foreign", parseKiwoomRows(fixtureRows("foreign"), "foreign", new Date().toISOString(), "real", "KRX").observations);
+  assert.equal((await service(id.request)).foreign.observations.length, 1);
 });

@@ -1,5 +1,6 @@
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
+import { execFileSync } from "node:child_process";
 import type { Plugin } from "vite";
 import { defineConfig } from "vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
@@ -146,6 +147,14 @@ function authPopupPlugin(): Plugin {
 // The dev server starts once `src/router.tsx` and `src/routes/` exist — see
 // AGENTS.md § "First scaffold".
 export default defineConfig(({ command, isPreview }) => ({
+  define: {
+    "process.env.KIWOOM_BUILD_SHA": JSON.stringify((() => {
+      const platform = process.env.VERCEL_GIT_COMMIT_SHA ?? process.env.KIWOOM_BUILD_SHA;
+      if (platform && /^[a-f0-9]{7,40}$/i.test(platform)) return platform;
+      try { return execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(); }
+      catch { return ""; }
+    })()),
+  },
   server: {
     host: "0.0.0.0",
     port: 8080,

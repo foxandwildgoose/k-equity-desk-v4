@@ -259,7 +259,7 @@ function StockPage() {
       <TradingChart
         code={meta.code}
         market={meta.market}
-        instrument={security.data?.instrument}
+        instrument={uni ? "stock" : security.data?.instrument}
         name={meta.nameKo}
         eventMarkers={(disclosures ?? []).map((d) => ({
           time: d.datetime?.slice(0, 10) ?? "",

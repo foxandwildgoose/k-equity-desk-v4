@@ -1,0 +1,50 @@
+{
+  "timestamp": "2026-10-05",
+  "baselineCommit": "2266d0f671391d5fe51211c6c2b6a6b151abb6a9",
+  "localChangesOnlyAtVerification": true,
+  "syntheticTestsAreRealEvidence": false,
+  "codeChecks": {
+    "typecheck": true,
+    "kiwoomTests": {
+      "pass": 47,
+      "fail": 0
+    },
+    "allTests": {
+      "pass": 604,
+      "fail": 0,
+      "skipped": 0
+    },
+    "lint": {
+      "errors": 0,
+      "warnings": 56
+    },
+    "buildBundle": true
+  },
+  "realEvidence": {
+    "flowEnabled": false,
+    "credentialsConfigured": false,
+    "databaseConnected": false,
+    "schemaReady": false,
+    "dataScopeMatched": false,
+    "ownerAuthorizationRequired": false,
+    "egressMatched": false,
+    "egressCheck": "NOT_TESTED",
+    "oauthSucceeded": false,
+    "oauth": "NOT_TESTED",
+    "ka10013RealRows": "NOT_TESTED",
+    "ka10008RealRows": "NOT_TESTED",
+    "ka10059RealRows": "NOT_TESTED",
+    "persistentDatabaseRealRows": "NOT_TESTED",
+    "webDatabaseRead": "NOT_VERIFIED",
+    "chartRealValues": "NOT_VERIFIED",
+    "deployedRevision": "NOT_VERIFIED"
+  },
+  "gate1": "DISABLED/DATABASE_MISSING",
+  "gate2": "NOT_TESTED",
+  "gate3": "NOT_TESTED",
+  "gate4": "NOT_TESTED",
+  "gate5": "NOT_TESTED",
+  "gate6": "NOT_TESTED",
+  "deploymentStatus": "DEPLOYMENT_NOT_VERIFIED",
+  "finalStatus": "CODE_READY_REAL_DATA_NOT_VERIFIED"
+}

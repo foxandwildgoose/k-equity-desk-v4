@@ -48,7 +48,7 @@ test("CLI sync rejects implicit live calls before IP check/auth/DB work", () => 
     KIWOOM_FLOW_ENABLED: "true",
   });
   assert.equal(result.status, 1);
-  assert.equal(JSON.parse(result.stdout).status, "configuration");
+  assert.equal(JSON.parse(result.stdout).status, "CONFIGURATION_FAILED");
   assert.match(result.stdout, /explicit --live/);
 });
 test("collector config does not require broker keys and database check does not migrate or call APIs", () => {
@@ -63,22 +63,27 @@ test("collector config does not require broker keys and database check does not 
   assert.equal(flags.appSecretConfigured, false);
   const missing = run(["verify", "--check-database"]);
   assert.equal(missing.status, 1);
-  assert.equal(JSON.parse(missing.stdout).health, "DATABASE_MISSING");
+  assert.ok(JSON.parse(missing.stdout).issues.includes("DATABASE_MISSING"));
   const cross = run(["verify", "--cross-check"]);
   assert.equal(cross.status, 1);
   assert.match(cross.stdout, /verify --live/);
   const dates = ["--code", "005930", "--from", "2026-09-01", "--to", "2026-10-02"];
   const disabled = run(["verify", "--live", ...dates]);
-  assert.equal(JSON.parse(disabled.stdout).health, "DISABLED");
+  assert.equal(JSON.parse(disabled.stdout).status, "DISABLED");
   const secretMissing = run(["verify", "--live", ...dates], {
     KIWOOM_FLOW_ENABLED: "true",
+    KIWOOM_FLOW_MODE: "direct",
     KIWOOM_APP_KEY: "fixture-cli-key",
   });
-  assert.equal(JSON.parse(secretMissing.stdout).health, "CREDENTIALS_MISSING");
+  assert.equal(JSON.parse(secretMissing.stdout).status, "CREDENTIALS_MISSING");
   const databaseMissing = run(["verify", "--read-stored", ...dates], {
     KIWOOM_OWNER_USER_ID: "fixture-owner",
   });
-  assert.equal(JSON.parse(databaseMissing.stdout).health, "DATABASE_MISSING");
-  const devOwner = run(["sync", "--live", ...dates], { KIWOOM_OWNER_USER_ID: "dev-user" });
-  assert.equal(JSON.parse(devOwner.stdout).health, "OWNER_AUTH_FAILED");
+  assert.equal(JSON.parse(databaseMissing.stdout).status, "DATABASE_MISSING");
+  // Local collector authority is the OS operator, not a fabricated browser login.
+  const localOperator = run(["sync", "--live", ...dates], {
+    KIWOOM_FLOW_ENABLED: "true", KIWOOM_FLOW_MODE: "direct",
+    KIWOOM_APP_KEY: "fixture-cli-key", KIWOOM_APP_SECRET: "fixture-cli-secret",
+  });
+  assert.equal(JSON.parse(localOperator.stdout).status, "DATABASE_MISSING");
 });

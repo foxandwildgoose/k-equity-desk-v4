@@ -2,11 +2,11 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { fetchChartFlow } from "@/server/chart-flow";
-import { kiwoomAccessMiddleware } from "@/lib/auth/kiwoom-middleware";
+import { kiwoomMarketReadMiddleware } from "@/lib/auth/kiwoom-middleware";
 
 // Daily calendar dates belong in the body; a long GET URL exceeds production header limits.
 export const getChartFlow = createServerFn({ method: "POST" })
-  .middleware([kiwoomAccessMiddleware])
+  .middleware([kiwoomMarketReadMiddleware])
   .validator(
     z.object({
       code: z.string().trim().min(1).max(15),

@@ -17,6 +17,19 @@ export interface KiwoomConfig {
   databaseConfigured: boolean;
   authEnabled?: boolean;
   authenticationReady?: boolean;
+  dataScopeId?: string;
+  legacyDataScopeId?: string;
+  readAuthRequired?: boolean;
+  targetAuthRequired?: boolean;
+  deploymentRevision?: string | null;
+  expectedRevision?: string | null;
+}
+export const DEFAULT_KIWOOM_DATA_SCOPE = "market-global-v1";
+export function kiwoomDataScope(config: KiwoomConfig): string {
+  return config.dataScopeId ?? DEFAULT_KIWOOM_DATA_SCOPE;
+}
+export function shortKiwoomRevision(value: string | undefined): string | null {
+  return value && /^[a-f0-9]{7,40}$/i.test(value) ? value.slice(0, 7).toLowerCase() : null;
 }
 export type CredentialsStatus =
   | "CREDENTIALS_CONFIGURED"
@@ -39,10 +52,14 @@ export function readKiwoomConfig(
 ): KiwoomConfig {
   const value = (key: string) => env[key]?.trim() || undefined;
   const environment = value("KIWOOM_ENV") ?? "real";
-  const mode = value("KIWOOM_FLOW_MODE") ?? "direct";
+  const mode = value("KIWOOM_FLOW_MODE") ?? "collector";
   const requestsPerSecond = Number(value("KIWOOM_REQUESTS_PER_SECOND") ?? 2);
   const enabled = value("KIWOOM_FLOW_ENABLED") ?? "false";
   const expectedEgressIp = value("KIWOOM_EXPECTED_EGRESS_IP");
+  const dataScopeId = value("KIWOOM_DATA_SCOPE_ID") ?? DEFAULT_KIWOOM_DATA_SCOPE;
+  const legacyDataScopeId = value("KIWOOM_LEGACY_DATA_SCOPE_ID");
+  const readAuth = value("KIWOOM_READ_AUTH_REQUIRED") ?? "false";
+  const targetAuth = value("KIWOOM_TARGET_AUTH_REQUIRED") ?? "false";
   if (
     !["real", "mock"].includes(environment) ||
     !["direct", "collector"].includes(mode) ||
@@ -50,7 +67,11 @@ export function readKiwoomConfig(
     !Number.isFinite(requestsPerSecond) ||
     requestsPerSecond <= 0 ||
     requestsPerSecond > 2 ||
-    (expectedEgressIp && isIP(expectedEgressIp) !== 4)
+    (expectedEgressIp && isIP(expectedEgressIp) !== 4) ||
+    !/^[A-Za-z0-9_-]{1,128}$/.test(dataScopeId) ||
+    (legacyDataScopeId && !/^[A-Za-z0-9_-]{1,128}$/.test(legacyDataScopeId)) ||
+    !["true", "false"].includes(readAuth) ||
+    !["true", "false"].includes(targetAuth)
   )
     throw new KiwoomError("configuration", "키움 환경/모드/속도/IP 설정 오류");
   return {
@@ -62,6 +83,14 @@ export function readKiwoomConfig(
     requestsPerSecond,
     expectedEgressIp,
     ownerUserId: value("KIWOOM_OWNER_USER_ID"),
+    dataScopeId,
+    legacyDataScopeId,
+    readAuthRequired: readAuth === "true",
+    targetAuthRequired: targetAuth === "true",
+    // Build injection is used when the runtime platform does not supply its SHA.
+    deploymentRevision: shortKiwoomRevision(value("VERCEL_GIT_COMMIT_SHA") ?? value("KIWOOM_BUILD_SHA") ??
+      (env === process.env ? process.env.KIWOOM_BUILD_SHA : undefined)),
+    expectedRevision: shortKiwoomRevision(value("KIWOOM_EXPECTED_REVISION")),
     databaseConfigured: Boolean(value("DATABASE_URL")),
     authEnabled: value("VITE_AUTH_ENABLED") !== "false",
     // Never accept the preview's ephemeral session secret on a deployed broker path.
@@ -118,6 +147,10 @@ export function assertKiwoomOwner(
     );
   return verifiedUserId;
 }
+/** Public market reads are independent of login; direct broker access never is. */
+export function assertKiwoomReadAccess(config: KiwoomConfig, userId?: string | null): void {
+  if (config.mode === "direct" || config.readAuthRequired) assertKiwoomOwner(config, userId);
+}
 /** Explicit allowlist of booleans and enums. Never spread the runtime config into responses. */
 export function safeKiwoomConfig(config: KiwoomConfig) {
   return {
@@ -132,6 +165,15 @@ export function safeKiwoomConfig(config: KiwoomConfig) {
     ownerConfigured: Boolean(config.ownerUserId),
     authenticationEnabled: config.authEnabled !== false,
     authenticationReady: config.authenticationReady !== false,
+    authEnabled: config.authEnabled !== false,
+    authReady: config.authenticationReady !== false,
+    dataScopeConfigured: Boolean(kiwoomDataScope(config)),
+    ownerAuthorizationRequired: config.mode === "direct" || Boolean(config.readAuthRequired),
+    readAuthRequired: Boolean(config.readAuthRequired),
+    deploymentRevision: config.deploymentRevision ?? null,
+    deploymentStatus: config.expectedRevision && config.deploymentRevision && config.expectedRevision !== config.deploymentRevision
+      ? "DEPLOYMENT_REVISION_MISMATCH" : "DEPLOYMENT_NOT_VERIFIED",
+    expectedEgressConfigured: Boolean(config.expectedEgressIp),
   };
 }
 export type EgressStatus = "IP_MATCH" | "IP_MISMATCH" | "IP_UNVERIFIED" | "EXPECTED_IP_MISSING";
@@ -141,18 +183,23 @@ export async function checkKiwoomEgress(
   fetcher: typeof fetch = fetch,
 ): Promise<{ status: EgressStatus; observedIp: string | null }> {
   if (!expected) return { status: "EXPECTED_IP_MISSING", observedIp: null };
-  try {
-    const response = await fetcher("https://api.ipify.org?format=json", {
+  const services = ["https://api.ipify.org?format=json", "https://checkip.amazonaws.com", "https://icanhazip.com"] as const;
+  const observations = await Promise.all(services.map(async (url) => {
+    try {
+    const response = await fetcher(url, {
       redirect: "error",
       signal: AbortSignal.timeout(5_000),
-      headers: { accept: "application/json" },
+      headers: { accept: "application/json,text/plain" },
     });
-    if (!response.ok) return { status: "IP_UNVERIFIED", observedIp: null };
-    const body = (await response.json()) as { ip?: unknown };
-    if (typeof body.ip !== "string" || isIP(body.ip) !== 4)
-      return { status: "IP_UNVERIFIED", observedIp: null };
-    return { status: body.ip === expected ? "IP_MATCH" : "IP_MISMATCH", observedIp: body.ip };
-  } catch {
-    return { status: "IP_UNVERIFIED", observedIp: null };
-  }
+    if (!response.ok) return null;
+    const raw = await response.text();
+    if (raw.length > 1024) return null;
+    const body = url.includes("ipify") ? JSON.parse(raw).ip : raw.trim();
+    return typeof body === "string" && isIP(body) === 4 ? body : null;
+    } catch { return null; }
+  }));
+  const valid = observations.filter((ip): ip is string => ip !== null);
+  // Two independent observations are required; any disagreement fails closed.
+  if (valid.length < 2 || new Set(valid).size !== 1) return { status: "IP_UNVERIFIED", observedIp: null };
+  return { status: valid[0] === expected ? "IP_MATCH" : "IP_MISMATCH", observedIp: valid[0]! };
 }

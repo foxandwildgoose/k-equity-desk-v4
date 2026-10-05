@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { UserButton } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { getKiwoomDiagnostics } from "@/lib/kiwoom-diagnostic-fns";
-import { KIWOOM_HEALTH_LABELS } from "@/lib/charts/hts-flow";
+import { KIWOOM_HEALTH_LABELS, KIWOOM_NEXT_STEPS } from "@/lib/charts/hts-flow";
 
 export const Route = createFileRoute("/status/kiwoom")({ component: KiwoomStatus });
 function KiwoomStatus() {
@@ -43,10 +43,14 @@ function KiwoomStatus() {
           <p data-testid="kiwoom-health" className="text-sm font-semibold">
             {KIWOOM_HEALTH_LABELS[data.status]} · {data.mode} · {data.environment}
           </p>
+          <p className="text-sm" data-testid="kiwoom-next-step">{KIWOOM_NEXT_STEPS[data.status]}</p>
+          <p className="text-sm text-muted-foreground" data-testid="kiwoom-revision">
+            실행 버전 {data.deploymentRevision ?? "미확인"} · {data.deploymentStatus}
+          </p>
           <ul className="space-y-1 text-sm">
             {data.issues.map((issue) => (
               <li key={issue}>
-                {KIWOOM_HEALTH_LABELS[issue]} ({issue})
+                {KIWOOM_HEALTH_LABELS[issue]} ({issue}) · {KIWOOM_NEXT_STEPS[issue]}
               </li>
             ))}
           </ul>
@@ -62,6 +66,8 @@ function KiwoomStatus() {
               "인증 활성": data.authenticationEnabled,
               "인증 서버 준비": data.authenticationReady,
               "소유자 세션 확인": data.ownerAuthorized,
+              "시장자료 범위 설정": data.dataScopeConfigured,
+              "자료 읽기 로그인 필요": data.ownerAuthorizationRequired,
             }).map(([label, configured]) => (
               <div key={label}>
                 <dt className="text-muted-foreground">{label}</dt>
@@ -76,6 +82,7 @@ function KiwoomStatus() {
               <dt>토큰 확인</dt>
               <dd>{data.tokenStatus}</dd>
             </div>
+            {!data.ownerAuthorized && <p className="text-muted-foreground">상세 DB·수집 진단은 소유자 로그인 후 확인할 수 있습니다. 공개 시장자료 읽기 권한과 별개입니다.</p>}
           </dl>
           {data.ownerAuthorized && (
             <div className="overflow-x-auto rounded-xl border border-border">

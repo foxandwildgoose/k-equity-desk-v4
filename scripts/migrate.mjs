@@ -2,15 +2,15 @@
 /**
  * Deploy-time database migrator (node-postgres, `pg`).
  *
- * Runs during `npm run build` — on every Vercel deploy — applying pending files
+ * Runs only with explicit `npm run db:migrate`, applying pending files
  * in ../migrations to DATABASE_URL. Each file is applied in one transaction and
  * recorded in a `_migrations` table, so it runs once and is safe to re-run.
  *
  * The read is non-recursive, so the opt-in auth schema under migrations/auth/
  * is not applied to an app that never asked for sign-in.
  *
- * No DATABASE_URL (local / preview builds) -> skip; the PGLite fallback applies
- * the same files at startup instead (see src/lib/db.ts).
+ * Missing DATABASE_URL -> fail explicitly. Kiwoom never uses PGlite as an
+ * operational substitute. Ordinary bundling does not run this command.
  */
 import { readdir, readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
@@ -21,9 +21,9 @@ import { pendingMigrations } from "./migration-plan.mjs";
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
   console.log(
-    "[migrate] DATABASE_URL not set — skipping (the PGLite fallback migrates itself).",
+    "[migrate] DATABASE_MISSING — explicit persistent PostgreSQL URL required.",
   );
-  process.exit(0);
+  process.exit(1);
 }
 
 const migrationsDir = join(dirname(fileURLToPath(import.meta.url)), "..", "migrations");
@@ -42,7 +42,7 @@ async function main() {
     return;
   }
 
-  const pool = new pg.Pool({ connectionString: databaseUrl, max: 1 });
+  const pool = new pg.Pool({ connectionString: databaseUrl, max: 1, connectionTimeoutMillis: 5000 });
   const client = await pool.connect();
   try {
     await client.query(
@@ -81,10 +81,8 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error("[migrate] failed:", err?.message || err);
+  console.error("[migrate] failed; check connection/schema with operator diagnostics.");
   // pg errors carry the context needed to debug a bad SQL file.
-  for (const key of ["code", "detail", "hint", "position", "where"]) {
-    if (err?.[key] != null) console.error(`[migrate]   ${key}: ${err[key]}`);
-  }
+  if (typeof err?.code === "string" && /^[A-Z0-9]{5}$/.test(err.code)) console.error(`[migrate] code: ${err.code}`);
   process.exit(1);
 });

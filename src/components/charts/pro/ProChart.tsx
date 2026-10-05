@@ -693,7 +693,7 @@ export function ProChart(props: ProChartProps) {
     expectedDailyDates: (props.profileBars ?? (interval === "day" ? props.indicatorBars ?? rawBars : [])).map((b) => b.date.slice(0, 10)) }),
   [code, market, instrument, props.exchange, currency, quantityUnit, hts.trustStartDate, rawBars, interval, props.profileBars, props.indicatorBars]);
   const flowQuery = useChartFlow(flowRequest, htsEnabled && Boolean(props.instrument) && htsLoaded === scopeKey && Boolean(hts.trustStartDate));
-  const flow = useMemo(() => flowQuery.data ?? emptyChartFlow(flowRequest, flowQuery.isError ? "데이터 요청 실패 · 재시도 필요" : props.instrument ? "데이터 확인 중" : "상품 유형 확인 중"), [flowQuery.data, flowQuery.isError, flowRequest, props.instrument]);
+  const flow = useMemo(() => flowQuery.data ?? emptyChartFlow(flowRequest, flowQuery.isError ? "데이터 요청 실패 · 재시도 필요" : props.instrument ? "데이터 확인 중" : "PRODUCT_TYPE_UNKNOWN · 상품 유형 미확인 · 메타데이터 재조회 필요"), [flowQuery.data, flowQuery.isError, flowRequest, props.instrument]);
   const effectiveTrustStart = useMemo(() => hts.trustMode === "available-cumulative"
     ? availableFlowStart(flow, (props.profileBars ?? (interval === "day" ? props.indicatorBars ?? rawBars : [])).map((b) => b.date.slice(0, 10)), hts.trustStartDate) ?? hts.trustStartDate
     : hts.trustStartDate, [flow, hts.trustMode, hts.trustStartDate, props.profileBars, props.indicatorBars, interval, rawBars]);
