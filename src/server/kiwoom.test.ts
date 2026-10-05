@@ -172,7 +172,9 @@ test("read-only diagnostics gate stored rows and distinguish every missing confi
     "another-user",
     options,
   );
-  assert.equal(unauthorized.status, "OWNER_AUTH_FAILED");
+  assert.equal(unauthorized.status, "PUBLIC_READ_CONFIGURED");
+  assert.equal(unauthorized.marketReadAccess, "PUBLIC_READ_ALLOWED");
+  assert.equal(unauthorized.operationalDetailsAccess, "OWNER_LOGIN_REQUIRED");
   assert.equal(Object.keys(unauthorized.metrics).length, 0);
   assert.equal(reads, 0);
   const disabled = await diagnoseKiwoom(

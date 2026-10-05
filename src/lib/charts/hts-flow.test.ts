@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   alignChartFlow,
+  availableFlowStart,
   datedRatio,
   emptyChartFlow,
   flowRequestKey,
@@ -218,12 +219,24 @@ test("partial weekly net sum is null while raw daily values and last valid ratio
   const a=alignChartFlow(r,{...daily,dates:["2026-09-01"],expectedDailyDates:daily.dates,interval:"week",investmentTrustMode:"daily"});
   assert.equal(a.investmentTrust.points[0]?.value,null);assert.equal(a.foreign.points[0]?.value,6);assert.equal(r.investmentTrust.observations.length,2);
 });
-test("available continuous segment is opt-in and exposes a different actual origin", () => {
+test("available continuous segment exposes its actual origin while fixed cumulative preserves its origin", () => {
   const r=response([["2026-09-01",100],["2026-09-03",6]]);
   assert.deepEqual(alignChartFlow(r,{...daily,investmentTrustMode:"cumulative"}).investmentTrust.points.map(p=>p.value),[100,null,null]);
   assert.deepEqual(alignChartFlow(r,{...daily,investmentTrustMode:"available-cumulative"}).investmentTrust.points.map(p=>p.value),[null,null,6]);
   r.investmentTrust.observations[1]!.value=12;
   assert.equal(alignChartFlow(r,{...daily,investmentTrustMode:"available-cumulative"}).investmentTrust.points[2]?.value,12);
+});
+
+test("available cumulative exposes provider coverage start, keeps signed and zero values, and leaves latest missing null", () => {
+  // Synthetic observations, not broker/live verification evidence.
+  const r = response([["2025-10-10", 100], ["2025-10-13", 0], ["2025-10-14", -40]]);
+  const dates = ["2024-10-02", "2025-10-10", "2025-10-13", "2025-10-14", "2025-10-15"];
+  const options = { dates, expectedDailyDates: dates, interval: "day" as const, cumulativeStart: "2024-10-02" };
+  assert.equal(availableFlowStart(r, dates, options.cumulativeStart), "2025-10-10");
+  assert.deepEqual(alignChartFlow(r, { ...options, investmentTrustMode: "available-cumulative" }).investmentTrust.points.map(point => point.value), [null, 100, 100, 60, null]);
+  assert.deepEqual(alignChartFlow(r, { ...options, investmentTrustMode: "cumulative" }).investmentTrust.points.map(point => point.value), [null, null, null, null, null]);
+  assert.deepEqual(alignChartFlow(r, { ...options, investmentTrustMode: "daily" }).investmentTrust.points.map(point => point.value), [null, 100, 0, -40, null]);
+  assert.deepEqual(r.investmentTrust.observations.map(point => point.value), [100, 0, -40], "display modes never overwrite daily source observations");
 });
 test("a gap in an earlier month does not hide a complete daily-net sum in the next month", () => {
   const r = response([["2026-09-01", 10], ["2026-09-03", 6], ["2026-10-01", 12], ["2026-10-02", -4]]);

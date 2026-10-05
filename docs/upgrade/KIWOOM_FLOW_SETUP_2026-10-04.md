@@ -10,7 +10,7 @@
 
 사용자는 App Key와 App Secret을 **모두 수령**했고 두 파일을 제공했습니다. 첨부를 읽는 격리된 검사 프로세스에서 파일 검증 및 `CREDENTIALS_CONFIGURED`를 확인했습니다. 이는 키 쌍의 유효성·실전/모의 구분·토큰 발급 성공을 뜻하지 않습니다. 실행 중인 웹 서버에 변수가 자동 전달되지 않습니다. 첨부 파일 경로는 앱에 하드코딩하지 않습니다.
 
-등록 IP로 제공된 주소는 `220.72.76.41`입니다. Codex에서 외부 IP 확인은 네트워크 프록시 403으로 `IP_UNVERIFIED`입니다. 키움 인증 요청은 실행하지 않았습니다. 자세한 결과는 [검증 기록](KIWOOM_FLOW_VERIFICATION.md)을 참조하세요.
+등록 IP로 제공된 주소는 `<REGISTERED_KIWOOM_IPV4>`입니다. Codex에서 외부 IP 확인은 네트워크 프록시 403으로 `IP_UNVERIFIED`입니다. 키움 인증 요청은 실행하지 않았습니다. 자세한 결과는 [검증 기록](KIWOOM_FLOW_VERIFICATION.md)을 참조하세요.
 
 ## 서버 환경변수
 
@@ -22,7 +22,7 @@ KIWOOM_APP_SECRET=<비공개 App Secret>
 KIWOOM_ENV=real
 KIWOOM_FLOW_ENABLED=true
 KIWOOM_FLOW_MODE=direct
-KIWOOM_EXPECTED_EGRESS_IP=220.72.76.41
+KIWOOM_EXPECTED_EGRESS_IP=<REGISTERED_KIWOOM_IPV4>
 KIWOOM_REQUESTS_PER_SECOND=2
 KIWOOM_OWNER_USER_ID=<기존 로그인에서 검증된 소유자의 user.id>
 DATABASE_URL=<공유 영속 PostgreSQL 연결 문자열>
@@ -53,7 +53,7 @@ npm ci
 $env:KIWOOM_ENV = 'real'
 $env:KIWOOM_FLOW_ENABLED = 'true'
 $env:KIWOOM_FLOW_MODE = 'direct'
-$env:KIWOOM_EXPECTED_EGRESS_IP = '220.72.76.41'
+$env:KIWOOM_EXPECTED_EGRESS_IP = '<REGISTERED_KIWOOM_IPV4>'
 $env:KIWOOM_REQUESTS_PER_SECOND = '2'
 npm run verify:kiwoom -- --check-config
 ```
@@ -138,7 +138,7 @@ npm run verify:kiwoom -- --read-stored --code 005930 --instrument stock `
 
 ### A. 현재 권장: 고정 IP 수집기 + PostgreSQL + Vercel
 
-`허용 IP PC/NAS → 키움 REST API → 공유 PostgreSQL → Vercel 웹앱 → 차트`입니다. 일반 Vercel Hobby 함수가 사용자의 등록 IP `220.72.76.41`에서 통신한다고 가정하지 않습니다.
+`허용 IP PC/NAS → 키움 REST API → 공유 PostgreSQL → Vercel 웹앱 → 차트`입니다. 일반 Vercel Hobby 함수가 사용자의 등록 IP `<REGISTERED_KIWOOM_IPV4>`에서 통신한다고 가정하지 않습니다.
 
 | 변수 | Vercel 웹앱 | 허용 IP 수집기 |
 | --- | --- | --- |
@@ -148,7 +148,7 @@ npm run verify:kiwoom -- --read-stored --code 005930 --instrument stock `
 | `DATABASE_URL` | 동일 PostgreSQL, 비공개 | 동일 PostgreSQL, 비공개 |
 | `KIWOOM_OWNER_USER_ID` | 검증된 본인 계정 ID | 동일 ID |
 | `KIWOOM_APP_KEY/SECRET` | 필요 없음 | 지정 파일로 비공개 주입 |
-| `KIWOOM_EXPECTED_EGRESS_IP` | 필요 없음 | 실제 등록 IP (`220.72.76.41`인 환경 우선) |
+| `KIWOOM_EXPECTED_EGRESS_IP` | 필요 없음 | 실제 등록 IP (`<REGISTERED_KIWOOM_IPV4>`인 환경 우선) |
 | `KIWOOM_REQUESTS_PER_SECOND` | 기본 2 | `2` |
 | 인증 설정 | 앞 절의 실제 로그인/세션 설정 | 로컬 OS 실행자 권한; 웹 로그인 토큰 불필요 |
 
@@ -164,7 +164,7 @@ npm run verify:kiwoom -- --read-stored --code 005930 --instrument stock `
 pwsh -NoProfile -File .\scripts\Run-KiwoomCollector.ps1 `
   -AppKeyPath '<App Key 파일 경로>' -AppSecretPath '<App Secret 파일 경로>' `
   -DatabaseUrlPath '<비공개 PostgreSQL URL 한 줄 파일 경로>' `
-  -OwnerUserId '<검증된 user.id>' -ExpectedEgressIp '220.72.76.41' `
+  -OwnerUserId '<검증된 user.id>' -ExpectedEgressIp '<REGISTERED_KIWOOM_IPV4>' `
   -FromDate '2025-10-02' -Symbols 'stock:005930','stock:403870','etf:069500' `
   -RepeatEverySeconds 600
 ```

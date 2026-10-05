@@ -7,6 +7,15 @@ import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { getKiwoomDiagnostics } from "@/lib/kiwoom-diagnostic-fns";
 import { KIWOOM_HEALTH_LABELS, KIWOOM_NEXT_STEPS } from "@/lib/charts/hts-flow";
 
+const DIAGNOSTIC_STATUS_LABELS = {
+  ...KIWOOM_HEALTH_LABELS,
+  PUBLIC_READ_CONFIGURED: "공개 시장자료 읽기 설정됨",
+};
+const DIAGNOSTIC_NEXT_STEPS = {
+  ...KIWOOM_NEXT_STEPS,
+  PUBLIC_READ_CONFIGURED: "차트는 로그인 없이 저장된 키움 시장자료를 읽을 수 있습니다. 이 진단에서는 DB 연결·저장 이력을 점검하지 않았습니다.",
+};
+
 export const Route = createFileRoute("/status/kiwoom")({ component: KiwoomStatus });
 function KiwoomStatus() {
   const { user } = useCurrentUserState();
@@ -26,7 +35,7 @@ function KiwoomStatus() {
       <PageHeader
         kicker="Kiwoom · Read-only diagnostics"
         title="키움 연결 상태"
-        lead="설정 여부와 저장된 삼성전자 이력을 점검합니다. 토큰 발급·수집·DB 마이그레이션은 실행하지 않습니다."
+        lead="공개 시장자료 읽기 설정과 소유자 전용 운영 진단을 구분합니다. 저장 이력 점검은 소유자만 가능하며, 토큰 발급·수집·DB 마이그레이션은 실행하지 않습니다."
         aside={user && !user.isDevFallback ? <UserButton /> : undefined}
       />
       <div className="flex flex-wrap gap-2">
@@ -41,9 +50,26 @@ function KiwoomStatus() {
       {data && (
         <>
           <p data-testid="kiwoom-health" className="text-sm font-semibold">
-            {KIWOOM_HEALTH_LABELS[data.status]} · {data.mode} · {data.environment}
+            {DIAGNOSTIC_STATUS_LABELS[data.status]} · {data.mode} · {data.environment}
           </p>
-          <p className="text-sm" data-testid="kiwoom-next-step">{KIWOOM_NEXT_STEPS[data.status]}</p>
+          <p className="text-sm" data-testid="kiwoom-next-step">
+            {DIAGNOSTIC_NEXT_STEPS[data.status]}
+          </p>
+          <dl className="grid gap-3 rounded-xl border border-border bg-card p-4 text-sm sm:grid-cols-2">
+            <div data-testid="kiwoom-market-read-access">
+              <dt className="text-muted-foreground">시장자료 읽기 권한</dt>
+              <dd className="font-semibold">
+                {data.marketReadAccess === "PUBLIC_READ_ALLOWED" ? "공개 읽기 허용 · 로그인 불필요"
+                  : data.marketReadAccess === "OWNER_READ_ALLOWED" ? "소유자 읽기 허용" : "소유자 로그인 필요"}
+              </dd>
+            </div>
+            <div data-testid="kiwoom-operator-access">
+              <dt className="text-muted-foreground">상세 운영 진단 권한</dt>
+              <dd className="font-semibold">
+                {data.operationalDetailsAccess === "OWNER_ALLOWED" ? "소유자 확인됨" : "소유자 로그인 필요"}
+              </dd>
+            </div>
+          </dl>
           <p className="text-sm text-muted-foreground" data-testid="kiwoom-revision">
             실행 버전 {data.deploymentRevision ?? "미확인"} · {data.deploymentStatus}
           </p>
@@ -75,6 +101,16 @@ function KiwoomStatus() {
               </div>
             ))}
             <div>
+              <dt>DB 연결 확인</dt>
+              <dd data-testid="kiwoom-database-inspection">
+                {!data.ownerAuthorized || !data.databaseConfigured ? "미점검" : data.databaseConnected ? "연결됨" : "연결 실패"}
+              </dd>
+            </div>
+            <div>
+              <dt>DB 스키마 확인</dt>
+              <dd>{data.schema ? data.schemaReady ? "준비됨" : "마이그레이션 필요" : "미점검"}</dd>
+            </div>
+            <div>
               <dt>출발 IP 확인</dt>
               <dd>{data.egressStatus}</dd>
             </div>
@@ -82,7 +118,9 @@ function KiwoomStatus() {
               <dt>토큰 확인</dt>
               <dd>{data.tokenStatus}</dd>
             </div>
-            {!data.ownerAuthorized && <p className="text-muted-foreground">상세 DB·수집 진단은 소유자 로그인 후 확인할 수 있습니다. 공개 시장자료 읽기 권한과 별개입니다.</p>}
+            {!data.ownerAuthorized && <div className="text-muted-foreground sm:col-span-2">
+              상세 DB·수집 진단은 소유자 로그인 후 확인할 수 있습니다. DB 연결·스키마·이력은 미점검이며, 공개 시장자료 읽기 권한과 별개입니다.
+            </div>}
           </dl>
           {data.ownerAuthorized && (
             <div className="overflow-x-auto rounded-xl border border-border">

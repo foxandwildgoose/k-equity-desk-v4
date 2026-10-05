@@ -83,7 +83,7 @@ test(
     const testScript = join(dir, "run.ps1");
     writeFileSync(
       testScript,
-      `function global:npm { ('CALL:' + $args[1]); if ($env:KIWOOM_APP_KEY -ceq 'FixtureKey-Case' -and $env:KIWOOM_APP_SECRET -ceq 'FixtureSecret-Case' -and $env:DATABASE_URL -ceq 'postgresql://fixture.test/isolated' -and $env:KIWOOM_FLOW_MODE -ceq 'direct' -and $env:KIWOOM_DATA_SCOPE_ID -ceq 'fixture-market') { 'CHILD_CONFIG_OK' }; $global:LASTEXITCODE=0 }\n& ${q(collector)} -AppKeyPath ${q(key)} -AppSecretPath ${q(secret)} -DatabaseUrlPath ${q(db)} -DataScopeId 'fixture-market' -ExpectedEgressIp '192.0.2.1' -FromDate '2026-09-01' -Symbols 'stock:005930','etf:069500'\nif (-not $env:KIWOOM_APP_KEY -and -not $env:KIWOOM_APP_SECRET -and -not $env:DATABASE_URL) { 'CLEARED' }`,
+      `function global:npm { ('CALL:' + $args[1]); if ($env:KIWOOM_APP_KEY -ceq 'FixtureKey-Case' -and $env:KIWOOM_APP_SECRET -ceq 'FixtureSecret-Case' -and $env:DATABASE_URL -ceq 'postgresql://fixture.test/isolated' -and $env:KIWOOM_FLOW_MODE -ceq 'direct' -and $env:KIWOOM_DATA_SCOPE_ID -ceq 'fixture-market') { 'CHILD_CONFIG_OK' }; $global:LASTEXITCODE=0 }\nfunction global:npm.cmd { npm @args }\n& ${q(collector)} -AppKeyPath ${q(key)} -AppSecretPath ${q(secret)} -DatabaseUrlPath ${q(db)} -DataScopeId 'fixture-market' -ExpectedEgressIp '192.0.2.1' -FromDate '2026-09-01' -Symbols 'stock:005930','etf:069500'\nif (-not $env:KIWOOM_APP_KEY -and -not $env:KIWOOM_APP_SECRET -and -not $env:DATABASE_URL) { 'CLEARED' }`,
     );
     const result = spawnSync(pwsh, ["-NoProfile", "-File", testScript], { encoding: "utf8" });
     rmSync(dir, { recursive: true, force: true });
@@ -101,5 +101,53 @@ test(
       "postgresql://fixture.test/isolated",
     ])
       assert.equal((result.stdout + result.stderr).includes(value), false);
+  },
+);
+
+test(
+  "Windows collector selects npm.cmd, preserves sequential resume gates, stops on failure and never echoes secrets",
+  { skip: !available },
+  () => {
+    const dir = mkdtempSync(join(tmpdir(), "kiwoom-windows-wrapper-test-"));
+    const key = join(dir, "fixture_appkey.txt"),
+      secret = join(dir, "fixture_secretkey.txt"),
+      db = join(dir, "fixture_db.txt");
+    writeFileSync(key, "FixtureKey-Case");
+    writeFileSync(secret, "FixtureSecret-Case");
+    writeFileSync(db, "postgresql://fixture.test/isolated");
+    const collector = resolve("scripts/Run-KiwoomCollector.ps1");
+    try {
+      for (const failure of [false, true]) {
+        const testScript = join(dir, "run.ps1");
+        writeFileSync(
+          testScript,
+          `$env:OS='Windows_NT'\nfunction global:npm { throw 'Wrong npm script shim selected' }\nfunction global:npm.cmd { ('CMD:' + ($args -join ' ')); $global:LASTEXITCODE=${failure ? "1" : "0"} }\n& ${q(collector)} -AppKeyPath ${q(key)} -AppSecretPath ${q(secret)} -DatabaseUrlPath ${q(db)} -DataScopeId 'fixture-market' -ExpectedEgressIp '192.0.2.1' -FromDate '2026-09-01' -Symbols 'stock:005930'\nif (-not $env:KIWOOM_APP_KEY -and -not $env:KIWOOM_APP_SECRET -and -not $env:DATABASE_URL) { 'CLEARED' }`,
+        );
+        const result = spawnSync(pwsh, ["-NoProfile", "-File", testScript], { encoding: "utf8" });
+        const output = result.stdout + result.stderr;
+        for (const value of ["FixtureKey-Case", "FixtureSecret-Case", "postgresql://fixture.test/isolated"])
+          assert.equal(output.includes(value), false);
+        assert.doesNotMatch(output, /Wrong npm script shim selected/);
+        const calls = [...result.stdout.matchAll(/CMD:([^\r\n]+)/g)].map(match => match[1]);
+        assert.equal(result.status, failure ? 1 : 0, result.stderr);
+        assert.equal(calls[0], "run kiwoom:doctor");
+        if (failure) {
+          assert.equal(calls.length, 1);
+          assert.match(output, /Kiwoom collector stopped/);
+        } else {
+          assert.equal(calls.length, 5);
+          // PowerShell consumes the standalone -- for a mocked function. The
+          // real npm.cmd is a native command; live/resume flags are still checked.
+          assert.match(calls[1], /^run verify:kiwoom --live --code 005930/);
+          assert.match(calls[2], /^run sync:kiwoom-flow --live --code 005930 --instrument stock/);
+          assert.match(calls[2], /--incremental --resume$/);
+          assert.match(calls[3], /^run verify:kiwoom --read-stored/);
+          assert.equal(calls[4], "run kiwoom:targets --live --resume --incremental --limit 10");
+          assert.match(result.stdout, /CLEARED/);
+        }
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   },
 );

@@ -209,6 +209,10 @@ async function interact(page, item, result) {
     return { initialHeight, resizedHeight, persistedRows: 16, otherCode, otherRows: 10, restoredRows: 10 };
   });
   if (mode === 'fixture' && item.panes) await check('Kiwoom daily values, gap handling and explicit available cumulative origin', async () => {
+    // Fixed-origin gap assertions are independent of the fresh-layout default.
+    const fixedOriginSettings = await openSettings(page, shell);
+    await fixedOriginSettings.getByLabel(/투신 표시 방식/).selectOption('cumulative');
+    await closeOverlays(page);
     await page.waitForFunction(() => document.querySelector('[data-testid="hts-data-details"]')?.textContent.includes('기준일 이후 누락: 누적순매수 미확정'), undefined, { timeout });
     const settings = await openSettings(page, shell);
     const requestedStart = await settings.getByLabel('투신 누적 기준일', { exact: true }).inputValue();
@@ -455,6 +459,13 @@ try {
       await page.waitForFunction(() => [...document.querySelectorAll('[data-testid="profile-details"]')].some(el => el.querySelectorAll('tbody tr').length > 0), undefined, { timeout }).catch(() => undefined);
       if (mode === 'fixture' && item.panes && /^[0-9A-Z]{6}$/.test(item.code)) {
         await page.waitForFunction(() => [...document.querySelectorAll('[data-testid="hts-data-details"]')].some(el => (el.textContent.match(/키움증권 · QA SYNTHETIC \(실데이터 아님\)/g) ?? []).length >= 3), undefined, { timeout });
+        // This case deliberately exercises strict fixed-origin missingness.
+        // Do not rely on (or replace) the available-cumulative default.
+        const shell = page.getByTestId('chart-canvas').first().locator('xpath=../..');
+        const settings = await openSettings(page, shell);
+        await settings.getByLabel(/투신 표시 방식/).selectOption('cumulative');
+        await closeOverlays(page);
+        await page.waitForFunction(() => document.querySelector('[data-testid="hts-data-details"]')?.textContent.includes('기준일 이후 누락: 누적순매수 미확정'), undefined, { timeout });
         const details = await page.getByTestId('hts-data-details').first().textContent();
         assert.match(details, /신용잔고율[\d.]+ %/, 'credit response has not reached the chart');
         assert.match(details, /외국인보유비율[\d.]+ %/, 'foreign response has not reached the chart');

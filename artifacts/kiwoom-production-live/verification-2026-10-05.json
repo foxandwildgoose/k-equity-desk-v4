@@ -1,0 +1,126 @@
+{
+  "date": "2026-10-05",
+  "timezone": "Asia/Seoul",
+  "evidenceSource": "operator-verified production logs and browser verification",
+  "evidenceRecordedFrom": "operator-provided execution prompt",
+  "codexExecutedLiveBrokerCalls": false,
+  "environment": "real",
+  "architecture": "fixed-egress Windows collector -> Neon PostgreSQL -> Vercel collector web",
+  "symbol": "005930",
+  "doctor": {
+    "flowEnabled": true,
+    "environment": "real",
+    "mode": "direct",
+    "appKeyConfigured": true,
+    "appSecretConfigured": true,
+    "databaseConfigured": true,
+    "databaseConnected": true,
+    "schemaReady": true,
+    "egressStatus": "IP_MATCH",
+    "issues": []
+  },
+  "oauth": "TOKEN_OK",
+  "egress": "IP_MATCH",
+  "databaseConnected": true,
+  "schemaReady": true,
+  "apis": {
+    "ka10013": {
+      "httpSuccess": true,
+      "businessSuccess": true,
+      "rows": 100,
+      "validValues": 100,
+      "firstDate": "2026-05-08",
+      "lastDate": "2026-10-02"
+    },
+    "ka10008": {
+      "httpSuccess": true,
+      "businessSuccess": true,
+      "rows": 50,
+      "validValues": 50,
+      "firstDate": "2026-07-22",
+      "lastDate": "2026-10-02"
+    },
+    "ka10059": {
+      "httpSuccess": true,
+      "businessSuccess": true,
+      "rows": 100,
+      "validValues": 100,
+      "firstDate": "2026-05-08",
+      "lastDate": "2026-10-02"
+    }
+  },
+  "stored": {
+    "credit": {
+      "rows": 241,
+      "validValues": 241,
+      "firstDate": "2025-10-10",
+      "lastDate": "2026-10-02",
+      "status": "ready",
+      "complete": true,
+      "pages": 3,
+      "errorCode": null,
+      "providerReal": true
+    },
+    "foreign": {
+      "rows": 241,
+      "validValues": 241,
+      "firstDate": "2025-10-10",
+      "lastDate": "2026-10-02",
+      "status": "ready",
+      "complete": true,
+      "pages": 5,
+      "errorCode": null,
+      "providerReal": true
+    },
+    "investmentTrust": {
+      "rows": 241,
+      "validValues": 241,
+      "firstDate": "2025-10-10",
+      "lastDate": "2026-10-02",
+      "status": "ready",
+      "complete": true,
+      "pages": 3,
+      "errorCode": null,
+      "providerReal": true
+    }
+  },
+  "separateProcessRead": true,
+  "separateProcessReadMetrics": {
+    "credit": {
+      "rows": 241,
+      "validValues": 241,
+      "firstDate": "2025-10-10",
+      "lastDate": "2026-10-02",
+      "status": "STORED",
+      "providerReal": true
+    },
+    "foreign": {
+      "rows": 241,
+      "validValues": 241,
+      "firstDate": "2025-10-10",
+      "lastDate": "2026-10-02",
+      "status": "STORED",
+      "providerReal": true
+    },
+    "investmentTrust": {
+      "rows": 241,
+      "validValues": 241,
+      "firstDate": "2025-10-10",
+      "lastDate": "2026-10-02",
+      "status": "STORED",
+      "providerReal": true
+    }
+  },
+  "providerReal": true,
+  "webMode": "collector",
+  "webBrokerCredentialsRequired": false,
+  "webRootHttp": 200,
+  "webStatusKiwoomHttp": 200,
+  "webStock005930Http": 200,
+  "chartThreeMetricsRendered": true,
+  "investmentTrustModeVerified": "available-cumulative",
+  "investmentTrustEffectiveStart": "2025-10-10",
+  "operatorVerifiedPathStatus": "REAL_DATA_VERIFIED",
+  "postChangeDeploymentStatus": "DEPLOYMENT_RECHECK_REQUIRED",
+  "secretsRecorded": false
+}

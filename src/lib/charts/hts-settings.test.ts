@@ -34,6 +34,7 @@ test("HTS defaults are shared by domestic shares, domestic/foreign-asset ETFs an
     assert.equal(state.rsiPeriod, 14);
     assert.equal(state.signalPeriod, 9);
     assert.equal(state.signalMethod, "sma");
+    assert.equal(state.trustMode, "available-cumulative");
     assert.equal(state.profile.rows, 10);
     assert.equal(state.profile.widthRatio, 0.85);
     assert.equal(state.profile.opacity, 0.32);
@@ -47,6 +48,20 @@ test("HTS defaults are shared by domestic shares, domestic/foreign-asset ETFs an
   }
   assert.equal(defaultHtsSettings("US", "stock").enabled, false, "US individual-stock layout remains opt-out");
   assert.equal(defaultHtsSettings("US", "etf").enabled, true, "supported overseas ETFs reuse the layout");
+});
+
+test("new and restored HTS layouts use available cumulative without replacing saved trust modes", () => {
+  const store = memoryStore();
+  assert.equal(loadHtsSettings(store, scope).trustMode, "available-cumulative");
+  for (const trustMode of ["daily", "cumulative", "available-cumulative"] as const) {
+    const saved = { ...defaultHtsSettings("KR", "etf"), trustMode, trustStartDate: "2024-10-02" };
+    saveHtsSettings(store, scope, saved);
+    assert.equal(loadHtsSettings(store, scope).trustMode, trustMode);
+    assert.equal(loadHtsSettings(store, scope).trustStartDate, "2024-10-02");
+    assert.equal(parseHtsSettings(JSON.stringify(saved))?.trustMode, trustMode);
+  }
+  assert.equal(parseHtsSettings(JSON.stringify({ v: 1, trustStartDate: "2024-10-02" }))?.trustMode, "available-cumulative");
+  assert.equal(defaultHtsSettings("KR", "etf").trustMode, "available-cumulative", "explicit restore uses the same default factory as ProChart");
 });
 
 test("default objects do not share mutable nested panel/profile state", () => {

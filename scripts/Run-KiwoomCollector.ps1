@@ -12,6 +12,9 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $ProjectDirectory = Split-Path -Parent $PSScriptRoot
+# Windows PowerShell can otherwise select npm.ps1 and fail under a restricted
+# script policy. Selecting the command shim needs no global policy change.
+$NpmCommand = if ($env:OS -eq 'Windows_NT') { 'npm.cmd' } else { 'npm' }
 $CollectorMutex = $null
 $MutexHeld = $false
 try {
@@ -47,19 +50,19 @@ try {
     if (-not $FromDate) { $FromDate = $Today.AddDays(-366).ToString('yyyy-MM-dd') }
     $ToDate = $Today.ToString('yyyy-MM-dd')
     # Gates are ordered: readiness/IP -> real token/three pages -> persistence -> separate-process read.
-    & npm run kiwoom:doctor
+    & $NpmCommand run kiwoom:doctor
     if ($LASTEXITCODE -ne 0) { throw 'Runtime gate failed.' }
-    & npm run verify:kiwoom -- --live --code 005930 --from $FromDate --to $ToDate
+    & $NpmCommand run verify:kiwoom -- --live --code 005930 --from $FromDate --to $ToDate
     if ($LASTEXITCODE -ne 0) { throw 'Real OAuth/API gate failed.' }
     foreach ($Symbol in $Symbols) {
         $Parts = $Symbol.Split(':')
-        & npm run sync:kiwoom-flow -- --live --code $Parts[1] --instrument $Parts[0] --from $FromDate --to $ToDate --incremental --resume
+        & $NpmCommand run sync:kiwoom-flow -- --live --code $Parts[1] --instrument $Parts[0] --from $FromDate --to $ToDate --incremental --resume
         if ($LASTEXITCODE -ne 0) { throw 'Initial collection partial or failed; resume required.' }
-        & npm run verify:kiwoom -- --read-stored --code $Parts[1] --instrument $Parts[0] --from $FromDate --to $ToDate
+        & $NpmCommand run verify:kiwoom -- --read-stored --code $Parts[1] --instrument $Parts[0] --from $FromDate --to $ToDate
         if ($LASTEXITCODE -ne 0) { throw 'Persistent separate-process read failed.' }
     }
     do {
-        & npm run kiwoom:targets -- --live --resume --incremental --limit 10
+        & $NpmCommand run kiwoom:targets -- --live --resume --incremental --limit 10
         if ($LASTEXITCODE -ne 0) { throw 'Target collection partial or failed; next scheduled run can resume.' }
         if ($RepeatEverySeconds -gt 0) { Start-Sleep -Seconds $RepeatEverySeconds }
     } while ($RepeatEverySeconds -gt 0)

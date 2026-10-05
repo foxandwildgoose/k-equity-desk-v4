@@ -57,7 +57,8 @@ const service = createChartFlowService({
             shr_rt: "91",
             wght: i === 40 ? "" : String((i % 37) / 10),
             limit_exh_rt: "92",
-            invtrt: i === 60 ? "" : String(i % 2 ? -1000 : 1500),
+            // The first point after the gap is a genuine zero, not missingness.
+            invtrt: i === 60 ? "" : i === 61 ? "0" : String(i % 2 ? -1000 : 1500),
             orgn: "930000",
             fnnc_invt: "940000",
             penfnd_etc: "950000",

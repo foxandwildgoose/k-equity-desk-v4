@@ -67,7 +67,7 @@ export function defaultHtsSettings(market: "KR" | "US", instrument: HtsInstrumen
     signalMethod: "sma",
     rsiZones: false,
     volumeMa: { 5: true, 20: true, 60: true },
-    trustMode: "cumulative",
+    trustMode: "available-cumulative",
     trustStartDate: "",
     profile: {
       enabled: true,
