@@ -7,3 +7,5 @@ node_modules/
 *_appkey.txt
 *_appsecret.txt
 *_secretkey.txt
+
+.vercel/output/

@@ -1,1 +1,0 @@
-import{t as e}from"./jsx-runtime-lriUIyRm.js";import{t}from"./utils-BDSCuVwL.js";import{W as n}from"./index-DCrYAxr0.js";var r=e();function i({className:e,extra:i}){return(0,r.jsxs)(`p`,{className:t(`text-[11px] leading-relaxed text-muted-foreground`,e),"data-testid":`risk-disclaimer`,children:[n,i?` ${i}`:``]})}export{i as t};
