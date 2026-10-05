@@ -149,6 +149,22 @@ test("pane persistence preserves remembered collapsed heights and bounds valid u
   assert.equal(changedHtsPanelHeights(settings.panelHeights, collapsed, {}, after), null, "missing gesture snapshot cannot overwrite settings");
 });
 
+test("partial flow captions keep queue/owner status alongside missing-date reasons", () => {
+  const point: AlignedFlowPoint = { date: "2026-01-01", value: null, asOf: null, partial: true,
+    reason: "기준일 이후 누락: 누적순매수 미확정", observations: [] };
+  for (const reason of ["키움 수집 예약됨 · 고정 IP 수집기 대기", "키움 수집 예약됨 · 수집기 OFFLINE · 자동 실행 상태 확인 필요"]) {
+    const metric: FlowMetric = { capability: "partial", health: "COLLECTION_QUEUED", reason, unit: "주", source: "키움증권",
+      observations: [], providedFrom: null, providedTo: null };
+    const aligned: AlignedFlowMetric = { capability: "partial", reason, points: [point] };
+    const details = htsFlowPointDetails(metric, aligned, point, "", true);
+    assert.ok(details.status.includes(reason));
+    assert.ok(details.status.includes(point.reason));
+    assert.equal(details.status.split(reason).length - 1, 1, "aligned/provider reason is not repeated");
+    assert.equal(details.asOf, "미확인");
+    assert.equal(point.value, null);
+  }
+});
+
 test("flow captions preserve actionable provider reasons and never borrow a future as-of", () => {
   const metric: FlowMetric = { capability: "not-configured", reason: "KIS 인증 미설정", unit: "%", source: "KIS", observations: [], providedFrom: null, providedTo: "2026-10-03" };
   const point: AlignedFlowPoint = { date: "2026-01-01", value: null, asOf: null, partial: false, reason: "해당 날짜 관측값 없음", observations: [] };

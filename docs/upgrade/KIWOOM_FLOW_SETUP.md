@@ -1,10 +1,10 @@
 # 키움 실데이터 수집·웹 연결 설정
 
-확인일: 2026-10-05 (한국시간). 시작 remote main: c563c646fcaa849ca6a7edb106815a0e24287427.
+확인일: 2026-10-05 (한국시간). 자동 수집 개선의 시작 remote main: 8f570097d03c277a6f3fcd0b5c5015953dc75d6d.
 
 운영자가 검증한 경로는 **고정 출발 IP Windows 수집기 → 키움 실전 REST → 공유 Neon PostgreSQL → Vercel collector 웹앱 → 기존 세 차트 패널**입니다. OAuth·API 수신·영속 저장·별도 프로세스 재조회와 005930 화면은 운영자 검증으로 완료되었습니다. Codex가 실전 broker 호출을 직접 실행했다는 의미는 아닙니다. [출처가 표시된 실수신 기록](../../artifacts/kiwoom-production-live/verification-2026-10-05.json)과 [검증 보고서](KIWOOM_FLOW_VERIFICATION.md)를 참고하세요.
 
-이번 변경을 반영한 배포는 아직 재확인하지 않았으므로 **DEPLOYMENT_RECHECK_REQUIRED**입니다. 과거 sandbox의 DISABLED/DATABASE_MISSING 결과는 [historical notice](../../artifacts/kiwoom-current-main/README.md)에 분리했으며 현재 운영 시스템의 실패로 사용하지 않습니다.
+이번 변경을 반영한 배포와 Windows 작업 설치는 아직 재확인하지 않았으므로 **DEPLOYMENT_RECHECK_REQUIRED**입니다. 수동 실행으로 확인된 API 경로를 유지하고, 멈춘 수집기 대신 대기열을 계속 소비할 Windows 작업을 추가합니다. 과거 sandbox의 DISABLED/DATABASE_MISSING 결과는 [historical notice](../../artifacts/kiwoom-current-main/README.md)에 분리했으며 현재 운영 시스템의 실패로 사용하지 않습니다.
 
 ## 운영자가 검증한 구성
 
@@ -30,14 +30,15 @@ collector + KIWOOM_READ_AUTH_REQUIRED=false의 방문자는 공개 시장자료�
 
 ## 공유 Neon DB와 명시적인 migration
 
-운영자는 databaseConnected=true, schemaReady=true와 별도 프로세스의 실전 관측 재조회를 확인했습니다. 웹과 수집기는 같은 DB와 scope를 사용합니다. 필요한 네 테이블은 다음과 같습니다.
+운영자는 기존 네 테이블의 databaseConnected=true, schemaReady=true와 별도 프로세스의 실전 관측 재조회를 확인했습니다. 웹과 수집기는 같은 DB와 scope를 사용합니다. 기존 자료·대기열 테이블과 이번에 추가하는 heartbeat 테이블은 다음과 같습니다.
 
 - kiwoom_flow_observations
 - kiwoom_flow_jobs
 - kiwoom_flow_coordination
 - kiwoom_collection_targets
+- kiwoom_collector_runtime — 이번 0004 migration의 수집기 상태
 
-초기 설치 또는 갱신에는 0002_kiwoom_flow.sql, 0003_kiwoom_collection_targets.sql을 기존 데이터 보존 방식으로 적용합니다. 실행 환경에 DB URL을 비공개 주입한 뒤 운영자가 명시적으로 실행합니다.
+초기 설치 또는 갱신에는 0002_kiwoom_flow.sql, 0003_kiwoom_collection_targets.sql, 0004_kiwoom_collector_runtime.sql을 기존 데이터 보존 방식으로 적용합니다. 아래 한 번 설정 절차에서 실행 환경에 DB URL을 비공개 주입한 뒤 운영자가 명시적으로 실행합니다.
 
 ~~~powershell
 npm.cmd run db:migrate
@@ -47,63 +48,127 @@ npm.cmd run db:migrate
 
 운영자가 관측한 pg의 sslmode=require 관련 경고는 연결 문자열을 자동 변경하여 해결하지 않습니다. Neon/PostgreSQL과 설치된 pg 버전의 TLS 설정을 검토하고, 지원되는 구성에서는 인증서를 검증하는 verify-full 등의 명시적 방식을 우선 검토하세요. 실제 DB URL·비밀번호를 문서·로그·명령행 인자로 넣지 않습니다.
 
-## Windows 수집기 실행
+## Windows에서 한 번 설정
 
-App Key·App Secret은 모두 수령된 상태입니다. 수령과 현재 프로세스 설정·실제 인증 성공은 별개입니다. 파일은 저장소 밖에 두고 실행자만 읽게 ACL을 제한합니다. Key, Secret, DB URL은 각각 한 값만 담은 파일입니다. App Secret은 *_secretkey.txt를 지원하며 파일 이름을 검색해 임의로 선택하지 않습니다.
+정상적인 일상 사용에는 셸을 열거나 환경변수를 다시 export하지 않습니다. **처음 한 번 비밀 파일·DB migration·예약 작업을 설정하고 상태를 확인**합니다. 이후 사용자는 국내주식 차트를 열면 됩니다. PC가 켜져 있고 설치한 사용자가 로그온한 상태이며, 등록된 출발 IP와 네트워크를 유지해야 자동 수집이 진행됩니다.
 
-저장소 디렉터리에서 아래 자리표시자를 자신의 비공개 경로와 등록 IP로 바꾸어 실행합니다. 기본 수집 종목은 이미 검증된 stock:005930입니다.
+### 1. 저장소 밖에 비밀 파일 준비
+
+App Key·App Secret은 모두 수령된 상태입니다. 수령과 현재 프로세스 설정·실제 인증 성공은 별개입니다. 저장소 밖의 비공개 디렉터리에 각각 한 값만 담은 Key, Secret, DB URL 파일을 만듭니다. 실행자만 읽고 수정하도록 Windows ACL을 제한하고 공개 공유·동기화 폴더를 사용하지 않습니다. App Secret은 *_secretkey.txt를 지원합니다. 파일 이름을 검색해 임의로 선택하지 않습니다.
+
+아래 경로와 IP는 모두 **자리표시자**입니다. 자신의 비공개 절대 경로와 키움에 등록한 IP로 바꾸어 로컬에서만 실행하세요. 실제 파일 경로·등록 IP·파일 내용을 저장소, 채팅, 작업 XML 또는 공유 로그에 넣지 않습니다. 로컬 관리자는 작업 설정에서 경로·IP를 볼 수 있으므로 작업 설정 자체도 비공개로 관리합니다.
+
+Node 22와 npm.cmd는 작업 실행자의 PATH에서 접근 가능해야 합니다. 저장소 파일을 최신 소스로 갱신하고 의존성을 설치합니다. Windows에서 npm.ps1을 선택하지 않도록 npm.cmd를 사용합니다. 저장소·스크립트·비밀 파일을 다른 일반 사용자가 수정할 수 있게 두지 않습니다. DB TLS 설정은 위 Neon 검토를 따릅니다.
+
+### 2. 명시적으로 한 번 DB migration
+
+기존 운영 DB는 보존합니다. 새 heartbeat 테이블에 필요한 0004를 포함하여 명시적인 migration 명령을 실행합니다. 새 worker나 일반 빌드가 DB schema를 자동 변경하지 않습니다. PowerShell 실행 정책은 다음 **프로세스에만** 적용합니다.
 
 ~~~powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Run-KiwoomCollector.ps1 -AppKeyPath '<PRIVATE_DIRECTORY>\kiwoom_appkey.txt' -AppSecretPath '<PRIVATE_DIRECTORY>\kiwoom_secretkey.txt' -DatabaseUrlPath '<PRIVATE_DIRECTORY>\kiwoom_database.txt' -ExpectedEgressIp '<REGISTERED_KIWOOM_IPV4>' -DataScopeId 'market-global-v1' -RepeatEverySeconds 0
+powershell.exe -NoProfile -ExecutionPolicy Bypass
+Set-Location -LiteralPath '<REPOSITORY_DIRECTORY>'
+try {
+    . .\scripts\Set-KiwoomSession.ps1 -AppKeyPath '<PRIVATE_DIRECTORY>\kiwoom_appkey.txt' -AppSecretPath '<PRIVATE_DIRECTORY>\kiwoom_secretkey.txt'
+    $env:DATABASE_URL = Read-KiwoomCredentialFile '<PRIVATE_DIRECTORY>\kiwoom_database.txt'
+    npm.cmd run db:migrate
+    if ($LASTEXITCODE -ne 0) { throw 'Database migration failed.' }
+} finally {
+    Remove-Item Env:KIWOOM_APP_KEY, Env:KIWOOM_APP_SECRET, Env:DATABASE_URL -ErrorAction SilentlyContinue
+}
 ~~~
 
-PowerShell 7은 프로그램 이름을 pwsh.exe로 바꿀 수 있습니다. **ExecutionPolicy Bypass는 이 프로세스에만** 적용하며 시스템/사용자 실행 정책을 영구 변경하지 않습니다. Windows 래퍼는 npm.cmd를 명시적으로 호출하므로 npm.ps1을 잘못 선택하지 않습니다. Node와 npm.cmd는 작업 실행자의 PATH에서 접근 가능해야 합니다. 선택적인 FromDate는 YYYY-MM-DD이며 기본값은 실행일 한국 날짜에서 366일 이전입니다.
+migration 명령에는 비밀 내용을 넣지 않습니다. 파일 검증·로그·진단은 원문을 출력하지 않습니다. 위 주입은 초기 migration을 위한 현재 세션에서만 사용하며 **설치 후 매일 반복할 절차가 아닙니다**. 이후 예약 작업이 파일을 직접 읽습니다.
 
-래퍼는 같은 자식 세션에 비밀값을 주입한 뒤 **doctor/IP → 실제 OAuth/005930 세 API 각 1페이지 → 종목별 순차 수집 → 별도 프로세스 저장 조회 → 최대 10개 예약 대상 폴링** 순서로 실행합니다. 자식 스크립트가 부모 셸이나 이미 실행 중인 앱 서버의 환경변수를 변경한다고 가정하지 않습니다. 임시 키·Secret·DB 환경값은 종료/오류 시 정리하며 자식 프로세스가 종료됩니다. 파일 내용·토큰·DB URL을 출력하지 않습니다. 주문·정정·취소·이체·잔고조회는 수행하지 않습니다.
+0004가 아직 적용되지 않아 heartbeat를 읽을 수 없으면 상태는 UNKNOWN입니다. 이 경우 이전 네 테이블의 검증된 자료를 무효화하거나 collector 웹을 broker 직접 호출로 전환하지 않습니다. 자동 worker를 운영하기 전에 0004 적용과 owner-only 상태 조회를 확인하세요.
 
-RepeatEverySeconds=0은 대기열 처리까지 한 번 실행합니다. 반복 간격은 60초 이상만 허용합니다. 같은 자격증명의 Global Windows mutex와 DB lease는 중복 실행을 막습니다. 재시도도 공통 제한기를 사용합니다. partial/실패는 0이 아닌 종료 코드로 멈추므로 같은 조건으로 재개하고 부족한 이력을 완료로 오인하지 않습니다. 반복 프로세스는 Ctrl+C로 종료할 수 있습니다. 다른 셸에서 시작한 서버에는 새 환경값이 자동 반영되지 않으므로 필요한 경우 재시작합니다.
+### 3. 자동 작업 설치 및 즉시 시작
 
-여러 종목을 명시하려면 process-scoped PowerShell 세션을 시작한 뒤 그 세션에서 래퍼를 호출합니다.
+~~~powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File '<REPOSITORY_DIRECTORY>\scripts\Install-KiwoomCollectorTask.ps1' -RepositoryDirectory '<REPOSITORY_DIRECTORY>' -AppKeyPath '<PRIVATE_DIRECTORY>\kiwoom_appkey.txt' -AppSecretPath '<PRIVATE_DIRECTORY>\kiwoom_secretkey.txt' -DatabaseUrlPath '<PRIVATE_DIRECTORY>\kiwoom_database.txt' -ExpectedEgressIp '<REGISTERED_KIWOOM_IPV4>' -DataScopeId 'market-global-v1' -PollSeconds 300
+~~~
+
+설치기는 지정한 저장소·일반 파일·읽기·UTF-8/BOM·주변 공백·한 줄·빈 값과 파일 역할을 검증합니다. 비밀 파일은 저장소 밖이어야 합니다. 검증 후 **KEquityDesk-KiwoomCollector** 작업을 현재 Windows 사용자로 등록하고 즉시 시작합니다. 이 실행자가 파일 ACL, 저장소, Node/npm.cmd에 접근할 수 있어야 합니다. 시스템 전체의 비밀 환경변수나 실행 정책을 변경하지 않습니다. 선택적인 -PowerShellPath에는 설치된 powershell.exe 또는 pwsh.exe를 명시할 수 있습니다.
+
+작업은 저장소를 Start In 디렉터리로 사용하고 명시적인 PowerShell 프로그램에 -NoProfile -ExecutionPolicy Bypass를 전달합니다. 인수에는 파일 경로와 설정만 있으며 Key·Secret·token·DB URL은 없습니다. Run-KiwoomCollector.ps1이 각 시작 시 지정 파일을 읽어 자기 자식 프로세스 환경을 설정합니다. 기존 셸의 일시적 변수나 이미 실행 중인 웹 서버에 의존하지 않습니다.
+
+같은 소유 작업과 같은 설정으로 다시 설치하면 중복 작업을 만들지 않습니다. 설정을 바꿀 때는 아래 제거 후 재설치 절차를 사용합니다. 관련 없는 동명 작업을 덮어쓰지 않습니다. 기본 task 이름을 바꾸려면 설치·조회·제거에 같은 -TaskName을 사용합니다.
+
+### 4. 설치·실행 상태 확인
+
+~~~powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File '<REPOSITORY_DIRECTORY>\scripts\Get-KiwoomCollectorStatus.ps1'
+~~~
+
+이 명령은 작업 상태·최근 실행 시간·다음 실행 시간·안전한 결과 코드만 표시하고 action 인수·비밀 경로·IP·환경값은 출력하지 않습니다. 작업 Running은 PowerShell 프로세스 상태입니다. 실제 DB heartbeat·성공 주기·대기열은 소유자 인증으로 /status/kiwoom의 운영 상세에서 확인합니다. Task 존재나 LastTaskResult만으로 broker 수신/DB 갱신 성공을 단정하지 않습니다.
+
+## 자동 작업의 수명주기와 일상 사용
+
+작업은 **현재 사용자의 로그온 트리거**로 시작하고 재부팅 이후에도 등록이 남습니다. Interactive/Limited 권한으로 실행하며 사용자 암호를 저장하지 않습니다. SYSTEM·높은 권한·로그온 전 부팅 실행을 추가하지 않습니다. PC가 재부팅되어도 사용자가 로그온해야 수집기가 시작됩니다. 수면·전원 끄기·로그오프·네트워크 단절 중에는 수집할 수 없습니다. 이 조건에서 무인 부팅 수집이 필요하면 별도의 안전한 서비스 운영 설계가 필요합니다.
+
+Task Scheduler는 IgnoreNew로 두 번째 인스턴스를 막고, Windows global mutex와 DB lease도 유지합니다. 실행 시간 제한은 없으며 network available/start when available 설정을 사용합니다. 실패 시 5분 간격으로 최대 12회 자동 재시작합니다. 시작 시 네트워크/IP 확인에 실패하면 broker를 호출하지 않고 안전하게 종료합니다. 재시도 소진 후에는 상태를 확인하고 작업을 다시 시작하세요. 등록한 출발 IP가 달라졌다면 IP 조건부터 운영자가 수정·검증해야 합니다.
+
+worker 시작 시 **doctor/IP → 실제 OAuth/005930 세 API 각 1페이지 → 명시 종목 수집 → 별도 프로세스 저장 재조회**를 한 번 수행합니다. 이후에는 **bounded kiwoom:targets → heartbeat → 300초 대기 → 반복**합니다. 비싼 005930 검증을 5분마다 다시 실행하지 않습니다. 기본 명시 종목은 stock:005930입니다. 반복 poll은 60~600초를 허용하며 기본값은 300초입니다. 수집 범위와 partial·재시도·전역 제한을 유지하고 새 주기로 이력을 0으로 채우지 않습니다.
+
+사용자가 국내주식 차트를 열면 웹이 부족하거나 오래된 종목을 DB에 예약합니다. 가동 중인 worker는 현재 주기가 끝난 뒤 다음 poll에서 예약을 찾습니다. **유휴·정상 네트워크·due 대상이면 대기 발견은 최대 약 5분**입니다. 이미 처리 중인 종목, 10개 단위 대기열, 재시도/backoff와 공급자 응답에 따라 완료는 더 걸립니다. 차트의 현재 5분 주기 재조회도 별도입니다. “5분 안에 모든 수집·화면 표시 완료”를 보장하지 않습니다. Vercel은 계속 collector 모드이며 broker 자격증명이 필요하지 않습니다.
+
+새로 예약된 패널은 “키움 수집 예약됨 · 고정 IP 수집기 대기”를 표시합니다. 이는 대기열 등록 상태이며 수집기가 가동 중이라는 확인은 아닙니다. 누락값은 0으로 바꾸지 않습니다. 이전 유효 값은 기존 기준일·stale 상태와 함께 보존합니다.
+
+소유자 전용 /status/kiwoom의 Collector 상태는 마지막 heartbeat 기준입니다.
+
+| 상태 | 의미 |
+| --- | --- |
+| RUNNING | heartbeat 경과 10분 이하 |
+| STALE | 10분 초과, 30분 이하 |
+| OFFLINE | 30분 초과 |
+| UNKNOWN | runtime migration 미적용, 기록 없음 또는 검사 불가 |
+
+소유자에게 마지막 heartbeat·최근 성공 주기·대기 대상 수·안전한 오류 코드를 제공합니다. RUNNING은 각 종목 데이터가 최신이라는 뜻이 아닙니다. 공개 방문자에게 runtime/DB 작업 상세를 보내지 않으며 공개 읽기와 소유자 상세 분리를 유지합니다. 검증된 소유자 문맥에서만 OFFLINE을 확정해 표시합니다.
+
+기본 공개 차트 읽기는 운영 인증 문맥을 전달하지 않으므로 수집기 상세는 소유자 `/status/kiwoom`에서 확인합니다. 소유자 인증이 필요한 차트 읽기/예약 정책에서는 검증된 문맥에만 OFFLINE 안내를 추가합니다. 공개 차트에는 수집 예약·대기 안내만 표시합니다. 날짜별 결측 안내가 이 수집 상태 설명을 가리지 않도록 함께 표시합니다.
+
+heartbeat는 같은 PostgreSQL의 kiwoom_collector_runtime에 scope/environment/임시 instance 식별자, 시작·마지막 heartbeat·마지막 성공 시간, 안전한 오류 코드와 대기열 수만 저장합니다. scope/environment별 최신 기록 한 개를 유지합니다. Key·Secret·token·DB URL·실제 IP는 저장하지 않습니다. worker 시작과 각 주기 및 긴 실행 중 60초 간격으로 갱신하며 기존 observations/jobs/coordination/targets와 market-global-v1 범위를 보존합니다. 임시 instance 식별자는 운영 상세 응답에 노출하지 않습니다.
+
+## 작업 재시작·제거·긴급 수동 실행
+
+### 중지 및 다시 시작
+
+설치한 사용자 세션에서 실행합니다. 같은 작업을 두 번 시작해도 새 worker가 중복 가동되지 않습니다. 설정 변경은 중지·제거한 후 installer를 다시 실행하고 상태를 확인합니다.
+
+~~~powershell
+Stop-ScheduledTask -TaskName 'KEquityDesk-KiwoomCollector'
+Start-ScheduledTask -TaskName 'KEquityDesk-KiwoomCollector'
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File '<REPOSITORY_DIRECTORY>\scripts\Get-KiwoomCollectorStatus.ps1'
+~~~
+
+### 제거
+
+~~~powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File '<REPOSITORY_DIRECTORY>\scripts\Uninstall-KiwoomCollectorTask.ps1'
+~~~
+
+이 절차는 해당 소유 작업을 중지·제거합니다. 비밀 파일, DB 관측, 대기열과 앱 설정을 삭제하지 않습니다. 파일 경로나 task 이름이 바뀌었다면 명시적 -TaskName으로 같은 소유 작업을 선택합니다.
+
+### 긴급 수동 수집
+
+먼저 예약 작업을 중지합니다. 저장소 위치에서 아래를 실행하면 필요한 환경값을 파일에서 읽으므로 별도의 export가 필요하지 않습니다. RepeatEverySeconds=0은 시작 검증·명시 종목·bounded 대기열을 한 번 처리하고 종료합니다. 300이면 지속 worker이며 Ctrl+C로 멈춥니다. 비밀 환경값은 종료/오류 시 정리합니다. 운영 중인 작업과 수동 worker를 동시에 돌리지 않습니다.
+
+~~~powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File '<REPOSITORY_DIRECTORY>\scripts\Run-KiwoomCollector.ps1' -AppKeyPath '<PRIVATE_DIRECTORY>\kiwoom_appkey.txt' -AppSecretPath '<PRIVATE_DIRECTORY>\kiwoom_secretkey.txt' -DatabaseUrlPath '<PRIVATE_DIRECTORY>\kiwoom_database.txt' -ExpectedEgressIp '<REGISTERED_KIWOOM_IPV4>' -DataScopeId 'market-global-v1' -RepeatEverySeconds 0
+~~~
+
+PowerShell 7은 실행 프로그램을 pwsh.exe로 바꿀 수 있습니다. 여러 명시 종목은 process-scoped 세션에서 배열로 전달합니다. powershell.exe -File의 배열 변환을 추측하여 작업 action에 넣지 않습니다.
 
 ~~~powershell
 & .\scripts\Run-KiwoomCollector.ps1 -AppKeyPath '<PRIVATE_DIRECTORY>\kiwoom_appkey.txt' -AppSecretPath '<PRIVATE_DIRECTORY>\kiwoom_secretkey.txt' -DatabaseUrlPath '<PRIVATE_DIRECTORY>\kiwoom_database.txt' -ExpectedEgressIp '<REGISTERED_KIWOOM_IPV4>' -Symbols @('stock:005930','stock:403870','etf:069500') -RepeatEverySeconds 0
 ~~~
 
-powershell.exe -File의 배열 인자 전달을 추측하여 작업 스케줄러에 넣지 않습니다. 005930 성공만으로 다른 종목·상품의 지원을 보장하지 않습니다.
-
-## 장 마감 후 작업 스케줄러
-
-이 문서는 절차를 제공하며 Codex가 운영자의 작업 스케줄러를 설치·변경하지 않습니다. Windows 시간대를 한국시간으로 확인하고 **평일 16:30~17:00 KST**, 예를 들어 16:30에 실행하는 작업을 만듭니다. 이는 휴장일 달력이 아니므로 휴장·미공표 최신 자료는 실제 이력 상태로 확인합니다.
-
-- 프로그램: powershell.exe (설치된 PowerShell 7은 pwsh.exe)
-- 시작 위치: `<REPOSITORY_DIRECTORY>`
-- 트리거: 월~금 16:30 KST
-- 실행자: 비밀 파일 ACL과 저장소 읽기/실행 권한을 가진 전용 운영자
-- 이미 실행 중이면: **새 인스턴스를 시작하지 않음**
-
-인수에는 비밀 **내용** 대신 명시적 파일 **경로**와 설정 자리표시자만 넣습니다.
-
-~~~text
--NoProfile -ExecutionPolicy Bypass -File "<REPOSITORY_DIRECTORY>\scripts\Run-KiwoomCollector.ps1" -AppKeyPath "<PRIVATE_DIRECTORY>\kiwoom_appkey.txt" -AppSecretPath "<PRIVATE_DIRECTORY>\kiwoom_secretkey.txt" -DatabaseUrlPath "<PRIVATE_DIRECTORY>\kiwoom_database.txt" -ExpectedEgressIp "<REGISTERED_KIWOOM_IPV4>" -DataScopeId "market-global-v1" -RepeatEverySeconds 0
-~~~
-
-실제 Key·Secret·DB URL을 인수에 넣지 않습니다. 로컬 관리자는 작업 설정을 볼 수 있으므로 실제 파일 경로·등록 IP도 외부 문서나 GitHub에 복사하지 않습니다. 로그에 파일 내용·전체 환경변수·인증 요청·Authorization 헤더를 출력하지 않습니다.
-
-“사용자의 로그온 여부에 관계없이 실행”은 지정 실행자가 로그오프 상태에서도 파일을 안전하게 읽고 Node/npm.cmd/저장소에 접근할 수 있을 때만 선택합니다. 대화형 셸의 임시 환경변수가 스케줄 작업에 전달된다고 가정하지 않습니다. 각 실행에서 지정 파일을 검증하고 주입합니다. 시작 위치·파일 ACL·PATH·네트워크·등록 출발 IP를 해당 실행자 컨텍스트에서 확인하세요. 새 인스턴스 금지에 더해 global mutex와 DB lease를 유지합니다. Vercel은 계속 collector 모드입니다.
-
-수동으로 동적 예약 대상을 처리할 때도 위 래퍼를 RepeatEverySeconds=0으로 실행하면 마지막 단계에서 bounded 폴링합니다. doctor/IP/인증을 이미 확인한 운영자 전용 세션에서는 다음 CLI를 쓸 수 있습니다. 먼저 반복 래퍼·스케줄 작업을 중지하고 같은 파일 검증/비공개 주입 절차를 수행하세요. 래퍼 종료 후 비밀값은 지워지므로 설정 없는 새 셸에서 호출할 수 없습니다.
-
-~~~powershell
-npm.cmd run kiwoom:targets -- --live --resume --incremental --limit 10
-~~~
-
-직접 CLI는 래퍼의 Windows mutex를 대신하지 않으며 DB lease는 계속 적용됩니다. 운영 기본 명령은 전체 gate·cleanup을 포함한 래퍼입니다. 별도 현재 세션 주입은 Set-KiwoomSession.ps1을 dot-source하고 Read-KiwoomCredentialFile로 명시한 DB 파일을 읽어 DATABASE_URL에 할당하는 방식입니다. 어느 파일도 출력하지 않고 같은 세션에서 CLI를 시작한 뒤 KIWOOM_APP_KEY, KIWOOM_APP_SECRET, DATABASE_URL을 제거합니다. 별도 프로세스가 부모 환경을 바꾼다고 설명하지 않습니다.
+직접 CLI가 필요한 비공개 운영자 세션에는 기존 npm.cmd run kiwoom:targets -- --live --resume --incremental --limit 10을 유지합니다. 해당 세션의 비밀값 주입과 정리가 별도로 필요하므로 일상 사용 명령으로 권하지 않습니다. 기본 운영은 전체 IP gate·mutex·cleanup을 포함한 자동 작업입니다. 주문·정정·취소·이체·잔고조회는 구현·실행하지 않습니다.
 
 ## 안전한 단계별 확인 명령
 
 아래는 비공개 파일에서 환경값이 주입된 운영자 세션용 명령입니다. 기본 테스트/설정 점검은 broker API를 호출하지 않으며 실호출은 --live를 명시합니다.
 
-1. npm.cmd run kiwoom:doctor — enabled/direct/real, 키 설정 여부, DB 연결·네 테이블, egress IP_MATCH.
+1. npm.cmd run kiwoom:doctor — enabled/direct/real, 키 설정 여부, DB 연결·기존 네 테이블, egress IP_MATCH. runtime heartbeat는 0004와 owner-only 상세에서 별도로 확인합니다.
 2. npm.cmd run verify:kiwoom -- --live --code 005930 --from 2026-09-01 --to 2026-10-05 — TOKEN_OK, 세 API의 HTTP/business 성공, 유효 값·기간.
 3. npm.cmd run sync:kiwoom-flow -- --live --code 005930 --from 2026-09-01 --to 2026-10-05 --resume — bounded 수집/영속 저장; partial이면 재개.
 4. 새 프로세스의 npm.cmd run verify:kiwoom -- --read-stored --code 005930 --from 2026-09-01 --to 2026-10-05 — 저장된 실제 관측일·건수·환경 대조.

@@ -88,12 +88,21 @@ test(
     const result = spawnSync(pwsh, ["-NoProfile", "-File", testScript], { encoding: "utf8" });
     rmSync(dir, { recursive: true, force: true });
     assert.equal(result.status, 0, result.stderr);
-    // Doctor + real-page gate + sync/read for each symbol + bounded target polling.
-    assert.equal((result.stdout.match(/CHILD_CONFIG_OK/g) ?? []).length, 7);
-    assert.deepEqual([...result.stdout.matchAll(/CALL:([^\r\n]+)/g)].map(match => match[1]), [
-      "kiwoom:doctor", "verify:kiwoom", "sync:kiwoom-flow", "verify:kiwoom",
-      "sync:kiwoom-flow", "verify:kiwoom", "kiwoom:targets",
-    ]);
+    // DB heartbeat + doctor + one-time real-page gate + sync/read + bounded targets.
+    assert.equal((result.stdout.match(/CHILD_CONFIG_OK/g) ?? []).length, 8);
+    assert.deepEqual(
+      [...result.stdout.matchAll(/CALL:([^\r\n]+)/g)].map((match) => match[1]),
+      [
+        "kiwoom:heartbeat",
+        "kiwoom:doctor",
+        "verify:kiwoom",
+        "sync:kiwoom-flow",
+        "verify:kiwoom",
+        "sync:kiwoom-flow",
+        "verify:kiwoom",
+        "kiwoom:targets",
+      ],
+    );
     assert.match(result.stdout, /CLEARED/);
     for (const value of [
       "FixtureKey-Case",
@@ -121,28 +130,44 @@ test(
         const testScript = join(dir, "run.ps1");
         writeFileSync(
           testScript,
-          `$env:OS='Windows_NT'\nfunction global:npm { throw 'Wrong npm script shim selected' }\nfunction global:npm.cmd { ('CMD:' + ($args -join ' ')); $global:LASTEXITCODE=${failure ? "1" : "0"} }\n& ${q(collector)} -AppKeyPath ${q(key)} -AppSecretPath ${q(secret)} -DatabaseUrlPath ${q(db)} -DataScopeId 'fixture-market' -ExpectedEgressIp '192.0.2.1' -FromDate '2026-09-01' -Symbols 'stock:005930'\nif (-not $env:KIWOOM_APP_KEY -and -not $env:KIWOOM_APP_SECRET -and -not $env:DATABASE_URL) { 'CLEARED' }`,
+          `$env:OS='Windows_NT'\nfunction global:npm { throw 'Wrong npm script shim selected' }\nfunction global:npm.cmd { ('CMD:' + ($args -join ' ')); $global:LASTEXITCODE=0; ${failure ? "if ($args[1] -eq 'kiwoom:doctor') { $global:LASTEXITCODE=1 }" : ""} }\n& ${q(collector)} -AppKeyPath ${q(key)} -AppSecretPath ${q(secret)} -DatabaseUrlPath ${q(db)} -DataScopeId 'fixture-market' -ExpectedEgressIp '192.0.2.1' -FromDate '2026-09-01' -Symbols 'stock:005930'\n$workerExit=$LASTEXITCODE\nif (-not $env:KIWOOM_APP_KEY -and -not $env:KIWOOM_APP_SECRET -and -not $env:DATABASE_URL) { 'CLEARED' }\nexit $workerExit`,
         );
         const result = spawnSync(pwsh, ["-NoProfile", "-File", testScript], { encoding: "utf8" });
         const output = result.stdout + result.stderr;
-        for (const value of ["FixtureKey-Case", "FixtureSecret-Case", "postgresql://fixture.test/isolated"])
+        for (const value of [
+          "FixtureKey-Case",
+          "FixtureSecret-Case",
+          "postgresql://fixture.test/isolated",
+        ])
           assert.equal(output.includes(value), false);
         assert.doesNotMatch(output, /Wrong npm script shim selected/);
-        const calls = [...result.stdout.matchAll(/CMD:([^\r\n]+)/g)].map(match => match[1]);
+        const calls = [...result.stdout.matchAll(/CMD:([^\r\n]+)/g)].map((match) => match[1]);
         assert.equal(result.status, failure ? 1 : 0, result.stderr);
-        assert.equal(calls[0], "run kiwoom:doctor");
+        assert.match(calls[0], /^run kiwoom:heartbeat --event start --instance-id [a-f0-9-]{36}$/);
+        assert.equal(calls[1], "run kiwoom:doctor");
         if (failure) {
-          assert.equal(calls.length, 1);
+          assert.equal(calls.length, 3);
+          assert.match(
+            calls[2],
+            /^run kiwoom:heartbeat --event error --instance-id [a-f0-9-]{36} --error-code STARTUP_DOCTOR_FAILED$/,
+          );
           assert.match(output, /Kiwoom collector stopped/);
         } else {
-          assert.equal(calls.length, 5);
+          assert.equal(calls.length, 6);
           // PowerShell consumes the standalone -- for a mocked function. The
           // real npm.cmd is a native command; live/resume flags are still checked.
-          assert.match(calls[1], /^run verify:kiwoom --live --code 005930/);
-          assert.match(calls[2], /^run sync:kiwoom-flow --live --code 005930 --instrument stock/);
-          assert.match(calls[2], /--incremental --resume$/);
-          assert.match(calls[3], /^run verify:kiwoom --read-stored/);
-          assert.equal(calls[4], "run kiwoom:targets --live --resume --incremental --limit 10");
+          assert.match(calls[2], /^run verify:kiwoom --live --code 005930/);
+          assert.match(calls[3], /^run sync:kiwoom-flow --live --code 005930 --instrument stock/);
+          assert.match(calls[3], /--incremental --resume --collector-instance-id [a-f0-9-]{36}$/);
+          assert.equal(
+            calls[3].match(/--collector-instance-id ([a-f0-9-]{36})$/)?.[1],
+            calls[0].match(/--instance-id ([a-f0-9-]{36})$/)?.[1],
+          );
+          assert.match(calls[4], /^run verify:kiwoom --read-stored/);
+          assert.match(
+            calls[5],
+            /^run kiwoom:targets --live --resume --incremental --limit 10 --collector-instance-id [a-f0-9-]{36}$/,
+          );
           assert.match(result.stdout, /CLEARED/);
         }
       }

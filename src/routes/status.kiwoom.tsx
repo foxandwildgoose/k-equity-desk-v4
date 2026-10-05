@@ -16,6 +16,11 @@ const DIAGNOSTIC_NEXT_STEPS = {
   PUBLIC_READ_CONFIGURED: "차트는 로그인 없이 저장된 키움 시장자료를 읽을 수 있습니다. 이 진단에서는 DB 연결·저장 이력을 점검하지 않았습니다.",
 };
 
+function collectorTime(value: string | null | undefined) {
+  if (!value || !Number.isFinite(Date.parse(value))) return "없음";
+  return `${new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", dateStyle: "short", timeStyle: "medium" }).format(new Date(value))} KST`;
+}
+
 export const Route = createFileRoute("/status/kiwoom")({ component: KiwoomStatus });
 function KiwoomStatus() {
   const { user } = useCurrentUserState();
@@ -123,6 +128,17 @@ function KiwoomStatus() {
             </div>}
           </dl>
           {data.ownerAuthorized && (
+            <>
+            <section data-testid="kiwoom-collector-runtime" className="rounded-xl border border-border bg-card p-4 text-sm">
+              <h2 className="font-semibold">고정 IP 수집기 · {data.collector?.state ?? "UNKNOWN"}</h2>
+              <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div><dt className="text-muted-foreground">마지막 heartbeat</dt><dd data-testid="kiwoom-collector-heartbeat">{collectorTime(data.collector?.lastHeartbeatAt)}</dd></div>
+                <div><dt className="text-muted-foreground">마지막 정상 주기</dt><dd>{collectorTime(data.collector?.lastSuccessAt)}</dd></div>
+                <div><dt className="text-muted-foreground">처리 가능한 대기 대상</dt><dd>{data.collector?.pendingTargets ?? "미확인"}</dd></div>
+                <div><dt className="text-muted-foreground">마지막 안전한 오류 코드</dt><dd>{data.collector?.lastErrorCode ?? "없음"}</dd></div>
+              </dl>
+              <p className="mt-3 text-xs text-muted-foreground">최근 heartbeat 기준: 10분 이내 RUNNING, 30분 이내 STALE, 이후 OFFLINE. 기록이 없거나 점검할 수 없으면 UNKNOWN이며, 실제 API 수신 성공과는 별개입니다.</p>
+            </section>
             <div className="overflow-x-auto rounded-xl border border-border">
               <table className="w-full text-left text-sm">
                 <thead>
@@ -151,6 +167,7 @@ function KiwoomStatus() {
                 </tbody>
               </table>
             </div>
+            </>
           )}
           <p className="text-xs text-muted-foreground">
             collector 웹앱은 키움 인증정보 없이 공유 DB만 읽습니다. 실수신 검증은 허용 IP의

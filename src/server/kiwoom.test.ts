@@ -1419,3 +1419,34 @@ test("owner-only target enqueue never prevents public stored reads", async () =>
   await store.upsert(id, "foreign", parseKiwoomRows(fixtureRows("foreign"), "foreign", new Date().toISOString(), "real", "KRX").observations);
   assert.equal((await service(id.request)).foreign.observations.length, 1);
 });
+
+test("queued public charts never read collector telemetry; verified owner can see an offline warning", async () => {
+  const id = identity();
+  id.request = { ...id.request, code: "009991" };
+  const cfg = { ...config, mode: "collector" as const, dataScopeId: id.scopeId,
+    authEnabled: true, authenticationReady: true };
+  let telemetryReads = 0;
+  const offlineStore = { ...store, collectorRuntime: { ...store.collectorRuntime!, read: async () => {
+    telemetryReads++;
+    return { state: "OFFLINE" as const, schemaReady: true, startedAt: "2026-09-01T00:00:00Z",
+      lastHeartbeatAt: "2026-09-01T00:00:00Z", lastSuccessAt: null,
+      lastErrorCode: "QUEUE_CYCLE_FAILED", pendingTargets: 1, lastQueueCount: 1 };
+  } } };
+  const service = createChartFlowService({ config: () => cfg, store: async () => offlineStore,
+    client: () => { throw Error("collector constructed broker"); },
+    checkEgress: async () => { throw Error("collector probed IP"); } });
+  const visitor = await service(id.request, undefined, null);
+  assert.equal(telemetryReads, 0);
+  for (const metric of FLOW_METRICS) {
+    assert.equal(visitor[metric].health, "COLLECTION_QUEUED");
+    assert.match(visitor[metric].reason, /키움 수집 예약됨 · 고정 IP 수집기 대기/);
+    assert.doesNotMatch(visitor[metric].reason, /OFFLINE|QUEUE_CYCLE_FAILED/);
+    assert.equal(visitor[metric].observations.length, 0);
+  }
+  await store.targets.start(id);
+  const owner = await service(id.request, undefined, cfg.ownerUserId);
+  assert.equal(telemetryReads, 1);
+  assert.match(owner.credit.reason, /수집기 OFFLINE/);
+  assert.equal(owner.credit.health, "COLLECTION_QUEUED", "offline worker must not be described as actively collecting");
+  assert.equal(owner.credit.observations.length, 0);
+});

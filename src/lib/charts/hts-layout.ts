@@ -176,7 +176,9 @@ export function htsFlowPointDetails(metric: FlowMetric, aligned: AlignedFlowMetr
   const unavailable = aligned.capability !== "available" && aligned.capability !== "partial";
   const reason = unavailable
     ? aligned.reason || metric.reason || point?.reason || "데이터 미확인"
-    : point?.reason || aligned.reason || metric.reason || "";
+    // Coverage at the hovered date must not hide an actionable collection/API
+    // reason for the metric, including when valid older observations remain.
+    : [...new Set([point?.reason, aligned.reason, metric.reason].filter(Boolean))].join(" · ");
   const observations = point?.observations ?? [];
   const basisNames = { "trade-date": "거래일", "settlement-date": "결제일", "publication-date": "공표일", unknown: "미확인" };
   const dateBasis = [...new Set(observations.map((observation) => basisNames[observation.dateBasis]))].join("/") || "미확인";

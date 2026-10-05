@@ -9,6 +9,7 @@ import type {
 import { KiwoomError } from "./kiwoom-config.ts";
 import { waitKiwoom, type KiwoomCoordination } from "./kiwoom-client.ts";
 import { createKiwoomTargets } from "./kiwoom-targets.ts";
+import { createKiwoomCollectorRuntime } from "./kiwoom-collector-runtime.ts";
 
 export interface FlowIdentity {
   scopeId: string;
@@ -44,6 +45,8 @@ export interface KiwoomFlowStore extends KiwoomCoordination {
   job(identity: FlowIdentity, metric: FlowMetricId, exact?: boolean): Promise<KiwoomJob | null>;
   saveJob(identity: FlowIdentity, metric: FlowMetricId, job: KiwoomJob): Promise<void>;
   targets: ReturnType<typeof createKiwoomTargets>;
+  /** Optional telemetry migration never changes the four-table market-data readiness contract. */
+  collectorRuntime?: ReturnType<typeof createKiwoomCollectorRuntime>;
   hasOtherScope(identity: FlowIdentity, metric: FlowMetricId): Promise<boolean>;
   copyLegacyScope(from: string, to: string, environment: string): Promise<number>;
 }
@@ -277,5 +280,6 @@ export function createKiwoomStore(sql: Sql): KiwoomFlowStore {
     },
   } as KiwoomFlowStore;
   store.targets = createKiwoomTargets(sql, store.exclusive);
+  store.collectorRuntime = createKiwoomCollectorRuntime(sql);
   return store;
 }

@@ -233,9 +233,16 @@ export function createChartFlowService(
       if (enqueueAllowed && !FLOW_METRICS.some(id => response[id].health === "DATA_SCOPE_MISMATCH")) {
         try {
           const queued = await store.targets.enqueue(identity);
+          let collectorOffline = false;
+          try {
+            assertKiwoomOwner(config, userId);
+            collectorOffline = (await store.collectorRuntime?.read({ scopeId: identity.scopeId, environment: identity.environment }))?.state === "OFFLINE";
+          } catch { /* Public chart readers never inspect operational heartbeat. */ }
           for (const id of FLOW_METRICS) {
-            if (!response[id].observations.length) response[id].health = queued;
-            response[id].reason += queued === "NO_HISTORY" ? " · 수집 대상 상한 도달 · 운영자 확인 필요" : " · 등록 IP 수집기 대기";
+            if (!response[id].observations.length) response[id].health = collectorOffline && queued !== "NO_HISTORY" ? "COLLECTION_QUEUED" : queued;
+            response[id].reason += queued === "NO_HISTORY" ? " · 수집 대상 상한 도달 · 운영자 확인 필요"
+              : collectorOffline ? " · 키움 수집 예약됨 · 수집기 OFFLINE · 자동 실행 상태 확인 필요"
+              : " · 키움 수집 예약됨 · 고정 IP 수집기 대기";
           }
         } catch {
           // A queue failure must not erase already persisted market observations.

@@ -1,8 +1,8 @@
 # 키움 실전 경로·코드 변경 검증 기록
 
-기록일: 2026-10-05 (한국시간). 시작 remote main: c563c646fcaa849ca6a7edb106815a0e24287427 (fix: stop tracking Vercel prebuilt output).
+기록일: 2026-10-05 (한국시간). 이번 자동 수집 개선의 시작 remote main: 8f570097d03c277a6f3fcd0b5c5015953dc75d6d. 아래 3~6절은 이전 hardening 변경의 시작 c563c646fcaa849ca6a7edb106815a0e24287427과 최종 8f570097 기준 기록입니다. 이번 자동화 변경은 7절에 분리합니다.
 
-**실전 경로는 운영자가 확인했습니다.** 이 기록은 운영자가 제공한 production logs/browser 검증과 Codex의 코드·로컬 검증을 구분합니다. Codex가 직접 live broker 호출을 실행했다고 주장하지 않습니다. 이번 변경을 반영한 배포는 **DEPLOYMENT_RECHECK_REQUIRED**, 최종 운영 상태는 **CODE_UPDATED_PRODUCTION_RECHECK_REQUIRED**입니다.
+**실전 경로는 운영자가 확인했습니다.** 이 기록은 운영자가 제공한 production logs/browser 검증과 Codex의 코드·로컬 검증을 구분합니다. Codex가 직접 live broker 호출을 실행했다고 주장하지 않습니다. 이번 변경을 반영한 배포와 Windows 자동 작업 설치는 **DEPLOYMENT_RECHECK_REQUIRED**, 최종 운영 상태는 **CODE_UPDATED_PRODUCTION_RECHECK_REQUIRED**입니다. 과거 674개 PASS는 이번 자동화 수정의 재실행 결과가 아닙니다.
 
 ## 1. 과거 Codex 코드 검증의 출처
 
@@ -135,3 +135,72 @@ node scripts/browser-smoke.mjs http://127.0.0.1:8186/ /workspace/screenshots/kiw
 ~~~
 
 이 두 일반 smoke는 exit 2로 **PASS가 아닙니다**. 기존 custom og.jpg 부재 경고, 실행 환경의 외부 리소스 `ERR_CERT_AUTHORITY_INVALID`, desktop의 비동기 지수 수신 문구에 따른 baseline prefix 차이를 기록했습니다. 두 viewport 모두 HTTP 200, visible content, horizontalOverflow=false, pageErrors=[]이며 네 실제 screenshot을 시각적으로 확인했습니다. 인증서 검증을 끄거나 branding/기존 시세 기능을 수정하여 통과시키지 않았습니다. 이는 위 fixture 기반 키움 기능 검사 통과와 별도로 남기는 일반 smoke의 제한입니다.
+
+## 7. 지속 Windows 수집기 자동화 — 이번 변경
+
+시작 main은 **8f570097d03c277a6f3fcd0b5c5015953dc75d6d**입니다. GitHub의 현재 main을 fetch하여 이 기준을 확인했습니다. 운영자가 이미 확인한 OAuth·세 API·Neon 영속 저장·Vercel 화면과 위 실수신 JSON은 보존하며 새 자동화 성공 기록으로 덮어쓰지 않습니다.
+
+### 원인과 변경 범위
+
+수동 collector가 종료되면 Vercel은 DB 대기열에 예약할 수 있지만 예약을 소비할 지속 프로세스가 없습니다. 이는 자동 실행·복구의 문제이며 verified API 매핑이 잘못되었다는 증거가 아닙니다. 이번 변경은 기존 Run-KiwoomCollector.ps1의 지속 poll을 Windows 로그온 작업으로 설치하고, PostgreSQL에 가동 상태를 저장해 소유자가 확인하도록 합니다.
+
+- Install-KiwoomCollectorTask.ps1: 저장소 밖 비밀 파일과 명시 설정을 검증하고 현재 사용자의 로그온 작업을 등록·즉시 시작합니다. FILE PATH 인수만 사용하며 작업의 저장 비밀값은 없습니다.
+- Get-KiwoomCollectorStatus.ps1 / Uninstall-KiwoomCollectorTask.ps1: 해당 소유 작업의 비식별 상태 조회와 안전한 제거를 제공합니다.
+- Run-KiwoomCollector.ps1: 시작 gate를 한 번 실행하고 bounded targets를 기본 300초마다 처리합니다. npm.cmd, global mutex, DB lease, 실패 시 정리를 보존합니다.
+- 0004_kiwoom_collector_runtime.sql: 기존 데이터 보존 additive migration입니다. scope/environment별 마지막 heartbeat·성공 주기·안전한 오류 코드·대기 수를 저장합니다. core 네 테이블의 기존 자료를 변경하지 않습니다.
+- owner-only /status/kiwoom: RUNNING(10분 이하), STALE(30분 이하), OFFLINE(30분 초과), UNKNOWN(미검사·migration 없음·기록 없음)을 표시합니다. 공개 방문자에게 DB 작업 상세나 instance ID를 전달하지 않습니다.
+- chart: collector DB 예약을 “키움 수집 예약됨 · 고정 IP 수집기 대기”로 표시합니다. queue 등록을 실제 worker 가동으로 표현하거나 결측을 0으로 채우지 않습니다.
+
+변경 파일은 총 26개입니다.
+
+| 목적 | 파일 |
+| --- | --- |
+| 일회 설치·조회·제거와 지속 worker | `scripts/Install-KiwoomCollectorTask.ps1`, `scripts/Get-KiwoomCollectorStatus.ps1`, `scripts/Uninstall-KiwoomCollectorTask.ps1`, `scripts/KiwoomCollectorHelpers.ps1`, `scripts/Run-KiwoomCollector.ps1`, `scripts/Set-KiwoomSession.ps1` |
+| 영속 heartbeat·안전한 수집 상태 | `migrations/0004_kiwoom_collector_runtime.sql`, `src/server/kiwoom-collector-runtime.ts`, `src/server/kiwoom-store.ts`, `scripts/kiwoom-cli.mjs`, `package.json` |
+| 소유자 진단·실제 차트 상태 전달 | `src/server/kiwoom-runtime.ts`, `src/routes/status.kiwoom.tsx`, `src/server/chart-flow.ts`, `src/lib/charts/hts-flow.ts`, `src/lib/charts/hts-layout.ts` |
+| 회귀·브라우저 검사 | `scripts/kiwoom-heartbeat.test.mjs`, `scripts/kiwoom-scheduler.test.mjs`, `scripts/kiwoom-session.test.mjs`, `scripts/qa-kiwoom-production.mjs`, `src/server/kiwoom-collector-runtime.test.ts`, `src/server/kiwoom-diagnostics.test.ts`, `src/server/kiwoom.test.ts`, `src/lib/charts/hts-layout.test.ts` |
+| 설정·검증 기록 | `docs/upgrade/KIWOOM_FLOW_SETUP.md`, `docs/upgrade/KIWOOM_FLOW_VERIFICATION.md` |
+
+작업은 재부팅 후에도 남지만 설치한 사용자가 로그온해야 실행합니다. Network available/start when available 설정, 실패 후 5분 간격 최대 12회 재시작, IgnoreNew 및 기존 mutex/lease를 사용합니다. SYSTEM·저장 암호·로그온 전 부팅 서비스는 만들지 않습니다. 여기서 Windows 작업을 실제 등록하지 않았습니다.
+
+비싼 005930 실전 검증은 매 시작 한 번이며 매 poll마다 실행하지 않습니다. due 예약의 발견은 유휴·정상 네트워크 상태에서 기본 5분 이내를 목표로 합니다. 최대 10개씩의 bounded 순차 처리, 이미 실행 중인 수집, backoff·일시 장애·공급자 이력과 별도 차트 5분 재조회에 따른 추가 시간은 그대로 적용합니다. 전체 데이터가 5분 안에 표시된다고 보장하지 않습니다.
+
+### 운영자에게 남은 한 번 작업
+
+[설정 문서의 정확한 명령](KIWOOM_FLOW_SETUP.md#windows에서-한-번-설정)으로 0004를 포함한 명시적 migration → installer → task status 확인을 수행합니다. 파일은 저장소 밖 실행자 전용 ACL로 관리하고 수집기·웹은 같은 Neon DB와 market-global-v1을 사용합니다. 설치 후에는 manual DATABASE_URL/key/secret/mode export 또는 sync 실행 없이 차트를 여는 흐름입니다. PC 전원·로그온·등록 출발 IP·네트워크는 계속 필요합니다.
+
+Vercel에는 새 source revision을 배포한 뒤 기존 collector 설정으로 /status/kiwoom 소유자 상세·공개 방문자 분리·부족한 국내 종목 예약과 실제 자동 수집 결과를 확인해야 합니다. 0004 미적용 상태의 UNKNOWN은 기존 운영자 실수신 증거를 취소하지 않습니다. Codex가 운영 DB migration, Windows 작업 설치, 실제 broker 호출 또는 운영 배포를 실행했다고 보고하지 않습니다.
+
+### 이번 로컬 검증 결과
+
+Linux, Node 22.23.3, PowerShell 7의 격리된 테스트에서 실행했습니다. 현재 Codex 프로세스의 App Key/App Secret/DATABASE_URL 설정 여부는 각각 false/false/false입니다. 사용자의 자격증명 수령 또는 과거 운영 설정을 부정하는 상태가 아닙니다. 운영 API·DB·migration·예약 작업 등록은 실행하지 않았습니다.
+
+| 실제 실행 명령 | 결과 |
+| --- | --- |
+| `npm run typecheck` | PASS |
+| `npm run test:kiwoom` | PASS — 64 tests, 0 failed/skipped |
+| `npm test` | PASS — script 224 + TypeScript 473 = 697 tests, 0 failed/skipped |
+| `npm run lint` | PASS — 0 errors, 기존 경고 56개 |
+| `npm run check:deploy` | PASS |
+| `npm run build:bundle` | PASS — Linux production bundle; DB migration 없음 |
+| `npm run verify:kiwoom -- --check-config` | PASS — API/DB 호출 없음; 현재 local DISABLED/DATABASE_MISSING |
+| `git diff --check` | PASS |
+| `git ls-files .vercel/output` 및 비밀 파일 세 패턴 | PASS — 추적 파일 없음 |
+
+PowerShell/worker 12개 검사는 실제 Linux PowerShell 7과 mocked ScheduledTasks/npm.cmd를 사용하여 모두 통과했습니다. 파일 내용 미출력, literal 인수/공백·특수문자 경로, poll 60~600초, 타 사용자 작업·보안/트리거 설정 변경 거부, Windows 호환 구문, 실제 두 프로세스의 global mutex, startup 한 번/동일 worker GUID/지속 queue 처리를 검사했습니다. 실제 Windows 예약 작업 등록·로그온·재부팅 검증을 대신하지 않습니다.
+
+11개 runtime 검사는 10/30분 경계·UNKNOWN, 안전한 오류 enum, scope/environment 분리, 100개 상한과 due 대상 수, 기존 데이터 보존/idempotent migration, 오래된 worker 갱신 거부, 격리된 파일형 PGlite 재시작 보존, target lease 상실 시 완료 기록 차단을 검사했습니다. 파일형 PGlite 검사는 운영 Neon 영속성의 새 증거가 아닙니다. 기존 API 필드·부호/0·연속조회·IP_MATCH gate와 collector 웹 broker 호출 금지 검사는 유지합니다. 일반 수동 CLI sync는 지속 worker heartbeat를 바꾸지 않습니다.
+
+브라우저 검사에서 날짜별 결측 사유가 실제 수집 대기 사유를 덮어쓰는 문제를 발견했습니다. `hts-layout.ts`에서 둘을 보존하고 회귀 테스트를 추가했습니다. 기본 공개 차트는 운영 인증 문맥을 전달하지 않으므로 소유자는 `/status/kiwoom`에서 OFFLINE 상세를 확인합니다. 인증된 차트 문맥의 경고는 서버가 검증한 소유자에게만 반환하며 공개 방문자에게 heartbeat를 보내지 않습니다.
+
+새 Linux production build를 별도 preview에서 실행한 브라우저 재검사는 desktop/mobile **2/2 PASS**, 소유자 heartbeat 네 상태 **8/8 PASS**, 공개/인증 문맥의 실제 대기 안내 **4/4 PASS**입니다. 기존 daily/cumulative/available-cumulative, 새로고침·종목 왕복, 6개 canvas pane도 유지합니다. 최초 실행의 누락된 대기 안내를 수정한 후 재빌드·재검사했으며, 오래된 preview 재사용으로 발생한 로드 실패는 새 preview 프로세스로 재검사했습니다.
+
+~~~sh
+node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/qa-kiwoom-production.mjs --base http://127.0.0.1:8188 --server-entry /workspace/.onboarding/builds/k-equity-desk-v4/functions/__server.func/index.mjs --out /workspace/screenshots/kiwoom-collector-automation
+~~~
+
+재실행 시 동일 경로의 npm 별칭 `npm run qa:kiwoom-production -- ...`을 사용할 수 있습니다.
+
+캡처·판정: `/workspace/screenshots/kiwoom-collector-automation/verdict.json`, `collector-running-desktop.png`, `collector-offline-mobile.png`, `collector-public-mobile.png`, `queue-public-desktop.png`, `queue-owner-mobile.png`. 모든 캡처에 QA SYNTHETIC 표기가 있습니다. 실제 키움/운영 DB/IP 요청은 0이며 소유자 fixture는 실제 authorization guard를 통과하는 합성 identity입니다. 실제 Better Auth 소유자 로그인 검증, Windows 로그인/재부팅, 새 Neon heartbeat 및 운영 Vercel 확인을 대신하지 않습니다. 위 5~6절의 이전 검사·캡처는 역사적 기록으로 보존합니다.
+
+현재 자동 작업 실설치·고정 IP 연속 가동·Neon heartbeat 실저장·이번 Vercel revision 화면은 **검증 대기**입니다. 이전 세 API의 실수신 경로는 계속 **REAL_DATA_VERIFIED — operator-verified**입니다. 이번 최종 운영 상태는 **CODE_UPDATED_PRODUCTION_RECHECK_REQUIRED**입니다.

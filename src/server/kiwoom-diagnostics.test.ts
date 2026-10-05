@@ -67,6 +67,7 @@ test("public collector reports configured read access, not owner failure or unin
     assert.deepEqual(result.metrics, {});
     assert.deepEqual(result.latestStored, { credit: null, foreign: null, investmentTrust: null });
     assert.equal(result.schema, null);
+    assert.equal(result.collector, null, "public visitors receive no operational collector telemetry");
     assert.equal(result.databaseConnected, false);
     assert.equal(result.schemaReady, false);
     assert.equal(result.tokenStatus, "NOT_REQUIRED");
@@ -135,7 +136,7 @@ test("verified owner sees stored metrics through read-only diagnostics; visitors
   const pg = new PGlite();
   await pg.waitReady;
   try {
-    for (const name of ["0002_kiwoom_flow.sql", "0003_kiwoom_collection_targets.sql"]) {
+    for (const name of ["0002_kiwoom_flow.sql", "0003_kiwoom_collection_targets.sql", "0004_kiwoom_collector_runtime.sql"]) {
       await pg.exec(await readFile(new URL(`../../migrations/${name}`, import.meta.url), "utf8"));
     }
     const statements: string[] = [];
@@ -147,6 +148,9 @@ test("verified owner sees stored metrics through read-only diagnostics; visitors
     });
     const store = createKiwoomStore(sql);
     const identity = { scopeId: config.dataScopeId!, environment: "real" as const, request };
+    const instance = "11111111-1111-4111-8111-111111111111";
+    await store.collectorRuntime!.start(identity, instance);
+    await store.collectorRuntime!.update(identity, instance, { event: "success" });
     const fetchedAt = "2026-09-03T09:00:00Z";
     for (const metric of FLOW_METRICS) {
       const row = metric === "credit" ? { dt: "20260903", remn_rt: "3.42", remn: "12,345" }
@@ -169,6 +173,11 @@ test("verified owner sees stored metrics through read-only diagnostics; visitors
     assert.equal(owner.ownerAuthorized, true);
     assert.equal(owner.databaseConnected, true);
     assert.equal(owner.schemaReady, true);
+    assert.equal(owner.collector?.state, "RUNNING");
+    assert.ok(owner.collector?.lastHeartbeatAt);
+    assert.ok(owner.collector?.lastSuccessAt);
+    assert.equal(owner.collector?.pendingTargets, 0);
+    assert.equal(JSON.stringify(owner).includes(instance), false);
     for (const metric of FLOW_METRICS) {
       assert.equal(owner.metrics[metric]?.validValues, 1);
       assert.equal(owner.metrics[metric]?.lastDate, "2026-09-03");
@@ -182,6 +191,7 @@ test("verified owner sees stored metrics through read-only diagnostics; visitors
     assert.equal(visitor.status, "PUBLIC_READ_CONFIGURED");
     assert.deepEqual(visitor.metrics, {});
     assert.equal(visitor.schema, null);
+    assert.equal(visitor.collector, null);
     assert.equal(opened, 1);
     let ipChecks = 0;
     for (const mode of ["collector", "direct"] as const) {

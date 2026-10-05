@@ -11,14 +11,23 @@ import { FLOW_METRICS, isFlowDate } from "../src/lib/charts/hts-flow.ts";
 import { boundKiwoomTarget } from "../src/server/kiwoom-targets.ts";
 import { crossCheckKiwoom } from "../src/server/kiwoom-cross-check.ts";
 import { validateFlowRequest } from "../src/server/chart-flow-request.ts";
+import { isKiwoomCollectorErrorCode, validateKiwoomCollectorInstance, runKiwoomTargetCycle } from "../src/server/kiwoom-collector-runtime.ts";
 
 const emit = value => process.stdout.write(JSON.stringify(value, null, 2) + "\n");
 const argv = process.argv.slice(2);
 const command = argv.shift();
 const switches = new Set(["--check-config", "--live", "--single-process", "--resume", "--incremental", "--read-stored", "--check-database", "--cross-check", "--targets", "--show-ip"]);
-const values = new Set(["--code", "--from", "--to", "--instrument", "--scope", "--max-pages", "--budget-ms", "--calendar", "--limit"]);
+const values = new Set(["--code", "--from", "--to", "--instrument", "--scope", "--max-pages", "--budget-ms", "--calendar", "--limit", "--event", "--instance-id", "--error-code", "--collector-instance-id"]);
 const args = new Map();
 let database;
+let heartbeatDeadline;
+let collector;
+let collectorErrorCode;
+const publishCollector = async (event, errorCode) => {
+  if (!collector) return;
+  const updated = await collector.runtime.update(collector.identity, collector.instanceId, { event, ...(errorCode ? { errorCode } : {}) });
+  if (!updated) throw new KiwoomError("configuration", "Collector instance was replaced", null, 0, "CONFIGURATION_FAILED");
+};
 try {
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -30,8 +39,12 @@ try {
       args.set(arg, value);
     }
   }
-  if (!["doctor", "egress", "verify", "sync", "migrate-scope"].includes(command))
-    throw new KiwoomError("configuration", "Command must be doctor, egress, verify, sync or migrate-scope");
+  if (!["doctor", "egress", "verify", "sync", "migrate-scope", "heartbeat"].includes(command))
+    throw new KiwoomError("configuration", "Command must be doctor, egress, verify, sync, migrate-scope or heartbeat");
+  if (["--event", "--instance-id", "--error-code"].some(option => args.has(option)) && command !== "heartbeat")
+    throw new KiwoomError("configuration", "Heartbeat options require heartbeat command");
+  if (args.has("--collector-instance-id") && (command !== "sync" || args.has("--read-stored") || args.has("--check-config") || args.has("--check-database")))
+    throw new KiwoomError("configuration", "Collector instance requires sync command");
   // Identical precedence even when CLI is invoked directly rather than via npm.
   const config = readKiwoomConfig(mergeAppEnv(readAppEnv(projectRoot()), process.env));
   if (args.has("--cross-check") && (command !== "verify" || !args.has("--live") || args.has("--read-stored") || args.has("--check-config") || args.has("--check-database")))
@@ -49,7 +62,25 @@ try {
     return database.store;
   };
   const doctor = () => diagnoseKiwoomRuntime(config, request, { inspectOperational: true, store: getStore });
-  if (command === "egress") {
+  if (command === "heartbeat") {
+    if ([...args.keys()].some(option => !["--event", "--instance-id", "--error-code"].includes(option)))
+      throw new KiwoomError("configuration", "Heartbeat only accepts event, instance and safe error code");
+    const instanceId = validateKiwoomCollectorInstance(args.get("--instance-id"));
+    const event = args.get("--event"), errorCode = args.get("--error-code");
+    if (!["start", "error"].includes(event) || (event === "error" && !isKiwoomCollectorErrorCode(errorCode)) ||
+      (event === "start" && errorCode !== undefined))
+      throw new KiwoomError("configuration", "Heartbeat requires start or a fixed safe error code");
+    // Bound even a shutdown/connect stall. This branch is DB-only and cannot issue a broker request.
+    heartbeatDeadline = setTimeout(() => { emit({ status: "DATABASE_FAILED", reason: "Collector heartbeat timeout" }); process.exit(1); }, 15_000);
+    const store = await getStore();
+    if (!(await store.schema()).ready || !store.collectorRuntime)
+      throw new KiwoomError("storage", "Collector schema migration required", null, 0, "DATABASE_SCHEMA_MISSING");
+    const identity = { scopeId: kiwoomDataScope(config), environment: config.environment };
+    if (event === "start") await store.collectorRuntime.start(identity, instanceId);
+    else if (!await store.collectorRuntime.update(identity, instanceId, { event: "error", errorCode }))
+      throw new KiwoomError("configuration", "Collector instance was replaced", null, 0, "CONFIGURATION_FAILED");
+    emit({ status: event === "start" ? "COLLECTOR_STARTED" : "COLLECTOR_ERROR_RECORDED", ...(event === "error" ? { errorCode } : {}) });
+  } else if (command === "egress") {
     // Only this explicit local flag may show an address; never used in web payloads.
     const ip = await checkKiwoomEgress(config.expectedEgressIp);
     emit({ egressStatus: ip.status, ...(args.has("--show-ip") ? { observedIp: ip.observedIp } : {}) });
@@ -110,78 +141,127 @@ try {
           throw new KiwoomError("configuration", "Calendar must contain observed daily price dates");
         request.expectedDailyDates = [...new Set(parsed)].filter(date => date >= request.from && date <= request.to).sort();
       }
+      if (command === "sync" && args.has("--collector-instance-id")) {
+        const runtime = store.collectorRuntime;
+        const providedInstance = args.get("--collector-instance-id");
+        if (runtime && await runtime.schema()) {
+          collector = { runtime, identity, instanceId: validateKiwoomCollectorInstance(providedInstance) };
+          // Scheduled workers register once at process start. A later/older cycle cannot claim a replacement worker's row.
+          await publishCollector("heartbeat");
+        } else
+          throw new KiwoomError("storage", "Collector heartbeat migration required", null, 0, "DATABASE_SCHEMA_MISSING");
+      }
+      // Manual sync has no telemetry side effects. It must not replace a continuous worker or claim one is running.
       // Database lease protects scheduled/manual CLI instances across machines; heartbeats handle long work.
       await store.exclusive("collector-run:" + kiwoomCredentialKey(config), async signal => {
-        const client = createKiwoomClient(config, store);
-        await client.authenticate(signal);
-        emit({ authentication: "TOKEN_OK", environment: "real" });
-        const primary = { credit: [], foreign: [] };
-        if (command === "verify") {
-          for (const metric of FLOW_METRICS) {
-            try {
-              const page = await client.page(KIWOOM_APIS[metric].id, kiwoomConditions(request, metric), signal);
-              const rows = page.body[KIWOOM_APIS[metric].array];
-              if (!Array.isArray(rows)) throw new KiwoomError("parsing", "Required response array missing");
-              const parsed = parseKiwoomRows(rows, metric, new Date().toISOString(), "real", request.flowScope);
-              const valid = parsed.observations.filter(row => row.value !== null);
-              if (metric !== "investmentTrust") primary[metric] = parsed.observations;
-              emit({ apiId: KIWOOM_APIS[metric].id, httpSuccess: true, businessSuccess: true,
-                rows: rows.length, validValues: valid.length, firstDate: valid[0]?.date ?? null, lastDate: valid.at(-1)?.date ?? null });
-              if (!valid.length) process.exitCode = 1;
-            } catch (error) {
-              const safe = safeKiwoomError(error);
-              emit({ apiId: KIWOOM_APIS[metric].id, status: safe.health, errorCode: safe.code });
-              process.exitCode = 1;
-            }
-          }
-          if (args.has("--cross-check")) emit(await crossCheckKiwoom(client, request, primary));
-          return;
-        }
-        const processIdentity = async (id, target = false) => {
-          if (target) await store.targets.start(id);
-          let complete = true, hasValues = true;
-          try {
+        let telemetryInFlight;
+        const telemetry = collector ? setInterval(() => {
+          if (telemetryInFlight) return;
+          telemetryInFlight = publishCollector("heartbeat").catch(() => { collectorErrorCode = "DATABASE_FAILED"; })
+            .finally(() => { telemetryInFlight = undefined; });
+        }, 60_000) : undefined;
+        try {
+          const client = createKiwoomClient(config, store);
+          await client.authenticate(signal);
+          emit({ authentication: "TOKEN_OK", environment: "real" });
+          const primary = { credit: [], foreign: [] };
+          if (command === "verify") {
             for (const metric of FLOW_METRICS) {
-              const previous = await store.job(id, metric, true);
-              let collectionIdentity = id;
-              if (args.has("--incremental") && previous?.complete) {
-                const existing = await store.read(id, metric);
-                const last = existing.filter(row => row.value !== null).at(-1)?.date;
-                if (last) {
-                  const from = new Date(Date.parse(last) - 14 * 86400000).toISOString().slice(0, 10);
-                  collectionIdentity = { ...id, request: { ...id.request, from: from > id.request.from ? from : id.request.from } };
-                }
+              try {
+                const page = await client.page(KIWOOM_APIS[metric].id, kiwoomConditions(request, metric), signal);
+                const rows = page.body[KIWOOM_APIS[metric].array];
+                if (!Array.isArray(rows)) throw new KiwoomError("parsing", "Required response array missing");
+                const parsed = parseKiwoomRows(rows, metric, new Date().toISOString(), "real", request.flowScope);
+                const valid = parsed.observations.filter(row => row.value !== null);
+                if (metric !== "investmentTrust") primary[metric] = parsed.observations;
+                emit({ apiId: KIWOOM_APIS[metric].id, httpSuccess: true, businessSuccess: true,
+                  rows: rows.length, validValues: valid.length, firstDate: valid[0]?.date ?? null, lastDate: valid.at(-1)?.date ?? null });
+                if (!valid.length) process.exitCode = 1;
+              } catch (error) {
+                const safe = safeKiwoomError(error);
+                emit({ apiId: KIWOOM_APIS[metric].id, status: safe.health, errorCode: safe.code });
+                process.exitCode = 1;
               }
-              const job = await collectKiwoomMetric(store, client, collectionIdentity, metric, { maxPages, budgetMs, resume: target || args.has("--resume"), signal });
-              const rows = await store.read(id, metric);
-              const valid = rows.filter(row => row.value !== null);
-              complete &&= job.complete && ["ready", "history"].includes(job.status) && valid.length > 0;
-              hasValues &&= valid.length > 0;
-              emit({ metric, apiId: KIWOOM_APIS[metric].id, code: id.request.code, rows: rows.length, validValues: valid.length,
-                firstDate: valid[0]?.date ?? null, lastDate: valid.at(-1)?.date ?? null,
-                status: job.status, complete: job.complete, pages: job.pages, errorCode: job.errorCode,
-                providerReal: valid.length > 0 && valid.every(row => row.provider === "kiwoom" && row.environment === "real" && !row.derived) });
             }
-          } catch (error) { complete = false; hasValues = false; throw error; }
-          finally { if (target) await store.targets.finish(id, complete, hasValues); }
-          if (!complete) process.exitCode = 1;
-        };
-        if (args.has("--targets")) {
-          await store.exclusive("collector-targets:" + identity.scopeId, async () => {
-            const pending = await store.targets.pending(identity.scopeId, config.environment, limit);
-            emit({ pendingTargets: pending.length, maxTargetsPerRun: limit });
-            for (const target of pending) {
-              const bounded = boundKiwoomTarget({ ...request, code: target.code, instrument: target.instrument,
-                flowScope: target.marketScope, from: target.requestedFrom, to: target.requestedTo });
-              await processIdentity({ ...identity, request: bounded }, true);
+            if (args.has("--cross-check")) emit(await crossCheckKiwoom(client, request, primary));
+            return;
+          }
+          const processIdentity = async (id, target = false, workSignal = signal) => {
+            const collectIdentity = async activeSignal => {
+              activeSignal.throwIfAborted();
+              let complete = true, hasValues = true;
+              for (const metric of FLOW_METRICS) {
+                activeSignal.throwIfAborted();
+                const previous = await store.job(id, metric, true);
+                let collectionIdentity = id;
+                if (args.has("--incremental") && previous?.complete) {
+                  const existing = await store.read(id, metric);
+                  const last = existing.filter(row => row.value !== null).at(-1)?.date;
+                  if (last) {
+                    const from = new Date(Date.parse(last) - 14 * 86400000).toISOString().slice(0, 10);
+                    collectionIdentity = { ...id, request: { ...id.request, from: from > id.request.from ? from : id.request.from } };
+                  }
+                }
+                const job = await collectKiwoomMetric(store, client, collectionIdentity, metric, { maxPages, budgetMs, resume: target || args.has("--resume"), signal: activeSignal });
+                activeSignal.throwIfAborted();
+                if (!["ready", "history", "collecting"].includes(job.status)) {
+                  const health = safeKiwoomError(new KiwoomError(job.status, "Collector metric failed")).health;
+                  collectorErrorCode = isKiwoomCollectorErrorCode(health) ? health : "COLLECTOR_FAILED";
+                }
+                await publishCollector("heartbeat");
+                const rows = await store.read(id, metric);
+                const valid = rows.filter(row => row.value !== null);
+                complete &&= job.complete && ["ready", "history"].includes(job.status) && valid.length > 0;
+                hasValues &&= valid.length > 0;
+                emit({ metric, apiId: KIWOOM_APIS[metric].id, code: id.request.code, rows: rows.length, validValues: valid.length,
+                  firstDate: valid[0]?.date ?? null, lastDate: valid.at(-1)?.date ?? null,
+                  status: job.status, complete: job.complete, pages: job.pages, errorCode: job.errorCode,
+                  providerReal: valid.length > 0 && valid.every(row => row.provider === "kiwoom" && row.environment === "real" && !row.derived) });
+              }
+              return { complete, hasValues };
+            };
+            const { complete } = target
+              ? await runKiwoomTargetCycle(id, store.targets, workSignal, collectIdentity)
+              : await collectIdentity(workSignal);
+            if (!complete) {
+              process.exitCode = 1;
+              collectorErrorCode ??= "COLLECTOR_FAILED";
             }
-          }, signal);
-        } else await processIdentity({ ...identity, request: boundKiwoomTarget(request) });
+          };
+          if (args.has("--targets")) {
+            await store.exclusive("collector-targets:" + identity.scopeId, async targetSignal => {
+              const workSignal = AbortSignal.any([signal, targetSignal]);
+              workSignal.throwIfAborted();
+              const pending = await store.targets.pending(identity.scopeId, config.environment, limit);
+              emit({ pendingTargets: pending.length, maxTargetsPerRun: limit });
+              for (const target of pending) {
+                const bounded = boundKiwoomTarget({ ...request, code: target.code, instrument: target.instrument,
+                  flowScope: target.marketScope, from: target.requestedFrom, to: target.requestedTo });
+                await processIdentity({ ...identity, request: bounded }, true, workSignal);
+              }
+              workSignal.throwIfAborted();
+            }, signal);
+          } else await processIdentity({ ...identity, request: boundKiwoomTarget(request) });
+          if (telemetry) clearInterval(telemetry);
+          await telemetryInFlight;
+          if (collectorErrorCode) await publishCollector("error", collectorErrorCode);
+          else await publishCollector("success");
+        } finally {
+          if (telemetry) clearInterval(telemetry);
+          await telemetryInFlight;
+        }
       }, AbortSignal.timeout(30 * 60_000));
     }
   }
 } catch (error) {
   const safe = safeKiwoomError(error);
+  if (collector) {
+    try { await publishCollector("error", isKiwoomCollectorErrorCode(safe.health) ? safe.health : "COLLECTOR_FAILED"); }
+    catch { /* Preserve the original failure, never print the storage error or identifiers. */ }
+  }
   emit({ status: safe.health, errorCode: safe.code, reason: safe.message });
   process.exitCode = 1;
-} finally { await database?.close(); }
+} finally {
+  try { await database?.close(); }
+  finally { if (heartbeatDeadline) clearTimeout(heartbeatDeadline); }
+}

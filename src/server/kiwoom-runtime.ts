@@ -3,6 +3,7 @@ import { KIWOOM_APIS } from "./kiwoom-client.ts";
 import { checkKiwoomEgress, kiwoomDataScope, safeKiwoomConfig, safeKiwoomError, type KiwoomConfig } from "./kiwoom-config.ts";
 import type { KiwoomFlowStore, KiwoomSchemaStatus } from "./kiwoom-store.ts";
 import { getKiwoomStore } from "./kiwoom-db.ts";
+import type { KiwoomCollectorDiagnostics } from "./kiwoom-collector-runtime.ts";
 
 /** Shared read-only diagnostic. Operational detail requires web admin or local OS authority.
  * Collector web never probes egress, authenticates, constructs a broker client or migrates. */
@@ -20,6 +21,7 @@ export async function diagnoseKiwoomRuntime(config: KiwoomConfig, request: FlowR
     apis: Object.fromEntries(FLOW_METRICS.map(id => [KIWOOM_APIS[id].id, "NOT_TESTED"])),
     latestStored: { credit: null, foreign: null, investmentTrust: null } as Record<(typeof FLOW_METRICS)[number], string | null>,
     metrics: {} as Record<string, { status: KiwoomHealthStatus; rows: number; validValues: number; firstDate: string | null; lastDate: string | null; lastSuccessAt: string | null; pages: number; stopReason: string | null; errorCode: number | null }>,
+    collector: null as KiwoomCollectorDiagnostics | null,
     issues: [] as KiwoomHealthStatus[],
   };
   if (result.deploymentStatus === "DEPLOYMENT_REVISION_MISMATCH") result.issues.push("DEPLOYMENT_REVISION_MISMATCH");
@@ -31,6 +33,9 @@ export async function diagnoseKiwoomRuntime(config: KiwoomConfig, request: FlowR
     try {
       const store = await (options.store ?? getKiwoomStore)();
       result.schema = await store.schema(); result.databaseConnected = true; result.schemaReady = result.schema.ready;
+      // This branch is only reached by the verified web owner or OS-operator CLI.
+      // Missing optional heartbeat schema must not break previously stored metrics.
+      if (store.collectorRuntime) result.collector = await store.collectorRuntime.read({ scopeId: kiwoomDataScope(config), environment: config.environment });
       if (!result.schemaReady) result.issues.push("DATABASE_SCHEMA_MISSING");
       else {
         const identity = { scopeId: kiwoomDataScope(config), environment: config.environment, request };

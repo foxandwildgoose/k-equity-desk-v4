@@ -5,21 +5,7 @@ param(
     [Parameter(Mandatory = $true)][string]$AppSecretPath
 )
 $ErrorActionPreference = 'Stop'
-function Read-KiwoomCredentialFile([string]$FilePath) {
-    try {
-        $Item = Get-Item -LiteralPath $FilePath -ErrorAction Stop
-        if (-not ($Item -is [System.IO.FileInfo]) -or ($Item.Attributes -band [System.IO.FileAttributes]::ReparsePoint)) {
-            throw 'Invalid credential file'
-        }
-        if ($Item.Length -gt 16384) { throw 'Invalid credential file' }
-        $Text = [System.IO.File]::ReadAllText($Item.FullName, [System.Text.UTF8Encoding]::new($false, $true))
-        $Text = $Text.TrimStart([char]0xFEFF).Trim()
-        if ([string]::IsNullOrWhiteSpace($Text) -or $Text.Contains("`n") -or $Text.Contains("`r") -or $Text.Contains([char]0)) {
-            throw 'Invalid credential file'
-        }
-        return $Text
-    } catch { throw 'Credential file validation failed (no values displayed)' }
-}
+. (Join-Path $PSScriptRoot 'KiwoomCollectorHelpers.ps1')
 try {
     # Both files validated before either environment variable changes.
     $KiwoomKeyValue = Read-KiwoomCredentialFile $AppKeyPath

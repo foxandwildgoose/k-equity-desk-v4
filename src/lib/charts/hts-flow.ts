@@ -38,7 +38,7 @@ export const KIWOOM_NEXT_STEPS: Record<KiwoomHealthStatus, string> = {
   API_FAILED: "수집기의 안전한 API 오류코드와 조회 권한을 확인하세요.",
   PARSING_FAILED: "수집기의 실제 응답 유효 필드·날짜 검사 결과를 확인하세요.",
   NO_HISTORY: "등록 IP 수집기를 실행하세요. 대기열이 가득 차면 운영자가 대상 목록을 점검하세요.",
-  COLLECTION_QUEUED: "등록 IP 수집기로 대기 대상을 수집하세요.",
+  COLLECTION_QUEUED: "고정 IP 수집기의 다음 대기열 처리 주기를 기다리세요. 계속 지연되면 운영자가 자동 실행 상태를 확인해야 합니다.",
   COLLECTING: "수집기가 저장 중입니다. 완료 후 상태를 새로고침하세요.",
   PARTIAL: "수집기를 다시 실행하여 부족한 구간을 재개하세요.",
   READY: "표시 기준일을 저장된 실제 관측일과 대조하세요.",
