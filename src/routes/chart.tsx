@@ -111,7 +111,7 @@ function Pane({
   sym: string;
   idx: number;
   interval: ChartInterval;
-  onInterval: (i: ChartInterval) => void;
+  onInterval: (i: ChartInterval, minuteSize?: MinuteSize) => void;
   onSymbol: (s: string) => void;
   sync: ReturnType<typeof createChartSync>;
   height: number | string;
@@ -153,6 +153,7 @@ function Pane({
       profileSource={q.profileSource}
       indicatorBars={q.indicatorBars}
       priceBasisNote={q.priceBasisNote}
+      onTimeframe={onInterval}
       interval={interval}
       minuteSize={minuteSize}
       range={range}
@@ -239,7 +240,10 @@ function ChartWorkspace() {
             sym={sym}
             idx={i}
             interval={syncInterval ? shared : own[i]!}
-            onInterval={(iv) => (syncInterval ? setShared(iv) : setOwn((o) => o.map((x, j) => (j === i ? iv : x))))}
+            onInterval={(iv, minutes) => {
+              if (syncInterval) setShared(iv); else setOwn(o => o.map((x, j) => j === i ? iv : x));
+              if (minutes) void navigate({ search: { ...search, interval: iv, minuteSize: minutes, range: "5d" }, replace: true });
+            }}
             onSymbol={(s) => setSymbols(symbols.map((x, j) => (j === i ? s : x)))}
             sync={sync}
             height={height}

@@ -7,6 +7,8 @@
 import type { BarTime, Drawing } from "./drawings.ts";
 import type { IndicatorInstance } from "./catalog.ts";
 import { migrateStandardSmas } from "./standard-sma.ts";
+import type { BollingerSystemSettings } from "../bollinger/types.ts";
+import { migrateBollingerSystem } from "../bollinger/config.ts";
 
 export type ChartType = "candles" | "hollow" | "bars" | "heikin-ashi" | "line" | "area" | "baseline";
 export type ChartScale = "normal" | "log" | "percent" | "indexed";
@@ -31,6 +33,7 @@ export const CHART_SCALES: { id: ChartScale; label: string }[] = [
 export interface ChartLayoutState {
   v: 2;
   smaBundleVersion?: 1;
+  bollinger?: BollingerSystemSettings;
   indicators: IndicatorInstance[];
   drawings: Drawing[];
   chartType: ChartType;
@@ -71,7 +74,8 @@ function validateOverlays(raw: unknown): ChartLayoutState["overlays"] {
 }
 
 export function defaultLayout(indicators: IndicatorInstance[], chartType: ChartType = "candles", scale: ChartScale = "normal"): ChartLayoutState {
-  return { v: 2, smaBundleVersion: 1, indicators, drawings: [], chartType, scale, overlays: { ...DEFAULT_OVERLAYS } };
+  const migrated = migrateBollingerSystem(indicators);
+  return { v: 2, smaBundleVersion: 1, bollinger: migrated.settings, indicators: migrated.indicators, drawings: [], chartType, scale, overlays: { ...DEFAULT_OVERLAYS } };
 }
 
 function isAnchor(a: unknown): boolean {
@@ -90,13 +94,13 @@ export function parseChartState(raw: string | null): ChartLayoutState | null {
   try {
     const v = JSON.parse(raw) as Partial<ChartLayoutState>;
     if (v?.v !== 2) return null;
+    const validIndicators = Array.isArray(v.indicators) ? v.indicators.filter(i => i && typeof i.id === "string" && typeof i.uid === "string" && i.params && typeof i.params === "object").map(i => ({ ...i, visible: typeof i.visible === "boolean" ? i.visible : true })) : [];
+    const migrated = migrateBollingerSystem(v.smaBundleVersion === 1 ? validIndicators : migrateStandardSmas(validIndicators), v.bollinger);
     return {
       v: 2,
       smaBundleVersion: 1,
-      indicators: (() => {
-        const indicators = Array.isArray(v.indicators) ? v.indicators.filter(i => i && typeof i.id === "string" && typeof i.uid === "string" && i.params && typeof i.params === "object").map(i => ({ ...i, visible: typeof i.visible === "boolean" ? i.visible : true })) : [];
-        return v.smaBundleVersion === 1 ? indicators : migrateStandardSmas(indicators);
-      })(),
+      bollinger: migrated.settings,
+      indicators: migrated.indicators,
       drawings: Array.isArray(v.drawings)
         ? v.drawings.filter(validDrawing).map((d) => ({ ...d, color: d.color ?? "#f59e0b", width: d.width ?? 2, locked: Boolean(d.locked), hidden: Boolean(d.hidden) }))
         : [],

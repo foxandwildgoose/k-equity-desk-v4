@@ -1,0 +1,50 @@
+{
+  "url": "http://127.0.0.1:8080/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "대시보드 · Korea Equity Command Center",
+      "hasCanvas": false,
+      "bodyTextLen": 2625,
+      "bodyTextHash": "42bd16e243699638ff4b2ac13c186d4a79c8d88a73430a68e4cf865b1780dd3e",
+      "bodyTextPrefix": "지수 수신 중… 실시간: KIS Open API · KRX WebSocket(설정 시) · 백업: 네이버 금융 스냅",
+      "horizontalOverflow": false,
+      "consoleErrors": [
+        "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+        "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+        "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+        "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+        "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+        "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+      ],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/bollinger-production/smoke-final-canonical/dev.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "대시보드 · Korea Equity Command Center",
+      "hasCanvas": false,
+      "bodyTextLen": 2580,
+      "bodyTextHash": "4cd9458c3f62f993ef7501107c4e5c2403878599992bd271e59e12a0beeed91a",
+      "bodyTextPrefix": "KX Equity COMMAND 지수 수신 중… US · 지연 SPX 7,722.72 +0.73% NDX 30,80",
+      "horizontalOverflow": false,
+      "consoleErrors": [
+        "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+        "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+        "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+      ],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/bollinger-production/smoke-final-canonical/dev-mobile.png"
+    }
+  },
+  "brandWarnings": [
+    "BRAND NOTE: no custom public/og.jpg — the platform will serve the og.grok.me placeholder. Custom cards are the default for games of every kind (DOM board/word games included), whimsical apps, creative tools, and brand-forward pages — only plain utilities (converters, CRUD trackers, admin dashboards) keep the placeholder. If this app is not a plain utility, finish the brand-asset pass per /workspace/.grok/skills/og/SKILL.md."
+  ],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/bollinger-production/smoke-final-canonical/dev.json"
+}
+BRAND NOTE: no custom public/og.jpg — the platform will serve the og.grok.me placeholder. Custom cards are the default for games of every kind (DOM board/word games included), whimsical apps, creative tools, and brand-forward pages — only plain utilities (converters, CRUD trackers, admin dashboards) keep the placeholder. If this app is not a plain utility, finish the brand-asset pass per /workspace/.grok/skills/og/SKILL.md.

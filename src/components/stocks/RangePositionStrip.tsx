@@ -357,7 +357,7 @@ export function BandCompareStrip({
       sub: compare.bbMid != null ? `중심 ${fmt(compare.bbMid)}` : "SMA20",
     },
     {
-      label: "백분위 순위",
+      label: "종가 백분위 순위",
       value: compare.pctRank == null ? "—" : `${compare.pctRank.toFixed(0)}%ile`,
       sub: `${compare.window}봉 · ${pctZone(compare.pctRank, compare.close, compare.p10, compare.p90)}`,
     },
@@ -375,8 +375,8 @@ export function BandCompareStrip({
   return (
     <div className="border-b border-border">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 px-3 pt-1.5">
-        <div className="text-[10px] font-semibold tracking-wide text-muted-foreground">볼린저 × 백분위</div>
-        <div className="text-[10px] text-muted-foreground">회색 실선 볼린저 · 청록 P10 · 노랑 P50 · 장미 P90</div>
+        <div className="text-[10px] font-semibold tracking-wide text-muted-foreground">참고 BB(20,2) × 종가 백분위</div>
+        <div className="text-[10px] text-muted-foreground">종가의 가격 분포 순위 · BBW 백분위와 별개</div>
       </div>
       <div className="mt-1 grid grid-cols-2 gap-px bg-border sm:grid-cols-3 lg:grid-cols-6">
         {cells.map((cell) => (

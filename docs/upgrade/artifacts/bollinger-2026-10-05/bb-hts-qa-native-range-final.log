@@ -1,0 +1,40 @@
+
+> qa:chart-hts
+> node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/qa-chart-hts.mjs --mode fixture --base http://127.0.0.1:8183 --function-map /tmp/bb-function-map.json --interactions --cases stock-403870,etf-069500,us-NVDA,workspace-multi --viewports desktop,mobile --out /workspace/screenshots/bollinger-production/hts-regression-native-range-final
+
+  PASS stock-403870: HTS defaults, height and scoped settings restoration
+  PASS stock-403870: Kiwoom daily values, gap handling and explicit available cumulative origin
+  PASS stock-403870: Accessible profile table and total percentages
+  PASS stock-403870: PNG includes whole chart
+  PASS stock-403870: CSV profile/source/flow metadata
+  PASS stock-403870: Outside-price drawing rejection and price drawing persistence
+  PASS stock-403870: Local price alert and event overlays stay in price pane
+  PASS stock-403870: Time zoom/pan preserves native pane structure
+  PASS stock-403870: Day/week/month/minute switching and replay data boundaries
+  PASS stock-403870: Theme toggle
+  PASS stock-403870: Fullscreen/workspace entry
+PASSED fixture stock-403870 desktop
+  PASS etf-069500: HTS defaults, height and scoped settings restoration
+  PASS etf-069500: Kiwoom daily values, gap handling and explicit available cumulative origin
+  PASS etf-069500: Accessible profile table and total percentages
+  PASS etf-069500: PNG includes whole chart
+  PASS etf-069500: CSV profile/source/flow metadata
+  PASS etf-069500: Outside-price drawing rejection and price drawing persistence
+  PASS etf-069500: Local price alert and event overlays stay in price pane
+  PASS etf-069500: Time zoom/pan preserves native pane structure
+  PASS etf-069500: Day/week/month/minute switching and replay data boundaries
+  PASS etf-069500: Theme toggle
+  PASS etf-069500: Fullscreen/workspace entry
+PASSED fixture etf-069500 desktop
+PASSED fixture workspace-multi desktop
+PASSED fixture us-NVDA desktop
+PASSED fixture stock-403870 mobile
+PASSED fixture etf-069500 mobile
+PASSED fixture workspace-multi mobile
+PASSED fixture us-NVDA mobile
+{"mode":"fixture","passed":8,"failed":0,"verdict":"/workspace/screenshots/bollinger-production/hts-regression-native-range-final/verdict.json"}
+npm notice
+npm notice New major version of npm available! 10.9.9 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice

@@ -1,0 +1,82 @@
+TAP version 13
+# Subtest: native axis resize roundoff preserves the selected candle window and fractional pans
+ok 1 - native axis resize roundoff preserves the selected candle window and fractional pans
+  ---
+  duration_ms: 1.401912
+  type: 'test'
+  ...
+# Subtest: AT-36 drawings: create, update, lock, hide, remove, undo/redo, persist
+ok 2 - AT-36 drawings: create, update, lock, hide, remove, undo/redo, persist
+  ---
+  duration_ms: 1.811743
+  type: 'test'
+  ...
+# Subtest: drawing maths: fib levels, position R:R, magnet + KRX snapping, hit distance
+ok 3 - drawing maths: fib levels, position R:R, magnet + KRX snapping, hit distance
+  ---
+  duration_ms: 0.416962
+  type: 'test'
+  ...
+# Subtest: AT-39 layout key format and one-time legacy migration
+ok 4 - AT-39 layout key format and one-time legacy migration
+  ---
+  duration_ms: 0.599445
+  type: 'test'
+  ...
+# Subtest: chart annotations start OFF and preserve prior combined report/target and dividend/split choices
+ok 5 - chart annotations start OFF and preserve prior combined report/target and dividend/split choices
+  ---
+  duration_ms: 0.433948
+  type: 'test'
+  ...
+# Subtest: annotation persistence strictly validates booleans without truthy strings or arbitrary stored keys
+ok 6 - annotation persistence strictly validates booleans without truthy strings or arbitrary stored keys
+  ---
+  duration_ms: 0.485755
+  type: 'test'
+  ...
+# Subtest: indicator catalog: every definition computes, params sanitized, memo key
+ok 7 - indicator catalog: every definition computes, params sanitized, memo key
+  ---
+  duration_ms: 6.283646
+  type: 'test'
+  ...
+# Subtest: AT-37 compare: percent from the first visible bar; exact time alignment
+ok 8 - AT-37 compare: percent from the first visible bar; exact time alignment
+  ---
+  duration_ms: 0.193148
+  type: 'test'
+  ...
+# Subtest: AT-40 replay hides future bars; indicators on the slice have no lookahead
+ok 9 - AT-40 replay hides future bars; indicators on the slice have no lookahead
+  ---
+  duration_ms: 0.366857
+  type: 'test'
+  ...
+# Subtest: AT-41 export names carry symbol + interval + KST timestamp; CSV = given rows
+ok 10 - AT-41 export names carry symbol + interval + KST timestamp; CSV = given rows
+  ---
+  duration_ms: 1.455832
+  type: 'test'
+  ...
+# Subtest: extended hours + session breaks only from real intraday bars
+ok 11 - extended hours + session breaks only from real intraday bars
+  ---
+  duration_ms: 4.359826
+  type: 'test'
+  ...
+# Subtest: bar time: daily keeps the date; intraday wall clock → unix seconds per market zone
+ok 12 - bar time: daily keeps the date; intraday wall clock → unix seconds per market zone
+  ---
+  duration_ms: 2.026955
+  type: 'test'
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 146.45832

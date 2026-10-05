@@ -337,7 +337,7 @@ export function newInstance(id: string, params?: Record<string, number | string>
 export function defaultIndicators(_market: "KR" | "US"): IndicatorInstance[] {
   const out = [
     ...STANDARD_SMA_PERIODS.map(standardSmaInstance),
-    newInstance("bb", { period: 20, mult: 2 }, "#64748b"),
+    newInstance("bb", { period: 20, mult: 2 }),
     newInstance("volume", { ma: 20 }),
     newInstance("rsi", { period: 14 }, "#a78bfa"),
     newInstance("macd", {}, "#38bdf8"),

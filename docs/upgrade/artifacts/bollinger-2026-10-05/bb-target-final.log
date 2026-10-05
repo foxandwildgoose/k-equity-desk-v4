@@ -1,0 +1,349 @@
+
+> test:bollinger
+> node --experimental-strip-types --disable-warning=ExperimentalWarning --test src/lib/bollinger/config.test.ts src/lib/bollinger/engine.test.ts src/lib/bollinger/patterns.test.ts src/lib/bollinger/rendering.test.ts src/lib/bollinger/integration.test.ts src/lib/bollinger/screener.test.ts
+
+TAP version 13
+# Subtest: Bollinger defaults and presets remain timeframe-independent
+ok 1 - Bollinger defaults and presets remain timeframe-independent
+  ---
+  duration_ms: 5.959733
+  type: 'test'
+  ...
+# Subtest: Bollinger settings reject damaged types, clamp values and enforce dependent bounds
+ok 2 - Bollinger settings reject damaged types, clamp values and enforce dependent bounds
+  ---
+  duration_ms: 0.357484
+  type: 'test'
+  ...
+# Subtest: legacy default BB is adopted once without deleting custom periods, colors or OFF
+ok 3 - legacy default BB is adopted once without deleting custom periods, colors or OFF
+  ---
+  duration_ms: 0.486917
+  type: 'test'
+  ...
+# Subtest: versioned system settings win over legacy reference on reload and preserve unrelated layout
+ok 4 - versioned system settings win over legacy reference on reload and preserve unrelated layout
+  ---
+  duration_ms: 1.857112
+  type: 'test'
+  ...
+# Subtest: native BB pane choices persist independently and reject invalid heights
+ok 5 - native BB pane choices persist independently and reject invalid heights
+  ---
+  duration_ms: 0.177736
+  type: 'test'
+  ...
+# Subtest: adopted BB multiplier retains the existing generic catalog's full supported range
+ok 6 - adopted BB multiplier retains the existing generic catalog's full supported range
+  ---
+  duration_ms: 0.242562
+  type: 'test'
+  ...
+# Subtest: population BB known values, warmup, flat window and invalid inputs
+ok 7 - population BB known values, warmup, flat window and invalid inputs
+  ---
+  duration_ms: 1.674979
+  type: 'test'
+  ...
+# Subtest: rolling population deviation matches direct reference and remains stable at large prices
+ok 8 - rolling population deviation matches direct reference and remains stable at large prices
+  ---
+  duration_ms: 15.453869
+  type: 'test'
+  ...
+# Subtest: percentB is unbounded, reflects all reference levels and handles zero width
+ok 9 - percentB is unbounded, reflects all reference levels and handles zero width
+  ---
+  duration_ms: 0.221351
+  type: 'test'
+  ...
+# Subtest: bandwidth uses percentage points, flat volatility is zero, invalid basis unavailable
+ok 10 - bandwidth uses percentage points, flat volatility is zero, invalid basis unavailable
+  ---
+  duration_ms: 0.156003
+  type: 'test'
+  ...
+# Subtest: true BBW rank uses all distribution observations and exact tie midrank
+ok 11 - true BBW rank uses all distribution observations and exact tie midrank
+  ---
+  duration_ms: 0.390032
+  type: 'test'
+  ...
+# Subtest: rolling BBW rank excludes nonfinite observations and is causally prefix-stable
+ok 12 - rolling BBW rank excludes nonfinite observations and is causally prefix-stable
+  ---
+  duration_ms: 0.429381
+  type: 'test'
+  ...
+# Subtest: BBW percentile is demonstrably not the existing close-price percentile
+ok 13 - BBW percentile is demonstrably not the existing close-price percentile
+  ---
+  duration_ms: 4.434636
+  type: 'test'
+  ...
+# Subtest: volatility thresholds 5/10/20 and expansion follow configurable boundary rules
+ok 14 - volatility thresholds 5/10/20 and expansion follow configurable boundary rules
+  ---
+  duration_ms: 0.137004
+  type: 'test'
+  ...
+# Subtest: all trend classes use standard SMAs and normalized slope/tolerance
+ok 15 - all trend classes use standard SMAs and normalized slope/tolerance
+  ---
+  duration_ms: 0.324985
+  type: 'test'
+  ...
+# Subtest: breakout needs completed close beyond band and previous completed inside relationship
+ok 16 - breakout needs completed close beyond band and previous completed inside relationship
+  ---
+  duration_ms: 0.347047
+  type: 'test'
+  ...
+# Subtest: failed breakout is confirmed re-entry only within 1–2 completed bars
+ok 17 - failed breakout is confirmed re-entry only within 1–2 completed bars
+  ---
+  duration_ms: 0.181641
+  type: 'test'
+  ...
+# Subtest: band walks need five completed bars, three touches, slope and no middle violations
+ok 18 - band walks need five completed bars, three touches, slope and no middle violations
+  ---
+  duration_ms: 0.175521
+  type: 'test'
+  ...
+# Subtest: RVOL preserves valid zero, requires full valid volume window, and classifies thresholds
+ok 19 - RVOL preserves valid zero, requires full valid volume window, and classifies thresholds
+  ---
+  duration_ms: 0.148612
+  type: 'test'
+  ...
+# Subtest: intraday RVOL uses prior same-session slots when available and labels rolling fallback
+ok 20 - intraday RVOL uses prior same-session slots when available and labels rolling fallback
+  ---
+  duration_ms: 0.264384
+  type: 'test'
+  ...
+# Subtest: score maximum 100, missing category normalization and explicit raw component inputs
+ok 21 - score maximum 100, missing category normalization and explicit raw component inputs
+  ---
+  duration_ms: 0.207439
+  type: 'test'
+  ...
+# Subtest: normalization distinguishes unavailable from a measured zero and never fabricates score
+ok 22 - normalization distinguishes unavailable from a measured zero and never fabricates score
+  ---
+  duration_ms: 0.131116
+  type: 'test'
+  ...
+# Subtest: risk/reward uses a causal structural target or remains unavailable
+ok 23 - risk/reward uses a causal structural target or remains unavailable
+  ---
+  duration_ms: 0.07993
+  type: 'test'
+  ...
+# Subtest: squeeze alone is direction-neutral and band touches never imply an automatic trade
+ok 24 - squeeze alone is direction-neutral and band touches never imply an automatic trade
+  ---
+  duration_ms: 0.078767
+  type: 'test'
+  ...
+# Subtest: full engine integrates same-frequency warmup without changing historical points or events
+ok 25 - full engine integrates same-frequency warmup without changing historical points or events
+  ---
+  duration_ms: 26.098252
+  type: 'test'
+  ...
+# Subtest: unfinished bar can have previews but cannot create confirmed breakout/pattern/alert event
+ok 26 - unfinished bar can have previews but cannot create confirmed breakout/pattern/alert event
+  ---
+  duration_ms: 3.986598
+  type: 'test'
+  ...
+# Subtest: engine breakout failure is one transition and wick-only bars do not confirm
+ok 27 - engine breakout failure is one transition and wick-only bars do not confirm
+  ---
+  duration_ms: 6.716181
+  type: 'test'
+  ...
+# Subtest: three-stage workflow emits squeeze then breakout then volume once, with stable identity
+ok 28 - three-stage workflow emits squeeze then breakout then volume once, with stable identity
+  ---
+  duration_ms: 5.773555
+  type: 'test'
+  ...
+# Subtest: validated KR flow is exact-date bound; U.S. never inherits Korean flow
+ok 29 - validated KR flow is exact-date bound; U.S. never inherits Korean flow
+  ---
+  duration_ms: 12.575183
+  type: 'test'
+  ...
+# Subtest: source customization is deterministic and does not alter timeframe parameters
+ok 30 - source customization is deterministic and does not alter timeframe parameters
+  ---
+  duration_ms: 30.918965
+  type: 'test'
+  ...
+# Subtest: invalid OHLC does not produce invented BB, score, or confirmed signals
+ok 31 - invalid OHLC does not produce invented BB, score, or confirmed signals
+  ---
+  duration_ms: 11.367381
+  type: 'test'
+  ...
+# Subtest: completion uses market local dates, conservative aggregate periods and minute end instants
+ok 32 - completion uses market local dates, conservative aggregate periods and minute end instants
+  ---
+  duration_ms: 19.857229
+  type: 'test'
+  ...
+# Subtest: flow uses dated real published quantities and ownership pp, unknown publication never enters history
+ok 33 - flow uses dated real published quantities and ownership pp, unknown publication never enters history
+  ---
+  duration_ms: 11.595212
+  type: 'test'
+  ...
+# Subtest: same-window bars receive causal preroll values and CSV retains nulls/text safely
+ok 34 - same-window bars receive causal preroll values and CSV retains nulls/text safely
+  ---
+  duration_ms: 15.646276
+  type: 'test'
+  ...
+# Subtest: local alerts baseline, masterOFF, repeated identities and three-stage ledger remain deduplicated
+ok 35 - local alerts baseline, masterOFF, repeated identities and three-stage ledger remain deduplicated
+  ---
+  duration_ms: 0.753324
+  type: 'test'
+  ...
+# Subtest: alert financial identities reset for changed rules, not presentation
+ok 36 - alert financial identities reset for changed rules, not presentation
+  ---
+  duration_ms: 0.209643
+  type: 'test'
+  ...
+# Subtest: W setup and %B bullish divergence wait for right-side confirmation; structural close break is separate
+ok 37 - W setup and %B bullish divergence wait for right-side confirmation; structural close break is separate
+  ---
+  duration_ms: 1.912944
+  type: 'test'
+  ...
+# Subtest: M top and bearish %B divergence are the exact price/%B mirror
+ok 38 - M top and bearish %B divergence are the exact price/%B mirror
+  ---
+  duration_ms: 0.328771
+  type: 'test'
+  ...
+# Subtest: all historical events and swing levels are prefix invariant with no future-bar leakage
+ok 39 - all historical events and swing levels are prefix invariant with no future-bar leakage
+  ---
+  duration_ms: 0.807565
+  type: 'test'
+  ...
+# Subtest: unfinished or invalid confirmation bars cannot confirm pivots, patterns or structural breaks
+ok 40 - unfinished or invalid confirmation bars cannot confirm pivots, patterns or structural breaks
+  ---
+  duration_ms: 0.372255
+  type: 'test'
+  ...
+# Subtest: configured confirmation delay is respected and no hindsight pivot-date signal is emitted
+ok 41 - configured confirmation delay is respected and no hindsight pivot-date signal is emitted
+  ---
+  duration_ms: 0.379427
+  type: 'test'
+  ...
+# Subtest: strict divergence preserves unclipped %B; equal price or equal %B is not divergence
+ok 42 - strict divergence preserves unclipped %B; equal price or equal %B is not divergence
+  ---
+  duration_ms: 0.372676
+  type: 'test'
+  ...
+# Subtest: no plateau fake setups; max span, retest tolerance and invalid settings are enforced
+ok 43 - no plateau fake setups; max span, retest tolerance and invalid settings are enforced
+  ---
+  duration_ms: 0.303823
+  type: 'test'
+  ...
+# Subtest: structure violation/expiry prevents confirmation and sustained break does not duplicate events
+ok 44 - structure violation/expiry prevents confirmation and sustained break does not duplicate events
+  ---
+  duration_ms: 0.32857
+  type: 'test'
+  ...
+# Subtest: BB middle auto avoids only the genuinely equivalent visible SMA20
+ok 45 - BB middle auto avoids only the genuinely equivalent visible SMA20
+  ---
+  duration_ms: 0.713445
+  type: 'test'
+  ...
+# Subtest: master/collapse/child pane options are independent and consume deterministic native slots
+ok 46 - master/collapse/child pane options are independent and consume deterministic native slots
+  ---
+  duration_ms: 0.592034
+  type: 'test'
+  ...
+# Subtest: %B references include 0/1 without clamping valid out-of-band observations
+ok 47 - %B references include 0/1 without clamping valid out-of-band observations
+  ---
+  duration_ms: 0.196454
+  type: 'test'
+  ...
+# Subtest: native band fill uses only continuous valid bands, clips the requested index window and retains zero-width rows
+ok 48 - native band fill uses only continuous valid bands, clips the requested index window and retains zero-width rows
+  ---
+  duration_ms: 0.365926
+  type: 'test'
+  ...
+# Subtest: BB rendering styles follow theme while genuine custom overlays retain their selected color
+ok 49 - BB rendering styles follow theme while genuine custom overlays retain their selected color
+  ---
+  duration_ms: 0.297283
+  type: 'test'
+  ...
+# Subtest: screener accepts bounded mixed price symbols, preserves zero-prefixed codes, rejects malformed/large universes
+ok 50 - screener accepts bounded mixed price symbols, preserves zero-prefixed codes, rejects malformed/large universes
+  ---
+  duration_ms: 1.735531
+  type: 'test'
+  ...
+# Subtest: screener normalizes descending/ascending dates and corrections before bounded analysis
+ok 51 - screener normalizes descending/ascending dates and corrections before bounded analysis
+  ---
+  duration_ms: 1.891485
+  type: 'test'
+  ...
+# Subtest: each required screener filter independently validates available values
+ok 52 - each required screener filter independently validates available values
+  ---
+  duration_ms: 0.371735
+  type: 'test'
+  ...
+# Subtest: unavailable percentiles/SMA/RVOL/score and KR flow cannot silently match filters
+ok 53 - unavailable percentiles/SMA/RVOL/score and KR flow cannot silently match filters
+  ---
+  duration_ms: 0.153309
+  type: 'test'
+  ...
+# Subtest: stale/missing/warmup/error/deferred rows are excluded from current score ranking
+ok 54 - stale/missing/warmup/error/deferred rows are excluded from current score ranking
+  ---
+  duration_ms: 0.229022
+  type: 'test'
+  ...
+# Subtest: bounded snapshot cache shares in-flight reads, separates keys, respects TTL and preserves deterministic limits
+ok 55 - bounded snapshot cache shares in-flight reads, separates keys, respects TTL and preserves deterministic limits
+  ---
+  duration_ms: 0.587577
+  type: 'test'
+  ...
+1..55
+# tests 55
+# suites 0
+# pass 55
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 382.457829
+npm notice
+npm notice New major version of npm available! 10.9.9 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice

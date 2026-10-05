@@ -7,11 +7,11 @@ import {
   type ChartOptions,
   type IChartApi,
 } from "lightweight-charts";
-import { formatChartPrice, type ChartMarket } from "@/components/charts/core/formatters";
+import { type ChartMarket } from "@/components/charts/core/formatters";
 import type { ChartTheme } from "@/components/charts/core/theme";
 
 /** Shared chart options (F7.1). `attributionLogo: false` is allowed because the footer credit link exists (F7.3). */
-export function proChartOptions(theme: ChartTheme, market: ChartMarket): DeepPartial<ChartOptions> {
+export function proChartOptions(theme: ChartTheme, _market: ChartMarket): DeepPartial<ChartOptions> {
   return {
     autoSize: true,
     // A real theme background also makes PNGs match the screen when exporting
@@ -24,8 +24,13 @@ export function proChartOptions(theme: ChartTheme, market: ChartMarket): DeepPar
       horzLine: { color: theme.crosshair, labelBackgroundColor: theme.labelBg },
     },
     rightPriceScale: { borderColor: theme.border, scaleMargins: { top: 0.08, bottom: 0.12 } },
-    timeScale: { borderColor: theme.border, timeVisible: true, secondsVisible: false, rightOffset: 6, barSpacing: 8, minBarSpacing: 0.5 },
-    localization: { locale: "ko-KR", priceFormatter: (p: number) => formatChartPrice(p, market) },
+    // Shared auxiliary-axis widths can change after several native layout passes.
+    // Preserve the selected candles on every plot resize, including pane toggles,
+    // rather than trying to restore a range before the final axis layout settles.
+    timeScale: { borderColor: theme.border, timeVisible: true, secondsVisible: false, rightOffset: 6, barSpacing: 8, minBarSpacing: 0.5, lockVisibleTimeRangeOnResize: true },
+    // Each series owns its units: a global price formatter would round %B
+    // guides and replace BBW/RSI/flow formats with the stock-price format.
+    localization: { locale: "ko-KR" },
     handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
     handleScale: { axisPressedMouseMove: { time: true, price: true }, axisDoubleClickReset: true, mouseWheel: true, pinch: true },
     // Touch: long-press shows the crosshair; lifting the finger ends tracking (F7.14).

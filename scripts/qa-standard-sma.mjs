@@ -8,6 +8,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { chromium } from 'playwright';
 import { emptyValuationPack, statsOf } from '../src/lib/valuation-series.ts';
+import { emptyChartFlow } from '../src/lib/charts/hts-flow.ts';
+import { validateFlowRequest } from '../src/server/chart-flow-request.ts';
 
 const args = process.argv.slice(2);
 const option = (key, fallback) => args.includes(key) ? args[args.indexOf(key) + 1] : fallback;
@@ -62,13 +64,22 @@ async function fixtures(page, calls) {
     const data = payload.data ?? payload;
     const code = data.code ?? '005930';
     let result;
+    let error;
     if (name === 'getChartData') {
       const all = bars(code, data.interval, data.minuteSize);
       const long = ['5y', '10y', 'max', '60d', '7d'].includes(data.range) || (data.interval === 'minute' && data.range === '2y');
       result = { bars: long ? all : all.slice(-60), source: `yahoo-QA-SYNTHETIC-${code}`, events: { dividends: [], splits: [] } };
     } else if (name === 'getChartFlow') {
-      const metric = { status: 'not-configured', health: 'DISABLED', source: '키움증권', points: [], observations: [], message: 'QA SYNTHETIC — live API not invoked' };
-      result = { code, provider: 'kiwoom', environment: 'mock', credit: { ...metric }, foreign: { ...metric }, investmentTrust: { ...metric }, fetchedAt: null };
+      // Match the actual server contract, including its range validation. SMA
+      // fixture history can exceed the flow API's 20-year budget on monthly
+      // charts; that is a flow error, never grounds to corrupt price/SMA data.
+      try {
+        result = emptyChartFlow(validateFlowRequest(data), 'QA SYNTHETIC — live API not invoked');
+        for (const metric of [result.credit, result.foreign, result.investmentTrust]) {
+          metric.capability = 'not-configured'; metric.status = 'disabled';
+          metric.health = 'DISABLED'; metric.source = '키움증권 · QA SYNTHETIC (실데이터 아님)';
+        }
+      } catch (failure) { error = failure; }
     } else if (['getChartSecurity', 'getUsChartSecurity'].includes(name)) {
       result = { code, market: name === 'getUsChartSecurity' ? 'US' : 'KR', exchange: name === 'getUsChartSecurity' ? 'NASDAQ' : 'KOSPI', instrument: code === '069500' ? 'etf' : 'stock', currency: name === 'getUsChartSecurity' ? 'USD' : 'KRW', quantityUnit: '주', source: 'QA SYNTHETIC' };
     } else if (name === 'getStockBundle') {
@@ -80,14 +91,14 @@ async function fixtures(page, calls) {
     else if (name === 'getLiveTradeBundle') result = { exports: [], imports: [], observations: ['TOTAL', 'semiconductors', 'automobiles', 'ships', 'petroleum_products'].flatMap((categoryId, c) => months.map((period, i) => ({ period, categoryId, classification: categoryId === 'TOTAL' ? 'TOTAL' : 'HS', valueUsd: (20 + i / 10) * 1e9 / (c + 1), workingDays: 20, sourceFile: 'QA SYNTHETIC TRANSPORT — NOT LIVE', vintage: 'QA TEST' }))), destinations: { period: '', rows: [], source: 'QA SYNTHETIC' }, news: [], comtradeLatestPeriod: months.at(-1), comtradeMonthsCached: 300, source: { totals: 'QA SYNTHETIC', items: 'QA SYNTHETIC', fetchedAt: '2026-10-04T00:00:00Z' }, notes: ['QA SYNTHETIC — NOT LIVE'] };
     else if (['getStockNews', 'getStockDisclosures'].includes(name)) result = [];
     else return route.continue();
-    calls.push({ name, interval: data.interval ?? null, range: data.range ?? null, code });
-    await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'x-tss-serialized': 'true' }, body: JSON.stringify(await toCrossJSONAsync({ result, error: undefined, context: {} }, { refs: new Map() })) });
+    calls.push({ name, interval: data.interval ?? null, range: data.range ?? null, code, ...(error ? { error: error.message } : {}) });
+    await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'x-tss-serialized': 'true' }, body: JSON.stringify(await toCrossJSONAsync({ result, error, context: {} }, { refs: new Map() })) });
   });
   await page.route('**/api/feed?**', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [], sources: [], partial: false, nextCursor: null, generatedAt: '2026-10-04T00:00:00Z' }) }));
   await page.route('**/api/market-stream?**', route => route.fulfill({ status: 200, contentType: 'text/event-stream', body: 'event: status\ndata: {"enabled":false,"connected":false,"provider":"QA SYNTHETIC"}\n\n' }));
 }
 function probe() {
-  window.__smaTexts = []; window.__smaStrokes = [];
+  window.__smaTexts = []; window.__smaStrokes = []; window.__smaCandles = [];
   let canvasSeq = 0;
   const canvasIds = new WeakMap();
   const idFor = canvas => { if (!canvasIds.has(canvas)) canvasIds.set(canvas, ++canvasSeq); return canvasIds.get(canvas); };
@@ -98,6 +109,17 @@ function probe() {
       if (x === 0 && y === 0 && width * transform.a >= this.canvas.width - 1 && height * transform.d >= this.canvas.height - 1) {
         const canvasId = idFor(this.canvas);
         window.__smaTexts = window.__smaTexts.filter(row => row.canvasId !== canvasId);
+        window.__smaCandles = window.__smaCandles.filter(row => row.canvasId !== canvasId);
+      }
+      if (method === 'fillRect' && this.globalAlpha === 1 && ['#ef4444', '#3b82f6', '#22c55e'].includes(String(this.fillStyle).toLowerCase())) {
+        const rect = this.canvas.getBoundingClientRect();
+        const cssWidth = width * transform.a / (this.canvas.width / rect.width);
+        const htsPane = this.canvas.closest('[data-hts-pane]')?.dataset.htsPane ?? null;
+        const bbPane = this.canvas.closest('[data-bollinger-pane]')?.dataset.bollingerPane ?? null;
+        if (cssWidth > 0 && cssWidth <= 32 && height > 0 && (htsPane === 'price' || (htsPane == null && bbPane == null))) {
+          const shell = this.canvas.closest('[data-testid="chart-canvas"]')?.parentElement?.closest('[data-testid]')?.dataset.testid;
+          window.__smaCandles.push({ canvasId: idFor(this.canvas), shell });
+        }
       }
       return original.apply(this, arguments);
     };
@@ -136,6 +158,10 @@ async function checkChart(page, shell, theme, result, screenshot) {
   await page.waitForFunction(({ colorSet, shell }) => window.__smaTexts?.some(row => row.shell === shell && /^(SMA)?200\s/.test(row.text) && colorSet.map(c => c.toLowerCase()).includes(row.color.toLowerCase())), { colorSet: colors[theme], shell }, { timeout: 35000 });
   for (const period of periods) assert.equal(await root.getByTestId(`sma-toggle-${period}`).getAttribute('aria-pressed'), 'true');
   const coloredLabels = await labels(page, colors[theme], shell);
+  if (await root.getByTestId('chart-canvas').count()) {
+    result.nativeCandles = await page.evaluate(shell => window.__smaCandles.filter(row => row.shell === shell).length, shell);
+    assert(result.nativeCandles > 0, 'price candles missing while SMA overlays render');
+  }
   assert.deepEqual(coloredLabels.map(row => row.period).sort((a, b) => a - b), periods, 'all five native direct labels, including pre-roll SMA200');
   const sorted = coloredLabels.sort((a, b) => a.y - b.y);
   for (let i = 1; i < sorted.length; i++) assert(sorted[i].y - sorted[i - 1].y >= 21.5, 'right-edge labels collide');

@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as BollingerRouteImport } from './routes/bollinger'
 import { Route as ChartRouteImport } from './routes/chart'
 import { Route as DisclosuresRouteImport } from './routes/disclosures'
 import { Route as EtfsRouteImport } from './routes/etfs'
@@ -42,6 +43,11 @@ import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BollingerRoute = BollingerRouteImport.update({
+  id: '/bollinger',
+  path: '/bollinger',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ChartRoute = ChartRouteImport.update({
@@ -187,6 +193,7 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/bollinger': typeof BollingerRoute
   '/chart': typeof ChartRoute
   '/disclosures': typeof DisclosuresRoute
   '/etfs': typeof EtfsRouteWithChildren
@@ -218,6 +225,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/bollinger': typeof BollingerRoute
   '/chart': typeof ChartRoute
   '/disclosures': typeof DisclosuresRoute
   '/export-desk': typeof ExportDeskRoute
@@ -248,6 +256,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/bollinger': typeof BollingerRoute
   '/chart': typeof ChartRoute
   '/disclosures': typeof DisclosuresRoute
   '/etfs': typeof EtfsRouteWithChildren
@@ -281,6 +290,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/bollinger'
     | '/chart'
     | '/disclosures'
     | '/etfs'
@@ -312,6 +322,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/bollinger'
     | '/chart'
     | '/disclosures'
     | '/export-desk'
@@ -341,6 +352,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/bollinger'
     | '/chart'
     | '/disclosures'
     | '/etfs'
@@ -373,6 +385,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BollingerRoute: typeof BollingerRoute
   ChartRoute: typeof ChartRoute
   DisclosuresRoute: typeof DisclosuresRoute
   EtfsRoute: typeof EtfsRouteWithChildren
@@ -406,6 +419,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bollinger': {
+      id: '/bollinger'
+      path: '/bollinger'
+      fullPath: '/bollinger'
+      preLoaderRoute: typeof BollingerRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/chart': {
@@ -635,6 +655,7 @@ const UsResearchRouteWithChildren = UsResearchRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BollingerRoute: BollingerRoute,
   ChartRoute: ChartRoute,
   DisclosuresRoute: DisclosuresRoute,
   EtfsRoute: EtfsRouteWithChildren,

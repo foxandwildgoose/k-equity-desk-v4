@@ -9,7 +9,7 @@ import {
 const cache = new Map<string, { at: number; value: ChartSecurity }>();
 const pending = new Map<string, Promise<ChartSecurity | null>>();
 
-async function fetchChartSecurity(code: string): Promise<ChartSecurity | null> {
+export async function fetchChartSecurity(code: string): Promise<ChartSecurity | null> {
   const hit = cache.get(code);
   if (hit && Date.now() - hit.at < 60 * 60_000) return hit.value;
   const existing = pending.get(code);
@@ -49,7 +49,7 @@ export const getChartSecurity = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => fetchChartSecurity(data.code));
 
-async function fetchUsChartSecurity(code: string): Promise<ChartSecurity | null> {
+export async function fetchUsChartSecurity(code: string): Promise<ChartSecurity | null> {
   const key = `US:${code}`;
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < 60 * 60_000) return hit.value;

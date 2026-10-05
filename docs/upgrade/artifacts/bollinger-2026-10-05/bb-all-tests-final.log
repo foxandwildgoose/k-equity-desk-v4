@@ -1,0 +1,4056 @@
+
+> test
+> node scripts/run-script-tests.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/export-desk/export-desk.test.ts src/lib/infer-sector.test.ts src/lib/search-match.test.ts src/lib/chart-indicators.test.ts src/lib/valuation-series.test.ts src/lib/us-official-parse.test.ts src/data/universe.test.ts src/server/etf-market.test.ts src/server/etf-holdings-parse.test.ts src/lib/feed/feed-kernel.test.ts src/lib/feed/tickers.test.ts src/server/feeds/http.test.ts src/lib/store-migrate.test.ts src/lib/chart-format.test.ts src/lib/open-original.test.ts src/lib/feed/news-parsers.test.ts src/server/feeds/runner.test.ts src/lib/research/research-v2.test.ts src/lib/etf-news.test.ts src/lib/robotics/robotics.test.ts src/lib/wire/live-wire.test.ts src/lib/charts/charts.test.ts src/lib/ai/briefing.test.ts src/lib/charts/hts-layout.test.ts src/lib/charts/hts-settings.test.ts src/lib/charts/profile-labels.test.ts src/lib/charts/security.test.ts src/lib/charts/volume-validity.test.ts src/lib/charts/hts-flow.test.ts src/server/chart-flow.test.ts src/lib/charts/hts-flow-export.test.ts src/server/kiwoom.test.ts src/lib/charts/profile-style.test.ts src/lib/charts/chart-events.test.ts src/lib/charts/standard-sma.test.ts src/lib/bollinger/config.test.ts src/lib/bollinger/engine.test.ts src/lib/bollinger/patterns.test.ts src/lib/bollinger/rendering.test.ts src/lib/bollinger/integration.test.ts src/lib/bollinger/screener.test.ts
+
+TAP version 13
+# Subtest: non-canvas app with no custom card gets a soft BRAND NOTE (utility exception)
+ok 1 - non-canvas app with no custom card gets a soft BRAND NOTE (utility exception)
+  ---
+  duration_ms: 1.712899
+  type: 'test'
+  ...
+# Subtest: non-canvas app with a compliant card is silent
+ok 2 - non-canvas app with a compliant card is silent
+  ---
+  duration_ms: 0.855808
+  type: 'test'
+  ...
+# Subtest: card file without site.json card=custom warns
+ok 3 - card file without site.json card=custom warns
+  ---
+  duration_ms: 0.416913
+  type: 'test'
+  ...
+# Subtest: card file with missing site.json warns for card=custom
+ok 4 - card file with missing site.json warns for card=custom
+  ---
+  duration_ms: 0.386978
+  type: 'test'
+  ...
+# Subtest: card file with invalid site.json warns for card=custom
+ok 5 - card file with invalid site.json warns for card=custom
+  ---
+  duration_ms: 4.904356
+  type: 'test'
+  ...
+# Subtest: oversized card warns for non-canvas apps too
+ok 6 - oversized card warns for non-canvas apps too
+  ---
+  duration_ms: 0.675178
+  type: 'test'
+  ...
+# Subtest: canvas app with no card warns 'missing' and missing og:type
+ok 7 - canvas app with no card warns 'missing' and missing og:type
+  ---
+  duration_ms: 3.66172
+  type: 'test'
+  ...
+# Subtest: canvas card without type still warns for og:type
+ok 8 - canvas card without type still warns for og:type
+  ---
+  duration_ms: 0.383383
+  type: 'test'
+  ...
+# Subtest: oversized card warns on the scraper budget (jpg and legacy png)
+ok 9 - oversized card warns on the scraper budget (jpg and legacy png)
+  ---
+  duration_ms: 1.621361
+  type: 'test'
+  ...
+# Subtest: compliant game (custom card + site.json type + x-banner) is silent
+ok 10 - compliant game (custom card + site.json type + x-banner) is silent
+  ---
+  duration_ms: 0.73013
+  type: 'test'
+  ...
+# Subtest: __root.tsx og:type no longer satisfies the canvas gate
+ok 11 - __root.tsx og:type no longer satisfies the canvas gate
+  ---
+  duration_ms: 0.514999
+  type: 'test'
+  ...
+# Subtest: oversized x-banner warns on the same scraper budget as og.jpg
+ok 12 - oversized x-banner warns on the same scraper budget as og.jpg
+  ---
+  duration_ms: 2.201869
+  type: 'test'
+  ...
+# Subtest: legacy png + site.json type still needs the X feed card
+ok 13 - legacy png + site.json type still needs the X feed card
+  ---
+  duration_ms: 0.494909
+  type: 'test'
+  ...
+# Subtest: siteDeclaresOgTypeGame reads the site contract
+ok 14 - siteDeclaresOgTypeGame reads the site contract
+  ---
+  duration_ms: 0.0939
+  type: 'test'
+  ...
+# Subtest: a fresh og-pending marker silences the whole gate view
+ok 15 - a fresh og-pending marker silences the whole gate view
+  ---
+  duration_ms: 0.188652
+  type: 'test'
+  ...
+# Subtest: a stale og-pending marker is ignored and the warnings return
+ok 16 - a stale og-pending marker is ignored and the warnings return
+  ---
+  duration_ms: 0.233099
+  type: 'test'
+  ...
+# Subtest: the marker goes stale on the clock, not on the file
+ok 17 - the marker goes stale on the clock, not on the file
+  ---
+  duration_ms: 0.238135
+  type: 'test'
+  ...
+# Subtest: no marker means nothing is in flight
+ok 18 - no marker means nothing is in flight
+  ---
+  duration_ms: 0.128863
+  type: 'test'
+  ...
+# Subtest: parseBrandCheckArgs takes --game, --placeholder-ok and --root, and rejects the rest
+ok 19 - parseBrandCheckArgs takes --game, --placeholder-ok and --root, and rejects the rest
+  ---
+  duration_ms: 0.216083
+  type: 'test'
+  ...
+# Subtest: cli: a game missing its card reports JSON and exits 1
+ok 20 - cli: a game missing its card reports JSON and exits 1
+  ---
+  duration_ms: 88.323474
+  type: 'test'
+  ...
+# Subtest: cli: a compliant game passes
+ok 21 - cli: a compliant game passes
+  ---
+  duration_ms: 68.839451
+  type: 'test'
+  ...
+# Subtest: cli: the task's own marker is reported, not honoured
+ok 22 - cli: the task's own marker is reported, not honoured
+  ---
+  duration_ms: 98.688736
+  type: 'test'
+  ...
+# Subtest: cli: a bad argument fails with JSON on stderr
+ok 23 - cli: a bad argument fails with JSON on stderr
+  ---
+  duration_ms: 100.490497
+  type: 'test'
+  ...
+# Subtest: cli: a non-game with no card fails too — the pass exists to produce one
+ok 24 - cli: a non-game with no card fails too — the pass exists to produce one
+  ---
+  duration_ms: 116.240548
+  type: 'test'
+  ...
+# Subtest: cli: --placeholder-ok is how a plain-utility pass reports no card as expected
+ok 25 - cli: --placeholder-ok is how a plain-utility pass reports no card as expected
+  ---
+  duration_ms: 208.210518
+  type: 'test'
+  ...
+# Subtest: cli: a non-game with a compliant card passes
+ok 26 - cli: a non-game with a compliant card passes
+  ---
+  duration_ms: 84.487495
+  type: 'test'
+  ...
+# Subtest: SKILL.md and AGENTS.md name the marker path and bound this script uses
+ok 27 - SKILL.md and AGENTS.md name the marker path and bound this script uses
+  ---
+  duration_ms: 0.427057
+  type: 'test'
+  ...
+# Subtest: the sections that own the brand-task prohibition never affirm a wait
+ok 28 - the sections that own the brand-task prohibition never affirm a wait
+  ---
+  duration_ms: 0.764232
+  type: 'test'
+  ...
+# Subtest: SKILL.md tells the pass to self-check with the flag this CLI accepts
+ok 29 - SKILL.md tells the pass to self-check with the flag this CLI accepts
+  ---
+  duration_ms: 0.273338
+  type: 'test'
+  ...
+# Subtest: normalizes whitespace before hashing
+ok 30 - normalizes whitespace before hashing
+  ---
+  duration_ms: 1.32552
+  type: 'test'
+  ...
+# Subtest: nullish and blank body text normalize to the empty string
+ok 31 - nullish and blank body text normalize to the empty string
+  ---
+  duration_ms: 0.18049
+  type: 'test'
+  ...
+# Subtest: body text prefix is normalized and capped
+ok 32 - body text prefix is normalized and capped
+  ---
+  duration_ms: 25.033861
+  type: 'test'
+  ...
+# Subtest: identical runs do not diverge
+ok 33 - identical runs do not diverge
+  ---
+  duration_ms: 0.949628
+  type: 'test'
+  ...
+# Subtest: status change diverges
+ok 34 - status change diverges
+  ---
+  duration_ms: 0.371364
+  type: 'test'
+  ...
+# Subtest: title change diverges
+ok 35 - title change diverges
+  ---
+  duration_ms: 0.12704
+  type: 'test'
+  ...
+# Subtest: title comparison is skipped when either side lacks one
+ok 36 - title comparison is skipped when either side lacks one
+  ---
+  duration_ms: 0.209012
+  type: 'test'
+  ...
+# Subtest: canvas disappearing diverges; canvas appearing does not
+ok 37 - canvas disappearing diverges; canvas appearing does not
+  ---
+  duration_ms: 0.136975
+  type: 'test'
+  ...
+# Subtest: horizontal overflow appearing diverges; clearing does not
+ok 38 - horizontal overflow appearing diverges; clearing does not
+  ---
+  duration_ms: 0.261391
+  type: 'test'
+  ...
+# Subtest: new console errors diverge
+ok 39 - new console errors diverge
+  ---
+  duration_ms: 0.337224
+  type: 'test'
+  ...
+# Subtest: errors already present in the baseline do not re-diverge
+ok 40 - errors already present in the baseline do not re-diverge
+  ---
+  duration_ms: 0.14752
+  type: 'test'
+  ...
+# Subtest: body text collapse diverges
+ok 41 - body text collapse diverges
+  ---
+  duration_ms: 0.097146
+  type: 'test'
+  ...
+# Subtest: body text dropping to zero reports collapse
+ok 42 - body text dropping to zero reports collapse
+  ---
+  duration_ms: 0.081652
+  type: 'test'
+  ...
+# Subtest: zero-length baseline reports growth via the hash branch, not collapse
+ok 43 - zero-length baseline reports growth via the hash branch, not collapse
+  ---
+  duration_ms: 0.083525
+  type: 'test'
+  ...
+# Subtest: hash mismatch with a trivial length delta and same page start is tolerated
+ok 44 - hash mismatch with a trivial length delta and same page start is tolerated
+  ---
+  duration_ms: 0.06727
+  type: 'test'
+  ...
+# Subtest: hash mismatch with a trivial length delta but changed page start diverges
+ok 45 - hash mismatch with a trivial length delta but changed page start diverges
+  ---
+  duration_ms: 0.260238
+  type: 'test'
+  ...
+# Subtest: prefix check is skipped when either side lacks a prefix
+ok 46 - prefix check is skipped when either side lacks a prefix
+  ---
+  duration_ms: 0.1345
+  type: 'test'
+  ...
+# Subtest: length-delta tolerance boundary: 50 tolerated, 51 diverges (500-char baseline)
+ok 47 - length-delta tolerance boundary: 50 tolerated, 51 diverges (500-char baseline)
+  ---
+  duration_ms: 0.138007
+  type: 'test'
+  ...
+# Subtest: length-delta floor dominates small baselines: 20 tolerated, 21 diverges (100-char baseline)
+ok 48 - length-delta floor dominates small baselines: 20 tolerated, 21 diverges (100-char baseline)
+  ---
+  duration_ms: 0.129984
+  type: 'test'
+  ...
+# Subtest: collapse boundary: exactly half is 'changed', one below is 'collapsed'
+ok 49 - collapse boundary: exactly half is 'changed', one below is 'collapsed'
+  ---
+  duration_ms: 0.087601
+  type: 'test'
+  ...
+# Subtest: missing baseline viewport diverges
+ok 50 - missing baseline viewport diverges
+  ---
+  duration_ms: 0.079079
+  type: 'test'
+  ...
+# Subtest: empty or null baseline diverges for every viewport
+ok 51 - empty or null baseline diverges for every viewport
+  ---
+  duration_ms: 0.104566
+  type: 'test'
+  ...
+# Subtest: degenerate current verdict fails closed
+ok 52 - degenerate current verdict fails closed
+  ---
+  duration_ms: 0.166138
+  type: 'test'
+  ...
+# Subtest: multiple signals across viewports all accumulate
+ok 53 - multiple signals across viewports all accumulate
+  ---
+  duration_ms: 0.178476
+  type: 'test'
+  ...
+# Subtest: baselineComparison round-trips a valid baseline
+ok 54 - baselineComparison round-trips a valid baseline
+  ---
+  duration_ms: 0.143995
+  type: 'test'
+  ...
+# Subtest: baselineComparison fails closed on malformed or wrong-shape baselines
+ok 55 - baselineComparison fails closed on malformed or wrong-shape baselines
+  ---
+  duration_ms: 0.414429
+  type: 'test'
+  ...
+# Subtest: parseSmokeArgs defaults
+ok 56 - parseSmokeArgs defaults
+  ---
+  duration_ms: 0.143034
+  type: 'test'
+  ...
+# Subtest: parseSmokeArgs consumes --baseline without shifting positionals
+ok 57 - parseSmokeArgs consumes --baseline without shifting positionals
+  ---
+  duration_ms: 0.07369
+  type: 'test'
+  ...
+# Subtest: parseSmokeArgs rejects a trailing --baseline flag
+ok 58 - parseSmokeArgs rejects a trailing --baseline flag
+  ---
+  duration_ms: 0.061222
+  type: 'test'
+  ...
+# Subtest: parseSmokeArgs supports the --baseline= form
+ok 59 - parseSmokeArgs supports the --baseline= form
+  ---
+  duration_ms: 0.069344
+  type: 'test'
+  ...
+# Subtest: parseSmokeArgs rejects unknown flags instead of treating them as positionals
+ok 60 - parseSmokeArgs rejects unknown flags instead of treating them as positionals
+  ---
+  duration_ms: 0.066148
+  type: 'test'
+  ...
+# Subtest: parseSmokeArgs env fallback and flag precedence
+ok 61 - parseSmokeArgs env fallback and flag precedence
+  ---
+  duration_ms: 0.074191
+  type: 'test'
+  ...
+# Subtest: derivedPaths handles .png, .PNG, and extensionless inputs
+ok 62 - derivedPaths handles .png, .PNG, and extensionless inputs
+  ---
+  duration_ms: 0.217935
+  type: 'test'
+  ...
+# Subtest: exitCodeFor: clean run exits 0
+ok 63 - exitCodeFor: clean run exits 0
+  ---
+  duration_ms: 0.105697
+  type: 'test'
+  ...
+# Subtest: exitCodeFor: errors in any single viewport exit 2
+ok 64 - exitCodeFor: errors in any single viewport exit 2
+  ---
+  duration_ms: 0.186248
+  type: 'test'
+  ...
+# Subtest: exitCodeFor: navigation failure in any viewport exits 1, beating errors
+ok 65 - exitCodeFor: navigation failure in any viewport exits 1, beating errors
+  ---
+  duration_ms: 0.09368
+  type: 'test'
+  ...
+# Subtest: exitCodeFor: 4xx boundary and missing status
+ok 66 - exitCodeFor: 4xx boundary and missing status
+  ---
+  duration_ms: 0.07391
+  type: 'test'
+  ...
+# Subtest: exitCodeFor: no viewport data is a failure
+ok 67 - exitCodeFor: no viewport data is a failure
+  ---
+  duration_ms: 0.06683
+  type: 'test'
+  ...
+# Subtest: browser-smoke wires the guard and verdict helpers
+ok 68 - browser-smoke wires the guard and verdict helpers
+  ---
+  duration_ms: 0.289923
+  type: 'test'
+  ...
+# Subtest: browser-smoke file I/O only touches guarded paths
+ok 69 - browser-smoke file I/O only touches guarded paths
+  ---
+  duration_ms: 0.372426
+  type: 'test'
+  ...
+# Subtest: the flag predicate matches src/lib/auth
+ok 70 - the flag predicate matches src/lib/auth
+  ---
+  duration_ms: 0.767327
+  type: 'test'
+  ...
+# Subtest: reads the value a live dev server resolved
+ok 71 - reads the value a live dev server resolved
+  ---
+  duration_ms: 0.271746
+  type: 'test'
+  ...
+# Subtest: a server started without the flag reads as sign-in on
+ok 72 - a server started without the flag reads as sign-in on
+  ---
+  duration_ms: 0.128652
+  type: 'test'
+  ...
+# Subtest: agreement passes
+ok 73 - agreement passes
+  ---
+  duration_ms: 0.141071
+  type: 'test'
+  ...
+# Subtest: divergence fails in either direction
+ok 74 - divergence fails in either direction
+  ---
+  duration_ms: 0.216964
+  type: 'test'
+  ...
+# Subtest: an unobservable dev server is indeterminate, not agreement
+ok 75 - an unobservable dev server is indeterminate, not agreement
+  ---
+  duration_ms: 0.106599
+  type: 'test'
+  ...
+# Subtest: a dev server that cannot be reached probes as null
+ok 76 - a dev server that cannot be reached probes as null
+  ---
+  duration_ms: 0.20121
+  type: 'test'
+  ...
+# Subtest: a server without the endpoint probes as null, not as agreement
+ok 77 - a server without the endpoint probes as null, not as agreement
+  ---
+  duration_ms: 0.184936
+  type: 'test'
+  ...
+# Subtest: only a divergence warns the smoke verdict
+ok 78 - only a divergence warns the smoke verdict
+  ---
+  duration_ms: 0.75668
+  type: 'test'
+  ...
+# Subtest: the build side resolves the template's shipped app-env
+ok 79 - the build side resolves the template's shipped app-env
+  ---
+  duration_ms: 0.671733
+  type: 'test'
+  ...
+# Subtest: the CLI reports rather than silently passing when run via a symlink
+ok 80 - the CLI reports rather than silently passing when run via a symlink
+  ---
+  duration_ms: 142.67819
+  type: 'test'
+  ...
+# Subtest: injects before </head>
+ok 81 - injects before </head>
+  ---
+  duration_ms: 23.09791
+  type: 'test'
+  ...
+# Subtest: injects the extensions script without a project id
+ok 82 - injects the extensions script without a project id
+  ---
+  duration_ms: 0.449622
+  type: 'test'
+  ...
+# Subtest: injects project id on the script and meta when provided
+ok 83 - injects project id on the script and meta when provided
+  ---
+  duration_ms: 0.291045
+  type: 'test'
+  ...
+# Subtest: does not duplicate grok:app_id
+ok 84 - does not duplicate grok:app_id
+  ---
+  duration_ms: 0.772954
+  type: 'test'
+  ...
+# Subtest: omits x:creator tags without both creator values
+ok 85 - omits x:creator tags without both creator values
+  ---
+  duration_ms: 0.776079
+  type: 'test'
+  ...
+# Subtest: injects x:creator tags when both creator values are set
+ok 86 - injects x:creator tags when both creator values are set
+  ---
+  duration_ms: 0.424314
+  type: 'test'
+  ...
+# Subtest: escapes x:creator values
+ok 87 - escapes x:creator values
+  ---
+  duration_ms: 0.109273
+  type: 'test'
+  ...
+# Subtest: does not duplicate x:creator tags
+ok 88 - does not duplicate x:creator tags
+  ---
+  duration_ms: 0.490132
+  type: 'test'
+  ...
+# Subtest: platform chrome overwrites share-card metas and always sets og:title
+ok 89 - platform chrome overwrites share-card metas and always sets og:title
+  ---
+  duration_ms: 0.405575
+  type: 'test'
+  ...
+# Subtest: does not duplicate twitter:card or og:title
+ok 90 - does not duplicate twitter:card or og:title
+  ---
+  duration_ms: 0.498314
+  type: 'test'
+  ...
+# Subtest: a baked site.image is treated as a custom card
+ok 91 - a baked site.image is treated as a custom card
+  ---
+  duration_ms: 3.270596
+  type: 'test'
+  ...
+# Subtest: baked identity does not need a workspace filesystem
+ok 92 - baked identity does not need a workspace filesystem
+  ---
+  duration_ms: 0.313198
+  type: 'test'
+  ...
+# Subtest: a public card file wins over a baked site without card=custom
+ok 93 - a public card file wins over a baked site without card=custom
+  ---
+  duration_ms: 0.299297
+  type: 'test'
+  ...
+# Subtest: public/og.png wins when jpg is absent
+ok 94 - public/og.png wins when jpg is absent
+  ---
+  duration_ms: 0.204946
+  type: 'test'
+  ...
+# Subtest: resolveOgCardAsset: disk file, then bake, then empty (placeholder)
+ok 95 - resolveOgCardAsset: disk file, then bake, then empty (placeholder)
+  ---
+  duration_ms: 0.191056
+  type: 'test'
+  ...
+# Subtest: snapshotOgIdentity stamps card=custom from a public card file
+ok 96 - snapshotOgIdentity stamps card=custom from a public card file
+  ---
+  duration_ms: 0.424014
+  type: 'test'
+  ...
+# Subtest: snapshotOgIdentity stamps banner from public/x-banner.jpg
+ok 97 - snapshotOgIdentity stamps banner from public/x-banner.jpg
+  ---
+  duration_ms: 0.172838
+  type: 'test'
+  ...
+# Subtest: emits x:game:image for a public host when site.banner is set
+ok 98 - emits x:game:image for a public host when site.banner is set
+  ---
+  duration_ms: 0.184846
+  type: 'test'
+  ...
+# Subtest: does not emit x:game:image without a public host or banner
+ok 99 - does not emit x:game:image without a public host or banner
+  ---
+  duration_ms: 0.205016
+  type: 'test'
+  ...
+# Subtest: site title Grok App is a real name, not a sentinel
+ok 100 - site title Grok App is a real name, not a sentinel
+  ---
+  duration_ms: 0.244786
+  type: 'test'
+  ...
+# Subtest: published grok.me slug is still a title fallback
+ok 101 - published grok.me slug is still a title fallback
+  ---
+  duration_ms: 0.216083
+  type: 'test'
+  ...
+# Subtest: rejects Vercel system hosts as og:image origins
+ok 102 - rejects Vercel system hosts as og:image origins
+  ---
+  duration_ms: 0.687597
+  type: 'test'
+  ...
+# Subtest: published VITE_PUBLIC_HOSTNAME wins over request Host for og:image
+ok 103 - published VITE_PUBLIC_HOSTNAME wins over request Host for og:image
+  ---
+  duration_ms: 0.240019
+  type: 'test'
+  ...
+# Subtest: vercel Host without a public hostname emits no og:image
+ok 104 - vercel Host without a public hostname emits no og:image
+  ---
+  duration_ms: 0.136203
+  type: 'test'
+  ...
+# Subtest: emits og:image for a public host and prefers a custom card
+ok 105 - emits og:image for a public host and prefers a custom card
+  ---
+  duration_ms: 0.183824
+  type: 'test'
+  ...
+# Subtest: placeholder og:image appends site.color when it is 6-digit hex
+ok 106 - placeholder og:image appends site.color when it is 6-digit hex
+  ---
+  duration_ms: 0.211296
+  type: 'test'
+  ...
+# Subtest: document title entities are not double-escaped on og:title
+ok 107 - document title entities are not double-escaped on og:title
+  ---
+  duration_ms: 0.172248
+  type: 'test'
+  ...
+# Subtest: site.json title wins over the host slug
+ok 108 - site.json title wins over the host slug
+  ---
+  duration_ms: 0.120099
+  type: 'test'
+  ...
+# Subtest: injects into documents with no head element
+ok 109 - injects into documents with no head element
+  ---
+  duration_ms: 0.217455
+  type: 'test'
+  ...
+# Subtest: streaming injector matches </HEAD> case-insensitively
+ok 110 - streaming injector matches </HEAD> case-insensitively
+  ---
+  duration_ms: 0.404644
+  type: 'test'
+  ...
+# Subtest: does not duplicate the extensions script
+ok 111 - does not duplicate the extensions script
+  ---
+  duration_ms: 0.244476
+  type: 'test'
+  ...
+# Subtest: is idempotent
+ok 112 - is idempotent
+  ---
+  duration_ms: 0.172959
+  type: 'test'
+  ...
+# Subtest: uses the app name in the injected title tag
+ok 113 - uses the app name in the injected title tag
+  ---
+  duration_ms: 0.129914
+  type: 'test'
+  ...
+# Subtest: streaming injector handles </head> split across chunks
+ok 114 - streaming injector handles </head> split across chunks
+  ---
+  duration_ms: 0.371364
+  type: 'test'
+  ...
+# Subtest: streaming injector passes post-head chunks through untouched
+ok 115 - streaming injector passes post-head chunks through untouched
+  ---
+  duration_ms: 0.279848
+  type: 'test'
+  ...
+# Subtest: streaming injector falls back when no </head> is seen
+ok 116 - streaming injector falls back when no </head> is seen
+  ---
+  duration_ms: 0.201781
+  type: 'test'
+  ...
+# Subtest: detects install query
+ok 117 - detects install query
+  ---
+  duration_ms: 0.205577
+  type: 'test'
+  ...
+# Subtest: filters non-document paths
+ok 118 - filters non-document paths
+  ---
+  duration_ms: 0.254069
+  type: 'test'
+  ...
+# Subtest: strips install params from the app link
+ok 119 - strips install params from the app link
+  ---
+  duration_ms: 0.148091
+  type: 'test'
+  ...
+# Subtest: names the install page from host slug
+ok 120 - names the install page from host slug
+  ---
+  duration_ms: 0.070094
+  type: 'test'
+  ...
+# Subtest: rejects hosts that are not plain slugs
+ok 121 - rejects hosts that are not plain slugs
+  ---
+  duration_ms: 0.055453
+  type: 'test'
+  ...
+# Subtest: renders install page markup
+ok 122 - renders install page markup
+  ---
+  duration_ms: 0.217525
+  type: 'test'
+  ...
+# Subtest: escapes host-derived values in the install page
+ok 123 - escapes host-derived values in the install page
+  ---
+  duration_ms: 0.12685
+  type: 'test'
+  ...
+# Subtest: renders the manifest with the per-app name
+ok 124 - renders the manifest with the per-app name
+  ---
+  duration_ms: 0.130475
+  type: 'test'
+  ...
+# Subtest: vite config keeps the nitro serverDir wiring
+ok 125 - vite config keeps the nitro serverDir wiring
+  ---
+  duration_ms: 0.174992
+  type: 'test'
+  ...
+# Subtest: nitro middleware and its bundled assets exist
+ok 126 - nitro middleware and its bundled assets exist
+  ---
+  duration_ms: 0.183464
+  type: 'test'
+  ...
+# Subtest: vite plugin bakes og identity as a virtual module
+ok 127 - vite plugin bakes og identity as a virtual module
+  ---
+  duration_ms: 0.095903
+  type: 'test'
+  ...
+# Subtest: CLI configuration check distinguishes four runtime states without connecting to even an invalid DB
+ok 128 - CLI configuration check distinguishes four runtime states without connecting to even an invalid DB
+  ---
+  duration_ms: 933.587638
+  type: 'test'
+  ...
+# Subtest: CLI sync rejects implicit live calls before IP check/auth/DB work
+ok 129 - CLI sync rejects implicit live calls before IP check/auth/DB work
+  ---
+  duration_ms: 278.908701
+  type: 'test'
+  ...
+# Subtest: collector config does not require broker keys and database check does not migrate or call APIs
+ok 130 - collector config does not require broker keys and database check does not migrate or call APIs
+  ---
+  duration_ms: 1163.08399
+  type: 'test'
+  ...
+# Subtest: PowerShell dot-source maps explicit secretkey file, handles BOM/trim and passes environment to child
+ok 131 - PowerShell dot-source maps explicit secretkey file, handles BOM/trim and passes environment to child
+  ---
+  duration_ms: 858.968564
+  type: 'test'
+  ...
+# Subtest: PowerShell validates both files before updating environment: empty, multiline, missing, directory and same role
+ok 132 - PowerShell validates both files before updating environment: empty, multiline, missing, directory and same role
+  ---
+  duration_ms: 3943.722778
+  type: 'test'
+  ...
+# Subtest: PowerShell collector wrapper injects secrets only into its child, uses explicit symbols and clears session values
+ok 133 - PowerShell collector wrapper injects secrets only into its child, uses explicit symbols and clears session values
+  ---
+  duration_ms: 599.641298
+  type: 'test'
+  ...
+# Subtest: _migrations keys on basename, not path
+ok 134 - _migrations keys on basename, not path
+  ---
+  duration_ms: 1.022107
+  type: 'test'
+  ...
+# Subtest: a file already applied from another directory does not re-apply
+ok 135 - a file already applied from another directory does not re-apply
+  ---
+  duration_ms: 6.792986
+  type: 'test'
+  ...
+# Subtest: pending migrations are returned in name order
+ok 136 - pending migrations are returned in name order
+  ---
+  duration_ms: 29.097662
+  type: 'test'
+  ...
+# Subtest: non-.sql entries are dropped (readdir also yields the auth/ directory)
+ok 137 - non-.sql entries are dropped (readdir also yields the auth/ directory)
+  ---
+  duration_ms: 0.243915
+  type: 'test'
+  ...
+# Subtest: personal-site auth opts into the unchanged schema once alongside Kiwoom
+ok 138 - personal-site auth opts into the unchanged schema once alongside Kiwoom
+  ---
+  duration_ms: 3.864653
+  type: 'test'
+  ...
+# Subtest: this workspace's auth schema copy is byte-identical to its source
+ok 139 - this workspace's auth schema copy is byte-identical to its source
+  ---
+  duration_ms: 0.296543
+  type: 'test'
+  ...
+# Subtest: the copy check reads both files and catches an edit
+ok 140 - the copy check reads both files and catches an edit
+  ---
+  duration_ms: 0.714066
+  type: 'test'
+  ...
+# Subtest: parsePreviewArgs accepts the two actions
+ok 141 - parsePreviewArgs accepts the two actions
+  ---
+  duration_ms: 13.371868
+  type: 'test'
+  ...
+# Subtest: parsePreviewArgs rejects missing, unknown and extra arguments
+ok 142 - parsePreviewArgs rejects missing, unknown and extra arguments
+  ---
+  duration_ms: 0.270514
+  type: 'test'
+  ...
+# Subtest: parsePid reads a pidfile and rejects junk
+ok 143 - parsePid reads a pidfile and rejects junk
+  ---
+  duration_ms: 0.172187
+  type: 'test'
+  ...
+# Subtest: parsePgid reads the pgrp field past a comm containing spaces
+ok 144 - parsePgid reads the pgrp field past a comm containing spaces
+  ---
+  duration_ms: 0.211846
+  type: 'test'
+  ...
+# Subtest: parseListenerInodes picks LISTEN sockets on the wanted port only
+ok 145 - parseListenerInodes picks LISTEN sockets on the wanted port only
+  ---
+  duration_ms: 0.307319
+  type: 'test'
+  ...
+# Subtest: parseListenerInodes reads the tcp6 dump the same way
+ok 146 - parseListenerInodes reads the tcp6 dump the same way
+  ---
+  duration_ms: 0.124025
+  type: 'test'
+  ...
+# Subtest: looksLikePreviewProcess matches the npm wrapper and its vite child
+ok 147 - looksLikePreviewProcess matches the npm wrapper and its vite child
+  ---
+  duration_ms: 0.809829
+  type: 'test'
+  ...
+# Subtest: looksLikePreviewProcess spares the sibling scripts and re-used pids
+ok 148 - looksLikePreviewProcess spares the sibling scripts and re-used pids
+  ---
+  duration_ms: 0.168592
+  type: 'test'
+  ...
+# Subtest: previewOwners trusts port owners and dedupes the pidfile pid
+ok 149 - previewOwners trusts port owners and dedupes the pidfile pid
+  ---
+  duration_ms: 0.34142
+  type: 'test'
+  ...
+# Subtest: previewOwners adds a pidfile pid whose command line is still the preview
+ok 150 - previewOwners adds a pidfile pid whose command line is still the preview
+  ---
+  duration_ms: 0.331805
+  type: 'test'
+  ...
+# Subtest: previewOwners drops a stale pidfile pid re-used by another process
+ok 151 - previewOwners drops a stale pidfile pid re-used by another process
+  ---
+  duration_ms: 6.150516
+  type: 'test'
+  ...
+# Subtest: previewOwners drops a pidfile pid that no longer exists
+ok 152 - previewOwners drops a pidfile pid that no longer exists
+  ---
+  duration_ms: 0.208471
+  type: 'test'
+  ...
+# Subtest: previewOwners on a free port with no pidfile signals nothing
+ok 153 - previewOwners on a free port with no pidfile signals nothing
+  ---
+  duration_ms: 0.129964
+  type: 'test'
+  ...
+# Subtest: stopOutcome fails when a pid survives or the port is still held
+ok 154 - stopOutcome fails when a pid survives or the port is still held
+  ---
+  duration_ms: 0.240208
+  type: 'test'
+  ...
+# Subtest: stopOutcome reports a verified free port
+ok 155 - stopOutcome reports a verified free port
+  ---
+  duration_ms: 1.056758
+  type: 'test'
+  ...
+# Subtest: stopOutcome fails on a listener whose owner cannot be attributed
+ok 156 - stopOutcome fails on a listener whose owner cannot be attributed
+  ---
+  duration_ms: 8.310603
+  type: 'test'
+  ...
+# Subtest: terminatePids SIGTERMs live pids and skips dead ones
+ok 157 - terminatePids SIGTERMs live pids and skips dead ones
+  ---
+  duration_ms: 0.512916
+  type: 'test'
+  ...
+# Subtest: terminatePids escalates to SIGKILL when SIGTERM is ignored
+ok 158 - terminatePids escalates to SIGKILL when SIGTERM is ignored
+  ---
+  duration_ms: 0.497072
+  type: 'test'
+  ...
+# Subtest: terminatePids reports a pid that survives SIGKILL as stubborn
+ok 159 - terminatePids reports a pid that survives SIGKILL as stubborn
+  ---
+  duration_ms: 0.496792
+  type: 'test'
+  ...
+# Subtest: terminatePids on a free port signals nothing
+ok 160 - terminatePids on a free port signals nothing
+  ---
+  duration_ms: 0.16734
+  type: 'test'
+  ...
+# Subtest: vite.config.ts keeps grokPwaPlugin() and the nitro vercel preset with serverDir ./server
+ok 161 - vite.config.ts keeps grokPwaPlugin() and the nitro vercel preset with serverDir ./server
+  ---
+  duration_ms: 5.648366
+  type: 'test'
+  ...
+# Subtest: __root.tsx renders PreviewHostBridge and CreatedWithGrokBanner, no og/twitter meta
+ok 162 - __root.tsx renders PreviewHostBridge and CreatedWithGrokBanner, no og/twitter meta
+  ---
+  duration_ms: 4.831968
+  type: 'test'
+  ...
+# Subtest: no VITE_-prefixed env name carries a secret; no .env files committed
+ok 163 - no VITE_-prefixed env name carries a secret; no .env files committed
+  ---
+  duration_ms: 29.981943
+  type: 'test'
+  ...
+# Subtest: TradingView Lightweight Charts attribution link exists (attributionLogo:false is only allowed with it)
+ok 164 - TradingView Lightweight Charts attribution link exists (attributionLogo:false is only allowed with it)
+  ---
+  duration_ms: 22.466186
+  type: 'test'
+  ...
+# Subtest: no unmarked raw string-date comparisons under src/ (B0.2 kernel rule)
+ok 165 - no unmarked raw string-date comparisons under src/ (B0.2 kernel rule)
+  ---
+  duration_ms: 24.83201
+  type: 'test'
+  ...
+# Subtest: source registry keeps dead korea.kr disabled and candidates off unless verified
+ok 166 - source registry keeps dead korea.kr disabled and candidates off unless verified
+  ---
+  duration_ms: 0.342552
+  type: 'test'
+  ...
+# (node:154901) ExperimentalWarning: The MockTimers API is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: preview: a successful sign-out clears the token, then redirects
+ok 167 - preview: a successful sign-out clears the token, then redirects
+  ---
+  duration_ms: 2.526534
+  type: 'test'
+  ...
+# Subtest: preview: a rejected sign-out still clears the token and redirects
+ok 168 - preview: a rejected sign-out still clears the token and redirects
+  ---
+  duration_ms: 0.310884
+  type: 'test'
+  ...
+# Subtest: preview: a sign-out that throws synchronously still clears and redirects
+ok 169 - preview: a sign-out that throws synchronously still clears and redirects
+  ---
+  duration_ms: 0.155042
+  type: 'test'
+  ...
+# Subtest: preview: a sign-out that never settles clears and redirects once the wait expires
+ok 170 - preview: a sign-out that never settles clears and redirects once the wait expires
+  ---
+  duration_ms: 9.14542
+  type: 'test'
+  ...
+# Subtest: preview: no bearer means nothing to invalidate, so no request is made
+ok 171 - preview: no bearer means nothing to invalidate, so no request is made
+  ---
+  duration_ms: 0.237625
+  type: 'test'
+  ...
+# Subtest: preview: a stored bearer is still invalidated server-side
+ok 172 - preview: a stored bearer is still invalidated server-side
+  ---
+  duration_ms: 0.170134
+  type: 'test'
+  ...
+# Subtest: deployed: a confirmed sign-out clears the token, then redirects
+ok 173 - deployed: a confirmed sign-out clears the token, then redirects
+  ---
+  duration_ms: 0.183134
+  type: 'test'
+  ...
+# Subtest: deployed: a sign-out that never settles throws and does NOT redirect
+ok 174 - deployed: a sign-out that never settles throws and does NOT redirect
+  ---
+  duration_ms: 20.918265
+  type: 'test'
+  ...
+# Subtest: deployed: a rejected sign-out throws and does NOT redirect
+ok 175 - deployed: a rejected sign-out throws and does NOT redirect
+  ---
+  duration_ms: 0.465495
+  type: 'test'
+  ...
+# Subtest: deployed: the timeout is distinguishable from a rejection
+ok 176 - deployed: the timeout is distinguishable from a rejection
+  ---
+  duration_ms: 23.53925
+  type: 'test'
+  ...
+# Subtest: settleWithin reports the outcome and never rejects
+ok 177 - settleWithin reports the outcome and never rejects
+  ---
+  duration_ms: 23.483797
+  type: 'test'
+  ...
+# Subtest: settleWithin waits its full window, then gives up rather than hanging
+ok 178 - settleWithin waits its full window, then gives up rather than hanging
+  ---
+  duration_ms: 0.647598
+  type: 'test'
+  ...
+# Subtest: pre-sign-in: the preview clear gives up at the preview bound
+ok 179 - pre-sign-in: the preview clear gives up at the preview bound
+  ---
+  duration_ms: 1.542994
+  type: 'test'
+  ...
+# Subtest: pre-sign-in: a deployed session gets the deployed window, not the preview one
+ok 180 - pre-sign-in: a deployed session gets the deployed window, not the preview one
+  ---
+  duration_ms: 1.735592
+  type: 'test'
+  ...
+# Subtest: pre-sign-in: a failed clear never blocks sign-in
+ok 181 - pre-sign-in: a failed clear never blocks sign-in
+  ---
+  duration_ms: 0.234851
+  type: 'test'
+  ...
+# Subtest: pre-sign-in: the preview skips the request when there is no bearer
+ok 182 - pre-sign-in: the preview skips the request when there is no bearer
+  ---
+  duration_ms: 0.104416
+  type: 'test'
+  ...
+# Subtest: every sign-out bound comes from one rule
+ok 183 - every sign-out bound comes from one rule
+  ---
+  duration_ms: 0.061532
+  type: 'test'
+  ...
+# Subtest: the defaults are bounded, and deployed waits longer than preview
+ok 184 - the defaults are bounded, and deployed waits longer than preview
+  ---
+  duration_ms: 0.214451
+  type: 'test'
+  ...
+# Subtest: keeps VITE_-prefixed string entries
+ok 185 - keeps VITE_-prefixed string entries
+  ---
+  duration_ms: 4.396006
+  type: 'test'
+  ...
+# Subtest: drops non-VITE keys, non-string values and malformed documents
+ok 186 - drops non-VITE keys, non-string values and malformed documents
+  ---
+  duration_ms: 0.219868
+  type: 'test'
+  ...
+# Subtest: a missing app-env.json is a clean no-op
+ok 187 - a missing app-env.json is a clean no-op
+  ---
+  duration_ms: 0.391384
+  type: 'test'
+  ...
+# Subtest: reads the app env from a workspace
+ok 188 - reads the app env from a workspace
+  ---
+  duration_ms: 0.26738
+  type: 'test'
+  ...
+# Subtest: an explicit process-env override wins over the file
+ok 189 - an explicit process-env override wins over the file
+  ---
+  duration_ms: 0.152628
+  type: 'test'
+  ...
+# Subtest: the template ships auth off
+ok 190 - the template ships auth off
+  ---
+  duration_ms: 0.225336
+  type: 'test'
+  ...
+# Subtest: vite loadEnv resolves the wrapped value
+ok 191 - vite loadEnv resolves the wrapped value
+  ---
+  duration_ms: 0.271065
+  type: 'test'
+  ...
+# Subtest: the wrapped command runs with the app env applied
+ok 192 - the wrapped command runs with the app env applied
+  ---
+  duration_ms: 152.207153
+  type: 'test'
+  ...
+# Subtest: the wrapped command sees an explicit override, not the file value
+ok 193 - the wrapped command sees an explicit override, not the file value
+  ---
+  duration_ms: 99.129183
+  type: 'test'
+  ...
+# Subtest: the wrapper propagates the command's exit code
+ok 194 - the wrapper propagates the command's exit code
+  ---
+  duration_ms: 141.516616
+  type: 'test'
+  ...
+# Subtest: a signal-killed command is never reported as success
+ok 195 - a signal-killed command is never reported as success
+  ---
+  duration_ms: 111.119573
+  type: 'test'
+  ...
+# Subtest: the CLI still runs when invoked through a symlinked path
+ok 196 - the CLI still runs when invoked through a symlinked path
+  ---
+  duration_ms: 92.803896
+  type: 'test'
+  ...
+# Subtest: parseWriteAtomicArgs needs exactly a staged file and a target
+ok 197 - parseWriteAtomicArgs needs exactly a staged file and a target
+  ---
+  duration_ms: 18.259953
+  type: 'test'
+  ...
+# Subtest: stagingError refuses a temp inside public/ and a no-op move
+ok 198 - stagingError refuses a temp inside public/ and a no-op move
+  ---
+  duration_ms: 0.400638
+  type: 'test'
+  ...
+# Subtest: handOver replaces the target and clears the staged file
+ok 199 - handOver replaces the target and clears the staged file
+  ---
+  duration_ms: 0.856449
+  type: 'test'
+  ...
+# Subtest: handOver creates a missing target directory
+ok 200 - handOver creates a missing target directory
+  ---
+  duration_ms: 0.22767
+  type: 'test'
+  ...
+# Subtest: an interrupted pass leaves the target on its old bytes, temp-free
+ok 201 - an interrupted pass leaves the target on its old bytes, temp-free
+  ---
+  duration_ms: 0.568369
+  type: 'test'
+  ...
+# Subtest: a failed hand-over creates no directory for the target it never wrote
+ok 202 - a failed hand-over creates no directory for the target it never wrote
+  ---
+  duration_ms: 0.205497
+  type: 'test'
+  ...
+# Subtest: a staged file on another filesystem is refused, not copied
+ok 203 - a staged file on another filesystem is refused, not copied
+  ---
+  duration_ms: 0.332727
+  type: 'test'
+  ...
+# Subtest: cli: hands the file over, and refuses a temp staged in public/
+ok 204 - cli: hands the file over, and refuses a temp staged in public/
+  ---
+  duration_ms: 102.879455
+  type: 'test'
+  ...
+# Subtest: cli: relative paths follow the script's root, not the caller's cwd
+ok 205 - cli: relative paths follow the script's root, not the caller's cwd
+  ---
+  duration_ms: 95.467465
+  type: 'test'
+  ...
+# Subtest: every hand-over the og skill prints is one this script accepts
+ok 206 - every hand-over the og skill prints is one this script accepts
+  ---
+  duration_ms: 1.197178
+  type: 'test'
+  ...
+# Subtest: cli: a missing staged file fails without touching the target
+ok 207 - cli: a missing staged file fails without touching the target
+  ---
+  duration_ms: 38.220498
+  type: 'test'
+  ...
+1..207
+# tests 207
+# suites 0
+# pass 207
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 6451.537049
+TAP version 13
+# Subtest: universe codes are unique 6-digit tickers
+ok 1 - universe codes are unique 6-digit tickers
+  ---
+  duration_ms: 1.059273
+  type: 'test'
+  ...
+# Subtest: export-desk seed tickers exist in universe and weights conserve
+ok 2 - export-desk seed tickers exist in universe and weights conserve
+  ---
+  duration_ms: 25.788662
+  type: 'test'
+  ...
+# Subtest: POSCO Holdings is steel; LG Chem is chemicals; CJ is consumer
+ok 3 - POSCO Holdings is steel; LG Chem is chemicals; CJ is consumer
+  ---
+  duration_ms: 0.513918
+  type: 'test'
+  ...
+# Subtest: AT-46: F9 is off unless enabled + model + provider key are all set
+ok 4 - AT-46: F9 is off unless enabled + model + provider key are all set
+  ---
+  duration_ms: 1.966098
+  type: 'test'
+  ...
+# Subtest: AT-46: bullets without a valid [n] citation are rejected
+ok 5 - AT-46: bullets without a valid [n] citation are rejected
+  ---
+  duration_ms: 0.824132
+  type: 'test'
+  ...
+# Subtest: AT-46: out-of-range cites and unknown URLs are stripped from kept bullets
+ok 6 - AT-46: out-of-range cites and unknown URLs are stripped from kept bullets
+  ---
+  duration_ms: 0.249003
+  type: 'test'
+  ...
+# Subtest: bullets are capped
+ok 7 - bullets are capped
+  ---
+  duration_ms: 0.225007
+  type: 'test'
+  ...
+# Subtest: input: ≤ 30 items, de-duplicated, clamped, empty titles dropped
+ok 8 - input: ≤ 30 items, de-duplicated, clamped, empty titles dropped
+  ---
+  duration_ms: 0.627738
+  type: 'test'
+  ...
+# Subtest: hash is stable and input-sensitive
+ok 9 - hash is stable and input-sensitive
+  ---
+  duration_ms: 0.392527
+  type: 'test'
+  ...
+# Subtest: prompt numbers every item and carries only on-screen fields
+ok 10 - prompt numbers every item and carries only on-screen fields
+  ---
+  duration_ms: 0.249122
+  type: 'test'
+  ...
+# Subtest: translation: numbered lines map back to ids; unknown numbers and URLs dropped
+ok 11 - translation: numbered lines map back to ids; unknown numbers and URLs dropped
+  ---
+  duration_ms: 0.262232
+  type: 'test'
+  ...
+# Subtest: labels and cap day key
+ok 12 - labels and cap day key
+  ---
+  duration_ms: 1.356136
+  type: 'test'
+  ...
+# (node:155260) ExperimentalWarning: The MockTimers API is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: callTool failure memo
+    # Subtest: replays an identical failure within the memo window without refetching
+    ok 1 - replays an identical failure within the memo window without refetching
+      ---
+      duration_ms: 4.008189
+      type: 'test'
+      ...
+    # Subtest: keys by token identity so a reminted token shares the memo entry
+    ok 2 - keys by token identity so a reminted token shares the memo entry
+      ---
+      duration_ms: 0.98408
+      type: 'test'
+      ...
+    # Subtest: sweeps expired entries on write so unique keys do not accumulate
+    ok 3 - sweeps expired entries on write so unique keys do not accumulate
+      ---
+      duration_ms: 1.55329
+      type: 'test'
+      ...
+    # Subtest: never memoizes login-required 401s
+    ok 4 - never memoizes login-required 401s
+      ---
+      duration_ms: 2.000639
+      type: 'test'
+      ...
+    1..4
+ok 13 - callTool failure memo
+  ---
+  duration_ms: 9.337271
+  type: 'suite'
+  ...
+# Subtest: callTool
+    # Subtest: resolves ok:false for non-serializable args instead of rejecting
+    ok 1 - resolves ok:false for non-serializable args instead of rejecting
+      ---
+      duration_ms: 0.395251
+      type: 'test'
+      ...
+    1..1
+ok 14 - callTool
+  ---
+  duration_ms: 0.500548
+  type: 'suite'
+  ...
+# Subtest: isLoginRequired
+    # Subtest: is true only for login-required failures
+    ok 1 - is true only for login-required failures
+      ---
+      duration_ms: 0.193389
+      type: 'test'
+      ...
+    1..1
+ok 15 - isLoginRequired
+  ---
+  duration_ms: 0.394099
+  type: 'suite'
+  ...
+# Subtest: redirectToLoginIfRequired
+    # Subtest: no-ops when login is not required
+    ok 1 - no-ops when login is not required
+      ---
+      duration_ms: 0.359467
+      type: 'test'
+      ...
+    # Subtest: navigates to the server-built loginUrl in the browser
+    ok 2 - navigates to the server-built loginUrl in the browser
+      ---
+      duration_ms: 0.133339
+      type: 'test'
+      ...
+    # Subtest: opens a new tab instead of navigating when framed
+    ok 3 - opens a new tab instead of navigating when framed
+      ---
+      duration_ms: 0.197145
+      type: 'test'
+      ...
+    # Subtest: falls back to navigation when framed and the popup is blocked
+    ok 4 - falls back to navigation when framed and the popup is blocked
+      ---
+      duration_ms: 0.2811
+      type: 'test'
+      ...
+    # Subtest: returns false when the result has no loginUrl
+    ok 5 - returns false when the result has no loginUrl
+      ---
+      duration_ms: 0.116204
+      type: 'test'
+      ...
+    # Subtest: returns false on the server (no window)
+    ok 6 - returns false on the server (no window)
+      ---
+      duration_ms: 0.068542
+      type: 'test'
+      ...
+    1..6
+ok 16 - redirectToLoginIfRequired
+  ---
+  duration_ms: 1.361535
+  type: 'suite'
+  ...
+# Subtest: classifyCallToolError
+    # Subtest: returns null for successful results
+    ok 1 - returns null for successful results
+      ---
+      duration_ms: 0.14032
+      type: 'test'
+      ...
+    # Subtest: classifies login-required before message matching
+    ok 2 - classifies login-required before message matching
+      ---
+      duration_ms: 0.077465
+      type: 'test'
+      ...
+    # Subtest: classifies not_connected and failed_precondition
+    ok 3 - classifies not_connected and failed_precondition
+      ---
+      duration_ms: 0.07371
+      type: 'test'
+      ...
+    # Subtest: classifies scope_denied without claiming a missing grant
+    ok 4 - classifies scope_denied without claiming a missing grant
+      ---
+      duration_ms: 0.127871
+      type: 'test'
+      ...
+    # Subtest: classifies access_denied
+    ok 5 - classifies access_denied
+      ---
+      duration_ms: 0.095613
+      type: 'test'
+      ...
+    # Subtest: falls back to a generic error with the raw message
+    ok 6 - falls back to a generic error with the raw message
+      ---
+      duration_ms: 0.079979
+      type: 'test'
+      ...
+    1..6
+ok 17 - classifyCallToolError
+  ---
+  duration_ms: 0.71586
+  type: 'suite'
+  ...
+# Subtest: verifyGateIdentityToken
+    # Subtest: returns the identity for a valid token
+    ok 1 - returns the identity for a valid token
+      ---
+      duration_ms: 14.903669
+      type: 'test'
+      ...
+    # Subtest: omits optional claims as nulls
+    ok 2 - omits optional claims as nulls
+      ---
+      duration_ms: 2.599465
+      type: 'test'
+      ...
+    # Subtest: rejects a wrong audience
+    ok 3 - rejects a wrong audience
+      ---
+      duration_ms: 19.65726
+      type: 'test'
+      ...
+    # Subtest: rejects a wrong issuer
+    ok 4 - rejects a wrong issuer
+      ---
+      duration_ms: 7.974115
+      type: 'test'
+      ...
+    # Subtest: rejects an expired token
+    ok 5 - rejects an expired token
+      ---
+      duration_ms: 5.934387
+      type: 'test'
+      ...
+    # Subtest: rejects a token without exp
+    ok 6 - rejects a token without exp
+      ---
+      duration_ms: 4.556287
+      type: 'test'
+      ...
+    # Subtest: rejects a token signed by a different key with the same kid
+    ok 7 - rejects a token signed by a different key with the same kid
+      ---
+      duration_ms: 1.570807
+      type: 'test'
+      ...
+    # Subtest: refetches the JWKS when the kid rotates
+    ok 8 - refetches the JWKS when the kid rotates
+      ---
+      duration_ms: 16.560524
+      type: 'test'
+      ...
+    1..8
+ok 18 - verifyGateIdentityToken
+  ---
+  duration_ms: 75.200219
+  type: 'suite'
+  ...
+# Subtest: gateIdentityFromHeaders
+    # Subtest: verifies the header token end to end and fails closed without it
+    ok 1 - verifies the header token end to end and fails closed without it
+      ---
+      duration_ms: 74.914302
+      type: 'test'
+      ...
+    # Subtest: activates on a deployed-shaped request without GROK_GATE_ORIGIN
+    ok 2 - activates on a deployed-shaped request without GROK_GATE_ORIGIN
+      ---
+      duration_ms: 7.598934
+      type: 'test'
+      ...
+    # Subtest: fails closed when GROK_PROJECT_ID is unset
+    ok 3 - fails closed when GROK_PROJECT_ID is unset
+      ---
+      duration_ms: 1.313843
+      type: 'test'
+      ...
+    1..3
+ok 19 - gateIdentityFromHeaders
+  ---
+  duration_ms: 84.237632
+  type: 'suite'
+  ...
+# Subtest: sessionBoundToGateIdentity
+    # Subtest: keeps the session when it is bound to the same gate sub
+    ok 1 - keeps the session when it is bound to the same gate sub
+      ---
+      duration_ms: 0.28082
+      type: 'test'
+      ...
+    # Subtest: rotates when the session belongs to a different gate sub
+    ok 2 - rotates when the session belongs to a different gate sub
+      ---
+      duration_ms: 0.108993
+      type: 'test'
+      ...
+    # Subtest: rotates when the session user has no gate-bound account
+    ok 3 - rotates when the session user has no gate-bound account
+      ---
+      duration_ms: 0.095342
+      type: 'test'
+      ...
+    1..3
+ok 20 - sessionBoundToGateIdentity
+  ---
+  duration_ms: 0.614508
+  type: 'suite'
+  ...
+# Subtest: Bollinger defaults and presets remain timeframe-independent
+ok 21 - Bollinger defaults and presets remain timeframe-independent
+  ---
+  duration_ms: 3.008625
+  type: 'test'
+  ...
+# Subtest: Bollinger settings reject damaged types, clamp values and enforce dependent bounds
+ok 22 - Bollinger settings reject damaged types, clamp values and enforce dependent bounds
+  ---
+  duration_ms: 0.369112
+  type: 'test'
+  ...
+# Subtest: legacy default BB is adopted once without deleting custom periods, colors or OFF
+ok 23 - legacy default BB is adopted once without deleting custom periods, colors or OFF
+  ---
+  duration_ms: 0.581979
+  type: 'test'
+  ...
+# Subtest: versioned system settings win over legacy reference on reload and preserve unrelated layout
+ok 24 - versioned system settings win over legacy reference on reload and preserve unrelated layout
+  ---
+  duration_ms: 1.506711
+  type: 'test'
+  ...
+# Subtest: native BB pane choices persist independently and reject invalid heights
+ok 25 - native BB pane choices persist independently and reject invalid heights
+  ---
+  duration_ms: 0.280439
+  type: 'test'
+  ...
+# Subtest: adopted BB multiplier retains the existing generic catalog's full supported range
+ok 26 - adopted BB multiplier retains the existing generic catalog's full supported range
+  ---
+  duration_ms: 0.372126
+  type: 'test'
+  ...
+# Subtest: population BB known values, warmup, flat window and invalid inputs
+ok 27 - population BB known values, warmup, flat window and invalid inputs
+  ---
+  duration_ms: 1.728263
+  type: 'test'
+  ...
+# Subtest: rolling population deviation matches direct reference and remains stable at large prices
+ok 28 - rolling population deviation matches direct reference and remains stable at large prices
+  ---
+  duration_ms: 27.339098
+  type: 'test'
+  ...
+# Subtest: percentB is unbounded, reflects all reference levels and handles zero width
+ok 29 - percentB is unbounded, reflects all reference levels and handles zero width
+  ---
+  duration_ms: 0.263203
+  type: 'test'
+  ...
+# Subtest: bandwidth uses percentage points, flat volatility is zero, invalid basis unavailable
+ok 30 - bandwidth uses percentage points, flat volatility is zero, invalid basis unavailable
+  ---
+  duration_ms: 0.126279
+  type: 'test'
+  ...
+# Subtest: true BBW rank uses all distribution observations and exact tie midrank
+ok 31 - true BBW rank uses all distribution observations and exact tie midrank
+  ---
+  duration_ms: 0.353899
+  type: 'test'
+  ...
+# Subtest: rolling BBW rank excludes nonfinite observations and is causally prefix-stable
+ok 32 - rolling BBW rank excludes nonfinite observations and is causally prefix-stable
+  ---
+  duration_ms: 0.972783
+  type: 'test'
+  ...
+# Subtest: BBW percentile is demonstrably not the existing close-price percentile
+ok 33 - BBW percentile is demonstrably not the existing close-price percentile
+  ---
+  duration_ms: 7.568269
+  type: 'test'
+  ...
+# Subtest: volatility thresholds 5/10/20 and expansion follow configurable boundary rules
+ok 34 - volatility thresholds 5/10/20 and expansion follow configurable boundary rules
+  ---
+  duration_ms: 0.131327
+  type: 'test'
+  ...
+# Subtest: all trend classes use standard SMAs and normalized slope/tolerance
+ok 35 - all trend classes use standard SMAs and normalized slope/tolerance
+  ---
+  duration_ms: 0.384244
+  type: 'test'
+  ...
+# Subtest: breakout needs completed close beyond band and previous completed inside relationship
+ok 36 - breakout needs completed close beyond band and previous completed inside relationship
+  ---
+  duration_ms: 0.339797
+  type: 'test'
+  ...
+# Subtest: failed breakout is confirmed re-entry only within 1–2 completed bars
+ok 37 - failed breakout is confirmed re-entry only within 1–2 completed bars
+  ---
+  duration_ms: 0.186298
+  type: 'test'
+  ...
+# Subtest: band walks need five completed bars, three touches, slope and no middle violations
+ok 38 - band walks need five completed bars, three touches, slope and no middle violations
+  ---
+  duration_ms: 0.291886
+  type: 'test'
+  ...
+# Subtest: RVOL preserves valid zero, requires full valid volume window, and classifies thresholds
+ok 39 - RVOL preserves valid zero, requires full valid volume window, and classifies thresholds
+  ---
+  duration_ms: 0.170275
+  type: 'test'
+  ...
+# Subtest: intraday RVOL uses prior same-session slots when available and labels rolling fallback
+ok 40 - intraday RVOL uses prior same-session slots when available and labels rolling fallback
+  ---
+  duration_ms: 0.263955
+  type: 'test'
+  ...
+# Subtest: score maximum 100, missing category normalization and explicit raw component inputs
+ok 41 - score maximum 100, missing category normalization and explicit raw component inputs
+  ---
+  duration_ms: 0.170185
+  type: 'test'
+  ...
+# Subtest: normalization distinguishes unavailable from a measured zero and never fabricates score
+ok 42 - normalization distinguishes unavailable from a measured zero and never fabricates score
+  ---
+  duration_ms: 0.136885
+  type: 'test'
+  ...
+# Subtest: risk/reward uses a causal structural target or remains unavailable
+ok 43 - risk/reward uses a causal structural target or remains unavailable
+  ---
+  duration_ms: 0.118777
+  type: 'test'
+  ...
+# Subtest: squeeze alone is direction-neutral and band touches never imply an automatic trade
+ok 44 - squeeze alone is direction-neutral and band touches never imply an automatic trade
+  ---
+  duration_ms: 0.08734
+  type: 'test'
+  ...
+# Subtest: full engine integrates same-frequency warmup without changing historical points or events
+ok 45 - full engine integrates same-frequency warmup without changing historical points or events
+  ---
+  duration_ms: 36.520135
+  type: 'test'
+  ...
+# Subtest: unfinished bar can have previews but cannot create confirmed breakout/pattern/alert event
+ok 46 - unfinished bar can have previews but cannot create confirmed breakout/pattern/alert event
+  ---
+  duration_ms: 3.414041
+  type: 'test'
+  ...
+# Subtest: engine breakout failure is one transition and wick-only bars do not confirm
+ok 47 - engine breakout failure is one transition and wick-only bars do not confirm
+  ---
+  duration_ms: 3.94856
+  type: 'test'
+  ...
+# Subtest: three-stage workflow emits squeeze then breakout then volume once, with stable identity
+ok 48 - three-stage workflow emits squeeze then breakout then volume once, with stable identity
+  ---
+  duration_ms: 4.26312
+  type: 'test'
+  ...
+# Subtest: validated KR flow is exact-date bound; U.S. never inherits Korean flow
+ok 49 - validated KR flow is exact-date bound; U.S. never inherits Korean flow
+  ---
+  duration_ms: 4.132765
+  type: 'test'
+  ...
+# Subtest: source customization is deterministic and does not alter timeframe parameters
+ok 50 - source customization is deterministic and does not alter timeframe parameters
+  ---
+  duration_ms: 36.859923
+  type: 'test'
+  ...
+# Subtest: invalid OHLC does not produce invented BB, score, or confirmed signals
+ok 51 - invalid OHLC does not produce invented BB, score, or confirmed signals
+  ---
+  duration_ms: 6.072874
+  type: 'test'
+  ...
+# Subtest: completion uses market local dates, conservative aggregate periods and minute end instants
+ok 52 - completion uses market local dates, conservative aggregate periods and minute end instants
+  ---
+  duration_ms: 21.177522
+  type: 'test'
+  ...
+# Subtest: flow uses dated real published quantities and ownership pp, unknown publication never enters history
+ok 53 - flow uses dated real published quantities and ownership pp, unknown publication never enters history
+  ---
+  duration_ms: 1.7731
+  type: 'test'
+  ...
+# Subtest: same-window bars receive causal preroll values and CSV retains nulls/text safely
+ok 54 - same-window bars receive causal preroll values and CSV retains nulls/text safely
+  ---
+  duration_ms: 17.928989
+  type: 'test'
+  ...
+# Subtest: local alerts baseline, masterOFF, repeated identities and three-stage ledger remain deduplicated
+ok 55 - local alerts baseline, masterOFF, repeated identities and three-stage ledger remain deduplicated
+  ---
+  duration_ms: 0.800476
+  type: 'test'
+  ...
+# Subtest: alert financial identities reset for changed rules, not presentation
+ok 56 - alert financial identities reset for changed rules, not presentation
+  ---
+  duration_ms: 0.182813
+  type: 'test'
+  ...
+# Subtest: W setup and %B bullish divergence wait for right-side confirmation; structural close break is separate
+ok 57 - W setup and %B bullish divergence wait for right-side confirmation; structural close break is separate
+  ---
+  duration_ms: 2.399495
+  type: 'test'
+  ...
+# Subtest: M top and bearish %B divergence are the exact price/%B mirror
+ok 58 - M top and bearish %B divergence are the exact price/%B mirror
+  ---
+  duration_ms: 0.426306
+  type: 'test'
+  ...
+# Subtest: all historical events and swing levels are prefix invariant with no future-bar leakage
+ok 59 - all historical events and swing levels are prefix invariant with no future-bar leakage
+  ---
+  duration_ms: 0.800005
+  type: 'test'
+  ...
+# Subtest: unfinished or invalid confirmation bars cannot confirm pivots, patterns or structural breaks
+ok 60 - unfinished or invalid confirmation bars cannot confirm pivots, patterns or structural breaks
+  ---
+  duration_ms: 0.377024
+  type: 'test'
+  ...
+# Subtest: configured confirmation delay is respected and no hindsight pivot-date signal is emitted
+ok 61 - configured confirmation delay is respected and no hindsight pivot-date signal is emitted
+  ---
+  duration_ms: 0.345036
+  type: 'test'
+  ...
+# Subtest: strict divergence preserves unclipped %B; equal price or equal %B is not divergence
+ok 62 - strict divergence preserves unclipped %B; equal price or equal %B is not divergence
+  ---
+  duration_ms: 0.371335
+  type: 'test'
+  ...
+# Subtest: no plateau fake setups; max span, retest tolerance and invalid settings are enforced
+ok 63 - no plateau fake setups; max span, retest tolerance and invalid settings are enforced
+  ---
+  duration_ms: 0.285026
+  type: 'test'
+  ...
+# Subtest: structure violation/expiry prevents confirmation and sustained break does not duplicate events
+ok 64 - structure violation/expiry prevents confirmation and sustained break does not duplicate events
+  ---
+  duration_ms: 2.14182
+  type: 'test'
+  ...
+# Subtest: BB middle auto avoids only the genuinely equivalent visible SMA20
+ok 65 - BB middle auto avoids only the genuinely equivalent visible SMA20
+  ---
+  duration_ms: 0.712704
+  type: 'test'
+  ...
+# Subtest: master/collapse/child pane options are independent and consume deterministic native slots
+ok 66 - master/collapse/child pane options are independent and consume deterministic native slots
+  ---
+  duration_ms: 0.576381
+  type: 'test'
+  ...
+# Subtest: %B references include 0/1 without clamping valid out-of-band observations
+ok 67 - %B references include 0/1 without clamping valid out-of-band observations
+  ---
+  duration_ms: 0.192667
+  type: 'test'
+  ...
+# Subtest: native band fill uses only continuous valid bands, clips the requested index window and retains zero-width rows
+ok 68 - native band fill uses only continuous valid bands, clips the requested index window and retains zero-width rows
+  ---
+  duration_ms: 0.490823
+  type: 'test'
+  ...
+# Subtest: BB rendering styles follow theme while genuine custom overlays retain their selected color
+ok 69 - BB rendering styles follow theme while genuine custom overlays retain their selected color
+  ---
+  duration_ms: 0.236974
+  type: 'test'
+  ...
+# Subtest: screener accepts bounded mixed price symbols, preserves zero-prefixed codes, rejects malformed/large universes
+ok 70 - screener accepts bounded mixed price symbols, preserves zero-prefixed codes, rejects malformed/large universes
+  ---
+  duration_ms: 2.52998
+  type: 'test'
+  ...
+# Subtest: screener normalizes descending/ascending dates and corrections before bounded analysis
+ok 71 - screener normalizes descending/ascending dates and corrections before bounded analysis
+  ---
+  duration_ms: 3.41343
+  type: 'test'
+  ...
+# Subtest: each required screener filter independently validates available values
+ok 72 - each required screener filter independently validates available values
+  ---
+  duration_ms: 0.611183
+  type: 'test'
+  ...
+# Subtest: unavailable percentiles/SMA/RVOL/score and KR flow cannot silently match filters
+ok 73 - unavailable percentiles/SMA/RVOL/score and KR flow cannot silently match filters
+  ---
+  duration_ms: 0.240699
+  type: 'test'
+  ...
+# Subtest: stale/missing/warmup/error/deferred rows are excluded from current score ranking
+ok 74 - stale/missing/warmup/error/deferred rows are excluded from current score ranking
+  ---
+  duration_ms: 0.385286
+  type: 'test'
+  ...
+# Subtest: bounded snapshot cache shares in-flight reads, separates keys, respects TTL and preserves deterministic limits
+ok 75 - bounded snapshot cache shares in-flight reads, separates keys, respects TTL and preserves deterministic limits
+  ---
+  duration_ms: 0.978572
+  type: 'test'
+  ...
+# Subtest: AT-06: KRW price scales are integers with separators; USD shows 2 decimals
+ok 76 - AT-06: KRW price scales are integers with separators; USD shows 2 decimals
+  ---
+  duration_ms: 1.053604
+  type: 'test'
+  ...
+# Subtest: volume units: 만/억 for KR, K/M/B for US
+ok 77 - volume units: 만/억 for KR, K/M/B for US
+  ---
+  duration_ms: 0.152387
+  type: 'test'
+  ...
+# Subtest: KRX tick table (stocks unified 2023) and ETF flat 5 KRW
+ok 78 - KRX tick table (stocks unified 2023) and ETF flat 5 KRW
+  ---
+  duration_ms: 0.215471
+  type: 'test'
+  ...
+# Subtest: findPivots marks isolated swing high and low
+ok 79 - findPivots marks isolated swing high and low
+  ---
+  duration_ms: 1.522645
+  type: 'test'
+  ...
+# Subtest: computeRangePosition: at period high, high-drawdown is 0 and low-rally is positive
+ok 80 - computeRangePosition: at period high, high-drawdown is 0 and low-rally is positive
+  ---
+  duration_ms: 0.362892
+  type: 'test'
+  ...
+# Subtest: computeRangePosition: at period low, rally from low is 0
+ok 81 - computeRangePosition: at period low, rally from low is 0
+  ---
+  duration_ms: 0.165006
+  type: 'test'
+  ...
+# Subtest: recent swing high is the last confirmed pivot, not an unconfirmed new high
+ok 82 - recent swing high is the last confirmed pivot, not an unconfirmed new high
+  ---
+  duration_ms: 0.237845
+  type: 'test'
+  ...
+# Subtest: visible slice [from,to] uses only that window for extrema
+ok 83 - visible slice [from,to] uses only that window for extrema
+  ---
+  duration_ms: 0.130976
+  type: 'test'
+  ...
+# Subtest: empty or invalid bars return null
+ok 84 - empty or invalid bars return null
+  ---
+  duration_ms: 0.081482
+  type: 'test'
+  ...
+# Subtest: planRangeMarkers uses one label when the period extreme is the recent extreme
+ok 85 - planRangeMarkers uses one label when the period extreme is the recent extreme
+  ---
+  duration_ms: 0.444864
+  type: 'test'
+  ...
+# Subtest: planRangeMarkers keeps a separate recent swing when it is not the period high
+ok 86 - planRangeMarkers keeps a separate recent swing when it is not the period high
+  ---
+  duration_ms: 0.387179
+  type: 'test'
+  ...
+# Subtest: recentSpan 52W ignores an older period high
+ok 87 - recentSpan 52W ignores an older period high
+  ---
+  duration_ms: 0.308641
+  type: 'test'
+  ...
+# Subtest: computeSeriesRangePosition maps a line onto the same stats
+ok 88 - computeSeriesRangePosition maps a line onto the same stats
+  ---
+  duration_ms: 0.409071
+  type: 'test'
+  ...
+# Subtest: rolling percentile bands stay inside the window and do not use the future
+ok 89 - rolling percentile bands stay inside the window and do not use the future
+  ---
+  duration_ms: 0.326858
+  type: 'test'
+  ...
+# Subtest: disparity is 100 on a flat series and stochastic is 100 at the high
+ok 90 - disparity is 100 on a flat series and stochastic is 100 at the high
+  ---
+  duration_ms: 0.324335
+  type: 'test'
+  ...
+# Subtest: quant snapshot reports drawdown from the peak and a full-sample percentile
+ok 91 - quant snapshot reports drawdown from the peak and a full-sample percentile
+  ---
+  duration_ms: 0.346558
+  type: 'test'
+  ...
+# Subtest: bollinger percent-b and the longer percentile rank can disagree
+ok 92 - bollinger percent-b and the longer percentile rank can disagree
+  ---
+  duration_ms: 2.230863
+  type: 'test'
+  ...
+# Subtest: swing divergence ignores ties and classifies both regular and hidden
+ok 93 - swing divergence ignores ties and classifies both regular and hidden
+  ---
+  duration_ms: 0.310894
+  type: 'test'
+  ...
+# Subtest: RSI divergence uses only confirmed pivots and the latest pair
+ok 94 - RSI divergence uses only confirmed pivots and the latest pair
+  ---
+  duration_ms: 0.570392
+  type: 'test'
+  ...
+# Subtest: MACD golden cross is the bar the MACD line rises through the signal
+ok 95 - MACD golden cross is the bar the MACD line rises through the signal
+  ---
+  duration_ms: 0.436982
+  type: 'test'
+  ...
+# Subtest: hidden bullish is a higher price low with a lower RSI
+ok 96 - hidden bullish is a higher price low with a lower RSI
+  ---
+  duration_ms: 0.215322
+  type: 'test'
+  ...
+# Subtest: AT-35 WMA / HMA known values
+ok 97 - AT-35 WMA / HMA known values
+  ---
+  duration_ms: 0.248642
+  type: 'test'
+  ...
+# Subtest: AT-35 Keltner / Donchian / Ichimoku
+ok 98 - AT-35 Keltner / Donchian / Ichimoku
+  ---
+  duration_ms: 0.707607
+  type: 'test'
+  ...
+# Subtest: AT-35 Parabolic SAR / Supertrend
+ok 99 - AT-35 Parabolic SAR / Supertrend
+  ---
+  duration_ms: 0.658224
+  type: 'test'
+  ...
+# Subtest: AT-35 VWAP family / OBV / MFI
+ok 100 - AT-35 VWAP family / OBV / MFI
+  ---
+  duration_ms: 0.438295
+  type: 'test'
+  ...
+# Subtest: AT-35 oscillators: CCI, Williams %R, ADX/DMI, Stoch RSI
+ok 101 - AT-35 oscillators: CCI, Williams %R, ADX/DMI, Stoch RSI
+  ---
+  duration_ms: 0.906304
+  type: 'test'
+  ...
+# Subtest: AT-35 pivot points (classic / fibonacci / camarilla) and 52-week levels
+ok 102 - AT-35 pivot points (classic / fibonacci / camarilla) and 52-week levels
+  ---
+  duration_ms: 0.406918
+  type: 'test'
+  ...
+# Subtest: AT-35 volume profile POC / VAH / VAL
+ok 103 - AT-35 volume profile POC / VAH / VAL
+  ---
+  duration_ms: 0.733967
+  type: 'test'
+  ...
+# Subtest: AT-35 Heikin-Ashi transform
+ok 104 - AT-35 Heikin-Ashi transform
+  ---
+  duration_ms: 0.316503
+  type: 'test'
+  ...
+# Subtest: RSI of an empty series is empty (no phantom point)
+ok 105 - RSI of an empty series is empty (no phantom point)
+  ---
+  duration_ms: 0.452666
+  type: 'test'
+  ...
+# Subtest: HTS volume profile divides a 100..120 bar equally between two equal overlaps
+ok 106 - HTS volume profile divides a 100..120 bar equally between two equal overlaps
+  ---
+  duration_ms: 0.45466
+  type: 'test'
+  ...
+# Subtest: HTS volume profile uses unequal overlap lengths and does not count touching boundaries
+ok 107 - HTS volume profile uses unequal overlap lengths and does not count touching boundaries
+  ---
+  duration_ms: 0.436882
+  type: 'test'
+  ...
+# Subtest: HTS point bars use half-open bins, with a closed uppermost boundary
+ok 108 - HTS point bars use half-open bins, with a closed uppermost boundary
+  ---
+  duration_ms: 0.383603
+  type: 'test'
+  ...
+# Subtest: HTS a wholly single-price dataset uses its actual price with finite 100%
+ok 109 - HTS a wholly single-price dataset uses its actual price with finite 100%
+  ---
+  duration_ms: 0.141532
+  type: 'test'
+  ...
+# Subtest: HTS empty and all-zero volume have no invented POC or value area
+ok 110 - HTS empty and all-zero volume have no invented POC or value area
+  ---
+  duration_ms: 0.1203
+  type: 'test'
+  ...
+# Subtest: HTS validation reports excluded volume and abnormal OHLC without filling missing data with zero
+ok 111 - HTS validation reports excluded volume and abnormal OHLC without filling missing data with zero
+  ---
+  duration_ms: 0.219979
+  type: 'test'
+  ...
+# Subtest: HTS percentage denominator includes every bin, independent of price-axis clipping
+ok 112 - HTS percentage denominator includes every bin, independent of price-axis clipping
+  ---
+  duration_ms: 0.171476
+  type: 'test'
+  ...
+# Subtest: HTS volume and percentages are conserved across fractional volumes and many bins
+ok 113 - HTS volume and percentages are conserved across fractional volumes and many bins
+  ---
+  duration_ms: 35.682314
+  type: 'test'
+  ...
+# Subtest: HTS 1..29 bars are displayed and quantity units are preserved without rounding
+ok 114 - HTS 1..29 bars are displayed and quantity units are preserved without rounding
+  ---
+  duration_ms: 0.76938
+  type: 'test'
+  ...
+# Subtest: HTS turnover preserves raw totalVolume while percentages use the selected value basis
+ok 115 - HTS turnover preserves raw totalVolume while percentages use the selected value basis
+  ---
+  duration_ms: 0.164306
+  type: 'test'
+  ...
+# Subtest: HTS invalid bin/area settings and arithmetic overflow do not produce NaN
+ok 116 - HTS invalid bin/area settings and arithmetic overflow do not produce NaN
+  ---
+  duration_ms: 0.914747
+  type: 'test'
+  ...
+# Subtest: HTS tied POC always chooses the lower-price bin
+ok 117 - HTS tied POC always chooses the lower-price bin
+  ---
+  duration_ms: 0.098728
+  type: 'test'
+  ...
+# Subtest: HTS value area expands toward the larger neighbour and ties choose lower
+ok 118 - HTS value area expands toward the larger neighbour and ties choose lower
+  ---
+  duration_ms: 0.198287
+  type: 'test'
+  ...
+# Subtest: HTS uniform price scaling preserves quantity and rejects mixed adjusted-close OHLC
+ok 119 - HTS uniform price scaling preserves quantity and rejects mixed adjusted-close OHLC
+  ---
+  duration_ms: 0.204876
+  type: 'test'
+  ...
+# Subtest: HTS Wilder RSI matches the independently published 14-period reference sample
+ok 120 - HTS Wilder RSI matches the independently published 14-period reference sample
+  ---
+  duration_ms: 0.196354
+  type: 'test'
+  ...
+# Subtest: HTS RSI has explicit rising=100, falling=0, and flat=50 policies
+ok 121 - HTS RSI has explicit rising=100, falling=0, and flat=50 policies
+  ---
+  duration_ms: 0.175062
+  type: 'test'
+  ...
+# Subtest: HTS default RSI starts at index 14 and its SMA/EMA signal at index 22
+ok 122 - HTS default RSI starts at index 14 and its SMA/EMA signal at index 22
+  ---
+  duration_ms: 0.451194
+  type: 'test'
+  ...
+# Subtest: HTS signal smooths RSI itself, with independent hand-derived SMA and EMA values
+ok 123 - HTS signal smooths RSI itself, with independent hand-derived SMA and EMA values
+  ---
+  duration_ms: 0.156264
+  type: 'test'
+  ...
+# Subtest: HTS RSI and its signal restart warmup after invalid prices without bridging the gap
+ok 124 - HTS RSI and its signal restart warmup after invalid prices without bridging the gap
+  ---
+  duration_ms: 0.177796
+  type: 'test'
+  ...
+# Subtest: HTS invalid periods remain null and period-one signals equal RSI
+ok 125 - HTS invalid periods remain null and period-one signals equal RSI
+  ---
+  duration_ms: 0.186629
+  type: 'test'
+  ...
+# Subtest: HTS RSI replay prefixes contain no future information and loaded values survive viewport slicing
+ok 126 - HTS RSI replay prefixes contain no future information and loaded values survive viewport slicing
+  ---
+  duration_ms: 0.348871
+  type: 'test'
+  ...
+# Subtest: event detail times retain day precision and show Unix/ISO instants in the exchange zone
+ok 127 - event detail times retain day precision and show Unix/ISO instants in the exchange zone
+  ---
+  duration_ms: 36.807816
+  type: 'test'
+  ...
+# Subtest: all annotation toggles off produce no event markers; categories are independent
+ok 128 - all annotation toggles off produce no event markers; categories are independent
+  ---
+  duration_ms: 1.938547
+  type: 'test'
+  ...
+# Subtest: source IDs deduplicate one category but keep report publication and TP change from the same document
+ok 129 - source IDs deduplicate one category but keep report publication and TP change from the same document
+  ---
+  duration_ms: 5.888679
+  type: 'test'
+  ...
+# Subtest: same-candle dozens of events and screen neighbors compress without losing items or category/date counts
+ok 130 - same-candle dozens of events and screen neighbors compress without losing items or category/date counts
+  ---
+  duration_ms: 3.538988
+  type: 'test'
+  ...
+# Subtest: calendar alignment preserves original days for day/week/month and uses actual minute candles only
+ok 131 - calendar alignment preserves original days for day/week/month and uses actual minute candles only
+  ---
+  duration_ms: 2.780795
+  type: 'test'
+  ...
+# Subtest: replay excludes unknown/day-only publication and RSI signals until their actual confirmation candles
+ok 132 - replay excludes unknown/day-only publication and RSI signals until their actual confirmation candles
+  ---
+  duration_ms: 0.698844
+  type: 'test'
+  ...
+# Subtest: native axis resize roundoff preserves the selected candle window and fractional pans
+ok 133 - native axis resize roundoff preserves the selected candle window and fractional pans
+  ---
+  duration_ms: 1.473502
+  type: 'test'
+  ...
+# Subtest: AT-36 drawings: create, update, lock, hide, remove, undo/redo, persist
+ok 134 - AT-36 drawings: create, update, lock, hide, remove, undo/redo, persist
+  ---
+  duration_ms: 2.019067
+  type: 'test'
+  ...
+# Subtest: drawing maths: fib levels, position R:R, magnet + KRX snapping, hit distance
+ok 135 - drawing maths: fib levels, position R:R, magnet + KRX snapping, hit distance
+  ---
+  duration_ms: 0.444544
+  type: 'test'
+  ...
+# Subtest: AT-39 layout key format and one-time legacy migration
+ok 136 - AT-39 layout key format and one-time legacy migration
+  ---
+  duration_ms: 0.50846
+  type: 'test'
+  ...
+# Subtest: chart annotations start OFF and preserve prior combined report/target and dividend/split choices
+ok 137 - chart annotations start OFF and preserve prior combined report/target and dividend/split choices
+  ---
+  duration_ms: 0.496322
+  type: 'test'
+  ...
+# Subtest: annotation persistence strictly validates booleans without truthy strings or arbitrary stored keys
+ok 138 - annotation persistence strictly validates booleans without truthy strings or arbitrary stored keys
+  ---
+  duration_ms: 0.531014
+  type: 'test'
+  ...
+# Subtest: indicator catalog: every definition computes, params sanitized, memo key
+ok 139 - indicator catalog: every definition computes, params sanitized, memo key
+  ---
+  duration_ms: 7.856178
+  type: 'test'
+  ...
+# Subtest: AT-37 compare: percent from the first visible bar; exact time alignment
+ok 140 - AT-37 compare: percent from the first visible bar; exact time alignment
+  ---
+  duration_ms: 0.203584
+  type: 'test'
+  ...
+# Subtest: AT-40 replay hides future bars; indicators on the slice have no lookahead
+ok 141 - AT-40 replay hides future bars; indicators on the slice have no lookahead
+  ---
+  duration_ms: 0.363213
+  type: 'test'
+  ...
+# Subtest: AT-41 export names carry symbol + interval + KST timestamp; CSV = given rows
+ok 142 - AT-41 export names carry symbol + interval + KST timestamp; CSV = given rows
+  ---
+  duration_ms: 2.030574
+  type: 'test'
+  ...
+# Subtest: extended hours + session breaks only from real intraday bars
+ok 143 - extended hours + session breaks only from real intraday bars
+  ---
+  duration_ms: 6.844417
+  type: 'test'
+  ...
+# Subtest: bar time: daily keeps the date; intraday wall clock → unix seconds per market zone
+ok 144 - bar time: daily keeps the date; intraday wall clock → unix seconds per market zone
+  ---
+  duration_ms: 2.565063
+  type: 'test'
+  ...
+# Subtest: CSV publication guard compares numeric instants across timezone offsets
+ok 145 - CSV publication guard compares numeric instants across timezone offsets
+  ---
+  duration_ms: 4.661024
+  type: 'test'
+  ...
+# Subtest: CSV allows a known pre-cutoff publication and escapes provider text
+ok 146 - CSV allows a known pre-cutoff publication and escapes provider text
+  ---
+  duration_ms: 1.111551
+  type: 'test'
+  ...
+# Subtest: unknown publication retains status rows for each unavailable panel
+ok 147 - unknown publication retains status rows for each unavailable panel
+  ---
+  duration_ms: 2.051545
+  type: 'test'
+  ...
+# Subtest: CSV exports raw calculation metadata and aligned partial provenance
+ok 148 - CSV exports raw calculation metadata and aligned partial provenance
+  ---
+  duration_ms: 0.52219
+  type: 'test'
+  ...
+# Subtest: CSV cannot leak unguarded aligned values if a caller forgets replay alignment
+ok 149 - CSV cannot leak unguarded aligned values if a caller forgets replay alignment
+  ---
+  duration_ms: 0.865042
+  type: 'test'
+  ...
+# Subtest: invalid replay cutoff fails closed rather than exporting future observations
+ok 150 - invalid replay cutoff fails closed rather than exporting future observations
+  ---
+  duration_ms: 0.616321
+  type: 'test'
+  ...
+# Subtest: exchange-local replay cutoff observes Korean timezone and US winter/summer DST
+ok 151 - exchange-local replay cutoff observes Korean timezone and US winter/summer DST
+  ---
+  duration_ms: 12.95747
+  type: 'test'
+  ...
+# Subtest: CSV carries instrument/fixed-origin metadata and escapes text formulas without changing negative quantities
+ok 152 - CSV carries instrument/fixed-origin metadata and escapes text formulas without changing negative quantities
+  ---
+  duration_ms: 0.489451
+  type: 'test'
+  ...
+# Subtest: cumulative export checks every contributing publication and preserves provisional flags
+ok 153 - cumulative export checks every contributing publication and preserves provisional flags
+  ---
+  duration_ms: 1.262115
+  type: 'test'
+  ...
+# Subtest: flow nullable parsing preserves zero, percentages and explicit thousands scaling
+ok 154 - flow nullable parsing preserves zero, percentages and explicit thousands scaling
+  ---
+  duration_ms: 1.1306
+  type: 'test'
+  ...
+# Subtest: ratios use equal dates and units, never the current denominator for historical observations
+ok 155 - ratios use equal dates and units, never the current denominator for historical observations
+  ---
+  duration_ms: 0.150194
+  type: 'test'
+  ...
+# Subtest: fixed cumulative start yields 100,60,120 and scrolling does not reset it
+ok 156 - fixed cumulative start yields 100,60,120 and scrolling does not reset it
+  ---
+  duration_ms: 8.106882
+  type: 'test'
+  ...
+# Subtest: missing daily net value poisons every later cumulative total, while zero stays valid
+ok 157 - missing daily net value poisons every later cumulative total, while zero stays valid
+  ---
+  duration_ms: 1.405811
+  type: 'test'
+  ...
+# Subtest: loading a later partial window does not silently restart the fixed cumulative origin
+ok 158 - loading a later partial window does not silently restart the fixed cumulative origin
+  ---
+  duration_ms: 0.303323
+  type: 'test'
+  ...
+# Subtest: ratios take last valid observation, weekly/monthly/yearly net quantities sum
+ok 159 - ratios take last valid observation, weekly/monthly/yearly net quantities sum
+  ---
+  duration_ms: 0.446267
+  type: 'test'
+  ...
+# Subtest: partial aggregate keeps the valid last ratio with missing-session metadata
+ok 160 - partial aggregate keeps the valid last ratio with missing-session metadata
+  ---
+  duration_ms: 0.350353
+  type: 'test'
+  ...
+# Subtest: no forward fill and no value before fixed cumulative start
+ok 161 - no forward fill and no value before fixed cumulative start
+  ---
+  duration_ms: 0.261942
+  type: 'test'
+  ...
+# Subtest: minute curve disabled; replay requires known publication time and excludes later releases
+ok 162 - minute curve disabled; replay requires known publication time and excludes later releases
+  ---
+  duration_ms: 0.697853
+  type: 'test'
+  ...
+# Subtest: duplicate versions replace by fetchedAt, and response identities never collide
+ok 163 - duplicate versions replace by fetchedAt, and response identities never collide
+  ---
+  duration_ms: 3.960828
+  type: 'test'
+  ...
+# Subtest: an owner's browser response cannot be selected from another session or signed-out query
+ok 164 - an owner's browser response cannot be selected from another session or signed-out query
+  ---
+  duration_ms: 0.281841
+  type: 'test'
+  ...
+# Subtest: weekend origin with Monday observed session does not poison cumulative; latest missing stays null
+ok 165 - weekend origin with Monday observed session does not poison cumulative; latest missing stays null
+  ---
+  duration_ms: 0.281921
+  type: 'test'
+  ...
+# Subtest: partial weekly net sum is null while raw daily values and last valid ratio remain
+ok 166 - partial weekly net sum is null while raw daily values and last valid ratio remain
+  ---
+  duration_ms: 0.291025
+  type: 'test'
+  ...
+# Subtest: available continuous segment is opt-in and exposes a different actual origin
+ok 167 - available continuous segment is opt-in and exposes a different actual origin
+  ---
+  duration_ms: 0.32829
+  type: 'test'
+  ...
+# Subtest: a gap in an earlier month does not hide a complete daily-net sum in the next month
+ok 168 - a gap in an earlier month does not hide a complete daily-net sum in the next month
+  ---
+  duration_ms: 0.85672
+  type: 'test'
+  ...
+# Subtest: stock/ETF shared pane plan keeps price second and volume last with extras
+ok 169 - stock/ETF shared pane plan keeps price second and volume last with extras
+  ---
+  duration_ms: 1.403346
+  type: 'test'
+  ...
+# Subtest: drawing hit testing rejects RSI, flow, time-axis and price-axis coordinates
+ok 170 - drawing hit testing rejects RSI, flow, time-axis and price-axis coordinates
+  ---
+  duration_ms: 0.168832
+  type: 'test'
+  ...
+# Subtest: fixed range and all range ignore viewport scrolling; replay always caps input
+ok 171 - fixed range and all range ignore viewport scrolling; replay always caps input
+  ---
+  duration_ms: 0.688389
+  type: 'test'
+  ...
+# Subtest: calendar period end is deterministic across months, leap years and weeks
+ok 172 - calendar period end is deterministic across months, leap years and weeks
+  ---
+  duration_ms: 0.230234
+  type: 'test'
+  ...
+# Subtest: intraday visible and replay ranges preserve the exact minute boundary
+ok 173 - intraday visible and replay ranges preserve the exact minute boundary
+  ---
+  duration_ms: 0.366267
+  type: 'test'
+  ...
+# Subtest: intraday ranges compare full seconds, milliseconds, timestamp separators and explicit offsets
+ok 174 - intraday ranges compare full seconds, milliseconds, timestamp separators and explicit offsets
+  ---
+  duration_ms: 0.242442
+  type: 'test'
+  ...
+# Subtest: invalid range bounds and invalid bar dates never broaden a requested range
+ok 175 - invalid range bounds and invalid bar dates never broaden a requested range
+  ---
+  duration_ms: 0.189613
+  type: 'test'
+  ...
+# Subtest: indicator history sorts, deduplicates, normalizes timestamps and caps intraday replay
+ok 176 - indicator history sorts, deduplicates, normalizes timestamps and caps intraday replay
+  ---
+  duration_ms: 0.423733
+  type: 'test'
+  ...
+# Subtest: RSI retains loaded warmup across viewport changes and contains no future replay candle values
+ok 177 - RSI retains loaded warmup across viewport changes and contains no future replay candle values
+  ---
+  duration_ms: 2.913854
+  type: 'test'
+  ...
+# Subtest: volume average distinguishes genuine zero from missing quantity and recovers after warmup
+ok 178 - volume average distinguishes genuine zero from missing quantity and recovers after warmup
+  ---
+  duration_ms: 0.49518
+  type: 'test'
+  ...
+# Subtest: pane persistence stores stretch factors with no drift from viewport pixel resizing
+ok 179 - pane persistence stores stretch factors with no drift from viewport pixel resizing
+  ---
+  duration_ms: 0.672104
+  type: 'test'
+  ...
+# Subtest: pane persistence preserves remembered collapsed heights and bounds valid user drags
+ok 180 - pane persistence preserves remembered collapsed heights and bounds valid user drags
+  ---
+  duration_ms: 0.135853
+  type: 'test'
+  ...
+# Subtest: flow captions preserve actionable provider reasons and never borrow a future as-of
+ok 181 - flow captions preserve actionable provider reasons and never borrow a future as-of
+  ---
+  duration_ms: 0.486938
+  type: 'test'
+  ...
+# Subtest: native line segments split missing observations without turning genuine zero or negative quantities into gaps
+ok 182 - native line segments split missing observations without turning genuine zero or negative quantities into gaps
+  ---
+  duration_ms: 0.259458
+  type: 'test'
+  ...
+# Subtest: RSI and volume moving-average rewarmup becomes separate native line runs
+ok 183 - RSI and volume moving-average rewarmup becomes separate native line runs
+  ---
+  duration_ms: 0.23477
+  type: 'test'
+  ...
+# Subtest: HTS defaults are shared by domestic shares, domestic/foreign-asset ETFs and ETNs
+ok 184 - HTS defaults are shared by domestic shares, domestic/foreign-asset ETFs and ETNs
+  ---
+  duration_ms: 1.402065
+  type: 'test'
+  ...
+# Subtest: default objects do not share mutable nested panel/profile state
+ok 185 - default objects do not share mutable nested panel/profile state
+  ---
+  duration_ms: 0.272087
+  type: 'test'
+  ...
+# Subtest: HTS keys isolate market, instrument, symbol, interval and layout with escaped delimiters
+ok 186 - HTS keys isolate market, instrument, symbol, interval and layout with escaped delimiters
+  ---
+  duration_ms: 0.315221
+  type: 'test'
+  ...
+# Subtest: parse validates nested input without truthy strings, invalid dates or unsupported versions
+ok 187 - parse validates nested input without truthy strings, invalid dates or unsupported versions
+  ---
+  duration_ms: 1.100073
+  type: 'test'
+  ...
+# Subtest: legacy migration preserves explicit user settings and never deletes/overwrites the source
+ok 188 - legacy migration preserves explicit user settings and never deletes/overwrites the source
+  ---
+  duration_ms: 0.573587
+  type: 'test'
+  ...
+# Subtest: migration preserves US profile width and only applies values that actually existed
+ok 189 - migration preserves US profile width and only applies values that actually existed
+  ---
+  duration_ms: 0.154511
+  type: 'test'
+  ...
+# Subtest: saved changes preserve trust baseline, collapse, heights and independent volume averages
+ok 190 - saved changes preserve trust baseline, collapse, heights and independent volume averages
+  ---
+  duration_ms: 0.330624
+  type: 'test'
+  ...
+# Subtest: blocked storage keeps defaults and interactions usable without exceptions
+ok 191 - blocked storage keeps defaults and interactions usable without exceptions
+  ---
+  duration_ms: 0.289553
+  type: 'test'
+  ...
+# Subtest: HTS preset restores readable quantity profile while hide/ref/emphasis remain available
+ok 192 - HTS preset restores readable quantity profile while hide/ref/emphasis remain available
+  ---
+  duration_ms: 0.28772
+  type: 'test'
+  ...
+# Subtest: older scoped profile styles and narrow/full-period settings survive until explicit readability action
+ok 193 - older scoped profile styles and narrow/full-period settings survive until explicit readability action
+  ---
+  duration_ms: 0.629631
+  type: 'test'
+  ...
+# Subtest: profile color mode distinguishes explicit automatic choice, old styles and malformed values
+ok 194 - profile color mode distinguishes explicit automatic choice, old styles and malformed values
+  ---
+  duration_ms: 0.280579
+  type: 'test'
+  ...
+# Subtest: chart readability resets only display profile fields and persists in the current scope
+ok 195 - chart readability resets only display profile fields and persists in the current scope
+  ---
+  duration_ms: 0.486748
+  type: 'test'
+  ...
+# Subtest: profile CSV includes exact fractional allocation, total denominator and source/range/unit metadata
+ok 196 - profile CSV includes exact fractional allocation, total denominator and source/range/unit metadata
+  ---
+  duration_ms: 0.651393
+  type: 'test'
+  ...
+# Subtest: turnover CSV identifies actual currency separately from native ETF quantity
+ok 197 - turnover CSV identifies actual currency separately from native ETF quantity
+  ---
+  duration_ms: 0.177956
+  type: 'test'
+  ...
+# Subtest: empty and excluded profile export keeps diagnostics; text safely escapes CSV and formulas
+ok 198 - empty and excluded profile export keeps diagnostics; text safely escapes CSV and formulas
+  ---
+  duration_ms: 0.13342
+  type: 'test'
+  ...
+# Subtest: profile quantities preserve the source unit, round only display and identify estimation
+ok 199 - profile quantities preserve the source unit, round only display and identify estimation
+  ---
+  duration_ms: 8.532459
+  type: 'test'
+  ...
+# Subtest: ten visible HTS bins retain all labels with complete quantity and total share
+ok 200 - ten visible HTS bins retain all labels with complete quantity and total share
+  ---
+  duration_ms: 0.875248
+  type: 'test'
+  ...
+# Subtest: short bars place the complete quantity outside the bar without changing price height
+ok 201 - short bars place the complete quantity outside the bar without changing price height
+  ---
+  duration_ms: 0.241872
+  type: 'test'
+  ...
+# Subtest: narrow multi-chart labels compact quantities but retain units and original percentage
+ok 202 - narrow multi-chart labels compact quantities but retain units and original percentage
+  ---
+  duration_ms: 0.157866
+  type: 'test'
+  ...
+# Subtest: overlapping dense labels use priority while preserving every chosen price coordinate
+ok 203 - overlapping dense labels use priority while preserving every chosen price coordinate
+  ---
+  duration_ms: 0.225346
+  type: 'test'
+  ...
+# Subtest: offscreen price bins are clipped without renormalizing remaining labels
+ok 204 - offscreen price bins are clipped without renormalizing remaining labels
+  ---
+  duration_ms: 0.376763
+  type: 'test'
+  ...
+# Subtest: current-price reserved space is respected and never causes a vertical shift
+ok 205 - current-price reserved space is respected and never causes a vertical shift
+  ---
+  duration_ms: 0.23431
+  type: 'test'
+  ...
+# Subtest: unusable coordinates and physically too-small plots omit labels safely
+ok 206 - unusable coordinates and physically too-small plots omit labels safely
+  ---
+  duration_ms: 0.626266
+  type: 'test'
+  ...
+# Subtest: zero bins and malformed percentages do not masquerade as traded profile labels
+ok 207 - zero bins and malformed percentages do not masquerade as traded profile labels
+  ---
+  duration_ms: 0.337024
+  type: 'test'
+  ...
+# Subtest: native price captions and provenance reserve their actual top and bottom areas
+ok 208 - native price captions and provenance reserve their actual top and bottom areas
+  ---
+  duration_ms: 0.521779
+  type: 'test'
+  ...
+# Subtest: automatic profile colors and a single fill opacity follow the current theme
+ok 209 - automatic profile colors and a single fill opacity follow the current theme
+  ---
+  duration_ms: 1.140504
+  type: 'test'
+  ...
+# Subtest: custom fill color and opacity survive a theme change while text stays legible
+ok 210 - custom fill color and opacity survive a theme change while text stays legible
+  ---
+  duration_ms: 0.169273
+  type: 'test'
+  ...
+# Subtest: profile width uses the actual plot width and maximum bin, rather than total-volume percentage
+ok 211 - profile width uses the actual plot width and maximum bin, rather than total-volume percentage
+  ---
+  duration_ms: 0.12747
+  type: 'test'
+  ...
+# Subtest: zero, missing and malformed profile values never create visible bars
+ok 212 - zero, missing and malformed profile values never create visible bars
+  ---
+  duration_ms: 0.178196
+  type: 'test'
+  ...
+# Subtest: overseas-underlying Korean ETF keeps KR listing identity and its own share units
+ok 213 - overseas-underlying Korean ETF keeps KR listing identity and its own share units
+  ---
+  duration_ms: 0.798723
+  type: 'test'
+  ...
+# Subtest: valid alphabetic ETF codes survive direct entry and metadata parsing
+ok 214 - valid alphabetic ETF codes survive direct entry and metadata parsing
+  ---
+  duration_ms: 0.757371
+  type: 'test'
+  ...
+# Subtest: identity requires provider fields, not product names or code patterns
+ok 215 - identity requires provider fields, not product names or code patterns
+  ---
+  duration_ms: 0.125718
+  type: 'test'
+  ...
+# Subtest: detail/fullscreen share scope while workspace cell scopes stay separate
+ok 216 - detail/fullscreen share scope while workspace cell scopes stay separate
+  ---
+  duration_ms: 0.186408
+  type: 'test'
+  ...
+# Subtest: existing overseas ETFs retain listing market and share units; US stocks stay stocks
+ok 217 - existing overseas ETFs retain listing market and share units; US stocks stay stocks
+  ---
+  duration_ms: 0.155883
+  type: 'test'
+  ...
+# Subtest: Yahoo explicit instrument metadata identifies other supported US ETFs without name inference
+ok 218 - Yahoo explicit instrument metadata identifies other supported US ETFs without name inference
+  ---
+  duration_ms: 0.1538
+  type: 'test'
+  ...
+# Subtest: only documented matching endpoint price bases share warmup/daily history
+ok 219 - only documented matching endpoint price bases share warmup/daily history
+  ---
+  duration_ms: 0.424103
+  type: 'test'
+  ...
+# Subtest: all standard periods use complete O(n) rolling windows and preserve zero/negative observations
+ok 220 - all standard periods use complete O(n) rolling windows and preserve zero/negative observations
+  ---
+  duration_ms: 1.86035
+  type: 'test'
+  ...
+# Subtest: pre-roll aligns by timestamp to a shorter displayed range and is invariant under viewport zoom
+ok 221 - pre-roll aligns by timestamp to a shorter displayed range and is invariant under viewport zoom
+  ---
+  duration_ms: 5.514469
+  type: 'test'
+  ...
+# Subtest: replay excludes future calculation rows; displayed corrections win; pre-roll survives display cap
+ok 222 - replay excludes future calculation rows; displayed corrections win; pre-roll survives display cap
+  ---
+  duration_ms: 18.96106
+  type: 'test'
+  ...
+# Subtest: minute/day/week/month/year semantics average selected-frame bars without session resets
+ok 223 - minute/day/week/month/year semantics average selected-frame bars without session resets
+  ---
+  duration_ms: 33.750748
+  type: 'test'
+  ...
+# Subtest: fresh KR/US defaults bundle exactly 5/20/60/120/200 with semantic colors
+ok 224 - fresh KR/US defaults bundle exactly 5/20/60/120/200 with semantic colors
+  ---
+  duration_ms: 0.871211
+  type: 'test'
+  ...
+# Subtest: legacy migration is deterministic/idempotent; SMA200, SMA50, custom color, OFF and drawings survive
+ok 225 - legacy migration is deterministic/idempotent; SMA200, SMA50, custom color, OFF and drawings survive
+  ---
+  duration_ms: 5.284316
+  type: 'test'
+  ...
+# Subtest: independent toggles share catalog state; removing then enabling re-adds only that SMA
+ok 226 - independent toggles share catalog state; removing then enabling re-adds only that SMA
+  ---
+  duration_ms: 1.035427
+  type: 'test'
+  ...
+# Subtest: exact theme colors, strongest supported width, explicit overrides and reset to semantic default
+ok 227 - exact theme colors, strongest supported width, explicit overrides and reset to semantic default
+  ---
+  duration_ms: 0.411936
+  type: 'test'
+  ...
+# Subtest: direct labels disappear when disabled/unavailable; collision layout stays inside pane
+ok 228 - direct labels disappear when disabled/unavailable; collision layout stays inside pane
+  ---
+  duration_ms: 0.757893
+  type: 'test'
+  ...
+# Subtest: dual-series focus binds averages solely to its source, preserving nulls and signed values
+ok 229 - dual-series focus binds averages solely to its source, preserving nulls and signed values
+  ---
+  duration_ms: 7.69694
+  type: 'test'
+  ...
+# Subtest: provider volume zero remains valid and missing values retain an invalid marker
+ok 230 - provider volume zero remains valid and missing values retain an invalid marker
+  ---
+  duration_ms: 2.372234
+  type: 'test'
+  ...
+# Subtest: provider share counts preserve raw units and serializable validity
+ok 231 - provider share counts preserve raw units and serializable validity
+  ---
+  duration_ms: 0.18101
+  type: 'test'
+  ...
+# Subtest: AT-22 stage chips from headline keywords (synthetic fixtures)
+ok 232 - AT-22 stage chips from headline keywords (synthetic fixtures)
+  ---
+  duration_ms: 1.569535
+  type: 'test'
+  ...
+# Subtest: ETF story filter, brand and themes
+ok 233 - ETF story filter, brand and themes
+  ---
+  duration_ms: 2.336992
+  type: 'test'
+  ...
+# Subtest: AT-22 longest-name match attaches code, price, volume, issuer
+ok 234 - AT-22 longest-name match attaches code, price, volume, issuer
+  ---
+  duration_ms: 0.953415
+  type: 'test'
+  ...
+# Subtest: F5.4 filters: issuer, stage, theme, retirement-eligible
+ok 235 - F5.4 filters: issuer, stage, theme, retirement-eligible
+  ---
+  duration_ms: 0.673055
+  type: 'test'
+  ...
+# Subtest: F5.3 briefing windows, trading-value snapshot and robot/AI chips
+ok 236 - F5.3 briefing windows, trading-value snapshot and robot/AI chips
+  ---
+  duration_ms: 3.000834
+  type: 'test'
+  ...
+# Subtest: T1 national 12M rolling default series
+ok 237 - T1 national 12M rolling default series
+  ---
+  duration_ms: 10.811604
+  type: 'test'
+  ...
+# Subtest: T2 semiconductor strict matching
+ok 238 - T2 semiconductor strict matching
+  ---
+  duration_ms: 0.704653
+  type: 'test'
+  ...
+# Subtest: T3 petroleum excludes petrochem-only and semis
+ok 239 - T3 petroleum excludes petrochem-only and semis
+  ---
+  duration_ms: 0.150775
+  type: 'test'
+  ...
+# Subtest: T4 point-in-time membership never applies today retroactively
+ok 240 - T4 point-in-time membership never applies today retroactively
+  ---
+  duration_ms: 6.077782
+  type: 'test'
+  ...
+# Subtest: T5 completeness enumerates non-zero categories beyond core20
+ok 241 - T5 completeness enumerates non-zero categories beyond core20
+  ---
+  duration_ms: 1.089969
+  type: 'test'
+  ...
+# Subtest: T6 no MTI into HS params; aggregated flag
+ok 242 - T6 no MTI into HS params; aggregated flag
+  ---
+  duration_ms: 0.378686
+  type: 'test'
+  ...
+# Subtest: T7 HAC on YoY path
+ok 243 - T7 HAC on YoY path
+  ---
+  duration_ms: 4.735255
+  type: 'test'
+  ...
+# Subtest: T8 sufficiency gate N=20
+ok 244 - T8 sufficiency gate N=20
+  ---
+  duration_ms: 0.126079
+  type: 'test'
+  ...
+# Subtest: T9 regional sigungu x HSK10 unavailable
+ok 245 - T9 regional sigungu x HSK10 unavailable
+  ---
+  duration_ms: 0.319177
+  type: 'test'
+  ...
+# Subtest: T10 provenance fields exist on imported rows
+ok 246 - T10 provenance fields exist on imported rows
+  ---
+  duration_ms: 0.421801
+  type: 'test'
+  ...
+# Subtest: T11 demo isolation
+ok 247 - T11 demo isolation
+  ---
+  duration_ms: 0.18756
+  type: 'test'
+  ...
+# Subtest: T12 weight conservation rejects 1.3
+ok 248 - T12 weight conservation rejects 1.3
+  ---
+  duration_ms: 0.216293
+  type: 'test'
+  ...
+# Subtest: T13 vintage parse + korean units
+ok 249 - T13 vintage parse + korean units
+  ---
+  duration_ms: 0.106449
+  type: 'test'
+  ...
+# Subtest: T14 FX partial correlation differs from raw
+ok 250 - T14 FX partial correlation differs from raw
+  ---
+  duration_ms: 0.255853
+  type: 'test'
+  ...
+# Subtest: T15 FRED parser keeps official monthly USD
+ok 251 - T15 FRED parser keeps official monthly USD
+  ---
+  duration_ms: 0.181101
+  type: 'test'
+  ...
+# Subtest: T16 HS proxy does not invent missing codes
+ok 252 - T16 HS proxy does not invent missing codes
+  ---
+  duration_ms: 0.111978
+  type: 'test'
+  ...
+# Subtest: convertUsdKrw rejects bad fx
+ok 253 - convertUsdKrw rejects bad fx
+  ---
+  duration_ms: 0.06717
+  type: 'test'
+  ...
+# Subtest: fxRateForPeriod uses monthly series, not today's spot, for history
+ok 254 - fxRateForPeriod uses monthly series, not today's spot, for history
+  ---
+  duration_ms: 0.159118
+  type: 'test'
+  ...
+# Subtest: WAD with missing workingDays stays null (never invents 21 days)
+ok 255 - WAD with missing workingDays stays null (never invents 21 days)
+  ---
+  duration_ms: 0.078667
+  type: 'test'
+  ...
+# Subtest: parseSourceTime handles every documented format
+ok 256 - parseSourceTime handles every documented format
+  ---
+  duration_ms: 3.086652
+  type: 'test'
+  ...
+# Subtest: parseSourceTime: invalid input → unknown
+ok 257 - parseSourceTime: invalid input → unknown
+  ---
+  duration_ms: 0.349462
+  type: 'test'
+  ...
+# Subtest: parseSourceTime: MM.DD HH:mm more than a day in the future rolls back a year
+ok 258 - parseSourceTime: MM.DD HH:mm more than a day in the future rolls back a year
+  ---
+  duration_ms: 0.195762
+  type: 'test'
+  ...
+# Subtest: parseSourceTime: New York wall time respects DST
+ok 259 - parseSourceTime: New York wall time respects DST
+  ---
+  duration_ms: 11.076389
+  type: 'test'
+  ...
+# Subtest: AT-01: mixed-format dates sort strictly newest first; same-day ties by seq desc
+ok 260 - AT-01: mixed-format dates sort strictly newest first; same-day ties by seq desc
+  ---
+  duration_ms: 0.558224
+  type: 'test'
+  ...
+# Subtest: AT-01: comparator is total and deterministic (tier, then id)
+ok 261 - AT-01: comparator is total and deterministic (tier, then id)
+  ---
+  duration_ms: 0.235451
+  type: 'test'
+  ...
+# Subtest: AT-02: date-only items never print a clock time; unknown sinks with 날짜 미상
+ok 262 - AT-02: date-only items never print a clock time; unknown sinks with 날짜 미상
+  ---
+  duration_ms: 1.406512
+  type: 'test'
+  ...
+# Subtest: formatItemTime: relative under 12h, absolute after, YYYY.MM.DD after 180 days
+ok 263 - formatItemTime: relative under 12h, absolute after, YYYY.MM.DD after 180 days
+  ---
+  duration_ms: 0.349081
+  type: 'test'
+  ...
+# Subtest: same KST day: timed items before date-only items
+ok 264 - same KST day: timed items before date-only items
+  ---
+  duration_ms: 0.403733
+  type: 'test'
+  ...
+# Subtest: cursor paging never repeats rows
+ok 265 - cursor paging never repeats rows
+  ---
+  duration_ms: 1.15755
+  type: 'test'
+  ...
+# Subtest: AT-03: RSS 2.0, Atom and EUC-KR fixtures normalize identically
+ok 266 - AT-03: RSS 2.0, Atom and EUC-KR fixtures normalize identically
+  ---
+  duration_ms: 8.413221
+  type: 'test'
+  ...
+# Subtest: parseFeed: missing dates and CDATA; RDF; never throws
+ok 267 - parseFeed: missing dates and CDATA; RDF; never throws
+  ---
+  duration_ms: 1.206863
+  type: 'test'
+  ...
+# Subtest: text helpers: snippet ≤ 240, canonical URL drops utm/fragment, keeps Google News
+ok 268 - text helpers: snippet ≤ 240, canonical URL drops utm/fragment, keeps Google News
+  ---
+  duration_ms: 0.242883
+  type: 'test'
+  ...
+# Subtest: AT-04: [속보] 코스피 2% 급락 clusters with 코스피, 2% 급락 마감 - 한국경제
+ok 269 - AT-04: [속보] 코스피 2% 급락 clusters with 코스피, 2% 급락 마감 - 한국경제
+  ---
+  duration_ms: 1.976143
+  type: 'test'
+  ...
+# Subtest: AT-04: clusters never merge beyond 12 h
+ok 270 - AT-04: clusters never merge beyond 12 h
+  ---
+  duration_ms: 0.168912
+  type: 'test'
+  ...
+# Subtest: AT-04: every high-or-higher item carries ≥ 1 reason; weights explained
+ok 271 - AT-04: every high-or-higher item carries ≥ 1 reason; weights explained
+  ---
+  duration_ms: 2.692003
+  type: 'test'
+  ...
+# Subtest: filterDisabledSources promotes a surviving cluster member
+ok 272 - filterDisabledSources promotes a surviving cluster member
+  ---
+  duration_ms: 0.574298
+  type: 'test'
+  ...
+# Subtest: briefing: top stories ranked by importance within 12 h; theme momentum counts
+ok 273 - briefing: top stories ranked by importance within 12 h; theme momentum counts
+  ---
+  duration_ms: 0.734968
+  type: 'test'
+  ...
+# Subtest: D1: research reports with mixed date formats sort newest first, nid tie-break
+ok 274 - D1: research reports with mixed date formats sort newest first, nid tie-break
+  ---
+  duration_ms: 0.346097
+  type: 'test'
+  ...
+# Subtest: D1: disclosures across ISO / compact / date-only formats sort newest first
+ok 275 - D1: disclosures across ISO / compact / date-only formats sort newest first
+  ---
+  duration_ms: 0.188752
+  type: 'test'
+  ...
+# Subtest: Naver news list (`articles`) maps title/outlet/time/link; YYYYMMDDHHmm is KST
+ok 276 - Naver news list (`articles`) maps title/outlet/time/link; YYYYMMDDHHmm is KST
+  ---
+  duration_ms: 6.289152
+  type: 'test'
+  ...
+# Subtest: Naver search (`items`) and worldNews (top-level array keyed by aid)
+ok 277 - Naver search (`items`) and worldNews (top-level array keyed by aid)
+  ---
+  duration_ms: 2.105195
+  type: 'test'
+  ...
+# Subtest: Naver AI briefing v2 list item (id/title/summary/briefingDate/briefingHour)
+ok 278 - Naver AI briefing v2 list item (id/title/summary/briefingDate/briefingHour)
+  ---
+  duration_ms: 1.26499
+  type: 'test'
+  ...
+# Subtest: Google News: strip ` - Publisher`, outlet tier, no snippet, Bloomberg → 유료
+ok 279 - Google News: strip ` - Publisher`, outlet tier, no snippet, Bloomberg → 유료
+  ---
+  duration_ms: 16.595526
+  type: 'test'
+  ...
+# Subtest: AT-12: Bloomberg RSS items are headline-only (no snippet) and 유료
+ok 280 - AT-12: Bloomberg RSS items are headline-only (no snippet) and 유료
+  ---
+  duration_ms: 1.270257
+  type: 'test'
+  ...
+# Subtest: KIS news-title rows: KST date+time, tickers from iscd1..5, search link (no original)
+ok 281 - KIS news-title rows: KST date+time, tickers from iscd1..5, search link (no original)
+  ---
+  duration_ms: 0.594849
+  type: 'test'
+  ...
+# Subtest: Finnhub rows, SEC atom CIK and Yahoo meta snapshot
+ok 282 - Finnhub rows, SEC atom CIK and Yahoo meta snapshot
+  ---
+  duration_ms: 0.560207
+  type: 'test'
+  ...
+# Subtest: Yahoo 1D change uses the prior session close, never the 5-day chartPreviousClose
+ok 283 - Yahoo 1D change uses the prior session close, never the 5-day chartPreviousClose
+  ---
+  duration_ms: 21.935996
+  type: 'test'
+  ...
+# Subtest: session estimates: US by NY clock, KRX/NXT by KST clock, weekends closed
+ok 284 - session estimates: US by NY clock, KRX/NXT by KST clock, weekends closed
+  ---
+  duration_ms: 13.169026
+  type: 'test'
+  ...
+# Subtest: AT-10: filters (source/topic/watchlist/importance) and 더 보기 merge produce no duplicates
+ok 285 - AT-10: filters (source/topic/watchlist/importance) and 더 보기 merge produce no duplicates
+  ---
+  duration_ms: 1.854481
+  type: 'test'
+  ...
+# Subtest: merge drops a later-page row already shown inside an earlier cluster
+ok 286 - merge drops a later-page row already shown inside an earlier cluster
+  ---
+  duration_ms: 1.795152
+  type: 'test'
+  ...
+# Subtest: AT-11: longest name wins — LG is never tagged inside LG에너지솔루션
+ok 287 - AT-11: longest name wins — LG is never tagged inside LG에너지솔루션
+  ---
+  duration_ms: 1.515274
+  type: 'test'
+  ...
+# Subtest: exact 6-char codes tag only known tickers; names < 2 chars ignored
+ok 288 - exact 6-char codes tag only known tickers; names < 2 chars ignored
+  ---
+  duration_ms: 0.178818
+  type: 'test'
+  ...
+# Subtest: US tagging: cashtags, exchange notation, exact company names
+ok 289 - US tagging: cashtags, exchange notation, exact company names
+  ---
+  duration_ms: 0.741137
+  type: 'test'
+  ...
+# Subtest: normalizeKrTicker never strips letters from 0226A0
+ok 290 - normalizeKrTicker never strips letters from 0226A0
+  ---
+  duration_ms: 0.884702
+  type: 'test'
+  ...
+# Subtest: looksLikeEtf does not match Soulbrain / 솔브레인
+ok 291 - looksLikeEtf does not match Soulbrain / 솔브레인
+  ---
+  duration_ms: 0.459236
+  type: 'test'
+  ...
+# Subtest: inferSectorId matches coverage-universe names
+ok 292 - inferSectorId matches coverage-universe names
+  ---
+  duration_ms: 14.838451
+  type: 'test'
+  ...
+# Subtest: D2: window.open runs synchronously before the resolver settles
+ok 293 - D2: window.open runs synchronously before the resolver settles
+  ---
+  duration_ms: 1.302727
+  type: 'test'
+  ...
+# Subtest: D2: resolution failure falls back to the research page
+ok 294 - D2: resolution failure falls back to the research page
+  ---
+  duration_ms: 0.238917
+  type: 'test'
+  ...
+# Subtest: D2: a blocked popup hands the resolved link to onBlocked (toast)
+ok 295 - D2: a blocked popup hands the resolved link to onBlocked (toast)
+  ---
+  duration_ms: 0.171266
+  type: 'test'
+  ...
+# Subtest: AT-15: v2 list `{hasNext,totalCount,items[]}` → newest first, nid desc tie-break, totalCount kept
+ok 296 - AT-15: v2 list `{hasNext,totalCount,items[]}` → newest first, nid desc tie-break, totalCount kept
+  ---
+  duration_ms: 13.787921
+  type: 'test'
+  ...
+# Subtest: v2 row mapping accepts candidate field names and never invents values
+ok 297 - v2 row mapping accepts candidate field names and never invents values
+  ---
+  duration_ms: 4.817859
+  type: 'test'
+  ...
+# Subtest: detail-page: researchContent + researchSummaries.prev/next
+ok 298 - detail-page: researchContent + researchSummaries.prev/next
+  ---
+  duration_ms: 0.252427
+  type: 'test'
+  ...
+# Subtest: AT-17: goal-price-changed sets list up/down; Δ% only when both values come from the source
+ok 299 - AT-17: goal-price-changed sets list up/down; Δ% only when both values come from the source
+  ---
+  duration_ms: 0.758293
+  type: 'test'
+  ...
+# Subtest: F2.5: Δ% only from an older same-broker, same-ticker fetched report
+ok 300 - F2.5: Δ% only from an older same-broker, same-ticker fetched report
+  ---
+  duration_ms: 0.20068
+  type: 'test'
+  ...
+# Subtest: new-coverage heuristic and extractive bullets
+ok 301 - new-coverage heuristic and extractive bullets
+  ---
+  duration_ms: 0.603632
+  type: 'test'
+  ...
+# Subtest: AT-21: generic AI 반도체 reports are not robotics; robot terms are
+ok 302 - AT-21: generic AI 반도체 reports are not robotics; robot terms are
+  ---
+  duration_ms: 0.653566
+  type: 'test'
+  ...
+# Subtest: AT-20: Street Moves sort newest first; CSV has exactly the visible rows
+ok 303 - AT-20: Street Moves sort newest first; CSV has exactly the visible rows
+  ---
+  duration_ms: 10.737454
+  type: 'test'
+  ...
+# Subtest: AT-41: export names carry the symbol and a timestamp
+ok 304 - AT-41: export names carry the symbol and a timestamp
+  ---
+  duration_ms: 0.507017
+  type: 'test'
+  ...
+# Subtest: AT-24 robot ETF regex matcher over a live-list shaped fixture
+ok 305 - AT-24 robot ETF regex matcher over a live-list shaped fixture
+  ---
+  duration_ms: 1.249517
+  type: 'test'
+  ...
+# Subtest: AT-26 Federal Register filter drops premerger/early-termination, keeps robotics/Section 232
+ok 306 - AT-26 Federal Register filter drops premerger/early-termination, keeps robotics/Section 232
+  ---
+  duration_ms: 2.347267
+  type: 'test'
+  ...
+# Subtest: AT-27 policy status chips only on keyword presence
+ok 307 - AT-27 policy status chips only on keyword presence
+  ---
+  duration_ms: 1.402385
+  type: 'test'
+  ...
+# Subtest: robot topic classifier
+ok 308 - robot topic classifier
+  ---
+  duration_ms: 0.756841
+  type: 'test'
+  ...
+# Subtest: universe config and exact-name resolution (F6.1 / AT-25 helpers)
+ok 309 - universe config and exact-name resolution (F6.1 / AT-25 helpers)
+  ---
+  duration_ms: 0.320609
+  type: 'test'
+  ...
+# Subtest: basket stats: equal-weight 1D %, 52w position, movers, time windows
+ok 310 - basket stats: equal-weight 1D %, 52w position, movers, time windows
+  ---
+  duration_ms: 0.296243
+  type: 'test'
+  ...
+# Subtest: alphanumeric ETF codes do not collide with digit-stripped stocks
+ok 311 - alphanumeric ETF codes do not collide with digit-stripped stocks
+  ---
+  duration_ms: 1.373682
+  type: 'test'
+  ...
+# Subtest: single-token SOL does not match Soulbrain
+ok 312 - single-token SOL does not match Soulbrain
+  ---
+  duration_ms: 0.243504
+  type: 'test'
+  ...
+# Subtest: AT-08: unversioned snapshot keeps watchlist, theme and colorConvention
+ok 313 - AT-08: unversioned snapshot keeps watchlist, theme and colorConvention
+  ---
+  duration_ms: 5.506908
+  type: 'test'
+  ...
+# Subtest: migration tolerates garbage and partial nested settings
+ok 314 - migration tolerates garbage and partial nested settings
+  ---
+  duration_ms: 0.281531
+  type: 'test'
+  ...
+# Subtest: rehydrate merge keeps new default keys inside nested objects
+ok 315 - rehydrate merge keeps new default keys inside nested objects
+  ---
+  duration_ms: 0.201861
+  type: 'test'
+  ...
+# Subtest: official research parsers
+    # Subtest: parses FOMC meetings without inventing missing links
+    ok 1 - parses FOMC meetings without inventing missing links
+      ---
+      duration_ms: 2.316301
+      type: 'test'
+      ...
+    # Subtest: parses beige rows and leaves unlinked dates as scheduled
+    ok 2 - parses beige rows and leaves unlinked dates as scheduled
+      ---
+      duration_ms: 1.119253
+      type: 'test'
+      ...
+    # Subtest: parses a BEA schedule row only from the year heading
+    ok 3 - parses a BEA schedule row only from the year heading
+      ---
+      duration_ms: 0.633336
+      type: 'test'
+      ...
+    # Subtest: keeps only framed quarterly XBRL facts
+    ok 4 - keeps only framed quarterly XBRL facts
+      ---
+      duration_ms: 0.368781
+      type: 'test'
+      ...
+    # Subtest: builds an EDGAR archive URL from the accession and refuses traversal
+    ok 5 - builds an EDGAR archive URL from the accession and refuses traversal
+      ---
+      duration_ms: 0.193889
+      type: 'test'
+      ...
+    # Subtest: reads a Form 4 owner and printed sale rows
+    ok 6 - reads a Form 4 owner and printed sale rows
+      ---
+      duration_ms: 0.472116
+      type: 'test'
+      ...
+    # Subtest: does not keep boilerplate as a summary line
+    ok 7 - does not keep boilerplate as a summary line
+      ---
+      duration_ms: 0.504274
+      type: 'test'
+      ...
+    1..7
+ok 316 - official research parsers
+  ---
+  duration_ms: 6.612049
+  type: 'suite'
+  ...
+# Subtest: sample sigma is n-1 and percentile counts values at or below current
+ok 317 - sample sigma is n-1 and percentile counts values at or below current
+  ---
+  duration_ms: 17.741258
+  type: 'test'
+  ...
+# Subtest: expanding percentile ignores the future and waits for 8 prints
+ok 318 - expanding percentile ignores the future and waits for 8 prints
+  ---
+  duration_ms: 0.19403
+  type: 'test'
+  ...
+# Subtest: PER is undefined on non-positive EPS; EV/EBITDA undefined on non-positive EBITDA
+ok 319 - PER is undefined on non-positive EPS; EV/EBITDA undefined on non-positive EBITDA
+  ---
+  duration_ms: 0.141632
+  type: 'test'
+  ...
+# Subtest: net debt matches reported EV at the fiscal price, and fair prices round-trip
+ok 320 - net debt matches reported EV at the fiscal price, and fair prices round-trip
+  ---
+  duration_ms: 0.212768
+  type: 'test'
+  ...
+# Subtest: parser keeps actual years, skips YoY, and takes consensus EPS from (E)
+ok 321 - parser keeps actual years, skips YoY, and takes consensus EPS from (E)
+  ---
+  duration_ms: 1.513592
+  type: 'test'
+  ...
+# Subtest: trailing PER steps on reported EPS; forward PER uses only latest consensus
+ok 322 - trailing PER steps on reported EPS; forward PER uses only latest consensus
+  ---
+  duration_ms: 13.036028
+  type: 'test'
+  ...
+# Subtest: loss-making name drops PER bands and still builds EV/Sales
+ok 323 - loss-making name drops PER bands and still builds EV/Sales
+  ---
+  duration_ms: 0.538084
+  type: 'test'
+  ...
+# Subtest: band chart prices ignore null future points and do not invent EPS
+ok 324 - band chart prices ignore null future points and do not invent EPS
+  ---
+  duration_ms: 0.216223
+  type: 'test'
+  ...
+# Subtest: US ticker parsing, Yahoo closes, and SEC TTM including synthesized Q4
+ok 325 - US ticker parsing, Yahoo closes, and SEC TTM including synthesized Q4
+  ---
+  duration_ms: 2.156852
+  type: 'test'
+  ...
+# Subtest: YTD depreciation becomes quarters that sum back to the fiscal year
+ok 326 - YTD depreciation becomes quarters that sum back to the fiscal year
+  ---
+  duration_ms: 0.460468
+  type: 'test'
+  ...
+# Subtest: Nasdaq forecast uses the next four quarters as NTM, not a made-up history
+ok 327 - Nasdaq forecast uses the next four quarters as NTM, not a made-up history
+  ---
+  duration_ms: 0.427989
+  type: 'test'
+  ...
+# Subtest: US sales join a nearby period end and an alternate revenue tag
+ok 328 - US sales join a nearby period end and an alternate revenue tag
+  ---
+  duration_ms: 0.821578
+  type: 'test'
+  ...
+# Subtest: split-adjusted prices need shares scaled by later splits only
+ok 329 - split-adjusted prices need shares scaled by later splits only
+  ---
+  duration_ms: 0.243965
+  type: 'test'
+  ...
+# Subtest: polling cadence: 20 s visible, 60 s hidden, 180 s both closed, backoff ≤ 5 min
+ok 330 - polling cadence: 20 s visible, 60 s hidden, 180 s both closed, backoff ≤ 5 min
+  ---
+  duration_ms: 29.246209
+  type: 'test'
+  ...
+# Subtest: new items by id and cluster; first diff only records
+ok 331 - new items by id and cluster; first diff only records
+  ---
+  duration_ms: 1.456736
+  type: 'test'
+  ...
+# Subtest: AT-31 twelve qualifying items in 10 minutes → ≤ 5 notifications + 1 digest
+ok 332 - AT-31 twelve qualifying items in 10 minutes → ≤ 5 notifications + 1 digest
+  ---
+  duration_ms: 0.787857
+  type: 'test'
+  ...
+# Subtest: AT-32 quiet hours suppress OS notifications but the badge still counts
+ok 333 - AT-32 quiet hours suppress OS notifications but the badge still counts
+  ---
+  duration_ms: 0.460087
+  type: 'test'
+  ...
+# Subtest: OS rules: permission, leader, flash or watch match; toggles and pause
+ok 334 - OS rules: permission, leader, flash or watch match; toggles and pause
+  ---
+  duration_ms: 0.353759
+  type: 'test'
+  ...
+# Subtest: AT-33 chart price alert fires once when the price crosses the line
+ok 335 - AT-33 chart price alert fires once when the price crosses the line
+  ---
+  duration_ms: 21.770519
+  type: 'test'
+  ...
+# Subtest: F7.11 indicator alerts: RSI 70/30 and MA crosses fire once per bar
+ok 336 - F7.11 indicator alerts: RSI 70/30 and MA crosses fire once per bar
+  ---
+  duration_ms: 1.36549
+  type: 'test'
+  ...
+# Subtest: request allows existing alphanumeric ETF codes and validates dates/market/url characters
+ok 337 - request allows existing alphanumeric ETF codes and validates dates/market/url characters
+  ---
+  duration_ms: 1.501364
+  type: 'test'
+  ...
+# Subtest: Naver ownership field preserves null/zero and never substitutes limit consumption
+ok 338 - Naver ownership field preserves null/zero and never substitutes limit consumption
+  ---
+  duration_ms: 7.71677
+  type: 'test'
+  ...
+# Subtest: KIS exact loan ratio uses settlement date, not lending ratio or trade date
+ok 339 - KIS exact loan ratio uses settlement date, not lending ratio or trade date
+  ---
+  duration_ms: 0.244766
+  type: 'test'
+  ...
+# Subtest: KIS rejects institution/pension substitutions and derives only trust buy minus sell
+ok 340 - KIS rejects institution/pension substitutions and derives only trust buy minus sell
+  ---
+  duration_ms: 0.184926
+  type: 'test'
+  ...
+# Subtest: auth absence is independent from live foreign zeros; caching deduplicates and separates ETF identity
+ok 341 - auth absence is independent from live foreign zeros; caching deduplicates and separates ETF identity
+  ---
+  duration_ms: 76.326132
+  type: 'test'
+  ...
+# Subtest: 403 is not retried and cannot label every ETF unsupported
+ok 342 - 403 is not retried and cannot label every ETF unsupported
+  ---
+  duration_ms: 0.607318
+  type: 'test'
+  ...
+# Subtest: 429 gets one bounded retry then an isolated metric error
+ok 343 - 429 gets one bounded retry then an isolated metric error
+  ---
+  duration_ms: 7.805653
+  type: 'test'
+  ...
+# Subtest: abort cancels only its subscriber; late old-ETF response stays with its original request
+ok 344 - abort cancels only its subscriber; late old-ETF response stays with its original request
+  ---
+  duration_ms: 1.805398
+  type: 'test'
+  ...
+# Subtest: last subscriber cancellation aborts actual provider work
+ok 345 - last subscriber cancellation aborts actual provider work
+  ---
+  duration_ms: 0.691874
+  type: 'test'
+  ...
+# Subtest: timeout retries once and never fabricates a zero response
+ok 346 - timeout retries once and never fabricates a zero response
+  ---
+  duration_ms: 12.099168
+  type: 'test'
+  ...
+# Subtest: verified KIS request fields, token dedupe, duplicate-page termination and independent parsing
+ok 347 - verified KIS request fields, token dedupe, duplicate-page termination and independent parsing
+  ---
+  duration_ms: 5.820016
+  type: 'test'
+  ...
+# Subtest: missing required KIS output is an error while other metrics succeed; US definitions remain unknown
+ok 348 - missing required KIS output is an error while other metrics succeed; US definitions remain unknown
+  ---
+  duration_ms: 4.352654
+  type: 'test'
+  ...
+# Subtest: krCodeFromIsin extracts KRX ticker and ignores cash ISIN
+ok 349 - krCodeFromIsin extracts KRX ticker and ignores cash ISIN
+  ---
+  duration_ms: 1.315796
+  type: 'test'
+  ...
+# Subtest: 설정현금액 is a CU notional row, 원화예금 is not
+ok 350 - 설정현금액 is a CU notional row, 원화예금 is not
+  ---
+  duration_ms: 0.184917
+  type: 'test'
+  ...
+# Subtest: parseRiseFundCdFromFinder maps 0233N0 to 44L0
+ok 351 - parseRiseFundCdFromFinder maps 0233N0 to 44L0
+  ---
+  duration_ms: 0.453177
+  type: 'test'
+  ...
+# Subtest: parseRisePdfHoldingsHtml skips 설정현금액 and keeps official weights
+ok 352 - parseRisePdfHoldingsHtml skips 설정현금액 and keeps official weights
+  ---
+  duration_ms: 0.939905
+  type: 'test'
+  ...
+# Subtest: parseRiseTop10Html reads issuer TOP10 weights
+ok 353 - parseRiseTop10Html reads issuer TOP10 weights
+  ---
+  duration_ms: 1.529095
+  type: 'test'
+  ...
+# Subtest: applyCuValueWeights never invents or rescales NAV weights
+ok 354 - applyCuValueWeights never invents or rescales NAV weights
+  ---
+  duration_ms: 0.138366
+  type: 'test'
+  ...
+# Subtest: IBK PDF keeps issuer NAV weights and sorts by weight desc
+ok 355 - IBK PDF keeps issuer NAV weights and sorts by weight desc
+  ---
+  duration_ms: 0.444534
+  type: 'test'
+  ...
+# Subtest: holdings sort is strictly by weight, not input order
+ok 356 - holdings sort is strictly by weight, not input order
+  ---
+  duration_ms: 0.619255
+  type: 'test'
+  ...
+# Subtest: chooseOfficialBasket prefers complete issuer PDF over a renormalized sleeve
+ok 357 - chooseOfficialBasket prefers complete issuer PDF over a renormalized sleeve
+  ---
+  duration_ms: 0.570522
+  type: 'test'
+  ...
+# Subtest: incomplete CU weights are stripped instead of shown as NAV %
+ok 358 - incomplete CU weights are stripped instead of shown as NAV %
+  ---
+  duration_ms: 0.358155
+  type: 'test'
+  ...
+# Subtest: parseKodexPdfRows reads ratio and skips 설정현금액
+ok 359 - parseKodexPdfRows reads ratio and skips 설정현금액
+  ---
+  duration_ms: 0.312567
+  type: 'test'
+  ...
+# Subtest: issuer family and IBK name match the legal catalog title
+ok 360 - issuer family and IBK name match the legal catalog title
+  ---
+  duration_ms: 0.46198
+  type: 'test'
+  ...
+# Subtest: HANARO PDF drops the CU notional row and keeps US NAV weights
+ok 361 - HANARO PDF drops the CU notional row and keeps US NAV weights
+  ---
+  duration_ms: 0.610943
+  type: 'test'
+  ...
+# Subtest: HANARO catalog and PDF date
+ok 362 - HANARO catalog and PDF date
+  ---
+  duration_ms: 0.363553
+  type: 'test'
+  ...
+# Subtest: live market weights need a fully priced basket and never replace official NAV
+ok 363 - live market weights need a fully priced basket and never replace official NAV
+  ---
+  duration_ms: 0.290985
+  type: 'test'
+  ...
+# Subtest: normalizeEtfCode delegates to normalizeKrTicker (keeps 0226A0)
+ok 364 - normalizeEtfCode delegates to normalizeKrTicker (keeps 0226A0)
+  ---
+  duration_ms: 2.688637
+  type: 'test'
+  ...
+# Subtest: battery theme stocks do not include POSCO Holdings 005490
+ok 365 - battery theme stocks do not include POSCO Holdings 005490
+  ---
+  duration_ms: 0.26055
+  type: 'test'
+  ...
+# Subtest: airline ETFs are excluded from defense theme stocks
+ok 366 - airline ETFs are excluded from defense theme stocks
+  ---
+  duration_ms: 0.14048
+  type: 'test'
+  ...
+# Subtest: US equity names are not lumped into Korean AI theme stocks
+ok 367 - US equity names are not lumped into Korean AI theme stocks
+  ---
+  duration_ms: 0.092038
+  type: 'test'
+  ...
+# Subtest: numeric 200 theme keyword is name-only (not years in descriptions)
+ok 368 - numeric 200 theme keyword is name-only (not years in descriptions)
+  ---
+  duration_ms: 0.170775
+  type: 'test'
+  ...
+# Subtest: issuer PDF weights are not replaced by a qty×price rescale
+ok 369 - issuer PDF weights are not replaced by a qty×price rescale
+  ---
+  duration_ms: 0.266648
+  type: 'test'
+  ...
+# Subtest: bundle does not rescale holdings to 100%
+ok 370 - bundle does not rescale holdings to 100%
+  ---
+  duration_ms: 0.319177
+  type: 'test'
+  ...
+# Subtest: AT-05: rejects non-https and hosts outside the registry allowlist
+ok 371 - AT-05: rejects non-https and hosts outside the registry allowlist
+  ---
+  duration_ms: 30.8946
+  type: 'test'
+  ...
+# Subtest: AT-05: redirects to non-allowlisted hosts are refused
+ok 372 - AT-05: redirects to non-allowlisted hosts are refused
+  ---
+  duration_ms: 41.008817
+  type: 'test'
+  ...
+# Subtest: AT-05: a 429 opens the source circuit; later calls are refused
+ok 373 - AT-05: a 429 opens the source circuit; later calls are refused
+  ---
+  duration_ms: 114.627378
+  type: 'test'
+  ...
+# Subtest: fetchWithPolicy caches by URL, dedupes in flight, retries once on 5xx
+ok 374 - fetchWithPolicy caches by URL, dedupes in flight, retries once on 5xx
+  ---
+  duration_ms: 663.528565
+  type: 'test'
+  ...
+# Subtest: disabled candidates and env-gated sources never hit the network
+ok 375 - disabled candidates and env-gated sources never hit the network
+  ---
+  duration_ms: 0.48836
+  type: 'test'
+  ...
+# Subtest: AT-14: fan-out returns within the budget with partial=true when a source times out
+ok 376 - AT-14: fan-out returns within the budget with partial=true when a source times out
+  ---
+  duration_ms: 352.020047
+  type: 'test'
+  ...
+# Subtest: four credential presence states; defaults do not imply authentication or enable live access
+ok 377 - four credential presence states; defaults do not imply authentication or enable live access
+  ---
+  duration_ms: 5.220131
+  type: 'test'
+  ...
+# Subtest: safe runtime flags distinguish collector requirements and reject disabled/dev/unready owner auth
+ok 378 - safe runtime flags distinguish collector requirements and reject disabled/dev/unready owner auth
+  ---
+  duration_ms: 0.569852
+  type: 'test'
+  ...
+# Subtest: read-only diagnostics gate stored rows and distinguish every missing configuration
+ok 379 - read-only diagnostics gate stored rows and distinguish every missing configuration
+  ---
+  duration_ms: 15.894122
+  type: 'test'
+  ...
+# Subtest: schema inspection reports missing/applied tables without creating them or swallowing DB errors
+ok 380 - schema inspection reports missing/applied tables without creating them or swallowing DB errors
+  ---
+  duration_ms: 1388.067527
+  type: 'test'
+  ...
+# Subtest: safe panel health preserves disabled/database/IP/auth/parser/API distinctions
+ok 381 - safe panel health preserves disabled/database/IP/auth/parser/API distinctions
+  ---
+  duration_ms: 22.101941
+  type: 'test'
+  ...
+# Subtest: page extent and continuation do not depend on provider row order; terminal headers are optional
+ok 382 - page extent and continuation do not depend on provider row order; terminal headers are optional
+  ---
+  duration_ms: 50.320583
+  type: 'test'
+  ...
+# Subtest: same-page invalid duplicate never erases valid zero or signed net sells
+ok 383 - same-page invalid duplicate never erases valid zero or signed net sells
+  ---
+  duration_ms: 0.404104
+  type: 'test'
+  ...
+# Subtest: 005930 mocked OAuth/API/persistence/collector response reaches all frontend modes without ka10015
+ok 384 - 005930 mocked OAuth/API/persistence/collector response reaches all frontend modes without ka10015
+  ---
+  duration_ms: 49.908346
+  type: 'test'
+  ...
+# Subtest: direct mode revalidates egress before every operation despite a previous match
+ok 385 - direct mode revalidates egress before every operation despite a previous match
+  ---
+  duration_ms: 26.351279
+  type: 'test'
+  ...
+# Subtest: ka10015 is an explicit read-only date-aligned diagnostic using strt_dt and warning on disagreement
+ok 386 - ka10015 is an explicit read-only date-aligned diagnostic using strt_dt and warning on disagreement
+  ---
+  duration_ms: 3.479206
+  type: 'test'
+  ...
+# Subtest: egress distinguishes matched, mismatched, unknown and unset without credential headers
+ok 387 - egress distinguishes matched, mismatched, unknown and unset without credential headers
+  ---
+  duration_ms: 0.980698
+  type: 'test'
+  ...
+# Subtest: official field mappings exclude similar fields; missing and bad values never become zero
+ok 388 - official field mappings exclude similar fields; missing and bad values never become zero
+  ---
+  duration_ms: 0.470354
+  type: 'test'
+  ...
+# Subtest: official request bodies, leading zeroes, explicit market suffix and alphanumeric ETF
+ok 389 - official request bodies, leading zeroes, explicit market suffix and alphanumeric ETF
+  ---
+  duration_ms: 0.377164
+  type: 'test'
+  ...
+# Subtest: expiry parsing is explicit KST with strict date and time validation
+ok 390 - expiry parsing is explicit KST with strict date and time validation
+  ---
+  duration_ms: 0.169774
+  type: 'test'
+  ...
+# Subtest: expired token response and HTTP401 reject without retries or secret leakage
+ok 391 - expired token response and HTTP401 reject without retries or secret leakage
+  ---
+  duration_ms: 3.696911
+  type: 'test'
+  ...
+# Subtest: token expiry safety margin refreshes the cached token before actual KST expiry
+ok 392 - token expiry safety margin refreshes the cached token before actual KST expiry
+  ---
+  duration_ms: 17.359976
+  type: 'test'
+  ...
+# Subtest: authentication single-flight across clients, encrypted cache, detached caller cancellation and reuse
+ok 393 - authentication single-flight across clients, encrypted cache, detached caller cancellation and reuse
+  ---
+  duration_ms: 106.741394
+  type: 'test'
+  ...
+# Subtest: HTTP200 business/auth/missing-status errors are not success; provider messages are redacted
+ok 394 - HTTP200 business/auth/missing-status errors are not success; provider messages are redacted
+  ---
+  duration_ms: 12.69811
+  type: 'test'
+  ...
+# Subtest: token invalid 8005 recovers once; mode/IP ambiguity does not trigger auth loops
+ok 395 - token invalid 8005 recovers once; mode/IP ambiguity does not trigger auth loops
+  ---
+  duration_ms: 10.676214
+  type: 'test'
+  ...
+# Subtest: HTTP429 Retry-After and 5xx retries share admission; excessive wait ends bounded work
+ok 396 - HTTP429 Retry-After and 5xx retries share admission; excessive wait ends bounded work
+  ---
+  duration_ms: 21.101724
+  type: 'test'
+  ...
+# Subtest: timeouts retry boundedly and never print request bodies
+ok 397 - timeouts retry boundedly and never print request bodies
+  ---
+  duration_ms: 3.403533
+  type: 'test'
+  ...
+# Subtest: shared DB rate limiter serializes independent instances and releases cancelled waiters
+ok 398 - shared DB rate limiter serializes independent instances and releases cancelled waiters
+  ---
+  duration_ms: 133.228947
+  type: 'test'
+  ...
+# Subtest: two pages use real headers, deduplicate dates and persist raw signed quantities
+ok 399 - two pages use real headers, deduplicate dates and persist raw signed quantities
+  ---
+  duration_ms: 22.476892
+  type: 'test'
+  ...
+# Subtest: page budget persists cursor; resumed work reaches old history without fabricated offsets
+ok 400 - page budget persists cursor; resumed work reaches old history without fabricated offsets
+  ---
+  duration_ms: 25.123452
+  type: 'test'
+  ...
+# Subtest: repeated cursor/page, empty page and absent next key stop with partial diagnostics
+ok 401 - repeated cursor/page, empty page and absent next key stop with partial diagnostics
+  ---
+  duration_ms: 44.662598
+  type: 'test'
+  ...
+# Subtest: time budget retains acquired data and resume state
+ok 402 - time budget retains acquired data and resume state
+  ---
+  duration_ms: 55.179444
+  type: 'test'
+  ...
+# Subtest: upserts correct raw values, invalid updates retain good data; user/env/market/product keys separate
+ok 403 - upserts correct raw values, invalid updates retain good data; user/env/market/product keys separate
+  ---
+  duration_ms: 4.825029
+  type: 'test'
+  ...
+# Subtest: stored history survives closing/reopening an independent persistent test backend
+ok 404 - stored history survives closing/reopening an independent persistent test backend
+  ---
+  duration_ms: 1644.504497
+  type: 'test'
+  ...
+# Subtest: private collector reads existing history without keys or broker/IP calls; explicit private-read rejects visitors
+ok 405 - private collector reads existing history without keys or broker/IP calls; explicit private-read rejects visitors
+  ---
+  duration_ms: 23.34454
+  type: 'test'
+  ...
+# Subtest: direct access blocks API when IP mismatches; failed metric preserves other successes and price is independent
+ok 406 - direct access blocks API when IP mismatches; failed metric preserves other successes and price is independent
+  ---
+  duration_ms: 37.041244
+  type: 'test'
+  ...
+# Subtest: real/mock token namespaces and safe result metadata do not mix
+ok 407 - real/mock token namespaces and safe result metadata do not mix
+  ---
+  duration_ms: 4.900903
+  type: 'test'
+  ...
+# Subtest: a wider requested history collects immediately and an IP change creates a separate client
+ok 408 - a wider requested history collects immediately and an IP change creates a separate client
+  ---
+  duration_ms: 94.279066
+  type: 'test'
+  ...
+# Subtest: resume dates remain exchange date labels with Korean timezone and non-ISO database DateStyle
+ok 409 - resume dates remain exchange date labels with Korean timezone and non-ISO database DateStyle
+  ---
+  duration_ms: 26.951657
+  type: 'test'
+  ...
+# Subtest: rejected resume cursor restarts once with official body and deduplicates already saved rows
+ok 410 - rejected resume cursor restarts once with official body and deduplicates already saved rows
+  ---
+  duration_ms: 32.298235
+  type: 'test'
+  ...
+# Subtest: empty ETF responses and malformed grouping remain unknown/partial, never unsupported or zero
+ok 411 - empty ETF responses and malformed grouping remain unknown/partial, never unsupported or zero
+  ---
+  duration_ms: 31.00662
+  type: 'test'
+  ...
+# Subtest: public collector read survives auth off and differing user IDs, with zero broker construction/IP probes
+ok 412 - public collector read survives auth off and differing user IDs, with zero broker construction/IP probes
+  ---
+  duration_ms: 127.34607
+  type: 'test'
+  ...
+# Subtest: direct web access with auth disabled cannot reach DB, OAuth, IP or API even with owner ID
+ok 413 - direct web access with auth disabled cannot reach DB, OAuth, IP or API even with owner ID
+  ---
+  duration_ms: 0.390624
+  type: 'test'
+  ...
+# Subtest: different market scope is explicit; additive legacy copy preserves rows and can be rerun
+ok 414 - different market scope is explicit; additive legacy copy preserves rows and can be rerun
+  ---
+  duration_ms: 48.174032
+  type: 'test'
+  ...
+# Subtest: bounded target is deduplicated under concurrent reads and processing keeps expansions pending
+ok 415 - bounded target is deduplicated under concurrent reads and processing keeps expansions pending
+  ---
+  duration_ms: 134.916101
+  type: 'test'
+  ...
+# Subtest: target range clamps to five years/current Seoul day and rejects US/invalid instruments
+ok 416 - target range clamps to five years/current Seoul day and rejects US/invalid instruments
+  ---
+  duration_ms: 0.760958
+  type: 'test'
+  ...
+# Subtest: target cap includes completed records so arbitrary public requests cannot create unlimited work
+ok 417 - target cap includes completed records so arbitrary public requests cannot create unlimited work
+  ---
+  duration_ms: 4.966211
+  type: 'test'
+  ...
+# Subtest: latest summary shows real dated provider values while hovered missing day and chart remain empty
+ok 418 - latest summary shows real dated provider values while hovered missing day and chart remain empty
+  ---
+  duration_ms: 0.93582
+  type: 'test'
+  ...
+# Subtest: validated stock/ETF route product survives remote failure; ambiguous codes remain explicitly unknown
+ok 419 - validated stock/ETF route product survives remote failure; ambiguous codes remain explicitly unknown
+  ---
+  duration_ms: 0.260369
+  type: 'test'
+  ...
+# Subtest: two agreeing egress sources required; disagreement/IPv6/one-source results fail closed
+ok 420 - two agreeing egress sources required; disagreement/IPv6/one-source results fail closed
+  ---
+  duration_ms: 2.871016
+  type: 'test'
+  ...
+# Subtest: shared doctor reports config safely, build SHA is short and revision disagreement explicit
+ok 421 - shared doctor reports config safely, build SHA is short and revision disagreement explicit
+  ---
+  duration_ms: 0.643674
+  type: 'test'
+  ...
+# Subtest: operator doctor distinguishes queued work and stored API errors without new API requests
+ok 422 - operator doctor distinguishes queued work and stored API errors without new API requests
+  ---
+  duration_ms: 27.390173
+  type: 'test'
+  ...
+# Subtest: owner-only target enqueue never prevents public stored reads
+ok 423 - owner-only target enqueue never prevents public stored reads
+  ---
+  duration_ms: 20.131372
+  type: 'test'
+  ...
+1..423
+# tests 453
+# suites 9
+# pass 453
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 9537.22798
+npm notice
+npm notice New major version of npm available! 10.9.9 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice

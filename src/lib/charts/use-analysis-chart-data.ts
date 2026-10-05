@@ -2,7 +2,7 @@ import { useChartData } from "@/lib/use-market";
 import { chartPriceBasisNote, sameChartPriceBasis } from "./security";
 import { smaHistoryRange } from "./standard-sma";
 
-/** Shared cached history for detail/fullscreen/workspace, including RSI warmup. */
+/** Shared cached history for detail/fullscreen/workspace, including SMA/RSI/Bollinger warmup. */
 export function useAnalysisChartData(opts: Parameters<typeof useChartData>[0]) {
   const normalized = {
     ...opts,
@@ -38,6 +38,6 @@ export function useAnalysisChartData(opts: Parameters<typeof useChartData>[0]) {
     profileBars: profileUsable ? daily.data!.bars : undefined,
     profileSource: profileUsable ? daily.data!.source : undefined,
     indicatorBars: warmupUsable ? warmup.data!.bars : undefined,
-    priceBasisNote: `${note}${aggregated && !profileUsable ? " · 동일 가격기준의 일봉 미확보: 표시 봉 해상도로 추정" : ""}${needsHistory && !warmupUsable ? " · 동일 주기·가격기준의 추가 워밍업 이력 미확보" : ""} · SMA는 해당 주기의 실제 봉으로 계산; 부족 구간은 결측`,
+    priceBasisNote: `${note}${aggregated && !profileUsable ? " · 동일 가격기준의 일봉 미확보: 표시 봉 해상도로 추정" : ""}${needsHistory && !warmupUsable ? " · 동일 주기·가격기준의 추가 워밍업 이력 미확보" : ""} · SMA/볼린저는 해당 주기의 실제 봉으로 계산; BBW 백분위는 실제 밴드폭 125개 필요; 부족 구간은 결측`,
   };
 }

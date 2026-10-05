@@ -137,8 +137,20 @@ export function barsToCsv(bars: readonly CsvBar[], extra: { name: string; values
   return [head.join(","), ...rows].join("\n");
 }
 
+/** Native resize arithmetic can return e.g. 2.84e-14 instead of index 0.
+ * Canonicalize only integer-boundary noise, never a real fractional pan/zoom. */
+export function normalizeLogicalRange(range: { from: number; to: number } | null): { from: number; to: number } | null {
+  if (!range) return null;
+  const boundary = (value: number) => {
+    const integer = Math.round(value);
+    return Math.abs(value - integer) <= 1e-9 ? (integer === 0 ? 0 : integer) : value;
+  };
+  return { from: boundary(range.from), to: boundary(range.to) };
+}
+
 /** Visible index window from a logical range, clamped to the data. */
 export function visibleWindow(total: number, range: { from: number; to: number } | null): { from: number; to: number } {
-  if (!range || total === 0) return { from: 0, to: Math.max(0, total - 1) };
-  return { from: Math.max(0, Math.ceil(range.from)), to: Math.min(total - 1, Math.floor(range.to)) };
+  const stable = normalizeLogicalRange(range);
+  if (!stable || total === 0) return { from: 0, to: Math.max(0, total - 1) };
+  return { from: Math.max(0, Math.ceil(stable.from)), to: Math.min(total - 1, Math.floor(stable.to)) };
 }

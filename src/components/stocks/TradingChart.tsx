@@ -116,6 +116,7 @@ export function TradingChart({
   const [minuteSize, setMinuteSize] = useState<MinuteSize>(5);
   const [range, setRange] = useState(isUs ? "5y" : "2y");
   const [prePost, setPrePost] = useState(false);
+  const [bollingerEnabled, setBollingerEnabled] = useState(false);
   const [view, setView] = useState<ChartViewMode>("price");
 
   // Keep range valid for interval / minute size (pro default = max useful history)
@@ -272,13 +273,19 @@ export function TradingChart({
           researchMarkers={researchMarkers}
           toolbarExtra={controls}
           height={isUs && product !== "etf" ? 460 : 800}
+          onBollingerEnabled={setBollingerEnabled}
+          onTimeframe={(next, minutes) => {
+            setInterval(next);
+            if (next === "minute") { const size = minutes ?? minuteSize; setMinuteSize(size); setRange(defaultMinuteRange(size)); }
+            else setRange(next === "week" ? "5y" : next === "month" ? "max" : isUs ? "5y" : "2y");
+          }}
           onFullscreen={() => void navigate({ to: "/chart", search: { symbols: `${mk}:${isUs ? code.toUpperCase() : code}`, layout: "1", scope: layoutScope, interval, minuteSize, range } })}
           prePost={isUs && interval === "minute" ? { on: prePost, toggle: () => setPrePost((v) => !v) } : undefined}
           testId="trading-chart"
         />
         <StreetTapeRow tape={street} formatValue={isUs ? formatUsd : formatPrice} fastLabel={`50${maWord}`} slowLabel={`200${maWord}`} showVolume />
         <ChartAnalyticsStrip snap={analytics} />
-        <BandCompareStrip compare={bandCompare} formatValue={px} />
+        {bollingerEnabled && <BandCompareStrip compare={bandCompare} formatValue={px} />}
         <RsiDivergenceStrip items={divergences} barCount={bars.length} formatValue={px} />
         <MacdCrossStrip items={macdCrosses} barCount={bars.length} />
         <div className="border-t border-border bg-muted/20 px-3 py-1 text-[10px] leading-relaxed text-muted-foreground">

@@ -6,12 +6,15 @@ import { createKiwoomClient } from "../src/server/kiwoom-client.ts";
 import { createChartFlowService } from "../src/server/chart-flow.ts";
 const pg = new PGlite();
 await pg.waitReady;
-await pg.exec(
-  await readFile(new URL("../migrations/0002_kiwoom_flow.sql", import.meta.url), "utf8"),
-);
+// Only this fixture's isolated in-memory PGlite is migrated. The production
+// service now also requires the collection-target schema from 0003.
+for (const migration of ["0002_kiwoom_flow.sql", "0003_kiwoom_collection_targets.sql"]) {
+  await pg.exec(await readFile(new URL(`../migrations/${migration}`, import.meta.url), "utf8"));
+}
 const store = createKiwoomStore({
   query: async (text, params) => (await pg.query(text, params)).rows,
 });
+if (!(await store.schema()).ready) throw new Error("Isolated Kiwoom QA schema is incomplete");
 const series = new Map();
 const config = {
   appKey: "QA_SYNTHETIC_APP_KEY",

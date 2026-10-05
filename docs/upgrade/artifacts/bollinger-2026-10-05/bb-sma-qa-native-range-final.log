@@ -1,0 +1,29 @@
+
+> qa:sma
+> node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/qa-standard-sma.mjs --base http://127.0.0.1:8183 --server-entry /workspace/.onboarding/builds/k-equity-desk-v4/functions/__server.func/index.mjs --out /workspace/screenshots/bollinger-production/sma-regression-native-range-final
+
+{"case":"stock","theme":"light","viewport":"desktop","success":true}
+{"case":"stock","theme":"light","viewport":"mobile","success":true}
+{"case":"stock","theme":"dark","viewport":"desktop","success":true}
+{"case":"stock","theme":"dark","viewport":"mobile","success":true}
+{"case":"etf","theme":"light","viewport":"desktop","success":true}
+{"case":"etf","theme":"light","viewport":"mobile","success":true}
+{"case":"etf","theme":"dark","viewport":"desktop","success":true}
+{"case":"etf","theme":"dark","viewport":"mobile","success":true}
+{"case":"us","theme":"light","viewport":"desktop","success":true}
+{"case":"us","theme":"light","viewport":"mobile","success":true}
+{"case":"us","theme":"dark","viewport":"desktop","success":true}
+{"case":"us","theme":"dark","viewport":"mobile","success":true}
+{"case":"workspace","theme":"light","viewport":"desktop","success":true}
+{"case":"workspace","theme":"light","viewport":"mobile","success":true}
+{"case":"workspace","theme":"dark","viewport":"desktop","success":true}
+{"case":"workspace","theme":"dark","viewport":"mobile","success":true}
+{"case":"export","theme":"light","viewport":"desktop","success":true}
+{"case":"export","theme":"light","viewport":"mobile","success":true}
+{"case":"export","theme":"dark","viewport":"desktop","success":true}
+{"case":"export","theme":"dark","viewport":"mobile","success":true}
+npm notice
+npm notice New major version of npm available! 10.9.9 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice

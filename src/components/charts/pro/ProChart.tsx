@@ -36,6 +36,7 @@ import { Input } from "@/components/ui/input";
 import { ChartShell, type LegendItem } from "@/components/charts/core/ChartShell";
 import { useChartTheme } from "@/components/charts/core/theme";
 import { useProChart } from "@/components/charts/core/create-pro-chart";
+import { BollingerFillPrimitive } from "@/components/charts/core/bollinger-fill-primitive";
 import { composeChartPng, downloadCanvasPng, downloadCsv } from "@/components/charts/core/export";
 import type { ChartSync } from "@/components/charts/core/sync";
 import { formatChartPercent, formatChartPrice, formatChartVolume, priceFormatFor, type KrxInstrument } from "@/components/charts/core/formatters";
@@ -100,6 +101,7 @@ import {
   replayTickMs,
   sessionBreaks,
   visibleWindow,
+  normalizeLogicalRange,
 } from "@/lib/charts/tools";
 import { barTimeOf, dayOfTime } from "@/lib/charts/bar-time";
 import { kstDayKey } from "@/lib/feed/time";
@@ -116,6 +118,15 @@ import { chartReplayInstant, flowToCsv } from "@/lib/charts/hts-flow-export";
 import { useChartFlow } from "@/lib/use-chart-flow";
 import { alignSmaValues, latestSmaPoint, migrateStandardSmas, prepareSmaHistory, resolveSmaStyle, STANDARD_SMA_PERIODS, toggleStandardSma } from "@/lib/charts/standard-sma";
 import { SmaControls } from "@/components/charts/core/SmaControls";
+import { analyzeBollinger } from "@/lib/bollinger/engine";
+import { sanitizeBollingerSettings, migrateBollingerSystem } from "@/lib/bollinger/config";
+import { completedPriceBars } from "@/lib/bollinger/bar-completion";
+import { bollingerFlowByDate } from "@/lib/bollinger/flow-confirmation";
+import { bollingerToCsv } from "@/lib/bollinger/export";
+import { activeBollingerLedgers, bollingerFinancialKey, BOLLINGER_SIGNAL_LABELS, evaluateBollingerAlerts, initialBollingerLedger, loadBollingerLedger, saveBollingerLedger } from "@/lib/bollinger/alerts";
+import { BollingerControls, BollingerStatus } from "./BollingerControls";
+import { useBollingerSystem } from "./useBollingerSystem";
+import type { BollingerSystemSettings } from "@/lib/bollinger/types";
 import { SmaLabelsPrimitive } from "@/components/charts/core/sma-labels-primitive";
 
 type Tool = "cursor" | DrawingType | "avwap-anchor" | "replay-pick";
@@ -156,6 +167,8 @@ export interface ProChartProps {
   sync?: ChartSync;
   syncId?: string;
   onFullscreen?: () => void;
+  onTimeframe?: (interval: ChartInterval, minuteSize?: MinuteSize) => void;
+  onBollingerEnabled?: (enabled: boolean) => void;
   onVisibleRange?: (r: { from: number; to: number } | null) => void;
   onHover?: (bar: OhlcBar | null) => void;
   /** US intraday: include pre/post bars. */
@@ -174,6 +187,15 @@ const SCALE_MODE: Record<ChartScale, PriceScaleMode> = {
 
 function uid() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function bindPriceBars(series: ISeriesApi<SeriesType>, type: ChartType, bars: OhlcBar[], times: (string | number)[]) {
+  const source = type === "heikin-ashi" ? heikinAshi(bars) : bars;
+  if (type === "line" || type === "area" || type === "baseline") {
+    series.setData(source.map((bar, index) => ({ time: times[index] as Time, value: bar.close })));
+  } else {
+    series.setData(source.map((bar, index) => ({ time: times[index] as Time, open: bar.open, high: bar.high, low: bar.low, close: bar.close })));
+  }
 }
 
 function safeStorage() {
@@ -301,6 +323,40 @@ export function ProChart(props: ProChartProps) {
     return () => clearTimeout(t);
   }, [layout, history.items, loadedKey, layoutKey, market, code, persistenceInterval, props.instrument]);
 
+  const bollingerSettings = useMemo(() => sanitizeBollingerSettings(layout.bollinger), [layout.bollinger]);
+  const bollingerLayoutContext = useRef({ layout, drawings: history.items, loadedKey, layoutKey, market, code, persistenceInterval, instrument: props.instrument });
+  bollingerLayoutContext.current = { layout, drawings: history.items, loadedKey, layoutKey, market, code, persistenceInterval, instrument: props.instrument };
+  const changeBollinger = useCallback((next: BollingerSystemSettings) => {
+    const current = bollingerLayoutContext.current;
+    if (current.layoutKey !== layoutKey || current.loadedKey !== layoutKey || !current.instrument) return;
+    const updated = { ...current.layout, bollinger: next,
+      indicators: current.layout.indicators.map(item => item.uid === next.adoptedIndicatorUid ? {
+        ...item, params: { ...item.params, period: next.period, mult: next.mult }, visible: next.overlay,
+        color: next.overlayColor,
+      } : item),
+    };
+    bollingerLayoutContext.current = { ...current, layout: updated };
+    setLayout(updated);
+    // Explicit switches survive an immediate reload; drawings keep their
+    // existing debounced save path. Use the loaded, verified product scope.
+    const storage = safeStorage();
+    if (storage) saveChartState(storage, current.market, current.code, current.persistenceInterval, { ...updated, drawings: current.drawings });
+  }, [layoutKey]);
+  const onBollingerEnabled = props.onBollingerEnabled;
+  useEffect(() => {
+    if (loadedKey === layoutKey) onBollingerEnabled?.(bollingerSettings.enabled);
+  }, [loadedKey, layoutKey, bollingerSettings.enabled, onBollingerEnabled]);
+  const [wideChart, setWideChart] = useState(false);
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 768px)");
+    const update = () => setWideChart(media.matches);
+    update(); media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+  const bollingerExpanded = bollingerSettings.panesExpanded ?? (wideChart && !props.compact);
+  const bollingerPaneCount = bollingerSettings.enabled && bollingerExpanded
+    ? Number(bollingerSettings.percentB) + Number(bollingerSettings.bandwidth) : 0;
+
   // The catalog entry is a second control for the same native profile, never a fallback.
   useEffect(() => {
     if (loadedKey !== layoutKey || htsLoaded !== scopeKey) return;
@@ -343,11 +399,13 @@ export function ProChart(props: ProChartProps) {
   const calculationBars = useMemo(() => prepareSmaHistory(
     bars.map(b => ({ ...b, time: barTimeOf(b.date, market) })),
     (props.indicatorBars ?? rawBars).map(b => ({ ...b, time: barTimeOf(b.date, market) })),
-  ), [bars, props.indicatorBars, rawBars, market]);
+    Math.max(499, bollingerSettings.period + bollingerSettings.bbwLookback + bollingerSettings.patternMaxBars),
+  ), [bars, props.indicatorBars, rawBars, market, bollingerSettings.period, bollingerSettings.bbwLookback, bollingerSettings.patternMaxBars]);
   const calculationTimes = useMemo(() => calculationBars.map(b => b.time), [calculationBars]);
   const version = useMemo(() => `${market}:${code}:${intervalKey}:${props.source}:${JSON.stringify(calculationBars)}:${times[0]}`, [market, code, intervalKey, props.source, calculationBars, times]);
-  const renderedIndicators = layout.indicators.filter((i) => !htsEnabled || (i.id !== "rsi" && i.id !== "volume"));
-  const extraCount = renderedIndicators.filter((i) => i.visible && INDICATOR_BY_ID.get(i.id)?.pane === "separate" && INDICATOR_BY_ID.get(i.id)?.render === "series").length;
+  const renderedIndicators = layout.indicators.filter((i) => i.uid !== bollingerSettings.adoptedIndicatorUid && (!htsEnabled || (i.id !== "rsi" && i.id !== "volume")));
+  const regularExtraCount = renderedIndicators.filter((i) => i.visible && INDICATOR_BY_ID.get(i.id)?.pane === "separate" && INDICATOR_BY_ID.get(i.id)?.render === "series").length;
+  const extraCount = regularExtraCount + bollingerPaneCount;
   const catalogBars = useMemo<CatalogBars>(
     () => ({
       open: calculationBars.map((b) => b.open),
@@ -360,7 +418,7 @@ export function ProChart(props: ProChartProps) {
     [calculationBars, interval],
   );
   // Keep the existing calculation origin for unrelated indicators (notably
-  // non-intraday VWAP). SMA alone consumes the additional selected-frame history.
+  // non-intraday VWAP). SMA and price Bollinger consume the additional selected-frame history.
   const displayCatalogBars = useMemo<CatalogBars>(() => ({
     open: bars.map(b => b.open), high: bars.map(b => b.high), low: bars.map(b => b.low),
     close: bars.map(b => b.close), volume: bars.map(b => b.volumeValid === false ? NaN : b.volume),
@@ -377,7 +435,7 @@ export function ProChart(props: ProChartProps) {
       const key = indicatorCacheKey(version, inst);
       let v = cache.get(key);
       if (!v) {
-        if (inst.id === "sma") {
+        if (inst.id === "sma" || inst.id === "bb") {
           const calculated = computeInstance(inst, catalogBars, calculationTimes);
           v = Object.fromEntries(Object.entries(calculated).map(([key, array]) => [key, alignSmaValues(calculationBars, array, bars.map(b => ({ time: barTimeOf(b.date, market) })))]));
         } else v = computeInstance(inst, displayCatalogBars, times);
@@ -397,6 +455,7 @@ export function ProChart(props: ProChartProps) {
   const vpPrim = useRef(new VolumeProfilePrimitive());
   const rangePrim = useRef(new RangeMarkerPrimitive());
   const smaLabels = useRef(new SmaLabelsPrimitive());
+  const bbFill = useRef(new BollingerFillPrimitive());
   const [mainEpoch, setMainEpoch] = useState(0);
   const compareActive = useRef(false);
 
@@ -423,12 +482,17 @@ export function ProChart(props: ProChartProps) {
         wickDownColor: downColor,
       }, pricePaneIndex);
     mainRef.current = s;
+    // Create a ready price series atomically. Primitives must never project
+    // through an empty or already removed API captured by another effect.
+    bindPriceBars(s, type, bars, times);
     s.attachPrimitive(sessionPrim.current);
     s.attachPrimitive(vpPrim.current);
     s.attachPrimitive(drawingPrim.current);
     s.attachPrimitive(rangePrim.current);
     const smaPrimitive = smaLabels.current;
     s.attachPrimitive(smaPrimitive);
+    const bbPrimitive = bbFill.current;
+    s.attachPrimitive(bbPrimitive);
     markersRef.current = createSeriesMarkers(s, [], { autoScale: false });
     setMainEpoch((e) => e + 1);
     return () => {
@@ -436,6 +500,7 @@ export function ProChart(props: ProChartProps) {
       markersRef.current = null;
       try {
         s.detachPrimitive(smaPrimitive);
+        s.detachPrimitive(bbPrimitive);
         s.detachPrimitive(drawingPrim.current);
         s.detachPrimitive(rangePrim.current);
         s.detachPrimitive(vpPrim.current);
@@ -444,7 +509,7 @@ export function ProChart(props: ProChartProps) {
       } catch {
         /* chart already removed */
       }
-      mainRef.current = null;
+      if (mainRef.current === s) mainRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chart, layout.chartType, upColor, downColor, market, pricePaneIndex]);
@@ -453,13 +518,7 @@ export function ProChart(props: ProChartProps) {
   useEffect(() => {
     const s = mainRef.current;
     if (!s) return;
-    const type = layout.chartType;
-    const src = type === "heikin-ashi" ? heikinAshi(bars) : bars;
-    if (type === "line" || type === "area" || type === "baseline") {
-      s.setData(src.map((b, i) => ({ time: times[i] as Time, value: b.close })));
-    } else {
-      s.setData(src.map((b, i) => ({ time: times[i] as Time, open: b.open, high: b.high, low: b.low, close: b.close })));
-    }
+    bindPriceBars(s, layout.chartType, bars, times);
   }, [mainEpoch, bars, times, layout.chartType]);
 
   // Fit once per dataset key.
@@ -510,7 +569,8 @@ export function ProChart(props: ProChartProps) {
   // ── Indicator series ───────────────────────────────────────────────────
   const indSeries = useRef(new Map<string, { series: Map<string, ISeriesApi<SeriesType>>; lines: IPriceLine[] }>());
   const pivotLines = useRef<IPriceLine[]>([]);
-  const structureKey = JSON.stringify([htsEnabled, renderedIndicators.filter(i => INDICATOR_BY_ID.get(i.id)?.render === "series").map((i) => [i.uid, i.id, INDICATOR_BY_ID.get(i.id)?.pane === "separate" ? i.visible : null])]);
+  const initializedPaneSizes = useRef(new WeakSet<object>());
+  const structureKey = JSON.stringify([htsEnabled, bollingerPaneCount, renderedIndicators.filter(i => INDICATOR_BY_ID.get(i.id)?.render === "series").map((i) => [i.uid, i.id, INDICATOR_BY_ID.get(i.id)?.pane === "separate" ? i.visible : null])]);
   useEffect(() => {
     if (!chart) return;
     const store = indSeries.current;
@@ -569,8 +629,12 @@ export function ProChart(props: ProChartProps) {
     const panes = chart.panes();
     // Main pane keeps most of the height; each indicator pane gets one share.
     if (!htsEnabled) {
-      panes[0]?.setStretchFactor(Math.max(3, panes.length));
-      for (let i = 1; i < panes.length; i++) panes[i]?.setStretchFactor(1);
+      for (let i = 0; i < panes.length; i++) {
+        const pane = panes[i]!;
+        if (initializedPaneSizes.current.has(pane)) continue;
+        pane.setStretchFactor(i === 0 ? Math.max(3, panes.length) : 1);
+        initializedPaneSizes.current.add(pane);
+      }
     }
     setIndEpoch((e) => e + 1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -704,6 +768,48 @@ export function ProChart(props: ProChartProps) {
     replayAt,
   }), [flow, bars, interval, hts.trustStartDate, hts.trustMode, props.profileBars, props.indicatorBars, rawBars, replayAt]);
 
+  // Same-frequency, causal calculation once; crosshair only indexes these results.
+  const [analysisClock, setAnalysisClock] = useState(() => Date.now());
+  useEffect(() => { const timer = setInterval(() => setAnalysisClock(Date.now()), 30_000); return () => clearInterval(timer); }, []);
+  const completedBars = useMemo(() => completedPriceBars(calculationBars, { market, interval, minuteSize: props.minuteSize, nowMs: analysisClock }), [calculationBars, market, interval, props.minuteSize, analysisClock]);
+  const bbFlow = useMemo(() => bollingerFlowByDate(calculationBars.map(bar => bar.date), flow, { market, interval, nowMs: analysisClock,
+    priceMarketScope: props.exchange === "NXT" ? "NXT" : props.exchange === "SOR" ? "SOR" : "KRX",
+    expectedDailyDates: (props.profileBars ?? (interval === "day" ? props.indicatorBars ?? rawBars : [])).map(bar => bar.date.slice(0, 10)),
+  }), [calculationBars, flow, market, interval, props.profileBars, props.indicatorBars, rawBars, props.exchange, analysisClock]);
+  const bollingerAnalysis = useMemo(() => analyzeBollinger(completedBars, bollingerSettings, { market, intraday: interval === "minute", flowByDate: bbFlow }), [completedBars, bollingerSettings, market, interval, bbFlow]);
+  const bbByDate = useMemo(() => new Map(bollingerAnalysis.points.map(point => [point.date, point])), [bollingerAnalysis]);
+  const bollingerPoints = useMemo(() => bars.map(bar => bbByDate.get(bar.date)!).filter(Boolean), [bars, bbByDate]);
+  const bollingerMarkers = useMemo<ChartEventInput[]>(() => !bollingerSettings.enabled || !bollingerSettings.badges ? [] : bollingerAnalysis.events.map(event => ({
+    id: `bb:${market}:${code}:${intervalKey}:${event.id}`, time: barTimeOf(event.date, market), category: "signals", subtype: `bollinger-${event.type}`,
+    title: BOLLINGER_SIGNAL_LABELS[event.type], text: BOLLINGER_SIGNAL_LABELS[event.type],
+    confirmedAt: interval === "minute" ? Number(barTimeOf(event.date, market)) + (props.minuteSize ?? 5) * 60
+      : chartReplayInstant(periodEndDay(event.date, interval).slice(0, 10), market),
+    source: "앱 볼린저 규칙 · 완료봉", position: event.direction === "bearish" ? "aboveBar" : "belowBar",
+    // The knowledge date is the completed confirmation bar, never the pivot date.
+  })), [bollingerSettings.enabled, bollingerSettings.badges, bollingerAnalysis.events, market, code, intervalKey, interval, props.minuteSize]);
+  const alertIdentity = `${market}:${code}:${intervalKey}:${bollingerFinancialKey(bollingerSettings)}`;
+  const alertActive = useRef<string | null>(null);
+  useEffect(() => {
+    if (!bollingerSettings.enabled || !bollingerSettings.alerts || replay || loadedKey !== layoutKey || !bars.length) {
+      alertActive.current = null; return;
+    }
+    const key = `ked:bollinger-alert:v1:${alertIdentity}`;
+    const storage = safeStorage();
+    if (alertActive.current !== key) {
+      const baseline = initialBollingerLedger(bollingerAnalysis);
+      const previous = activeBollingerLedgers.get(key) ?? loadBollingerLedger(storage, key);
+      activeBollingerLedgers.set(key, { ...baseline, seen: previous?.seen ?? [] });
+      alertActive.current = key;
+      return;
+    }
+    const evaluated = evaluateBollingerAlerts(bollingerAnalysis, bollingerSettings, activeBollingerLedgers.get(key)!, alertIdentity);
+    activeBollingerLedgers.set(key, evaluated.ledger); saveBollingerLedger(storage, key, evaluated.ledger);
+    for (const event of evaluated.fired) {
+      const point = bollingerAnalysis.points[event.index];
+      notifyAlert(`${code} · ${intervalKey} · ${BOLLINGER_SIGNAL_LABELS[event.type]}`, `${event.date} · ${event.stage ? `단계 ${event.stage} · ` : ""}%B ${point?.percentB?.toFixed(2) ?? "—"} · RVOL ${point?.rvol?.toFixed(2) ?? "—"}× · 앱 활성 세션 알림`);
+    }
+  }, [bollingerAnalysis, bollingerSettings, replay, loadedKey, layoutKey, bars.length, alertIdentity, code, intervalKey]);
+
   // Visible range tracking.
   const onVisibleRangeRef = useRef(props.onVisibleRange);
   onVisibleRangeRef.current = props.onVisibleRange;
@@ -712,7 +818,7 @@ export function ProChart(props: ProChartProps) {
     let timer: ReturnType<typeof setTimeout>;
     const h = (r: { from: number; to: number } | null) => {
       clearTimeout(timer);
-      timer = setTimeout(() => setVisible(r ? { from: r.from, to: r.to } : null), 60);
+      timer = setTimeout(() => setVisible(normalizeLogicalRange(r)), 60);
       onVisibleRangeRef.current?.(r ? { from: r.from, to: r.to } : null);
     };
     chart.timeScale().subscribeVisibleLogicalRangeChange(h);
@@ -749,14 +855,14 @@ export function ProChart(props: ProChartProps) {
   const alignedEvents = useMemo(() => {
     const source = [
       ...buildChartEvents(props.disclosureMarkers ?? [], "disclosures"),
-      ...buildChartEvents(props.signalMarkers ?? [], "signals"),
+      ...buildChartEvents([...(props.signalMarkers ?? []), ...bollingerMarkers], "signals"),
       ...buildChartEvents(props.researchMarkers ?? [], "research"),
       ...buildChartEvents((props.events?.dividends ?? []).map(d => ({ time: d.date, title: `배당 ${d.amount} USD`, text: "배당", subtype: "cash-dividend" })), "dividends"),
       ...buildChartEvents((props.events?.splits ?? []).map(d => ({ time: d.date, title: `주식 분할 ${d.ratio}`, text: "분할", subtype: "split" })), "splits"),
       ...newsEvents,
     ];
     return alignChartEvents(filterChartEvents(source, overlays, replayAt ?? undefined, market), { times, market, interval, intervalSeconds: interval === "minute" ? (props.minuteSize ?? 5) * 60 : undefined });
-  }, [props.disclosureMarkers, props.signalMarkers, props.researchMarkers, props.events, newsEvents, overlays, replayAt, market, times, interval, props.minuteSize]);
+  }, [props.disclosureMarkers, props.signalMarkers, props.researchMarkers, props.events, newsEvents, overlays, replayAt, market, times, interval, props.minuteSize, bollingerMarkers]);
   // Existing page refetches/SSE can recreate identical input arrays. Stable
   // content keeps open details and native markers through those rerenders.
   const eventSnapshot = JSON.stringify(alignedEvents);
@@ -804,9 +910,25 @@ export function ProChart(props: ProChartProps) {
   const [dragging, setDragging] = useState<Drawing | null>(null);
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const htsPanes = useHtsPanes({ chart, enabled: htsEnabled, settings: hts, onSettings: setHts,
-    container: containerRef, extraCount, bars, indicatorBars: props.indicatorBars, times,
+    container: containerRef, extraCount, reservedExtraPaneCount: bollingerPaneCount, bars, indicatorBars: props.indicatorBars, times,
     flow, aligned: alignedFlow, effectiveTrustStart, hoverIndex: hoverIdx, theme, upColor, downColor,
     quantityUnit, source: props.source, profileDescription, interval });
+  useBollingerSystem({ chart, fillPrimitive: bbFill.current, mainEpoch, layoutEpoch: indEpoch, pricePaneIndex,
+    paneStartIndex: (htsEnabled ? 5 : 1) + regularExtraCount, points: bollingerPoints, times,
+    settings: bollingerSettings, onSettings: changeBollinger, panesExpanded: bollingerExpanded,
+    theme, themeMode, sma20Visible: layout.indicators.some(i => i.id === "sma" && Number(i.params.period) === 20 && i.visible),
+    hoverIndex: hoverIdx, priceVisible: !htsEnabled || !hts.collapsed.price,
+  });
+  useEffect(() => {
+    if (!chart) return;
+    const frame = requestAnimationFrame(() => {
+      const lastRequired = htsEnabled ? 5 + extraCount : extraCount;
+      for (let index = chart.panes().length - 1; index > lastRequired; index--) {
+        if (!chart.panes()[index]?.getSeries().length) chart.removePane(index);
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [chart, htsEnabled, extraCount]);
   const [pendingAvwap, setPendingAvwap] = useState<string | null>(null);
   const shown = useMemo(() => (dragging ? history.items.map((d) => (d.id === dragging.id ? dragging : d)) : history.items), [history.items, dragging]);
 
@@ -1179,6 +1301,7 @@ export function ProChart(props: ProChartProps) {
       `매물대 ${vp.enabled ? profileDescription : "OFF"} · 합계 ${vpProfile?.totalValue ?? 0} · ${vpProfile?.method ?? "자료 없음"}`,
       ...(htsEnabled ? [`RSI(${hts.rsiPeriod}) ${hts.signalMethod.toUpperCase()}(${hts.signalPeriod}) · ${hts.trustMode === "daily" ? "투신 일별 순매수" : `투신 누적순매수 시작 ${effectiveTrustStart || "확인 중"}`}`] : []),
       ...htsPanes.summaries.filter(() => htsEnabled).map((item) => `${item.title}: ${item.value} ${item.unit} · ${item.status} · ${item.asOf} · ${item.source}`),
+      ...(bollingerSettings.enabled ? [`Bollinger(${bollingerSettings.period}, ${bollingerSettings.mult}) · ${bollingerSettings.source} · BBW 백분위 ${bollingerPoints.at(-1)?.bbwPercentile?.toFixed(1) ?? "미확보"} · 규칙 기반 품질/커버리지 ${bollingerPoints.at(-1)?.quality.normalizedScore?.toFixed(0) ?? "—"}/${((bollingerPoints.at(-1)?.quality.coverage ?? 0) * 100).toFixed(0)}% · 완료봉만 신호`] : []),
       profileMetadata.adjustment,
     ]), chartExportName(market, code, intervalKey, "png", Date.now()));
   };
@@ -1189,7 +1312,7 @@ export function ProChart(props: ProChartProps) {
     for (const inst of renderedIndicators) {
       const v = values.get(inst.uid);
       const def = INDICATOR_BY_ID.get(inst.id);
-      if (!inst.visible || !v || !def || inst.id === "volume") continue;
+      if (!inst.visible || !v || !def || inst.id === "volume" || inst.uid === bollingerSettings.adoptedIndicatorUid) continue;
       for (const o of def.outputs) extra.push({ name: `${instanceLabel(inst)}${def.outputs.length > 1 ? `.${o.key}` : ""}`, values: (v[o.key] ?? []).slice(w.from, w.to + 1) });
     }
     if (htsEnabled) {
@@ -1198,7 +1321,7 @@ export function ProChart(props: ProChartProps) {
       for (const id of FLOW_METRICS) extra.push({ name: id, values: alignedFlow[id].points.slice(w.from, w.to + 1).map((p) => p.value) });
     }
     const flowRows = flowToCsv(flow, alignedFlow, replayAt, { trustMode: hts.trustMode, cumulativeStart: effectiveTrustStart });
-    downloadCsv(`${barsToCsv(rows, extra)}\r\n\r\n${(vpProfile ? profileToCsv(vpProfile, profileMetadata) : "profile,status\r\n,disabled")}\r\n\r\ntrustMode,${hts.trustMode}\r\ncumulativeStart,${effectiveTrustStart}\r\n${flowRows}`, chartExportName(market, code, intervalKey, "csv", Date.now()));
+    downloadCsv(`${barsToCsv(rows, extra)}\r\n\r\n${(vpProfile ? profileToCsv(vpProfile, profileMetadata) : "profile,status\r\n,disabled")}\r\n\r\ntrustMode,${hts.trustMode}\r\ncumulativeStart,${effectiveTrustStart}\r\n${flowRows}\r\n\r\n${bollingerToCsv(bollingerPoints.slice(w.from, w.to + 1), bollingerSettings, props.source)}`, chartExportName(market, code, intervalKey, "csv", Date.now()));
   };
 
   // ── HUD + legend ───────────────────────────────────────────────────────
@@ -1385,7 +1508,7 @@ export function ProChart(props: ProChartProps) {
         title={props.name ? `${props.name} · ${code}` : code}
         toolbarExtra={props.toolbarExtra}
         toolbar={toolbar}
-        displayControls={<><SmaControls instances={layout.indicators} unavailable={STANDARD_SMA_PERIODS.filter(period => layout.indicators.some(i => i.id === "sma" && Number(i.params.period) === period && i.visible) && !layout.indicators.filter(i => i.id === "sma" && Number(i.params.period) === period).some(i => values.get(i.uid)?.v?.some(value => value != null)))} mode={themeMode} disabled={loadedKey !== layoutKey} onToggle={period => setLayout(previous => ({ ...previous, indicators: toggleStandardSma(previous.indicators, period) }))} /><ChartDisplayControls overlays={overlays} rangeOn={vp.rangeOn} profileOn={vp.enabled}
+        displayControls={<><BollingerControls settings={bollingerSettings} onChange={changeBollinger} disabled={!props.instrument || loadedKey !== layoutKey || htsLoaded !== scopeKey} portalContainer={fullscreenPortal} onTimeframe={props.onTimeframe} /><SmaControls instances={layout.indicators} unavailable={STANDARD_SMA_PERIODS.filter(period => layout.indicators.some(i => i.id === "sma" && Number(i.params.period) === period && i.visible) && !layout.indicators.filter(i => i.id === "sma" && Number(i.params.period) === period).some(i => values.get(i.uid)?.v?.some(value => value != null)))} mode={themeMode} disabled={loadedKey !== layoutKey} onToggle={period => setLayout(previous => ({ ...previous, indicators: toggleStandardSma(previous.indicators, period) }))} /><ChartDisplayControls overlays={overlays} rangeOn={vp.rangeOn} profileOn={vp.enabled}
           legacyProfile={vp.widthRatio < 0.4 || vp.rangeMode === "all" || vp.rows > 20}
           ready={loadedKey === layoutKey && htsLoaded === scopeKey}
           onToggle={key => setLayout(previous => ({ ...previous, overlays: { ...previous.overlays, [key]: !previous.overlays[key] } }))}
@@ -1406,6 +1529,7 @@ export function ProChart(props: ProChartProps) {
         testId={props.testId ?? "pro-chart"}
         collapseToolbar={props.compact}
         footer={<>
+          {bollingerSettings.enabled && <BollingerStatus point={(hoverIdx != null ? bollingerPoints[hoverIdx] : bollingerPoints.at(-1)) ?? null} historical={hoverIdx != null} settings={bollingerSettings} />}
           {vp.rangeOn && <RangePositionStrip
             stats={rangeStats}
             compact={props.compact}
@@ -1483,7 +1607,7 @@ export function ProChart(props: ProChartProps) {
           {hoveredEvent.items.slice(0, 3).map(item => <div key={item.id} className="truncate">{item.title}</div>)}
           <div className="text-muted-foreground">클릭·탭 또는 ‘주석 상세’에서 전체 {hoveredEvent.items.length}건 확인</div>
         </div>}
-        <div ref={containerRef} className="absolute inset-0 isolate" style={{ cursor: tool === "cursor" ? "crosshair" : "cell", touchAction: "pan-y" }} data-testid="chart-canvas" data-visible-from={visible?.from} data-visible-to={visible?.to} data-event-groups={eventGroups.length} data-event-items={chartEvents.length} data-marker-count={eventGroups.length} data-event-categories={JSON.stringify(chartEvents.reduce((counts, item) => ({ ...counts, [item.category]: (counts[item.category] ?? 0) + 1 }), {} as Record<string, number>))} data-range-enabled={vp.rangeOn} />
+        <div ref={containerRef} className="absolute inset-0 isolate" style={{ cursor: tool === "cursor" ? "crosshair" : "cell", touchAction: "pan-y" }} data-testid="chart-canvas" data-visible-from={visible?.from} data-visible-to={visible?.to} data-event-groups={eventGroups.length} data-event-items={chartEvents.length} data-marker-count={eventGroups.length} data-event-categories={JSON.stringify(chartEvents.reduce((counts, item) => ({ ...counts, [item.category]: (counts[item.category] ?? 0) + 1 }), {} as Record<string, number>))} data-range-enabled={vp.rangeOn} data-bollinger-enabled={bollingerSettings.enabled} data-bollinger-events={bollingerSettings.enabled && bollingerSettings.badges && overlays.signals ? bollingerAnalysis.events.length : 0} data-bollinger-panes={bollingerPaneCount} />
       </ChartShell>
       {compare.map((sym) => (
         <CompareLoader key={sym} sym={sym} interval={interval} minuteSize={props.minuteSize} range={props.range} onBars={onCompareBars} />
@@ -1504,26 +1628,40 @@ export function ProChart(props: ProChartProps) {
         onAdd={addIndicator}
         onChange={(id, patch) => {
           if (layout.indicators.find(item => item.uid === id)?.id === "vprofile" && typeof patch.visible === "boolean") setVp(previous => ({ ...previous, enabled: patch.visible! }));
-          setLayout((l) => ({ ...l, indicators: l.indicators.map((i) => (i.uid === id ? { ...i, ...patch } : i)) }));
+          setLayout((l) => {
+            const adopted = id === l.bollinger?.adoptedIndicatorUid;
+            const next = adopted ? sanitizeBollingerSettings({ ...l.bollinger,
+              ...(patch.params ? { period: Number(patch.params.period ?? l.bollinger?.period), mult: Number(patch.params.mult ?? l.bollinger?.mult) } : {}),
+              ...(typeof patch.visible === "boolean" ? { overlay: patch.visible } : {}),
+              ...(patch.color !== undefined ? { overlayColor: patch.color } : {}),
+            }) : l.bollinger;
+            return { ...l, bollinger: next,
+              indicators: l.indicators.map((i) => i.uid === id ? { ...i, ...patch,
+                ...(adopted && next ? { params: { ...i.params, ...patch.params, period: next.period, mult: next.mult }, visible: next.overlay, color: next.overlayColor } : {}),
+              } : i),
+            };
+          });
         }}
         onRemove={(id) => {
           if (layout.indicators.find(item => item.uid === id)?.id === "vprofile") setVp(previous => ({ ...previous, enabled: false }));
-          setLayout((l) => ({ ...l, indicators: l.indicators.filter((i) => i.uid !== id) }));
+          setLayout((l) => ({ ...l, bollinger: l.bollinger?.adoptedIndicatorUid === id ? { ...l.bollinger, adoptedIndicatorUid: undefined, overlay: false } : l.bollinger, indicators: l.indicators.filter((i) => i.uid !== id) }));
         }}
         templates={templates}
         onSaveTemplate={(name) =>
-          setChartPrefs({ templates: { ...(chartPrefs.templates ?? {}), [name]: { indicators: layout.indicators, smaBundleVersion: 1, chartType: layout.chartType, scale: layout.scale, savedAt: new Date().toISOString() } } })
+          setChartPrefs({ templates: { ...(chartPrefs.templates ?? {}), [name]: { indicators: layout.indicators, smaBundleVersion: 1, bollinger: layout.bollinger, chartType: layout.chartType, scale: layout.scale, savedAt: new Date().toISOString() } } })
         }
         onApplyTemplate={(name) => {
           const t = chartPrefs.templates?.[name];
           if (!t) return;
           const profiles = (t.indicators as IndicatorInstance[]).filter(item => item.id === "vprofile");
           if (profiles.length) setVp(previous => ({ ...previous, enabled: profiles.some(item => item.visible) }));
-          setLayout((l) => ({
-            ...l,
-            indicators: (t.smaBundleVersion === 1 ? t.indicators as IndicatorInstance[] : migrateStandardSmas(t.indicators as IndicatorInstance[])).map((i) => ({ ...i, uid: `${i.id}-${uid()}` })),
-            chartType: (t.chartType as ChartType) ?? l.chartType,
-            scale: (t.scale as ChartScale) ?? l.scale,
+          const oldInstances = t.smaBundleVersion === 1 ? t.indicators as IndicatorInstance[] : migrateStandardSmas(t.indicators as IndicatorInstance[]);
+          const remapped = new Map(oldInstances.map(item => [item.uid, `${item.id}-${uid()}`]));
+          const nextInstances = oldInstances.map(item => ({ ...item, uid: remapped.get(item.uid)! }));
+          const adopted = t.bollinger?.adoptedIndicatorUid;
+          const migrated = migrateBollingerSystem(nextInstances, t.bollinger ? { ...t.bollinger, adoptedIndicatorUid: adopted ? remapped.get(adopted) : undefined } : undefined);
+          setLayout(l => ({ ...l, indicators: migrated.indicators, bollinger: migrated.settings,
+            chartType: (t.chartType as ChartType) ?? l.chartType, scale: (t.scale as ChartScale) ?? l.scale,
           }));
         }}
         onDeleteTemplate={(name) => {

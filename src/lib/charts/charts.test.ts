@@ -14,13 +14,24 @@ import {
 } from "./drawings.ts";
 import { chartStateKey, defaultLayout, DEFAULT_OVERLAYS, loadChartState, migrateLegacyDrawings, migrateLegacyOnce, parseChartState, saveChartState, type StorageLike } from "./persistence.ts";
 import { computeInstance, INDICATORS, indicatorCacheKey, newInstance, sanitizeParams, searchIndicators, INDICATOR_BY_ID, defaultIndicators } from "./catalog.ts";
-import { alignByTime, barsToCsv, capBars, chartExportName, extendedHoursRuns, percentFromFirstVisible, replaySlice, replayStep, sessionBreaks } from "./tools.ts";
+import { alignByTime, barsToCsv, capBars, chartExportName, extendedHoursRuns, normalizeLogicalRange, percentFromFirstVisible, replaySlice, replayStep, sessionBreaks, visibleWindow } from "./tools.ts";
 import { sma, rsi } from "../chart-indicators.ts";
 
 function memStore(init: Record<string, string> = {}): StorageLike & { data: Record<string, string> } {
   const data = { ...init };
   return { data, getItem: (k) => data[k] ?? null, setItem: (k, v) => void (data[k] = v), removeItem: (k) => void delete data[k] };
 }
+
+test("native axis resize roundoff preserves the selected candle window and fractional pans", () => {
+  const noise = 2.842170943040401e-14;
+  assert.deepEqual(normalizeLogicalRange({ from: noise, to: 164 - noise }), { from: 0, to: 164 });
+  assert.deepEqual(normalizeLogicalRange({ from: -noise, to: 164 + noise }), { from: 0, to: 164 });
+  assert.deepEqual(visibleWindow(160, { from: noise, to: 159 - noise }), { from: 0, to: 159 });
+  assert.deepEqual(visibleWindow(200, { from: 122 + noise, to: 165 - noise }), { from: 122, to: 165 });
+  assert.deepEqual(normalizeLogicalRange({ from: 122.0833333333, to: 165.125 }), { from: 122.0833333333, to: 165.125 });
+  assert.deepEqual(visibleWindow(200, { from: 122.0833333333, to: 165.125 }), { from: 123, to: 165 });
+  assert.equal(normalizeLogicalRange(null), null);
+});
 
 test("AT-36 drawings: create, update, lock, hide, remove, undo/redo, persist", () => {
   let h = initHistory();

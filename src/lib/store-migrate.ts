@@ -4,6 +4,7 @@
  * `node --experimental-strip-types`.
  */
 import { US_STREET_SYMBOLS } from "./us-street.ts";
+import type { BollingerSystemSettings } from "./bollinger/types.ts";
 
 export const STORE_VERSION = 2;
 
@@ -59,7 +60,7 @@ export interface ChartPrefs {
   chartType: "candles" | "hollow" | "bars" | "heikin-ashi" | "line" | "area" | "baseline";
   scale: "normal" | "log" | "percent" | "indexed";
   syncInterval: boolean;
-  templates: Record<string, { indicators: unknown[]; chartType?: string; scale?: string; savedAt: string; smaBundleVersion?: 1 }>;
+  templates: Record<string, { indicators: unknown[]; chartType?: string; scale?: string; savedAt: string; smaBundleVersion?: 1; bollinger?: BollingerSystemSettings }>;
 }
 
 export interface RoboticsCustomEntry {

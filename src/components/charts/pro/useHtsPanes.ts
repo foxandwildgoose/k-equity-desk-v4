@@ -48,6 +48,7 @@ export function useHtsPanes(options: {
   onSettings: (settings: HtsSettings) => void;
   container: RefObject<HTMLDivElement | null>;
   extraCount: number;
+  reservedExtraPaneCount?: number;
   bars: OhlcBar[];
   indicatorBars?: OhlcBar[];
   times: (string | number)[];
@@ -205,7 +206,7 @@ export function useHtsPanes(options: {
       if (id !== "price") chart.priceScale("right", panes[id]).applyOptions({ autoScale: true,
         scaleMargins: id === "rsi" ? { top: 0, bottom: 0 } : { top: 0.32, bottom: 0.09 } });
     }
-    for (let i = 5; i < panes.volume; i++) chart.panes()[i]?.setStretchFactor(extraStretch.current.get(i) ?? 100);
+    for (let i = 5; i < panes.volume - (options.reservedExtraPaneCount ?? 0); i++) chart.panes()[i]?.setStretchFactor(extraStretch.current.get(i) ?? 100);
     for (let i = chart.panes().length - 1; i > panes.volume; i--) {
       if (chart.panes()[i]?.getSeries().length === 0) chart.removePane(i);
     }
@@ -237,7 +238,7 @@ export function useHtsPanes(options: {
         if (started.settings !== current.settings) return;
         const positions = htsPaneIndices(current.extraCount);
         const heights = changedHtsPanelHeights(current.settings.panelHeights, current.settings.collapsed, started.before, snapshot(positions));
-        for (let i = 5; i < positions.volume; i++) {
+        for (let i = 5; i < positions.volume - (current.reservedExtraPaneCount ?? 0); i++) {
           const factor = chart.panes()[i]?.getStretchFactor();
           if (factor != null && Number.isFinite(factor) && factor > 0) extraStretch.current.set(i, factor);
         }

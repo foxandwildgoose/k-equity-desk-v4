@@ -46,25 +46,67 @@ export function bollinger(
   period = 20,
   mult = 2,
 ): { mid: (number | null)[]; upper: (number | null)[]; lower: (number | null)[] } {
+  if (!Number.isSafeInteger(period) || period < 1 || !Number.isFinite(mult) || mult <= 0) {
+    const missing = new Array<number | null>(closes.length).fill(null);
+    return { mid: [...missing], upper: [...missing], lower: [...missing] };
+  }
   const mid = sma(closes, period);
-  const upper: (number | null)[] = [];
-  const lower: (number | null)[] = [];
+  const deviations = rollingPopulationStdDev(closes, period);
+  const upper: (number | null)[] = new Array(closes.length).fill(null);
+  const lower: (number | null)[] = new Array(closes.length).fill(null);
   for (let i = 0; i < closes.length; i++) {
-    if (mid[i] == null) {
-      upper.push(null);
-      lower.push(null);
-      continue;
+    const center = mid[i];
+    const deviation = deviations[i];
+    if (center == null || deviation == null) continue;
+    const hi = center + mult * deviation;
+    const lo = center - mult * deviation;
+    if (Number.isFinite(hi) && Number.isFinite(lo)) {
+      upper[i] = hi;
+      lower[i] = lo;
     }
-    let sumSq = 0;
-    for (let j = i - period + 1; j <= i; j++) {
-      const d = closes[j]! - mid[i]!;
-      sumSq += d * d;
-    }
-    const sd = Math.sqrt(sumSq / period);
-    upper.push(mid[i]! + mult * sd);
-    lower.push(mid[i]! - mult * sd);
   }
   return { mid, upper, lower };
+}
+
+/**
+ * Population deviation using add/remove Welford updates, not E[x²] - E[x]².
+ * Rebase once per window to limit sliding roundoff: O(N) total work. Invalid
+ * values leave the whole affected window unavailable; no zero substitution.
+ */
+export function rollingPopulationStdDev(values: number[], period: number): (number | null)[] {
+  const out = new Array<number | null>(values.length).fill(null);
+  if (!Number.isSafeInteger(period) || period < 1) return out;
+  let count = 0;
+  let mean = 0;
+  let m2 = 0;
+  const add = (value: number) => {
+    if (!Number.isFinite(value)) return;
+    count++;
+    const delta = value - mean;
+    mean += delta / count;
+    m2 += delta * (value - mean);
+  };
+  for (let i = 0; i < values.length; i++) {
+    if (i >= period) {
+      const old = values[i - period]!;
+      if (Number.isFinite(old)) {
+        if (count <= 1) { count = 0; mean = 0; m2 = 0; }
+        else {
+          const nextMean = mean + (mean - old) / (count - 1);
+          m2 -= (old - mean) * (old - nextMean);
+          mean = nextMean;
+          count--;
+        }
+      }
+    }
+    add(values[i]!);
+    if (i >= period - 1 && (i - period + 1) % period === 0) {
+      count = 0; mean = 0; m2 = 0;
+      for (let j = i - period + 1; j <= i; j++) add(values[j]!);
+    }
+    if (count === period && Number.isFinite(m2)) out[i] = Math.sqrt(Math.max(0, m2) / period);
+  }
+  return out;
 }
 
 /**
