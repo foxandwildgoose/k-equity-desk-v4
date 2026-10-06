@@ -1,0 +1,105 @@
+{
+  "verifiedOn": "2026-10-06",
+  "scope": "Actual public source responses and engine analysis; no operational DB write or real Vercel browser claim",
+  "databaseConfigured": false,
+  "receipts": [
+    {
+      "status": "RECEIVED_NOT_STORED",
+      "market": "KR",
+      "symbol": "005930",
+      "rows": 1219,
+      "first": "2021-10-06",
+      "last": "2026-10-02",
+      "source": "yahoo-005930.KS",
+      "priceBasis": "yahoo-kr-raw-ohlcv",
+      "benchmarkRows": 1220,
+      "latest": {
+        "date": "2026-10-02",
+        "state": "WATCH",
+        "score": 71.9,
+        "coverage": 0.925,
+        "resistance": 285500,
+        "rs20": 3.459561161708712,
+        "rs63": 3.410589424495715,
+        "warnings": [
+          "sector: 데이터 미확보"
+        ]
+      },
+      "persistence": "not-requested",
+      "browser": "not-verified"
+    },
+    {
+      "status": "RECEIVED_NOT_STORED",
+      "market": "US",
+      "symbol": "NVDA",
+      "rows": 1254,
+      "first": "2021-10-06",
+      "last": "2026-10-05",
+      "source": "yahoo-us-NVDA-1d",
+      "priceBasis": "yahoo-us-adjusted-ohlcv",
+      "benchmarkRows": 1254,
+      "latest": {
+        "date": "2026-10-05",
+        "state": "NEUTRAL",
+        "score": 49.2,
+        "coverage": 0.925,
+        "resistance": 233.21,
+        "rs20": 3.1061959278606555,
+        "rs63": 17.848391470377333,
+        "warnings": [
+          "sector: 데이터 미확보"
+        ]
+      },
+      "persistence": "not-requested",
+      "browser": "not-verified"
+    },
+    {
+      "id": "KOSPI:2026-10-06T11:43:59.736Z",
+      "kind": "KOSPI",
+      "asOf": "2026-10-06",
+      "rankAsOf": null,
+      "knownAt": "2026-10-06T11:43:59.736Z",
+      "fetchedAt": "2026-10-06T11:43:59.736Z",
+      "source": "Naver market-value listing; cap in KRW (억 × 10^8)",
+      "sourceUrl": "https://m.stock.naver.com/api/stocks/marketValue/KOSPI",
+      "historical": false,
+      "status": "RECEIVED_NOT_STORED",
+      "memberRows": 2482,
+      "supportedEquities": 834,
+      "excludedRows": 1648,
+      "persistence": "not-requested"
+    },
+    {
+      "id": "NASDAQ_LISTED:2026-10-06T11:42:58.914Z",
+      "kind": "NASDAQ_LISTED",
+      "asOf": "2026-10-06",
+      "rankAsOf": "2026-10-05",
+      "knownAt": "2026-10-06T11:42:58.914Z",
+      "fetchedAt": "2026-10-06T11:42:58.914Z",
+      "source": "Nasdaq official listed stock screener; observed current membership, marketCap USD",
+      "sourceUrl": "https://api.nasdaq.com/api/screener/stocks?tableonly=true&limit=10000&exchange=nasdaq",
+      "historical": false,
+      "status": "RECEIVED_NOT_STORED",
+      "memberRows": 4033,
+      "supportedEquities": 3241,
+      "excludedRows": 792,
+      "persistence": "not-requested"
+    },
+    {
+      "id": "ETF:069500:2026-10-06T11:58:03.763Z",
+      "kind": "ETF",
+      "asOf": "2026-10-06",
+      "rankAsOf": null,
+      "knownAt": "2026-10-06T11:58:03.763Z",
+      "fetchedAt": "2026-10-06T11:58:03.763Z",
+      "source": "삼성자산운용 KODEX 일별 PDF (2026-10-06); unresolved rows 1",
+      "sourceUrl": "https://www.samsungfund.com/etf/product/view.do?id=2ETF01",
+      "historical": false,
+      "status": "RECEIVED_NOT_STORED",
+      "memberRows": 201,
+      "supportedEquities": 201,
+      "excludedRows": 1,
+      "persistence": "not-requested"
+    }
+  ]
+}

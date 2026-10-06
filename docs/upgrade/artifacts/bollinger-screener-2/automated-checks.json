@@ -1,0 +1,68 @@
+{
+  "date": "2026-10-06",
+  "operationalDatabaseChanged": false,
+  "databaseConfigured": false,
+  "commands": {
+    "typecheck": {
+      "status": "PASS",
+      "tests": [],
+      "warnings": null
+    },
+    "npm test": {
+      "status": "PASS",
+      "tests": [
+        "# tests 224",
+        "# pass 212",
+        "# fail 0",
+        "# skipped 12",
+        "# tests 505",
+        "# pass 505",
+        "# fail 0",
+        "# skipped 0"
+      ],
+      "warnings": null
+    },
+    "test:bollinger": {
+      "status": "PASS",
+      "tests": [
+        "# tests 87",
+        "# pass 87",
+        "# fail 0",
+        "# skipped 0"
+      ],
+      "warnings": null
+    },
+    "lint": {
+      "status": "PASS",
+      "tests": [],
+      "warnings": 56
+    },
+    "build": {
+      "status": "PASS",
+      "tests": [],
+      "warnings": null
+    },
+    "check:auth": {
+      "status": "PASS",
+      "signInEnabled": false
+    },
+    "check:deploy": {
+      "status": "PASS",
+      "issues": []
+    }
+  },
+  "limitations": [
+    "12 existing PowerShell checks skipped: pwsh unavailable",
+    "Root operational Neon DATABASE_URL not configured: migration/real persistence/Vercel not verified",
+    "Public price revision and corporate action vintages unverified: event studies remain research only",
+    "Ordinary browser smoke reports external font/Grok TLS failures, existing OG note, and baseline text difference from transient index-loading status. Screenshots manually inspected: same screener layout; existing mobile ticker wraps. No application page errors, local bundle 404, or horizontal overflow."
+  ],
+  "browserMatrix": {
+    "devScreener": 6,
+    "productionScreener": 6,
+    "priceChartRegression": 12,
+    "productionDiscoveryContext": 4,
+    "synthetic": true
+  },
+  "dstCutoff": "Shared zonedWallToUnix handles midnight before NY DST switches; deterministic spring/fall tests passed."
+}

@@ -1,5 +1,6 @@
 import type { BollingerAnalysis, BollingerEvent, BollingerSignal, BollingerSystemSettings } from "./types.ts";
 import type { StorageLike } from "../charts/persistence.ts";
+import type { DiscoveryEvent } from "./discovery.ts";
 
 export const BOLLINGER_SIGNAL_LABELS: Record<BollingerSignal, string> = {
   squeeze: "스퀴즈 감지", "upper-breakout": "상단 종가 돌파", "lower-breakdown": "하단 종가 이탈",
@@ -38,6 +39,17 @@ export function saveBollingerLedger(storage: StorageLike | null, key: string, le
 }
 /** Shared within this browser module: two workspace cells cannot notify twice. */
 export const activeBollingerLedgers = new Map<string, BollingerAlertLedger>();
+
+/** Discovery uses the same persisted active-session ledger and delivery UI.
+ * First observation is a baseline; stored historical detections never become retrospective notifications. */
+export function evaluateDiscoveryAlerts(events: readonly DiscoveryEvent[], ledger: BollingerAlertLedger | null, identity: string) {
+  const latest = events.reduce<string | null>((date,event)=>date===null||event.date>date?event.date:date,null);
+  if (!ledger || ledger.throughDate===null) return { ledger:{version:1 as const,throughDate:latest,seen:[...new Set([...(ledger?.seen??[]),...events.map(event=>`${identity}:${event.id}`)])].slice(-1000)},fired:[] as DiscoveryEvent[] };
+  const seen=new Set(ledger.seen);
+  const fired:DiscoveryEvent[]=[];
+  for(const event of events){const key=`${identity}:${event.id}`;if(event.date>=ledger.throughDate&&!seen.has(key)){fired.push(event);seen.add(key);}}
+  return {ledger:{version:1 as const,throughDate:latest&&latest>ledger.throughDate?latest:ledger.throughDate,seen:[...seen].slice(-1000)},fired};
+}
 
 /** Financial-rule identity excludes presentation settings and captures every heuristic. */
 export function bollingerFinancialKey(settings: BollingerSystemSettings): string {

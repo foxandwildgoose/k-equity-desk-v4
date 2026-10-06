@@ -860,6 +860,23 @@ async function fetchYahooChart(symbol: string, interval: string, range: string, 
   return null;
 }
 
+/** Internal daily collector only: fixed benchmark allowlist, shared HTTP policy.
+ * Security ticker validation remains unchanged; no arbitrary proxy is exposed. */
+export async function fetchDiscoveryBenchmark(symbol: "^KS11" | "^KQ11" | "^GSPC" | "^NDX" | "^IXIC") {
+  if (!["^KS11", "^KQ11", "^GSPC", "^NDX", "^IXIC"].includes(symbol)) throw new Error("UNSUPPORTED_BENCHMARK");
+  const result = await fetchYahooChart(symbol, "1d", "5y");
+  if (!result) return { bars: [], source: `yahoo-${symbol}-unavailable` };
+  const zone = symbol === "^KS11" || symbol === "^KQ11" ? "Asia/Seoul" : "America/New_York";
+  const quotes = result.indicators?.quote?.[0], bars: import("../lib/bollinger/types").BollingerBar[] = [];
+  for (let i = 0; i < (result.timestamp?.length ?? 0); i++) {
+    const open = quotes?.open?.[i], high = quotes?.high?.[i], low = quotes?.low?.[i], close = quotes?.close?.[i];
+    if (![open, high, low, close].every(v => typeof v === "number" && Number.isFinite(v) && v > 0)) continue;
+    const date = new Intl.DateTimeFormat("en-CA", { timeZone: zone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(result.timestamp![i]! * 1000));
+    bars.push({ date, open: open!, high: high!, low: low!, close: close!, ...chartVolume(quotes?.volume?.[i]) });
+  }
+  return { bars, source: `yahoo-${symbol}-daily-price-index` };
+}
+
 /** Dividends / splits from the Yahoo chart `events` block (F7.10); only what the response carries. */
 export interface ChartEvents {
   dividends: { date: string; amount: number }[];

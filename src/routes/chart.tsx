@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { getDiscoveryChartContext } from "@/lib/bollinger-discovery-fns";
 import { LayoutGrid, Link2, Search, Square, Columns2 } from "lucide-react";
 import { PageDisclaimer } from "@/components/feed/PageDisclaimer";
 import { Input } from "@/components/ui/input";
@@ -14,11 +16,13 @@ import type { ChartInterval, MinuteSize } from "@/server/naver-market";
 import { cn } from "@/lib/utils";
 
 type Layout = "1" | "2" | "4";
-type Search = { symbols?: string; layout?: Layout; scope?: "detail"; interval?: ChartInterval; minuteSize?: MinuteSize; range?: string };
+type Search = { symbols?: string; layout?: Layout; scope?: "detail"; interval?: ChartInterval; minuteSize?: MinuteSize; range?: string; discoveryUniverse?:string; discoveryVersion?:string };
 
 export const Route = createFileRoute("/chart")({
   component: ChartWorkspace,
   validateSearch: (s: Record<string, unknown>): Search => ({
+    discoveryUniverse:typeof s.discoveryUniverse==="string"?s.discoveryUniverse.slice(0,160):undefined,
+    discoveryVersion:typeof s.discoveryVersion==="string"?s.discoveryVersion.slice(0,1500):undefined,
     symbols: typeof s.symbols === "string" ? s.symbols.slice(0, 80) : undefined,
     layout: s.layout === "2" || s.layout === "4" || s.layout === "1" ? s.layout : s.layout === 2 || s.layout === 4 || s.layout === 1 ? (String(s.layout) as Layout) : undefined,
     scope: s.scope === "detail" ? "detail" : undefined,
@@ -107,6 +111,8 @@ function Pane({
   layoutScope,
   minuteSize = 5,
   selectedRange,
+  discoveryUniverse,
+  discoveryVersion,
 }: {
   sym: string;
   idx: number;
@@ -119,8 +125,11 @@ function Pane({
   layoutScope: string;
   minuteSize?: MinuteSize;
   selectedRange?: string;
+  discoveryUniverse?:string;
+  discoveryVersion?:string;
 }) {
   const [m, code] = sym.split(":") as ["KR" | "US", string];
+  const discovery=useQuery({queryKey:["bollinger-chart-context",discoveryUniverse,discoveryVersion,m,code],enabled:!!discoveryUniverse&&!!discoveryVersion,queryFn:()=>getDiscoveryChartContext({data:{universeId:discoveryUniverse!,version:discoveryVersion!,market:m,symbol:code}}),staleTime:60000});
   const conf = INTERVALS.find((x) => x.id === interval) ?? INTERVALS[1]!;
   const security = useChartSecurity(code, m);
   const range = selectedRange ?? conf.range;
@@ -140,6 +149,7 @@ function Pane({
   );
   return (
     <ProChart
+      discovery={discovery.data?.data??undefined}
       code={code}
       market={m}
       name={security.data?.name}
@@ -251,6 +261,8 @@ function ChartWorkspace() {
             layoutScope={count === 1 && search.scope === "detail" ? chartLayoutScope("detail") : chartLayoutScope("workspace", i)}
             minuteSize={search.minuteSize}
             selectedRange={(syncInterval ? shared : own[i]) === search.interval ? search.range : undefined}
+            discoveryUniverse={search.discoveryUniverse}
+            discoveryVersion={search.discoveryVersion}
           />
         ))}
       </div>

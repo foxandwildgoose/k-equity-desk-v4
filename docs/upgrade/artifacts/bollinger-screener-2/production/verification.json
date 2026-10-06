@@ -1,0 +1,781 @@
+{
+  "scope": "Synthetic tests only; not real trading/backtest performance",
+  "productionEntry": "/workspace/.onboarding/builds/k-equity-desk-v4/functions/__server.func/index.mjs",
+  "base": "http://127.0.0.1:8192",
+  "results": [
+    {
+      "theme": "light",
+      "viewport": "desktop",
+      "mode": "isolated-synthetic-DB-and-browser",
+      "success": true,
+      "calls": [
+        {
+          "name": "getMarketQuotes",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getMarketIndices",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getMarketSnapshot",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 2,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 2,
+          "strategy": "triggered"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "triggered"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "follow-through"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "failed-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "pullback"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "mean-reversion-watch"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "bear-breakdown"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "squeeze-watch"
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        }
+      ],
+      "screenshot": "/workspace/k-equity-desk-v4/docs/upgrade/artifacts/bollinger-screener-2/production/screener-light-desktop.png"
+    },
+    {
+      "theme": "light",
+      "viewport": "tablet",
+      "mode": "isolated-synthetic-DB-and-browser",
+      "success": true,
+      "calls": [
+        {
+          "name": "getMarketQuotes",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getMarketIndices",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getMarketSnapshot",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 2,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 2,
+          "strategy": "triggered"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "triggered"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "follow-through"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "failed-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "pullback"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "mean-reversion-watch"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "bear-breakdown"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "squeeze-watch"
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        }
+      ],
+      "screenshot": "/workspace/k-equity-desk-v4/docs/upgrade/artifacts/bollinger-screener-2/production/screener-light-tablet.png"
+    },
+    {
+      "theme": "light",
+      "viewport": "mobile",
+      "mode": "isolated-synthetic-DB-and-browser",
+      "success": true,
+      "calls": [
+        {
+          "name": "getMarketQuotes",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getMarketIndices",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getMarketSnapshot",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 2,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 2,
+          "strategy": "triggered"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "triggered"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "follow-through"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "failed-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "pullback"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "mean-reversion-watch"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "bear-breakdown"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "squeeze-watch"
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        }
+      ],
+      "screenshot": "/workspace/k-equity-desk-v4/docs/upgrade/artifacts/bollinger-screener-2/production/screener-light-mobile.png"
+    },
+    {
+      "theme": "dark",
+      "viewport": "desktop",
+      "mode": "isolated-synthetic-DB-and-browser",
+      "success": true,
+      "calls": [
+        {
+          "name": "getMarketQuotes",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getMarketIndices",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getMarketSnapshot",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 2,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 2,
+          "strategy": "triggered"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "triggered"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "follow-through"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "failed-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "pullback"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "mean-reversion-watch"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "bear-breakdown"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "squeeze-watch"
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        }
+      ],
+      "screenshot": "/workspace/k-equity-desk-v4/docs/upgrade/artifacts/bollinger-screener-2/production/screener-dark-desktop.png"
+    },
+    {
+      "theme": "dark",
+      "viewport": "tablet",
+      "mode": "isolated-synthetic-DB-and-browser",
+      "success": true,
+      "calls": [
+        {
+          "name": "getMarketQuotes",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getMarketIndices",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getMarketSnapshot",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 2,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 2,
+          "strategy": "triggered"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "triggered"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "follow-through"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "failed-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "pullback"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "mean-reversion-watch"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "bear-breakdown"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "squeeze-watch"
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        }
+      ],
+      "screenshot": "/workspace/k-equity-desk-v4/docs/upgrade/artifacts/bollinger-screener-2/production/screener-dark-tablet.png"
+    },
+    {
+      "theme": "dark",
+      "viewport": "mobile",
+      "mode": "isolated-synthetic-DB-and-browser",
+      "success": true,
+      "calls": [
+        {
+          "name": "getMarketQuotes",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getMarketIndices",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getMarketSnapshot",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 2,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 2,
+          "strategy": "triggered"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "triggered"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "follow-through"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "failed-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "pullback"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "mean-reversion-watch"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "bear-breakdown"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "squeeze-watch"
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        }
+      ],
+      "screenshot": "/workspace/k-equity-desk-v4/docs/upgrade/artifacts/bollinger-screener-2/production/screener-dark-mobile.png"
+    }
+  ]
+}

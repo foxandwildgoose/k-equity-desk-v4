@@ -124,6 +124,7 @@ import { completedPriceBars } from "@/lib/bollinger/bar-completion";
 import { bollingerFlowByDate } from "@/lib/bollinger/flow-confirmation";
 import { bollingerToCsv } from "@/lib/bollinger/export";
 import { activeBollingerLedgers, bollingerFinancialKey, BOLLINGER_SIGNAL_LABELS, evaluateBollingerAlerts, initialBollingerLedger, loadBollingerLedger, saveBollingerLedger } from "@/lib/bollinger/alerts";
+import type { DiscoveryChartContext } from "@/lib/bollinger/discovery";
 import { BollingerControls, BollingerStatus } from "./BollingerControls";
 import { useBollingerSystem } from "./useBollingerSystem";
 import type { BollingerSystemSettings } from "@/lib/bollinger/types";
@@ -134,6 +135,7 @@ type Tool = "cursor" | DrawingType | "avwap-anchor" | "replay-pick";
 export type ChartMarkerInput = ChartEventInput;
 
 export interface ProChartProps {
+  discovery?:DiscoveryChartContext;
   code: string;
   market: "KR" | "US";
   instrument?: KrxInstrument;
@@ -457,6 +459,24 @@ export function ProChart(props: ProChartProps) {
   const smaLabels = useRef(new SmaLabelsPrimitive());
   const bbFill = useRef(new BollingerFillPrimitive());
   const [mainEpoch, setMainEpoch] = useState(0);
+  const discoverySeries=useRef<ISeriesApi<"Line">|null>(null);
+  const hasDiscovery=props.discovery!=null;
+  useEffect(()=>{
+    if(!chart||!hasDiscovery)return;
+    const series=chart.addSeries(LineSeries,{lineWidth:1,lineStyle:LineStyle.Dashed,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,autoscaleInfoProvider:()=>null,title:"인과적 저항"},pricePaneIndex);
+    discoverySeries.current=series;
+    return()=>{try{chart.removeSeries(series);}catch{/* chart disposed */}if(discoverySeries.current===series)discoverySeries.current=null;};
+  },[chart,pricePaneIndex,hasDiscovery]);
+  const discoveryBasisMatches=props.discovery?.market===market&&props.discovery.symbol===code&&(
+    props.discovery.priceBasis==="yahoo-us-adjusted-ohlcv"&&props.source.startsWith("yahoo-us-")||
+    props.discovery.priceBasis==="yahoo-kr-raw-ohlcv"&&props.source.startsWith("yahoo-")||
+    props.discovery.priceBasis==="naver-raw-ohlcv"&&props.source.startsWith("naver-"));
+  useEffect(()=>{
+    const series=discoverySeries.current;if(!series)return;
+    const history=new Map(props.discovery?.history.map(p=>[p.date,p.resistance])??[]);
+    series.applyOptions({color:theme.text,visible:interval==="day"&&discoveryBasisMatches===true});
+    series.setData(interval==="day"&&discoveryBasisMatches?bars.map((bar,i)=>{const value=history.get(bar.date);return value!=null&&Number.isFinite(value)?{time:times[i] as Time,value}:{time:times[i] as Time};}):[]);
+  },[chart,pricePaneIndex,props.discovery,discoveryBasisMatches,interval,bars,times,theme.text]);
   const compareActive = useRef(false);
 
   useEffect(() => {
@@ -1529,6 +1549,7 @@ export function ProChart(props: ProChartProps) {
         testId={props.testId ?? "pro-chart"}
         collapseToolbar={props.compact}
         footer={<>
+          {props.discovery&&props.discovery.market===market&&props.discovery.symbol===code&&props.discovery.candidate.date<=(bars.at(-1)?.date??"")&&<div className="flex flex-wrap gap-x-3 gap-y-1 border-b border-border px-3 py-2 text-xs" data-testid="discovery-chart-context"><span>Bollinger 2.0 · {props.discovery.candidate.state} · {props.discovery.candidate.date}</span><span>저항 {(props.discovery.candidate.trigger?.resistance??props.discovery.candidate.resistance)!=null?fmt((props.discovery.candidate.trigger?.resistance??props.discovery.candidate.resistance)!):"—"}</span><span>Long Readiness {props.discovery.candidate.score.value??"—"}</span><span>건조 RVOL {props.discovery.candidate.dryRvol?.toFixed(2)??"—"}× · RS63 {props.discovery.candidate.rs63?.toFixed(1)??"—"}pp</span>{!discoveryBasisMatches&&<span>가격 기준이 달라 저항선 표시 보류</span>}{interval!=="day"&&<span>일별 참고값 · 분봉/주봉에 복사하지 않음</span>}</div>}
           {bollingerSettings.enabled && <BollingerStatus point={(hoverIdx != null ? bollingerPoints[hoverIdx] : bollingerPoints.at(-1)) ?? null} historical={hoverIdx != null} settings={bollingerSettings} />}
           {vp.rangeOn && <RangePositionStrip
             stats={rangeStats}

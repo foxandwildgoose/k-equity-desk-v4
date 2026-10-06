@@ -12,10 +12,11 @@ import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { chromium } from 'playwright';
 import { fromJSON, fromCrossJSON } from 'seroval';
+import { analyzeDiscovery } from '../src/lib/bollinger/discovery.ts';
 
 const argv = process.argv.slice(2);
 const valueOptions = new Set(['--mode', '--base', '--out', '--server-entry', '--timeout', '--cases', '--themes', '--viewports']);
-const switches = new Set(['--legacy', '--screener-only', '--screener', '--export-off']);
+const switches = new Set(['--legacy', '--screener-only', '--screener', '--export-off', '--discovery']);
 for (let index = 0; index < argv.length; index++) {
   assert(valueOptions.has(argv[index]) || switches.has(argv[index]), `Unknown QA option: ${argv[index]}`);
   if (valueOptions.has(argv[index])) { assert(argv[index + 1] && !argv[index + 1].startsWith('--'), `Missing QA option value: ${argv[index]}`); index++; }
@@ -34,6 +35,7 @@ const legacy = argv.includes('--legacy');
 const screenerOnly = argv.includes('--screener-only');
 const withScreener = argv.includes('--screener') || screenerOnly;
 const exportOff = argv.includes('--export-off');
+const discovery = argv.includes('--discovery');
 mkdirSync(out, { recursive: true });
 const allCases = [
   { id: 'stock-005930', path: '/stock/005930', code: '005930', shell: 'trading-chart', market: 'KR', instrument: 'stock' },
@@ -46,6 +48,7 @@ const allCases = [
   { id: 'workspace-4', path: '/chart?symbols=KR%3A005930%2CKR%3A069500%2CUS%3ANVDA%2CUS%3ABOTZ&layout=4', code: '005930', shell: 'workspace-pane-0', charts: 4, market: 'KR', instrument: 'stock' },
 ];
 const cases = allCases.filter(item => list('--cases', allCases.map(c => c.id).join(',')).includes(item.id));
+if(discovery)for(const item of cases)if(item.id==='workspace-1')item.path+='&discoveryUniverse=QA-DISCOVERY&discoveryVersion=long-daily-2.0.0';
 const viewports = [
   { id: 'desktop', width: 1440, height: 900 },
   { id: 'tablet', width: 768, height: 1024 },
@@ -90,6 +93,9 @@ async function fixtures(page, calls) {
       const all = fixtureBars(code, data.interval, data.minuteSize);
       const long = ['5y', '10y', 'max', '60d', '7d'].includes(data.range) || (data.interval === 'minute' && data.range === '2y');
       result = { bars: long ? all : all.slice(-160), source: `yahoo-QA-SYNTHETIC-${code}`, events: { dividends: [], splits: [] } };
+    } else if (name === 'getDiscoveryChartContext') {
+      const rows=fixtureBars(data.symbol).map(b=>({...b,completed:true})),analysis=analyzeDiscovery(rows);
+      result={status:'READY',data:{candidate:analysis.candidates.at(-1),market:data.market,symbol:data.symbol,source:'QA SYNTHETIC',priceBasis:data.market==='US'?'yahoo-us-adjusted-ohlcv':'yahoo-kr-raw-ohlcv',history:analysis.candidates.map(c=>({date:c.date,resistance:c.trigger?.resistance??c.resistance}))}};
     } else if (name === 'getChartFlow') {
       const { kiwoomBrowserFixture } = await import('./qa-kiwoom-fixture.mjs');
       try { result = await kiwoomBrowserFixture(data, fixtureBars(code)); }
@@ -134,7 +140,7 @@ function probe() {
     htsPane: context.canvas.closest('[data-hts-pane]')?.dataset.htsPane ?? null,
     shell: context.canvas.closest('[data-testid="chart-canvas"]')?.parentElement?.closest('[data-testid]')?.dataset.testid ?? context.canvas.closest('[data-testid]')?.dataset.testid,
     alpha: context.globalAlpha, color: String(context.fillStyle), strokeColor: String(context.strokeStyle),
-    lineWidth: context.lineWidth * context.getTransform().a / (context.canvas.width / context.canvas.getBoundingClientRect().width) });
+    dash:context.getLineDash(),lineWidth: context.lineWidth * context.getTransform().a / (context.canvas.width / context.canvas.getBoundingClientRect().width) });
   for (const method of ['clearRect', 'fillRect']) {
     const original = CanvasRenderingContext2D.prototype[method];
     CanvasRenderingContext2D.prototype[method] = function(x, y, width, height) {
@@ -472,6 +478,7 @@ async function checkScreener(page, theme, viewport, result) {
   await page.goto(`${base}/bollinger`, { waitUntil: 'domcontentloaded' });
   const root = page.getByTestId('bollinger-screener');
   await root.waitFor();
+  await page.getByText('선택 종목 수동 진단 · 기존 최대 10개 경로', {exact:true}).click();
   // The route has server-rendered controls before React attaches their events.
   // Wait for the controlled input to be hydrated before filling/submitting it.
   await page.waitForFunction(() => {
@@ -605,6 +612,15 @@ try {
       await page.mouse.move(5, 5);
       result.phase = 'initial-native-render';
       await nativeCheck(page, root, item, theme, result);
+      if(discovery&&item.id==='workspace-1'){
+        await root.getByTestId('discovery-chart-context').waitFor();
+        assert.match(await root.getByTestId('discovery-chart-context').innerText(),/Long Readiness/);
+        await page.waitForFunction(shell=>{
+          const color=getComputedStyle(document.documentElement).getPropertyValue('--foreground').trim().toLowerCase();
+          return window.__bbDraws.some(r=>r.shell===shell&&r.method==='stroke'&&r.strokeColor.toLowerCase()===color&&r.dash?.length===2&&Math.abs(r.lineWidth-1)<.1&&r.htsPane==='price');
+        },item.shell,{timeout});
+        result.discovery={storedContext:true,nativeDashedResistance:true};
+      }
       const status = await latestStatus(root);
       assert(Number.isFinite(status.bbw) && Number.isFinite(status.percentB), 'Bollinger status has no numeric observations');
       if (mode === 'fixture') {

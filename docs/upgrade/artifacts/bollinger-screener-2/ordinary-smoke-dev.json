@@ -1,0 +1,46 @@
+{
+  "url": "http://127.0.0.1:8080/bollinger",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Bollinger Screener 2.0 · Long Pre-Breakout",
+      "hasCanvas": false,
+      "bodyTextLen": 1778,
+      "bodyTextHash": "ac4010c4d791dd43aac032d718a105e32f11af3f2168946a5943410c55db3cc2",
+      "bodyTextPrefix": "실시간: KIS Open API · KRX WebSocket(설정 시) · 백업: 네이버 금융 스냅샷 · 리포트: ",
+      "horizontalOverflow": false,
+      "consoleErrors": [
+        "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+        "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+        "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+      ],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/bollinger-discovery-dev.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Bollinger Screener 2.0 · Long Pre-Breakout",
+      "hasCanvas": false,
+      "bodyTextLen": 1437,
+      "bodyTextHash": "6058bcda708483d7ee761546465e92b5067f82ab66a46c974b092f38d82d0c2a",
+      "bodyTextPrefix": "KX Equity COMMAND 실시간: KIS Open API · KRX WebSocket(설정 시) · 백업: ",
+      "horizontalOverflow": false,
+      "consoleErrors": [
+        "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+        "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+        "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+      ],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/bollinger-discovery-dev-mobile.png"
+    }
+  },
+  "brandWarnings": [
+    "BRAND NOTE: no custom public/og.jpg — the platform will serve the og.grok.me placeholder. Custom cards are the default for games of every kind (DOM board/word games included), whimsical apps, creative tools, and brand-forward pages — only plain utilities (converters, CRUD trackers, admin dashboards) keep the placeholder. If this app is not a plain utility, finish the brand-asset pass per /workspace/.grok/skills/og/SKILL.md."
+  ],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/bollinger-discovery-dev.json"
+}
