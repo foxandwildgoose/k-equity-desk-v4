@@ -1,0 +1,209 @@
+{
+  "scope": "Actual public provider → isolated file PGlite → query contract; NOT Neon/Vercel production",
+  "receivedAt": "2026-10-06T14:12:45.148Z",
+  "runs": [
+    {
+      "status": "COMPLETE",
+      "jobs": [
+        {
+          "target": "KOSPI",
+          "phase": "complete",
+          "requested": 10,
+          "supported": 834,
+          "nextOffset": 10,
+          "collected": 10,
+          "computed": 10,
+          "errors": 0,
+          "benchmarkFailures": 0,
+          "membershipRows": 2482,
+          "membershipTotal": 2482,
+          "lastRunAt": "2026-10-06T14:12:45.130Z",
+          "lastError": null,
+          "budgetStopped": false,
+          "top": 10
+        }
+      ]
+    }
+  ],
+  "universe": {
+    "kind": "KOSPI",
+    "members": 2482,
+    "asOf": "2026-10-06"
+  },
+  "symbols": [
+    {
+      "symbol": "005930",
+      "bars": [
+        {
+          "price_basis": "yahoo-kr-raw-ohlcv",
+          "source": "yahoo-005930.KS",
+          "day": "2026-10-02",
+          "fetched_at": "2026-10-06 14:12:20.716+00"
+        }
+      ],
+      "features": 25,
+      "last": "2026-10-02",
+      "state": "WATCH"
+    },
+    {
+      "symbol": "000660",
+      "bars": [
+        {
+          "price_basis": "yahoo-kr-raw-ohlcv",
+          "source": "yahoo-000660.KS",
+          "day": "2026-10-02",
+          "fetched_at": "2026-10-06 14:12:22.115+00"
+        }
+      ],
+      "features": 25,
+      "last": "2026-10-02",
+      "state": "WATCH"
+    },
+    {
+      "symbol": "402340",
+      "bars": [
+        {
+          "price_basis": "yahoo-kr-raw-ohlcv",
+          "source": "yahoo-402340.KS",
+          "day": "2026-10-02",
+          "fetched_at": "2026-10-06 14:12:23.657+00"
+        }
+      ],
+      "features": 25,
+      "last": "2026-10-02",
+      "state": "ARMED"
+    },
+    {
+      "symbol": "009150",
+      "bars": [
+        {
+          "price_basis": "yahoo-kr-raw-ohlcv",
+          "source": "yahoo-009150.KS",
+          "day": "2026-10-02",
+          "fetched_at": "2026-10-06 14:12:25.455+00"
+        }
+      ],
+      "features": 25,
+      "last": "2026-10-02",
+      "state": "FOLLOW_THROUGH"
+    },
+    {
+      "symbol": "373220",
+      "bars": [
+        {
+          "price_basis": "yahoo-kr-raw-ohlcv",
+          "source": "yahoo-373220.KS",
+          "day": "2026-10-02",
+          "fetched_at": "2026-10-06 14:12:26.648+00"
+        }
+      ],
+      "features": 25,
+      "last": "2026-10-02",
+      "state": "NEUTRAL"
+    },
+    {
+      "symbol": "005380",
+      "bars": [
+        {
+          "price_basis": "yahoo-kr-raw-ohlcv",
+          "source": "yahoo-005380.KS",
+          "day": "2026-10-02",
+          "fetched_at": "2026-10-06 14:12:28.141+00"
+        }
+      ],
+      "features": 25,
+      "last": "2026-10-02",
+      "state": "NEUTRAL"
+    },
+    {
+      "symbol": "207940",
+      "bars": [
+        {
+          "price_basis": "yahoo-kr-raw-ohlcv",
+          "source": "yahoo-207940.KS",
+          "day": "2026-10-02",
+          "fetched_at": "2026-10-06 14:12:29.608+00"
+        }
+      ],
+      "features": 25,
+      "last": "2026-10-02",
+      "state": "NEUTRAL"
+    },
+    {
+      "symbol": "105560",
+      "bars": [
+        {
+          "price_basis": "yahoo-kr-raw-ohlcv",
+          "source": "yahoo-105560.KS",
+          "day": "2026-10-02",
+          "fetched_at": "2026-10-06 14:12:31.252+00"
+        }
+      ],
+      "features": 25,
+      "last": "2026-10-02",
+      "state": "NEUTRAL"
+    },
+    {
+      "symbol": "032830",
+      "bars": [
+        {
+          "price_basis": "yahoo-kr-raw-ohlcv",
+          "source": "yahoo-032830.KS",
+          "day": "2026-10-02",
+          "fetched_at": "2026-10-06 14:12:32.699+00"
+        }
+      ],
+      "features": 25,
+      "last": "2026-10-02",
+      "state": "WATCH"
+    },
+    {
+      "symbol": "028260",
+      "bars": [
+        {
+          "price_basis": "yahoo-kr-raw-ohlcv",
+          "source": "yahoo-028260.KS",
+          "day": "2026-10-02",
+          "fetched_at": "2026-10-06 14:12:34.121+00"
+        }
+      ],
+      "features": 25,
+      "last": "2026-10-02",
+      "state": "WATCH"
+    }
+  ],
+  "reopened": {
+    "universeRestored": true,
+    "pipeline": {
+      "investible": 10,
+      "bullish": 7,
+      "compressed": 6,
+      "preBreakout": 2
+    },
+    "counts": [
+      {
+        "state": "ARMED",
+        "count": 1
+      },
+      {
+        "state": "FOLLOW_THROUGH",
+        "count": 1
+      },
+      {
+        "state": "NEUTRAL",
+        "count": 4
+      },
+      {
+        "state": "WATCH",
+        "count": 4
+      }
+    ],
+    "dates": {
+      "first": "2026-10-02",
+      "last": "2026-10-02",
+      "stored": 10
+    },
+    "requested": 10,
+    "candidates": 4
+  }
+}

@@ -2,7 +2,7 @@
 
 확인일: 2026-10-06 UTC. 작업 기준: `4fc2d9e7c23e7d41b159a2d1032fe06c312e9d40` (`work`, 작업 시작 시 clean; fetched main과 일치).
 
-**코드와 격리된 DB/브라우저 검증은 완료했지만, 이번 스크리너의 운영 Neon migration·시장 전체 수집·Vercel 연결·예약 실행은 이 환경에서 검증하지 않았다.** 현재 Codex 프로세스의 `DATABASE_URL` 설정 여부는 false다. 이는 사용자가 이미 확인한 키움 PC → Neon → Vercel 경로가 실패했다는 뜻이 아니다. 기존 키움 수집기, 자격증명, 세 지표, SMA, BB, 차트 표시와 저장 설정은 유지한다. 새 스크리너는 공개 가격 자료를 사용하며 키움 자격증명을 요구하지 않는다.
+**2026-10-06 사용자가 제공한 Neon 화면에서 9개 테이블과 `migration_recorded=t`를 확인했다. 운영 화면에는 편입 목록과 가격·계산 결과가 없어 수집이 아직 실행되지 않은 상태다. 이번 후속 수정은 PC 없이 Vercel Hobby와 기존 Neon에서 실행할 보호된 수집 경로를 추가한다. 운영 수집·예약 실행 성공은 아직 검증하지 않았다.** 현재 Codex 프로세스의 `DATABASE_URL` 설정 여부는 false다. 이는 사용자가 이미 확인한 키움 PC → Neon → Vercel 경로가 실패했다는 뜻이 아니다. 기존 키움 수집기, 자격증명, 세 지표, SMA, BB, 차트 표시와 저장 설정은 유지한다. 새 스크리너는 공개 가격 자료를 사용하며 키움 자격증명을 요구하지 않는다.
 
 ## 1. 저장소 감사와 기존 문제
 
@@ -81,7 +81,7 @@ ETF는 한 단계의 검증된 equity만 전개한다. 현금·채권·선물·�
 
 ```mermaid
 flowchart LR
-  U[공개 편입/운용사 자료] --> C[로컬 운영자 CLI]
+  U[공개 편입/운용사 자료] --> C[Vercel 보호된 Cron / 선택적 로컬 CLI]
   P[기존 Naver/Yahoo 일봉] --> C
   C --> D[(기존 Neon PostgreSQL)]
   D --> K[공유 BB/SMA/RSI 계산 및 저장]
@@ -110,9 +110,76 @@ precompute는 한 종목 이력(최대 5,000봉)만 메모리에 두는 2-pass �
 
 가격 source/basis를 섞지 않는다: KR Yahoo raw, KR Naver raw, US Yahoo provider-adjusted. source가 바뀌면 별도 basis. 기업행사·거래량 조정·가격 정정의 당시 vintage는 미검증이다. 기존 가격 API의 fallback이 실제 다른 source이면 정확히 표시하며 Kiwoom로 재라벨링하지 않는다.
 
-수집/DB 변경은 로컬 CLI의 실행자 권한과 명시적 `--live`/`--write`로만 가능하다. 웹에 write/collection endpoint, 개인 broker 키, browser owner ID를 추가하지 않았다. 읽기 함수는 기존 공개 시장자료 정책과 same-site middleware를 유지하고 입력은 Zod로 제한한다. 키·DB URL·환경 전체·민감 응답은 반환/출력하지 않는다. 공개 시장 job 요약/관측 날짜는 운영 비밀이나 계좌자료가 아니다.
+수집/DB 변경은 로컬 CLI의 명시적 `--live`/`--write` 또는 서버 전용 `CRON_SECRET`으로 인증한 `/api/cron/bollinger`에서만 가능하다. 일반 페이지 조회·새로고침은 수집을 시작하지 않는다. 브라우저 owner ID나 dev user를 운영자 권한으로 인정하지 않으며, 개인 broker 키를 이 스크리너에 사용하지 않는다. 읽기 함수는 기존 공개 시장자료 정책과 same-site middleware를 유지하고 입력은 Zod로 제한한다. 키·DB URL·환경 전체·민감 응답은 반환/출력하지 않는다. 공개 시장 job 요약/관측 날짜는 운영 비밀이나 계좌자료가 아니다.
 
-## 6. 기존 PC·Neon·Vercel을 그대로 사용하는 정확한 순서
+## 6. 현재 사용자: Neon + Vercel Hobby만 사용하는 순서
+
+**Node.js 설치, PowerShell, 새 DB 또는 유료 업그레이드가 필요하지 않다.** 사용자가 보여준 Neon 결과 `screener_tables=9`, `migration_recorded=t`는 테이블 준비를 확인한다. `0005`를 다시 실행하지 않는다. 키움 3개 지표 설정도 변경하지 않는다.
+
+### 6.1 Vercel 환경변수 설정
+
+1. Vercel의 현재 **Projects** 화면에서 **k-equity-desk-v4** 프로젝트 카드를 클릭한다.
+2. 프로젝트 위쪽 **Settings**를 클릭한다. 왼쪽 **Environment Variables**로 들어간다. 팀 전체 설정이 아니라 이 프로젝트 설정이다.
+3. 기존 `DATABASE_URL`이 **Production** 환경에 있는지 이름과 적용 환경만 확인한다. 기존 Neon `production` / `neondb`에 연결한 값을 그대로 사용한다. 값 원문을 채팅이나 캡처에 표시하지 않는다.
+4. **Add Environment Variable**을 눌러 아래 두 항목을 추가한다. 적용 환경은 **Production**을 선택하고 **Save**한다. 이미 같은 항목이 있으면 중복 추가하지 말고 상태를 확인한다.
+
+| Key | Value | 용도 |
+| --- | --- | --- |
+| `BOLLINGER_CLOUD_ENABLED` | `true` | 새 공개가격 수집 경로 활성화 |
+| `CRON_SECRET` | 비밀번호 관리자로 생성한 32~256자의 공백 없는 무작위 비밀값 | Vercel 예약/수동 실행의 서버 인증 |
+
+`CRON_SECRET`은 실제로 복사해 입력해야 하는 사용자 소유 비밀값이며 이 표의 설명을 Value에 그대로 넣으면 안 된다. 기존 적합한 `CRON_SECRET`이 있으면 그대로 재사용한다. 비밀값은 채팅·GitHub·URL·브라우저 코드에 넣지 않는다. Vercel의 **Sensitive** 설정을 제공하면 사용한다. 설정 설명·상태 조회는 존재 여부만 반환한다.
+
+추가 설정을 하지 않으면 다음 기본값을 사용한다:
+
+- `BOLLINGER_CLOUD_TARGETS=KOSPI`
+- `BOLLINGER_CLOUD_TOP=20`
+- `BOLLINGER_CLOUD_BUDGET_SECONDS=180`
+
+이 세 값은 선택 사항이다. 처음에는 기본 KOSPI Top20으로 확인한다. KOSDAQ/NASDAQ_LISTED/국내 `ETF:069500`도 설정할 수 있으나, 대상을 늘리면 호출·시간·Neon 저장 용량이 증가한다. 한 실행은 한 대상만 처리하며 여러 대상은 후속 실행으로 진행한다. ALL은 무료 환경에서 하루 한 번에 전체 완료를 보장하지 않는다.
+
+### 6.2 최신 코드를 Production으로 재배포
+
+1. 프로젝트 **Deployments**를 연다.
+2. GitHub `main`의 이번 클라우드 수집 수정 커밋으로 만든 배포를 선택한다. 예전 커밋을 Redeploy하면 새 수집 경로가 없다. 환경변수 변경 전에 자동 배포가 끝났다면 이 최신 배포의 **⋯ → Redeploy**를 실행한다.
+3. 환경이 **Production**, 상태가 **Ready**인지 확인한다. Preview 배포에는 예약이 설치되지 않으며 이 수집 경로도 쓰기를 거부한다.
+4. 이 저장소의 `build`는 migration을 실행하지 않는다. 이번 Codex는 운영 배포·DB 변경·Vercel 요금제 변경을 실행하지 않았다. GitHub 연동에 따른 자동 배포는 사용자의 기존 Vercel 설정에 따른다.
+
+### 6.3 Vercel에서 최초 수집 실행
+
+1. 프로젝트 **Settings → Cron Jobs**를 연다.
+2. `/api/cron/bollinger` 항목을 찾는다. 없으면 최신 Production 배포인지, 새 `vercel.json`이 포함됐는지 확인한다.
+3. 항목의 **Run**을 누른다. Vercel이 `Authorization: Bearer <CRON_SECRET>`으로 실행한다. 이 URL을 일반 브라우저 주소창에서 열면 인증되지 않으므로 수집되지 않는다. 비밀값을 URL 뒤에 붙이지 않는다.
+4. **View Logs** 또는 프로젝트 **Logs**에서 해당 실행을 확인한다. 반환 상태와 DB 진행 상태를 구분한다. HTTP 200이어도 `PARTIAL_BUDGET`, `PARTIAL_ERRORS`, `MEMBERSHIP_FAILED` 등은 완료가 아니다.
+5. `PARTIAL_BUDGET`이면 같은 **Run**을 다시 누른다. Neon에 저장한 편입 페이지/가격 순번/미완료 계산부터 이어받는다. 실행 중 다시 눌러도 공유 DB lease 때문에 중복 수집은 하지 않는다.
+6. `COMPLETE`이면 **선택한 Top20 범위** 완료다. 전체 KOSPI 완료를 뜻하지 않는다. `COMPLETE_WITH_WARNINGS`는 시장 벤치마크 실패, `PARTIAL_ERRORS`는 일부 종목 실패이며 재실행으로 재시도할 수 있다.
+
+예약은 `30 9 * * *`(UTC), **한국시간 18:30 전후 하루 1회**다. Hobby의 예약 실행은 분 단위 정시 실행을 보장하지 않는다. 이 예약은 신호 발생 즉시 감시/알림 전송이 아니다. 하루 실행이 부분 상태로 끝나면 다음 실행이 이어받으며, 최초 채우기는 Run을 반복해서 마칠 수 있다.
+
+### 6.4 실제 사이트에서 확인
+
+1. [운영 스크리너](https://k-equity-desk-v4.vercel.app/bollinger)를 연다. 임시 Preview 주소 대신 이 Production 도메인을 사용한다.
+2. **저장 자료 새로고침**을 누른다. 이 버튼은 조회만 한다.
+3. **클라우드 수집**이 활성인지, 편입/가격/계산 수와 오류가 무엇인지 확인한다. 편입 스냅샷에 KOSPI가 나타나야 한다.
+4. 처음 확인할 때 **관심종목 전체와 교집합**을 해제하고 시장 **KOSPI**, 구성 범위 **Top20**, 전체 섹터를 선택한다. 선택한 관심종목이 수집된 Top20과 겹치지 않으면 결과는 0개다.
+5. 후보 파이프라인의 **선택 범위·가용**과 실제 저장 관측일을 먼저 확인한다. Long Pre-Breakout이나 Squeeze Watch 후보는 시장 조건에 따라 0개가 정상일 수 있다. 후보를 만들려고 조건/가격을 조작하지 않는다.
+6. 후보가 있으면 **근거**를 열고 기준일·출처·점수 근거를 확인한다. 새로고침 후에도 같은 Neon 자료를 읽는지 확인한다.
+
+### 6.5 구현 범위와 제한
+
+수집은 기존 provider/`collectDiscovery`/`precomputeDiscovery`/`getSql()`을 재사용한다. KOSPI/KOSDAQ 편입은 totalCount까지 확인하고 미완료 목록을 완전 스냅샷으로 공개하지 않는다. 날짜가 바뀐 부분 목록과 totalCount 변화는 재시작한다. 수집 도중의 임시 계산은 신호 이벤트를 발행하지 않으며 최종 peer 갱신 단계에서 기록한다. 가격·시장 이력은 source/basis별로 저장하고, SMA200/BBW/상태는 **전체 확보한 일별 이력에서 계산한 뒤** 최근 25봉의 features/context/events만 새 스냅샷에 저장한다. 계산에 25봉만 사용하지 않는다. full-history backtest는 아래 선택적 CLI 또는 별도 운영 연구 경로가 필요하다.
+
+보호된 수집 함수만 Nitro의 `maxDuration="max"`를 요청하며, 다른 함수 설정은 유지한다. 기본 소프트 예산은 180초(설정 20~240초), 시작한 단일 공급자 요청/SQL이 끝난 뒤 checkpoint에서 중단한다. Vercel이 설정한 실제 함수 상한이 이보다 짧으면 마지막 durable checkpoint부터 다시 시작할 수 있지만, 실행 전 생산 배포의 함수 설정을 확인해야 한다. 강제 종료된 lease는 짧은 만료 후 해제된다. 공유 lease는 CLI와 웹 수집을 모두 막는다.
+
+현재 사용자 스크린샷의 Fluid usage는 확인했지만, 실제 Vercel 함수 호출·시간 상한·Cron Run 성공은 이 Codex 환경에서 검증하지 못했다. 공식 안내 및 실제 Vercel 사이트 조회는 이 환경의 네트워크 프록시에서 HTTP 403으로 차단됐다. 아래 공식 페이지를 참고할 수 있다. 이번 수정을 유료 기능 구매나 Static IP 필요 조건으로 설명하지 않는다.
+
+- https://vercel.com/docs/cron-jobs/manage-cron-jobs
+- https://vercel.com/docs/cron-jobs/usage-and-pricing
+- https://vercel.com/docs/functions/configuring-functions/duration
+
+무료 Vercel/Neon도 호출·CPU·DB 저장 할당량이 있다. Top20과 최근 25봉 저장은 최초 운영 확인을 위한 제한이며 무제한 무료 운영이나 전체 시장 완료를 보장하지 않는다. 과거 스냅샷은 보존하며 임의 자동 삭제하지 않는다. Neon 용량을 주기적으로 확인한다.
+
+### 선택적 로컬 CLI — PC를 이미 사용하는 운영자만 해당
 
 **Node.js, Neon, Vercel을 다시 만들지 않는다. 기존 Node22와 저장소를 갱신한다. 기존 키움 예약 작업을 지우거나 교체하지 않는다.** 아래 경로·ID는 설명용 자리표시자이며 실제 비밀 경로/DB URL을 GitHub·채팅·명령행 인자에 넣지 않는다.
 
@@ -260,7 +327,9 @@ historical snapshots/features가 없으면 strict 결과가 비어도 정상이�
 | `scripts/qa-bollinger-discovery.mjs`, `scripts/qa-bollinger-system.mjs` | 격리 DB→브라우저 계약·기존 canvas 회귀·후보 저항선 검사 |
 | 이 문서, `README.md`, `artifacts/bollinger-screener-2/` | 운영 순서·실수신/검사 기록·실제 스크린샷 |
 
-## 10. 검증 결과와 남은 운영 조건
+## 10. 초기 구현 검증과 남은 운영 조건
+
+후속 Neon + Vercel Hobby 수집 경로의 최종 검사·실제 공개 수신 결과는 [BOLLINGER_CLOUD_VERIFICATION.md](BOLLINGER_CLOUD_VERIFICATION.md)를 참고한다. 아래 명령 표는 초기 cbef1db 구현 당시의 결과다.
 
 검사는 운영 DB 없이 실행했다. 넓은 유니버스의 5년 가격/일별 근거 JSON 저장은 실제 DB 용량과 수집 시간에 맞게 배치·보존 범위를 운영자가 정해야 하며 새 유료 DB를 자동 생성하지 않는다. 원자료/브라우저 fixture는 격리된 검사 프로세스에만 존재하며 서비스 코드가 fixture를 import하지 않는다. 아래 결과와 [검증 artifact](artifacts/bollinger-screener-2/)를 함께 읽는다.
 
@@ -290,7 +359,7 @@ QA fixture/스크린샷은 `QA SYNTHETIC`이며 실제 투자 수치나 수익 �
 
 실제 공개 수신(저장 없음): 삼성전자 1,219 일봉(2021-10-06~2026-10-02), NVDA 1,254 일봉(2021-10-06~2026-10-05), KOSPI 전체 listing 2,482행 중 지원 보통주 834, Nasdaq Listed 4,033행 중 지원 3,241, KODEX200(069500) 공식 일별 PDF equity 201/미확인 ID 제외 1. 실제 엔진 분석까지 확인했고 DB write를 요청하지 않았다. [실수신 증거](artifacts/bollinger-screener-2/live-receipts.json). 이를 실제 Vercel 후보 표시/시장 전체 수집 완료로 해석하지 않는다.
 
-운영자가 기존 환경에서 확인해야 할 항목: 같은 Neon DB의 0005 적용, 공식 SP500/Nasdaq100 membership 및 미국 ETF holdings 제공, 전체 대상 수집·precompute 완료와 job partial 재개, OOS용 historical memberships/sector/가격 vintage, 예약 실행 및 delivery, 배포된 `/bollinger`와 저장 후보 차트. 유료 서비스 구매/새 DB 생성/운영 배포/개인 비밀 변경은 수행하지 않았다.
+운영자가 기존 환경에서 확인해야 할 항목: Vercel의 cloud flag/CRON_SECRET과 최신 Production 배포, 공식 SP500/Nasdaq100 membership 및 미국 ETF holdings 제공, 전체 대상 수집·precompute 완료와 job partial 재개, OOS용 historical memberships/sector/가격 vintage, 예약 실행 및 delivery, 배포된 `/bollinger`와 저장 후보 차트. 유료 서비스 구매/새 DB 생성/운영 배포/개인 비밀 변경은 수행하지 않았다.
 
 ## 최종 PASS / PARTIAL / BLOCKED
 
@@ -306,17 +375,19 @@ PASS는 아래에 명시한 **검사 범위**에서의 상태다. UI/fixture PAS
 | S&P500/Nasdaq100·미국 ETF 자동 편입 수신 | PARTIAL | 검증 manifest import 구현. 자동 공식 adapter/운영 데이터 미확보 |
 | 운영 broad sector coverage | PARTIAL | 기존 taxonomy/Unknown 정책·peer ranks 구현. 전체 산업 metadata 확보 필요 |
 | shared DB 저장·upsert·재시작·전역 lease | PASS (격리 DB) | PGlite SQL·file-backed restart. Neon proof와 별개 |
-| 운영 Neon 0005·실수신 저장·다른 프로세스 재조회 | BLOCKED | 현재 프로세스 DATABASE_URL=false; 기존 운영 DB에서 실행 필요 |
+| 운영 Neon 0005 테이블/적용 기록 | PASS (사용자 화면) | screener_tables=9, migration_recorded=t. 앱 서버와 같은 DB인지·실수신 저장은 별도 |
+| 운영 스크리너 실수신 저장·다른 프로세스 재조회 | 검증 대기 | 현재 프로세스 DATABASE_URL=false; 보호된 Vercel 수집 실행 후 확인 |
 | bounded daily 수집·checkpoint·precompute | PASS (코드/모의 DB) | 공유 lease·시간/수량 상한·부분 상태·재개. 운영 광범위 실행 미검증 |
 | DB-only 서버 검색·페이지·브라우저 payload | PASS | 기본 검색에 종목별 가격 API 요청 없음 |
 | 실제 가격 공급자 단일 KR/US 분석 | PASS (수신/계산) | 005930/NVDA 실수신, source/basis/benchmark 확인; 저장/운영 화면 아님 |
 | causal backtest·next-open·OOS·hit ambiguity | PASS (모의) | PIT feature, 비용, censor/embargo, buckets/비교 표본 |
 | 실제 수익성·full PIT/corporate-action vintage | BLOCKED | 과거 편입·정정 당시 가용성·상장폐지·표본 연구 미확보. 모든 report researchOnly |
 | 이벤트 감지·활성 세션 ledger | PASS (모의) | 첫 history 전송 억제·dedup, 기존 알림 재사용 |
-| 24시간 collector/scheduler·실제 delivery ack | BLOCKED | 운영 예약·프로세스 실행/휴면·전송 확인 필요 |
+| Hobby 일별 Cron 수집/재개 | 코드 검증 / 운영 대기 | 하루 1회 config·protected handler·DB resume 구현. 운영 환경변수/배포/Run 필요 |
+| 24시간 감시·실제 delivery ack | BLOCKED | 일별 수집은 즉시 감시/메시지 전송이 아님 |
 | 새 스크리너 dev/production responsive | PASS | Light/Dark × desktop/tablet/mobile 12회 |
 | 기존 price chart·신규 candidate resistance | PASS (fixture canvas) | KR/US/ETF 12회 + workspace 4회; 핵심 기존 함수 보존 |
 | 보통 browser smoke 외부 asset/TLS/브랜딩 | PARTIAL | local assets/JS 정상. 외부 TLS·기존 OG note·일시적 ticker 문구로 baseline 차이 감지, 모바일 ticker 줄바꿈 남음 |
-| 실제 배포 사이트 /bollinger end-to-end | BLOCKED | 운영 0005+데이터+배포 후 점검 필요. 자동 배포 여부는 기존 운영 절차에 따름 |
+| 실제 배포 사이트 /bollinger end-to-end | BLOCKED | 운영 0005는 사용자 화면 확인. 수집 데이터+최신 배포 후 점검 필요. 자동 배포 여부는 기존 운영 절차에 따름 |
 
-총평: **코드 구현 및 격리된 검증 PASS, 운영 데이터·배포·수익 검증 PARTIAL/BLOCKED**. Node/Neon/Vercel 재설치가 아니라 기존 PC 코드 갱신 → 명시적 0005 migration → 기존 DB로 bounded 수집/계산 → 운영 `/bollinger` 점검이 다음 단계다.
+총평: **코드 구현 및 격리된 검증 PASS, 운영 데이터·배포·수익 검증 PARTIAL/BLOCKED**. 현재 사용자의 다음 단계는 6절의 Vercel 환경변수 → 최신 Production 재배포 → Cron Jobs Run → 운영 `/bollinger` 확인이다. PC/Node 설치나 0005 재실행은 필요하지 않다.

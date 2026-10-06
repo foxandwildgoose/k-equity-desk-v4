@@ -1,0 +1,51 @@
+{
+  "url": "http://127.0.0.1:8197/bollinger",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Bollinger Screener 2.0 · Long Pre-Breakout",
+      "hasCanvas": false,
+      "bodyTextLen": 1975,
+      "bodyTextHash": "769d0786ca656f8bcfb7f823e06a72f24694c5d1e1926886e85f6a5260d585f3",
+      "bodyTextPrefix": "지수 수신 중… 실시간: KIS Open API · KRX WebSocket(설정 시) · 백업: 네이버 금융 스냅",
+      "horizontalOverflow": false,
+      "consoleErrors": [
+        "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+        "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+        "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+      ],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/bollinger-cloud/smoke-prod.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Bollinger Screener 2.0 · Long Pre-Breakout",
+      "hasCanvas": false,
+      "bodyTextLen": 1462,
+      "bodyTextHash": "db401bdf4497b9f941bc574db1f4d0e7c81b5c52229380867b8a5beb8995adc3",
+      "bodyTextPrefix": "KX Equity COMMAND 지수 수신 중… 실시간: KIS Open API · KRX WebSocket(설정 ",
+      "horizontalOverflow": false,
+      "consoleErrors": [
+        "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+        "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+        "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+      ],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/bollinger-cloud/smoke-prod-mobile.png"
+    }
+  },
+  "brandWarnings": [
+    "BRAND NOTE: no custom public/og.jpg — the platform will serve the og.grok.me placeholder. Custom cards are the default for games of every kind (DOM board/word games included), whimsical apps, creative tools, and brand-forward pages — only plain utilities (converters, CRUD trackers, admin dashboards) keep the placeholder. If this app is not a plain utility, finish the brand-asset pass per /workspace/.grok/skills/og/SKILL.md."
+  ],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/bollinger-cloud/smoke-prod.json",
+  "divergesFromBaseline": true,
+  "baselineReasons": [
+    "desktop: body text changed (1794 -> 1975 chars, hash mismatch)",
+    "mobile: body text replaced (similar length, page start changed)"
+  ]
+}

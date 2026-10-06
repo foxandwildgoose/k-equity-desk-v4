@@ -2,6 +2,7 @@ import { getDiscoveryStore, type DiscoveryQuery } from "./bollinger-discovery-st
 import { DISCOVERY_DEFAULTS } from "../lib/bollinger/discovery.ts";
 import type { DiscoveryChartContext } from "../lib/bollinger/discovery.ts";
 import { selectUniverse, type TopChoice } from "../lib/bollinger/discovery-universe.ts";
+import { readBollingerCloudConfig, cloudJobScope, safeCloudJob } from "./bollinger-cloud-config.ts";
 
 const safeStatus=(error:unknown)=>error instanceof Error&&["DATABASE_MISSING","MIGRATION_0005_REQUIRED","UNIVERSE_MISSING"].includes(error.message)?error.message:"DATABASE_QUERY_FAILED";
 export async function discoveryChartContext(universeId:string,version:string,market:"KR"|"US",symbol:string):Promise<{status:string;data:DiscoveryChartContext|null}> {
@@ -15,11 +16,13 @@ export async function discoveryChartContext(universeId:string,version:string,mar
 }
 /** Interactive requests are persisted reads only. No market-price or broker imports here. */
 export async function discoveryCatalog() {
+  const configuration=readBollingerCloudConfig(),cloud={...configuration,jobs:[] as ReturnType<typeof safeCloudJob>[]};
   try {
     const store=await getDiscoveryStore();
     const universes=await store.universes();
-    return {status:"READY",version:DISCOVERY_DEFAULTS.version,versions:await store.configurations(),universes:universes.map(u=>({id:u.id,kind:u.kind,label:u.label,asOf:u.asOf,knownAt:u.knownAt,fetchedAt:u.fetchedAt,source:u.source,sourceUrl:u.sourceUrl,historical:u.historical,rankAsOf:u.rankAsOf??null,members:u.members.length,sectors:[...new Set(u.members.map(m=>m.sector))].sort()}))};
-  }catch(error){return {status:safeStatus(error),version:DISCOVERY_DEFAULTS.version,versions:[],universes:[]};}
+    cloud.jobs=await Promise.all(configuration.targets.map(async target=>safeCloudJob((await store.latestJob(cloudJobScope(target,configuration.top)))?.summary??null,target)));
+    return {status:"READY",cloud,version:DISCOVERY_DEFAULTS.version,versions:await store.configurations(),universes:universes.map(u=>({id:u.id,kind:u.kind,label:u.label,asOf:u.asOf,knownAt:u.knownAt,fetchedAt:u.fetchedAt,source:u.source,sourceUrl:u.sourceUrl,historical:u.historical,rankAsOf:u.rankAsOf??null,members:u.members.length,sectors:[...new Set(u.members.map(m=>m.sector))].sort()}))};
+  }catch(error){return {status:safeStatus(error),cloud,version:DISCOVERY_DEFAULTS.version,versions:[],universes:[]};}
 }
 export async function queryDiscovery(q:DiscoveryQuery) {
   try {

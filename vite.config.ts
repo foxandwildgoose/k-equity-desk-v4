@@ -7,6 +7,7 @@ import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { nitro } from "nitro/vite";
+import deploymentConfig from "./vercel.json" with { type: "json" };
 // @ts-expect-error JS plugin alongside the TS vite config
 import { grokPwaPlugin } from "./scripts/grok-pwa-plugin.mjs";
 // @ts-expect-error JS plugin alongside the TS vite config
@@ -180,6 +181,9 @@ export default defineConfig(({ command, isPreview }) => ({
       ? [
           nitro({
             preset: "vercel",
+            // Only the protected collector gets the platform's allowed maximum. Other routes retain their settings.
+            // Jobs keep a shorter checkpointed budget and never run during build.
+            vercel: { config: { crons: deploymentConfig.crons }, functionRules: { "/api/cron/bollinger": { maxDuration: "max" } } },
             // This Nitro/Rolldown version emits an undeclared ssr_exports binding
             // when splitting the Start server entry. Inline server chunks; client
             // chart/code splitting remains unchanged. Verified by production preview.

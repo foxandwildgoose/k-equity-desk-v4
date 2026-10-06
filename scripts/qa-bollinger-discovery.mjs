@@ -12,6 +12,7 @@ import {analyzeDiscovery,DISCOVERY_DEFAULTS,sanitizeDiscoveryConfig} from '../sr
 import {selectUniverse} from '../src/lib/bollinger/discovery-universe.ts';
 import {discoveryBars,discoveryContexts,member,universe} from '../src/lib/bollinger/discovery-fixture.test-data.ts';
 import {eventStudy} from '../src/lib/bollinger/discovery-backtest.ts';
+import {readBollingerCloudConfig,safeCloudJob} from '../src/server/bollinger-cloud-config.ts';
 
 const args=process.argv.slice(2),option=(key,fallback)=>args.includes(key)?args[args.indexOf(key)+1]:fallback;
 const base=option('--base','http://127.0.0.1:8189'),entry=option('--server-entry','/workspace/.onboarding/builds/k-equity-desk-v4/functions/__server.func/index.mjs');
@@ -36,6 +37,8 @@ const browser=await chromium.launch({headless:true,args:['--no-sandbox']});const
 try {
   for(const theme of ['light','dark'])for(const viewport of [{id:'desktop',width:1440,height:900},{id:'tablet',width:768,height:1024},{id:'mobile',width:390,height:844}]) {
     const context=await browser.newContext({viewport:{width:viewport.width,height:viewport.height}}),page=await context.newPage(),calls=[],errors=[];
+    let cloudPhase='complete';
+    const cloudConfig=readBollingerCloudConfig({BOLLINGER_CLOUD_ENABLED:'true',BOLLINGER_CLOUD_TOP:'ALL',CRON_SECRET:'QA_SYNTHETIC_NOT_A_REAL_CRON_SECRET_12345'});
     page.on('pageerror',e=>errors.push(e.message));
     await page.addInitScript(theme=>localStorage.setItem('korea-equity-cc',JSON.stringify({state:{theme,watchlist:['005930'],usWatchlist:['NVDA']},version:4})),theme);
     await page.route('**/_serverFn/**',async route=>{
@@ -45,7 +48,7 @@ try {
       assert(name,`Unmapped server function ${route.request().url().split('/_serverFn/')[1]}`);
       const raw=route.request().method()==='POST'?route.request().postData():new URL(route.request().url()).searchParams.get('payload');
       const payload=raw?fromJSON(JSON.parse(raw)):{};const data=payload.data??payload;calls.push({name,data});let value=null;
-      if(name==='getDiscoveryCatalog')value={status:'READY',version:DISCOVERY_DEFAULTS.version,versions:[DISCOVERY_DEFAULTS.version,custom.version],universes:[kr,us,etf].map(u=>({id:u.id,kind:u.kind,label:u.label,asOf:u.asOf,knownAt:u.knownAt,fetchedAt:u.fetchedAt,source:u.source,historical:false,members:u.members.length,sectors:['Technology','Unknown']}))};
+      if(name==='getDiscoveryCatalog')value={status:'READY',cloud:{...cloudConfig,enabled:cloudPhase!=='disabled',jobs:[safeCloudJob({phase:cloudPhase==='disabled'?'not-started':cloudPhase,top:'ALL',requested:61,supported:61,membershipRows:61,membershipTotal:61,successfulKeys:krMembers.map(m=>`KR:${m.symbol}`),computedKeys:cloudPhase==='complete'?krMembers.map(m=>`KR:${m.symbol}`):[],budgetStopped:cloudPhase==='collect',lastRunAt:'2026-10-06T09:30:00Z'},'KOSPI')]},version:DISCOVERY_DEFAULTS.version,versions:[DISCOVERY_DEFAULTS.version,custom.version],universes:[kr,us,etf].map(u=>({id:u.id,kind:u.kind,label:u.label,asOf:u.asOf,knownAt:u.knownAt,fetchedAt:u.fetchedAt,source:u.source,historical:false,members:u.members.length,sectors:['Technology','Unknown']}))};
       else if(name==='getDiscoveryCandidates')value={status:'READY',...await store.query(data)};
       else if(name==='getDiscoveryUniversePreview'){
         const u=await store.universe(data.universeId),p=selectUniverse(u,data.selection);value={status:'READY',asOf:u.asOf,source:u.source,rankingBasis:p.rankingBasis,total:p.selected.length,supportedCount:p.supportedCount,excludedCount:p.excludedCount,selectedWeight:p.selectedWeight,knownWeight:p.knownWeight,warnings:p.warnings,rows:p.selected.slice(0,50),excluded:p.excluded};
@@ -57,6 +60,11 @@ try {
     try {
       await page.goto(`${base}/bollinger`,{waitUntil:'domcontentloaded'});
       const root=page.getByTestId('bollinger-screener');await root.waitFor();await page.getByRole('button',{name:'근거',exact:true}).or(page.getByRole('button',{name:'선정 근거',exact:true})).first().waitFor();
+      const cloud=page.getByRole('region',{name:'클라우드 수집 상태'});await cloud.waitFor();assert.match(await cloud.innerText(),/선택 범위 계산 완료/);
+      cloudPhase='collect';await page.getByRole('button',{name:'저장 자료 새로고침',exact:true}).click();await page.getByText('시간 예산으로 일시 중단했습니다.',{exact:false}).waitFor();assert.match(await cloud.innerText(),/가격 수집·계산 중/);
+      cloudPhase='disabled';await page.getByRole('button',{name:'저장 자료 새로고침',exact:true}).click();await page.getByText('Vercel 환경변수 BOLLINGER_CLOUD_ENABLED=true',{exact:false}).waitFor();
+      cloudPhase='complete';await page.getByRole('button',{name:'저장 자료 새로고침',exact:true}).click();await page.getByText('선택 범위 계산 완료',{exact:false}).waitFor();
+      assert.equal((await cloud.innerText()).includes('QA_SYNTHETIC_NOT_A_REAL_CRON_SECRET'),false,'operator secret exposed');
       assert.equal(await page.getByRole('button',{name:'Long Pre-Breakout',exact:true}).getAttribute('aria-pressed'),'true');
       assert.equal(await root.getByRole('row').count()>1||await root.locator('article').count()>0,true);
       await page.getByRole('button',{name:'근거',exact:true}).or(page.getByRole('button',{name:'선정 근거',exact:true})).first().click();

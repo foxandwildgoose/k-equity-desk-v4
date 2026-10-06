@@ -39,6 +39,7 @@ import { Route as UsResearchIndexRouteImport } from './routes/us-research.index'
 import { Route as UsResearchReportIdRouteImport } from './routes/us-research.$reportId'
 import { Route as UsSymbolRouteImport } from './routes/us.$symbol'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as ApiCronBollingerRouteImport } from './routes/api.cron.bollinger'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -190,6 +191,11 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCronBollingerRoute = ApiCronBollingerRouteImport.update({
+  id: '/api/cron/bollinger',
+  path: '/api/cron/bollinger',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -222,6 +228,7 @@ export interface FileRoutesByFullPath {
   '/news/': typeof NewsIndexRoute
   '/us-research/': typeof UsResearchIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/cron/bollinger': typeof ApiCronBollingerRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -252,6 +259,7 @@ export interface FileRoutesByTo {
   '/news': typeof NewsIndexRoute
   '/us-research': typeof UsResearchIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/cron/bollinger': typeof ApiCronBollingerRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -285,6 +293,7 @@ export interface FileRoutesById {
   '/news/': typeof NewsIndexRoute
   '/us-research/': typeof UsResearchIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/cron/bollinger': typeof ApiCronBollingerRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -319,6 +328,7 @@ export interface FileRouteTypes {
     | '/news/'
     | '/us-research/'
     | '/api/auth/$'
+    | '/api/cron/bollinger'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -349,6 +359,7 @@ export interface FileRouteTypes {
     | '/news'
     | '/us-research'
     | '/api/auth/$'
+    | '/api/cron/bollinger'
   id:
     | '__root__'
     | '/'
@@ -381,6 +392,7 @@ export interface FileRouteTypes {
     | '/news/'
     | '/us-research/'
     | '/api/auth/$'
+    | '/api/cron/bollinger'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -410,6 +422,7 @@ export interface RootRouteChildren {
   UsSymbolRoute: typeof UsSymbolRoute
   NewsIndexRoute: typeof NewsIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiCronBollingerRoute: typeof ApiCronBollingerRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -624,6 +637,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/cron/bollinger': {
+      id: '/api/cron/bollinger'
+      path: '/api/cron/bollinger'
+      fullPath: '/api/cron/bollinger'
+      preLoaderRoute: typeof ApiCronBollingerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -680,6 +700,7 @@ const rootRouteChildren: RootRouteChildren = {
   UsSymbolRoute: UsSymbolRoute,
   NewsIndexRoute: NewsIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiCronBollingerRoute: ApiCronBollingerRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Local operator only; no web write/collection endpoint. Never emits environment values. */
+/** Optional local operator CLI; cloud operations use the separate protected Cron route. Never emits environment values. */
 import { readFile, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { createServer } from 'vite';

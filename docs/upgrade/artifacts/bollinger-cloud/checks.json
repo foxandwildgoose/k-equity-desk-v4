@@ -1,0 +1,69 @@
+{
+  "all-tests": {
+    "tests": [
+      "224",
+      "522"
+    ],
+    "pass": [
+      "212",
+      "522"
+    ],
+    "fail": [
+      "0",
+      "0"
+    ],
+    "skipped": [
+      "12",
+      "0"
+    ]
+  },
+  "bollinger": {
+    "tests": [
+      "104"
+    ],
+    "pass": [
+      "104"
+    ],
+    "fail": [
+      "0"
+    ],
+    "skipped": [
+      "0"
+    ]
+  },
+  "lint": {
+    "errors": 0,
+    "warnings": 56
+  },
+  "typecheck": {
+    "result": "PASS"
+  },
+  "build": {
+    "result": "PASS",
+    "migrationExecuted": false
+  },
+  "generatedCron": [
+    {
+      "path": "/api/cron/bollinger",
+      "schedule": "30 9 * * *"
+    }
+  ],
+  "generatedFunction": {
+    "handler": "index.mjs",
+    "launcherType": "Nodejs",
+    "shouldAddHelpers": false,
+    "supportsResponseStreaming": true,
+    "runtime": "nodejs22.x",
+    "maxDuration": "max"
+  },
+  "browserSmoke": {
+    "pageErrors": 0,
+    "localAssets": "OK",
+    "externalTls": "existing certificate failures",
+    "baseline": [
+      "desktop: body text changed (1794 -> 1975 chars, hash mismatch)",
+      "mobile: body text replaced (similar length, page start changed)"
+    ],
+    "fixtureFreeCloudStatus": "DISABLED rendered after actual GET response"
+  }
+}

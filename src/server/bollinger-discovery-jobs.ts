@@ -14,22 +14,23 @@ export function contextHistory(bars: BollingerBar[], source: string): Context[] 
 }
 /** Single global DB lease covers this provider's rate budget across processes.
  * The bounded serial runner is deliberately conservative; retries use the same pacing. */
-export async function collectDiscovery(store: DiscoveryStore, universeId: string, provider: PriceProvider, options: { offset?: number; limit?: number; budgetMs?: number; spacingMs?: number; config?: unknown; retrySymbols?:string[]; fetchBenchmarks?: (symbol: typeof BENCHMARKS[keyof typeof BENCHMARKS]) => Promise<{bars:BollingerBar[];source:string}> } = {}) {
+export async function collectDiscovery(store: DiscoveryStore, universeId: string, provider: PriceProvider, options: { offset?: number; limit?: number; budgetMs?: number; spacingMs?: number; config?: unknown; retrySymbols?:string[]; precompute?:boolean; retries?:number; heldLease?:{token:string;seconds:number}; fetchBenchmarks?: (symbol: typeof BENCHMARKS[keyof typeof BENCHMARKS]) => Promise<{bars:BollingerBar[];source:string}> } = {}) {
   const universe=await store.universe(universeId);if(!universe)throw new Error("UNIVERSE_MISSING");
   const config=sanitizeDiscoveryConfig(options.config), members=selectUniverse(universe,{top:"ALL",minWeight:0,sectors:[]}).selected;
-  const jobId=randomUUID(),scope="bollinger:daily-provider",token=randomUUID();
-  if(!await store.lease(scope,token))throw new Error("COLLECTOR_ALREADY_RUNNING");
+  const jobId=randomUUID(),scope="bollinger:daily-provider",token=options.heldLease?.token??randomUUID(),leaseSeconds=options.heldLease?.seconds??900;
+  if(options.heldLease?!await store.renew(scope,token,leaseSeconds):!await store.lease(scope,token,leaseSeconds))throw new Error("COLLECTOR_ALREADY_RUNNING");
   const started=Date.now(),deadline=started+Math.min(options.budgetMs??1_800_000,3_600_000),spacing=Math.max(options.spacingMs??1500,0);
   let nextRequest=0;
-  const summary={jobId,universeId,version:config.version,status:"running",requested:members.length,collected:0,errors:(options.retrySymbols??[]).map(symbol=>({symbol,code:"RETRY_PENDING"})),nextOffset:options.offset??0,storedBars:0,features:0,events:0,precomputeStatus:"pending",benchmarkStatus:{} as Record<string,string>,mode:"daily",notificationDelivery:"not-configured",scheduler:"external-not-verified"};
+  const summary={jobId,universeId,version:config.version,status:"running",requested:members.length,collected:0,updatedSymbols:[] as string[],errors:(options.retrySymbols??[]).map(symbol=>({symbol,code:"RETRY_PENDING"})),nextOffset:options.offset??0,storedBars:0,features:0,events:0,precomputeStatus:options.precompute===false?"deferred":"pending",benchmarkStatus:{} as Record<string,string>,mode:"daily",notificationDelivery:"not-configured",scheduler:"external-not-verified"};
   const paced=async<T>(request:()=>Promise<T>):Promise<T>=>{
     let failure:unknown;
-    for(let attempt=0;attempt<3;attempt++) {
+    const retries=Math.max(1,Math.min(options.retries??3,3));
+    for(let attempt=0;attempt<retries;attempt++) {
       if(Date.now()>=deadline)throw new Error("JOB_BUDGET_EXHAUSTED");
-      if(!await store.renew(scope,token))throw new Error("LEASE_LOST");
+      if(!await store.renew(scope,token,leaseSeconds))throw new Error("LEASE_LOST");
       const pause=Math.max(0,nextRequest-Date.now());if(pause)await new Promise(resolve=>setTimeout(resolve,pause));
       nextRequest=Date.now()+spacing;
-      try{return await request();}catch(error){failure=error;if(attempt<2)await new Promise(resolve=>setTimeout(resolve,500*2**attempt+Math.random()*200));}
+      try{return await request();}catch(error){failure=error;if(attempt<retries-1)await new Promise(resolve=>setTimeout(resolve,500*2**attempt+Math.random()*200));}
     }
     throw failure;
   };
@@ -59,15 +60,22 @@ export async function collectDiscovery(store: DiscoveryStore, universeId: string
         const existing=await store.bars(member.market,member.symbol,basis);
         const response=await paced(()=>provider(member,existing.length<205));
         if(!response.bars.length)throw new Error("NO_HISTORY");
-        summary.storedBars+=await store.saveBars(member,response.bars,response.source,response.basis,new Date().toISOString());
+        const stored=await store.saveBars(member,response.bars,response.source,response.basis,new Date().toISOString());
+        if(!stored)throw new Error("NO_HISTORY");
+        summary.storedBars+=stored;
         summary.collected++;
-      }catch(error){summary.errors.push({symbol:securityKey(member),code:error instanceof Error&&["NO_HISTORY","JOB_BUDGET_EXHAUSTED","LEASE_LOST"].includes(error.message)?error.message:"PRICE_FETCH_FAILED"});}
+        summary.updatedSymbols.push(securityKey(member));
+      }catch(error){
+        if(error instanceof Error&&error.message==="JOB_BUDGET_EXHAUSTED"){summary.status="partial-budget";break;}
+        if(error instanceof Error&&error.message==="LEASE_LOST")throw error;
+        summary.errors.push({symbol:securityKey(member),code:error instanceof Error&&error.message==="NO_HISTORY"?error.message:"PRICE_FETCH_FAILED"});
+      }
       summary.nextOffset=Math.max(summary.nextOffset,i+1);
       // A checkpoint is persisted after each security; explicit resume starts at nextOffset.
       await store.endJob(jobId,"running",summary);
     }
-    try {
-      const precomputed=await precomputeDiscovery(store,universeId,config,async()=>{if(Date.now()>=deadline)throw new Error("JOB_BUDGET_EXHAUSTED");if(!await store.renew(scope,token))throw new Error("LEASE_LOST");});
+    if(options.precompute!==false) try {
+      const precomputed=await precomputeDiscovery(store,universeId,config,async()=>{if(Date.now()>=deadline)throw new Error("JOB_BUDGET_EXHAUSTED");if(!await store.renew(scope,token,leaseSeconds))throw new Error("LEASE_LOST");});
       summary.features=precomputed.features;summary.events=precomputed.events;summary.precomputeStatus="complete";
     }catch(error){
       if(!(error instanceof Error)||error.message!=="JOB_BUDGET_EXHAUSTED")throw error;
@@ -77,12 +85,13 @@ export async function collectDiscovery(store: DiscoveryStore, universeId: string
     await store.endJob(jobId,summary.status,summary);
     return summary;
   }catch(error){summary.status="failed";await store.endJob(jobId,"failed",summary);throw error;}
-  finally{await store.release(scope,token);}
+  finally{if(!options.heldLease)await store.release(scope,token);}
 }
-/** Local-only two-pass SQL precompute. Memory is bounded to one security, not the whole market. */
-export async function precomputeDiscovery(store: DiscoveryStore, universeId: string, raw?:unknown, checkpoint?:()=>Promise<void>) {
+/** Shared two-pass SQL precompute. Memory is bounded to one security, not the whole market. */
+export async function precomputeDiscovery(store: DiscoveryStore, universeId: string, raw?:unknown, checkpoint?:()=>Promise<void>,options:{symbols?:readonly string[];recentDays?:number;storeEvents?:boolean;onSecurityComputed?:(key:string)=>Promise<void>}={}) {
   const universe=await store.universe(universeId);if(!universe)throw new Error("UNIVERSE_MISSING");
-  const config=sanitizeDiscoveryConfig(raw),members=selectUniverse(universe,{top:"ALL",minWeight:0,sectors:[]}).selected;
+  const config=sanitizeDiscoveryConfig(raw),members=selectUniverse(universe,{top:"ALL",minWeight:0,sectors:[]}).selected.filter(m=>!options.symbols||options.symbols.includes(securityKey(m)));
+  const recentDays=options.recentDays===undefined?null:Math.max(1,Math.min(Math.floor(options.recentDays),5000));
   const histories=async(member:SecurityMember)=>{
     const meta=(await store.barMetadata(member)).filter(m=>["yahoo-us-adjusted-ohlcv","yahoo-kr-raw-ohlcv","naver-raw-ohlcv"].includes(m.price_basis)).sort((a,b)=>b.day.localeCompare(a.day)||b.fetched_at.localeCompare(a.fetched_at));
     if(!meta[0])return null;
@@ -90,7 +99,8 @@ export async function precomputeDiscovery(store: DiscoveryStore, universeId: str
   };
   for(const member of members) {
     await checkpoint?.();const history=await histories(member);if(!history)continue;
-    await store.saveContext(universeId,`security:${securityKey(member)}`,contextHistory(history.bars,history.source));
+    const contexts=contextHistory(history.bars,history.source);
+    await store.saveContext(universeId,`security:${securityKey(member)}`,recentDays===null?contexts:contexts.slice(-recentDays));
   }
   const usBenchmark=universe.kind==="NASDAQ100"?"NASDAQ100":universe.kind==="NASDAQ_LISTED"?"NASDAQ_LISTED":"SP500";
   await checkpoint?.();await store.aggregateContexts(universeId,usBenchmark);
@@ -103,8 +113,13 @@ export async function precomputeDiscovery(store: DiscoveryStore, universeId: str
     const security=await store.contextScope(universeId,`security:${securityKey(member)}`),contexts:Record<string,DailyContext>={};
     for(const c of security)contexts[c.asOf]={market:markets.get(c.asOf),sector:sectors.get(c.asOf),rsPercentile:c.rsPercentile??null};
     const result=analyzeDiscovery(history.bars,config,contexts,securityKey(member),{marketCap:member.marketCap});
-    for(let i=0;i<result.candidates.length;i+=500)await store.saveFeatures(universeId,member,result.config.version,result.candidates.slice(i,i+500),history.source,history.basis);
-    await store.saveEvents(universeId,member,result.config.version,result.events);features+=result.candidates.length;events+=result.events.length;securities++;
+    // Calculate on the full real chronological history. Only storage is sliced for bounded cloud work.
+    const candidates=recentDays===null?result.candidates:result.candidates.slice(-recentDays),first=candidates[0]?.date;
+    const detected=recentDays===null?result.events:result.events.filter(e=>first&&e.date>=first);
+    for(let i=0;i<candidates.length;i+=500){await checkpoint?.();await store.saveFeatures(universeId,member,result.config.version,candidates.slice(i,i+500),history.source,history.basis);}
+    if(options.storeEvents!==false)await store.saveEvents(universeId,member,result.config.version,detected);
+    features+=candidates.length;events+=options.storeEvents===false?0:detected.length;securities++;
+    await options.onSecurityComputed?.(securityKey(member));
   }
   return {features,events,version:config.version,securities,priceBasis:"source-separated",delivery:"detected-only"};
 }

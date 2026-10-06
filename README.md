@@ -81,4 +81,4 @@ attachments/       마스터 프롬프트
 
 Grok Build 템플릿(PWA·배너) 파일이 `public/__grok`, `scripts/grok-pwa-*`, `server/` 에 포함되어 있습니다. 배포 시 필요하면 유지하거나 제거하세요.
 
-Bollinger Screener 2.0의 DB 조회 화면·일별 수집 CLI·검증 상태는 [구현 및 기존 PC/Neon/Vercel 실행 순서](docs/upgrade/BOLLINGER_SCREENER_2.md)를 참고하세요. 기존 키움 수집기와 차트 지표는 유지합니다.
+Bollinger Screener 2.0의 DB 조회 화면·보호된 Vercel Hobby 일별 수집·선택적 CLI·검증 상태는 [구현 및 Neon/Vercel 실행 순서](docs/upgrade/BOLLINGER_SCREENER_2.md)를 참고하세요. 기존 키움 수집기와 차트 지표는 유지합니다.
