@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { checkDeploy, DEPLOY_DEPENDENCY_FLOORS, inspectDeployInvariant } from "./check-deploy.mjs";
+import { checkDeploy, DEPLOY_DEPENDENCY_FLOORS, inspectDeployInvariant, inspectVercelCrons } from "./check-deploy.mjs";
 
 function fixture() {
   const dependencies = Object.fromEntries(Object.entries(DEPLOY_DEPENDENCY_FLOORS).map(([name, version]) => [name, `^${version}`]));
@@ -99,6 +99,34 @@ test("ignored output and untracked output are separate required invariants", () 
   assertIssue({ ...fixture(), trackedOutput: null }, "GIT_TRACKING_CHECK_FAILED");
 });
 
+test("Vercel cron validation catches duplicates across project and generated build output", () => {
+  const cron = { path: "/api/cron/bollinger", schedule: "30 9 * * *" };
+  assert.deepEqual(inspectVercelCrons({ crons: [cron] }, { version: 3, crons: [cron] }), {
+    status: "FAIL", issues: ["VERCEL_CRON_DUPLICATED"], cronCount: 2,
+  });
+  assert.deepEqual(inspectVercelCrons({ crons: [cron] }, { version: 3 }), {
+    status: "PASS", issues: [], cronCount: 1,
+  });
+  assert.equal(inspectVercelCrons({}, { version: 3, crons: [cron] }).status, "PASS");
+  for (const configs of [
+    [{ crons: [cron, cron] }, { version: 3 }],
+    [{}, { version: 3, crons: [cron, cron] }],
+  ]) assert.ok(inspectVercelCrons(...configs).issues.includes("VERCEL_CRON_DUPLICATED"));
+  assert.equal(inspectVercelCrons({ crons: [cron] }, {
+    version: 3, crons: [{ ...cron, path: "/api/cron/another" }],
+  }).status, "PASS");
+});
+
+test("Vercel cron validation rejects malformed packaging inputs without returning config values", () => {
+  const secret = "test-only-config-secret";
+  assert.ok(inspectVercelCrons({}, {}).issues.includes("VERCEL_BUILD_OUTPUT_VERSION_INVALID"));
+  for (const config of [{ crons: secret }, { crons: [{ path: secret, schedule: "" }] }]) {
+    const result = inspectVercelCrons(config, { version: 3 });
+    assert.equal(result.status, "FAIL");
+    assert.ok(!JSON.stringify(result).includes(secret));
+  }
+});
+
 test("read-only Git integration catches force-tracked ignored artifacts without modifying them", () => {
   const dir = mkdtempSync(join(tmpdir(), "deploy-guard-test-"));
   const git = (args) => {
@@ -115,6 +143,17 @@ test("read-only Git integration catches force-tracked ignored artifacts without 
     mkdirSync(join(dir, ".vercel/output"), { recursive: true });
     writeFileSync(join(dir, ".vercel/output/config.json"), "fixture-only");
     assert.deepEqual(checkDeploy(dir), { status: "PASS", issues: [] });
+    const cron = { path: "/api/cron/bollinger", schedule: "30 9 * * *" };
+    writeFileSync(join(dir, "vercel.json"), JSON.stringify({ crons: [cron] }));
+    writeFileSync(join(dir, ".vercel/output/config.json"), JSON.stringify({ version: 3, crons: [cron] }));
+    assert.deepEqual(checkDeploy(dir, { buildOutputDir: ".vercel/output" }), {
+      status: "FAIL", issues: ["VERCEL_CRON_DUPLICATED"],
+    });
+    writeFileSync(join(dir, ".vercel/output/config.json"), JSON.stringify({ version: 3 }));
+    assert.deepEqual(checkDeploy(dir, { buildOutputDir: ".vercel/output" }), { status: "PASS", issues: [] });
+    assert.deepEqual(checkDeploy(dir, { buildOutputDir: "missing-build" }), {
+      status: "FAIL", issues: ["VERCEL_BUILD_OUTPUT_READ_FAILED"],
+    });
     git(["add", "-f", ".vercel/output/config.json"]);
     const before = git(["ls-files", "--stage"]);
     assert.deepEqual(checkDeploy(dir), { status: "FAIL", issues: ["VERCEL_OUTPUT_TRACKED"] });

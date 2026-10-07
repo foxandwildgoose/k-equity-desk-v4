@@ -169,4 +169,5 @@ test("job diagnostics never serialize arbitrary nested job fields",()=>{
 test("Hobby uses one daily cron and only the collector requests the maximum function duration",async()=>{
   const vercel=JSON.parse(await readFile(new URL("../../vercel.json",import.meta.url),"utf8"));assert.deepEqual(vercel.crons,[{path:"/api/cron/bollinger",schedule:"30 9 * * *"}]);
   const vite=await readFile(new URL("../../vite.config.ts",import.meta.url),"utf8");assert.match(vite,/functionRules:.*"\/api\/cron\/bollinger".*maxDuration: "max"/);
+  assert.doesNotMatch(vite,/deploymentConfig|config:\s*\{\s*crons:/,"the schedule belongs only in vercel.json, not generated Build Output API config");
 });

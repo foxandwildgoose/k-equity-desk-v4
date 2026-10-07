@@ -2,7 +2,7 @@
 // Read-only packaging guard: never builds, migrates, deploys, or reads secrets.
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { isMainModule, projectRoot } from "./with-app-env.mjs";
 
 export const DEPLOY_DEPENDENCY_FLOORS = Object.freeze({
@@ -80,25 +80,68 @@ export function inspectDeployInvariant({ manifest, lock, outputIgnored, trackedO
   return { status: issues.length ? "FAIL" : "PASS", issues: [...new Set(issues)] };
 }
 
-export function checkDeploy(root = projectRoot()) {
+/** Vercel combines project crons and Build Output API crons before deployment. */
+export function inspectVercelCrons(projectConfig, buildOutputConfig) {
+  const issues = [];
+  if (buildOutputConfig?.version !== 3) issues.push("VERCEL_BUILD_OUTPUT_VERSION_INVALID");
+  const seen = new Set();
+  let cronCount = 0;
+  for (const config of [projectConfig, buildOutputConfig]) {
+    const crons = config?.crons ?? [];
+    if (!Array.isArray(crons)) {
+      issues.push("VERCEL_CRONS_INVALID");
+      continue;
+    }
+    for (const cron of crons) {
+      if (typeof cron?.path !== "string" || !cron.path.startsWith("/") ||
+          typeof cron.schedule !== "string" || !cron.schedule.trim()) {
+        issues.push("VERCEL_CRON_ENTRY_INVALID");
+        continue;
+      }
+      cronCount++;
+      const key = JSON.stringify([cron.path, cron.schedule]);
+      if (seen.has(key)) issues.push("VERCEL_CRON_DUPLICATED");
+      seen.add(key);
+    }
+  }
+  return { status: issues.length ? "FAIL" : "PASS", issues: [...new Set(issues)], cronCount };
+}
+
+export function checkDeploy(root = projectRoot(), { buildOutputDir } = {}) {
   try {
     const manifest = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
     const lock = JSON.parse(readFileSync(join(root, "package-lock.json"), "utf8"));
     const ignored = spawnSync("git", ["check-ignore", "--no-index", "--quiet", "--", ".vercel/output/__deploy_guard__"], { cwd: root });
     const tracked = spawnSync("git", ["ls-files", "-z", "--", ".vercel/output"], { cwd: root, encoding: "utf8" });
-    return inspectDeployInvariant({
+    const result = inspectDeployInvariant({
       manifest,
       lock,
       outputIgnored: ignored.status === 0,
       trackedOutput: tracked.status === 0 ? tracked.stdout.split("\0").filter(Boolean) : null,
     });
+    if (buildOutputDir) {
+      try {
+        const projectConfig = JSON.parse(readFileSync(join(root, "vercel.json"), "utf8"));
+        const buildConfig = JSON.parse(readFileSync(join(resolve(root, buildOutputDir), "config.json"), "utf8"));
+        result.issues.push(...inspectVercelCrons(projectConfig, buildConfig).issues);
+        result.issues = [...new Set(result.issues)];
+      } catch {
+        result.issues.push("VERCEL_BUILD_OUTPUT_READ_FAILED");
+      }
+      result.status = result.issues.length ? "FAIL" : "PASS";
+    }
+    return result;
   } catch {
     return { status: "FAIL", issues: ["DEPLOY_INPUT_READ_FAILED"] };
   }
 }
 
 if (isMainModule(import.meta.url)) {
-  const result = checkDeploy();
+  const args = process.argv.slice(2);
+  const validArgs = args.length === 0 || (args.length === 2 && args[0] === "--build-output" && args[1]);
+  const result = validArgs
+    ? checkDeploy(projectRoot(), { buildOutputDir: args[1] })
+    : { status: "FAIL", issues: ["DEPLOY_ARGUMENTS_INVALID"] };
   console.log(JSON.stringify(result));
   process.exitCode = result.status === "PASS" ? 0 : 1;
 }

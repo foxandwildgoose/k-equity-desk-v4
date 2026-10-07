@@ -1,0 +1,24 @@
+{
+  "checkedAt": "2026-10-07T14:05:54.170Z",
+  "baseCommit": "0f7653e7728774422677cbb4601e66ac5aab95f6",
+  "cliVersion": "62.1.0",
+  "cliSource": "package/dist/commands/build/index.js: mergeCrons",
+  "npmTarballSha512": "FuW5MhOfkOxPhyL+tQbAFmx+M4FpmTvqGSDsD2rP9FWYJt7GG2JKIsIbHOfYR5t/fqQqZrVQC3O2ODhwInEGVA==",
+  "projectCronCount": 1,
+  "generatedCronCount": 0,
+  "officialCliMergedCrons": [
+    {
+      "path": "/api/cron/bollinger",
+      "schedule": "30 9 * * *"
+    }
+  ],
+  "duplicateFixtureMergedCount": 2,
+  "guard": {
+    "status": "PASS",
+    "issues": [],
+    "cronCount": 1
+  },
+  "functionRuntime": "nodejs22.x",
+  "maxDuration": "max",
+  "remoteDeploymentVerified": false
+}

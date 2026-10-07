@@ -39,7 +39,7 @@
 
 날짜 경계를 보완한 뒤 과거 `knownAt`을 사용하던 두 cloud fixture가 실패했다. 공급자 테스트 receipt를 실제 계약처럼 현재 수집 시각으로 수정하고 같은 날짜 no-op/실패 종목 재시도 기대값을 유지했다. 새 날짜 경계 회귀 검사와 전체 검사를 다시 통과했다. 테스트를 삭제하거나 정상 기대값을 완화하지 않았다.
 
-빌드 결과 `config.json`에 `/api/cron/bollinger`, `30 9 * * *`가 포함됐고, 해당 함수의 `.vc-config.json`에는 Node22와 `maxDuration="max"`가 생성됐다. Cron은 저장소 `vercel.json`을 단일 원천으로 build output에도 전달한다. 실제 Vercel이 허용한 상한과 최초 Run 성공은 운영 확인 대상이다. fixture 없는 최종 production 브라우저에서도 실제 GET 서버 함수 응답 후 수집 비활성 안내를 확인했다. 환경변수 없는 local production endpoint는 안전한 `CRON_SECRET_MISSING` HTTP503을 반환했고 DB/시장 수집을 시작하지 않았다.
+초기 `0f7653e`의 빌드 결과에는 예약이 포함됐지만, 실제 Vercel이 저장소와 build output의 예약을 합칠 때의 중복을 당시 검사하지 못했다. 2026-10-07 사용자 배포 화면에서 중복 예약 오류가 확인됐으며 아래 후속 수정에서 해결했다. 예약은 `vercel.json`에만 두고 Nitro build output에는 복사하지 않는다. 해당 함수의 `.vc-config.json`에는 Node22와 `maxDuration="max"`가 생성됐다. 실제 Vercel이 허용한 상한과 최초 Run 성공은 운영 확인 대상이다. fixture 없는 production 브라우저에서도 실제 GET 서버 함수 응답 후 수집 비활성 안내를 확인했다. 환경변수 없는 local production endpoint는 안전한 `CRON_SECRET_MISSING` HTTP503을 반환했고 DB/시장 수집을 시작하지 않았다.
 
 ## 실제 공개 수신 결과
 
@@ -69,3 +69,18 @@
 캡처: [Light desktop](artifacts/bollinger-cloud/screener-light-desktop.png), [Dark desktop](artifacts/bollinger-cloud/screener-dark-desktop.png), [Light mobile](artifacts/bollinger-cloud/screener-light-mobile.png), [Dark mobile](artifacts/bollinger-cloud/screener-dark-mobile.png). [개발 matrix](artifacts/bollinger-cloud/development-verification.json), [최종 production matrix](artifacts/bollinger-cloud/production-verification.json). 캡처에 쓰인 값은 QA SYNTHETIC으로 실제 투자 데이터 증거가 아니다.
 
 운영 환경변수 변경·운영 DB migration·유료 서비스 생성·수동 배포는 실행하지 않았다. GitHub push에 따른 자동 배포 여부는 사용자의 기존 Vercel 연결 설정에 따른다. Hobby는 하루 1회 예약, 기본 Top20은 선택 범위이며 전체 시장·정시 실행·24시간 감시·신호 즉시 전송을 보장하지 않는다.
+
+## 2026-10-07: Vercel 중복 예약 배포 오류 수정
+
+기준 커밋 `0f7653e7728774422677cbb4601e66ac5aab95f6`. 사용자 첨부 로그에서 Vite/Nitro build는 완료됐지만, 출력 배포 단계에서 `A duplicated cron job`으로 실패했다. 경로 `/api/cron/bollinger`와 예약 `30 9 * * *`가 `vercel.json`과 Nitro `vercel.config.crons` 양쪽에 존재한 것이 원인이다. 캐시 해제, Neon 테이블, 사용자의 환경변수 입력 문제가 아니다.
+
+`vite.config.ts`에서 예약 전달만 제거했다. 루트 `vercel.json`의 하루 1회 예약, 보호된 서버 경로, 함수별 최대 실행시간, 기존 수집·재개·DB·인증은 유지했다. 이전의 실제 배포 검증 부족을 인정하고, 검사에서는 두 입력을 함께 검증하도록 보완했다.
+
+- 새 `inspectVercelCrons()`와 `check:deploy -- --build-output <디렉터리>`는 루트 설정과 실제 생성된 Build Output API `config.json`을 읽어 동일 경로/예약 중복을 거부한다. 수정 전 실제 local output에서는 `VERCEL_CRON_DUPLICATED`로 실패했고, 수정 후 출력에서는 PASS다.
+- 사용자 로그와 같은 공식 Vercel CLI `62.1.0` npm 패키지의 SHA512를 registry integrity와 대조했다. CLI의 실제 `mergeCrons()` 함수를 격리 실행해 수정 후 최종 예약이 1개임을 확인했다. 동일 예약을 양쪽에 넣은 회귀 fixture는 2개로 합쳐진다. CLI 전체 배포나 운영 사이트 호출을 실행한 것은 아니다.
+- 생성된 전용 collector 함수 경로와 `maxDuration="max"`가 그대로 남아 있다. 예약은 UTC `30 9 * * *`, 한국시간 18:30 전후다.
+- `npm run typecheck`, `npm test`(script 214 PASS / PowerShell 12 skip, 앱 522 PASS, 총 736 PASS), `npm run lint`(0 errors / 기존 56 warnings), `npm run build`, `npm run check:deploy -- --build-output /workspace/.onboarding/builds/k-equity-desk-v4` 모두 PASS.
+- 개발·production preview의 desktop/mobile 브라우저를 확인했다. 본문 HTTP200, 가로 넘침 없음, uncaught pageerror 0이며 빈 화면이 아니다. 일반 browser-smoke는 외부 리소스 TLS `ERR_CERT_AUTHORITY_INVALID` 때문에 exit2다. 개발 mobile에는 Sidebar Switch 스타일 hydration 경고도 관찰됐다. production에는 그 경고가 없었으며, 이번 수정은 Sidebar·차트·스타일을 변경하지 않는다. smoke 전체를 PASS로 기록하지 않는다. 캡처는 `/workspace/screenshots/cron-fix-dev{,-mobile}.png`, `/workspace/screenshots/cron-fix-production{,-mobile}.png`에 있다.
+- 운영 키·환경변수·Neon migration을 변경하지 않았다. 인증 설정 없는 production preview에서 endpoint는 HTTP503을 반환했으며, 실제 수집 성공으로 보고하지 않는다.
+
+[빌드 출력 및 공식 CLI 병합 증거](artifacts/bollinger-cloud/cron-packaging-verification.json). 수정 커밋의 실제 Vercel 배포와 최초 수집은 여전히 운영 검증 대상이다. `0f7653e` 실패 배포를 다시 Redeploy하면 수정 코드가 반영되지 않으므로 최신 `main`의 `fix: register Bollinger cron only once for Vercel` 배포를 선택해야 한다.

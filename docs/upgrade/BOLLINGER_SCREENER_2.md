@@ -145,6 +145,10 @@ precompute는 한 종목 이력(최대 5,000봉)만 메모리에 두는 2-pass �
 3. 환경이 **Production**, 상태가 **Ready**인지 확인한다. Preview 배포에는 예약이 설치되지 않으며 이 수집 경로도 쓰기를 거부한다.
 4. 이 저장소의 `build`는 migration을 실행하지 않는다. 이번 Codex는 운영 배포·DB 변경·Vercel 요금제 변경을 실행하지 않았다. GitHub 연동에 따른 자동 배포는 사용자의 기존 Vercel 설정에 따른다.
 
+`A duplicated cron job` 오류가 난 `0f7653e` 배포는 이전 코드의 설정 중복이다. 수정된 최신 `main` 배포 설명은 **fix: register Bollinger cron only once for Vercel**이다. 실패한 이전 배포를 반복 Redeploy하지 말고 이 수정 배포를 선택한다. GitHub 연동으로 새 Production 배포가 이미 생성되어 Ready라면 추가 Redeploy는 필요 없다. `Use existing Build Cache`는 예약 중복 오류의 원인이 아니며, 기존 `DATABASE_URL`·`CRON_SECRET`·`BOLLINGER_CLOUD_ENABLED`와 Neon 테이블을 다시 만들 필요가 없다.
+
+예약은 저장소 `vercel.json`에만 정의한다. Nitro의 `vercel.config.crons`에도 같은 예약을 넣으면 Vercel CLI가 두 설정을 합쳐 중복으로 거부한다. 빌드 후 읽기 전용 검사 `npm run check:deploy -- --build-output .vercel/output`로 실제 생성 출력과 저장소 설정을 함께 검증할 수 있다. `output.dir`을 로컬 설정으로 바꾼 환경에서는 그 디렉터리를 지정한다.
+
 ### 6.3 Vercel에서 최초 수집 실행
 
 1. 프로젝트 **Settings → Cron Jobs**를 연다.
