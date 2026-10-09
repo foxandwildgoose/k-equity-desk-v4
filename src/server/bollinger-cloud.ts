@@ -7,6 +7,7 @@ import { completedPriceBars } from "../lib/bollinger/bar-completion.ts";
 import { koreaDay, type KrMembershipProgress } from "./bollinger-membership.ts";
 import type { DiscoveryStore } from "./bollinger-discovery-store.ts";
 import type { BollingerBar } from "../lib/bollinger/types.ts";
+import type { BootstrapBollingerInput } from "../lib/bollinger/collection-request.ts";
 
 type Phase = "membership" | "benchmarks" | "collect" | "refresh" | "complete" | "complete-with-errors";
 type CloudState = {
@@ -24,7 +25,7 @@ export type CloudProviders = {
 const sourceDay=(target:CloudTarget,now:string)=>target==="NASDAQ_LISTED"?new Intl.DateTimeFormat("en-CA",{timeZone:"America/New_York",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(now)):koreaDay(now);
 const isDone=(state:CloudState)=>state.phase==="complete"&&Object.values(state.benchmarkStatus).every(s=>s==="received");
 const terminal=(state:CloudState)=>state.phase==="complete"||state.phase==="complete-with-errors";
-const safeError=(error:unknown,fallback:string)=>error instanceof Error&&["JOB_BUDGET_EXHAUSTED","LEASE_LOST","KR_MEMBERSHIP_CHANGED_RESTART_REQUIRED","MEMBERSHIP_FAILED","COMPUTE_FAILED","DATABASE_QUERY_FAILED"].includes(error.message)?error.message:fallback;
+const safeError=(error:unknown,fallback:string)=>error instanceof Error&&["JOB_BUDGET_EXHAUSTED","LEASE_LOST","KR_MEMBERSHIP_CHANGED_RESTART_REQUIRED","MEMBERSHIP_FAILED","COMPUTE_FAILED","DATABASE_QUERY_FAILED","NO_SELECTION","SELECTION_INVALID","UNIVERSE_UNSUPPORTED"].includes(error.message)?error.message:fallback;
 function fresh(target:CloudTarget,config:BollingerCloudConfig,now:string):CloudState {
   return {schema:2,jobId:randomUUID(),target,top:config.top,sourceDay:sourceDay(target,now),phase:"membership",universeId:null,membership:null,membershipRows:0,membershipTotal:0,requested:0,supported:0,nextOffset:0,successfulKeys:[],provisionalKeys:[],computedKeys:[],pendingCompute:[],errors:[],retryKeys:[],benchmarkKeys:[],benchmarkOffset:0,benchmarkStatus:{},lastRunAt:now,lastError:null,budgetStopped:false,runToken:null,execution:"PAUSED",configVersion:DISCOVERY_DEFAULTS.version,selectedKeys:null};
 }
@@ -49,6 +50,14 @@ function canonicalRequest(request:SelectedBollingerRequest) {
   return {universeId:request.universeId,configVersion:request.configVersion,selection:{top:s.top,minWeight:s.minWeight,sectors:[...new Set(s.sectors)].sort()},...(request.symbols===undefined?{}:{symbols:[...new Set(request.symbols)].sort()})};
 }
 export function selectedBollingerScope(request:SelectedBollingerRequest) {return `bollinger:selected:v1:${createHash("sha256").update(JSON.stringify(canonicalRequest(request))).digest("hex")}`;}
+function canonicalBootstrap(request:BootstrapBollingerInput) {
+  if(typeof request.bootstrapTarget!=="string"||!["KOSPI","KOSDAQ","NASDAQ_LISTED"].includes(request.bootstrapTarget)&&!/^ETF:[0-9A-Z]{6}$/.test(request.bootstrapTarget))throw new Error("UNIVERSE_UNSUPPORTED");
+  const {configVersion,selection,symbols}=canonicalRequest({...request,universeId:"bootstrap"});
+  if(request.bootstrapTarget.startsWith("ETF:")&&![10,20,50,"ALL"].includes(selection.top))throw new Error("SELECTION_INVALID");
+  if(symbols?.length===0)throw new Error("NO_SELECTION");
+  return {bootstrapTarget:request.bootstrapTarget as CloudTarget,configVersion,selection,...(symbols===undefined?{}:{symbols})};
+}
+export function bootstrapBollingerScope(request:BootstrapBollingerInput) {return `bollinger:bootstrap:v1:${createHash("sha256").update(JSON.stringify(canonicalBootstrap(request))).digest("hex")}`;}
 function targetOf(universe:UniverseSnapshot):CloudTarget {
   if(["KOSPI","KOSDAQ","NASDAQ_LISTED"].includes(universe.kind))return universe.kind as CloudTarget;
   const code=/^ETF:([0-9A-Z]{6}):/.exec(universe.id)?.[1];
@@ -56,6 +65,7 @@ function targetOf(universe:UniverseSnapshot):CloudTarget {
   throw new Error("UNIVERSE_UNSUPPORTED");
 }
 type SelectedRun={scope:string;universe:UniverseSnapshot;keys:string[];supported:number;calculation:DiscoveryConfig};
+type BootstrapRun={scope:string;request:ReturnType<typeof canonicalBootstrap>};
 async function resolveSelected(store:DiscoveryStore,request:SelectedBollingerRequest):Promise<SelectedRun> {
   const canonical=canonicalRequest(request),universe=await store.universe(canonical.universeId);
   if(!universe)throw new Error("UNIVERSE_MISSING");targetOf(universe);
@@ -74,8 +84,19 @@ export async function runSelectedBollingerCloud(store:DiscoveryStore,config:Boll
   const selected=await resolveSelected(store,request);
   return runBollingerCloud(store,{...config,targets:[targetOf(selected.universe)],top:request.selection.top},providers,{...options,selected});
 }
+/** Read-only progress does not acquire a lease, import providers, or publish a partial membership. */
+export async function readBootstrapBollingerProgress(store:DiscoveryStore,input:BootstrapBollingerInput) {
+  const request=canonicalBootstrap(input),summary=(await store.latestJob(bootstrapBollingerScope(request)))?.summary??null;
+  const active=typeof summary?.runToken==="string"&&await store.leaseMatches("bollinger:daily-provider",summary.runToken);
+  const state=summary?upgradeState(summary,request.bootstrapTarget,request.selection.top):null;
+  return {status:"READY",jobs:[safeCloudJob(state as unknown as Record<string,unknown>|null,request.bootstrapTarget,active)]};
+}
+export async function runBootstrapBollingerCloud(store:DiscoveryStore,config:BollingerCloudConfig,providers:CloudProviders,input:BootstrapBollingerInput,options:{clock?:()=>number;spacingMs?:number}={}) {
+  const request=canonicalBootstrap(input);
+  return runBollingerCloud(store,{...config,targets:[request.bootstrapTarget],top:request.selection.top},providers,{...options,bootstrap:{scope:bootstrapBollingerScope(request),request}});
+}
 /** One shared DB lease and durable job checkpoints. No background work outlives the request. */
-export async function runBollingerCloud(store:DiscoveryStore,config:BollingerCloudConfig,providers:CloudProviders,options:{clock?:()=>number;spacingMs?:number;selected?:SelectedRun}={}) {
+export async function runBollingerCloud(store:DiscoveryStore,config:BollingerCloudConfig,providers:CloudProviders,options:{clock?:()=>number;spacingMs?:number;selected?:SelectedRun;bootstrap?:BootstrapRun}={}) {
   const clock=options.clock??Date.now,started=clock(),now=()=>new Date(clock()).toISOString();
   const deadline=started+config.budgetSeconds*1000-15000,scope="bollinger:daily-provider",token=randomUUID(),leaseSeconds=config.budgetSeconds+60;
   if(!await store.lease(scope,token,leaseSeconds))return {status:"ALREADY_RUNNING",jobs:[]};
@@ -87,8 +108,11 @@ export async function runBollingerCloud(store:DiscoveryStore,config:BollingerClo
     await store.endJob(state.jobId,status,state);
   };
   const publicJob=()=>safeCloudJob(state as unknown as Record<string,unknown>|null,state!.target,false);
+  const jobScope=(target:CloudTarget)=>options.selected?.scope??options.bootstrap?.scope??cloudJobScope(target,config.top);
   const freshState=(target:CloudTarget)=>{
-    const value=fresh(target,config,now()),selected=options.selected;if(!selected)return value;
+    const value=fresh(target,config,now()),selected=options.selected;
+    if(options.bootstrap)value.configVersion=options.bootstrap.request.configVersion;
+    if(!selected)return value;
     const keys=new Set(selected.keys),members=selectUniverse(selected.universe,{top:"ALL",minWeight:0,sectors:[]}).selected.filter(m=>keys.has(securityKey(m)));
     value.universeId=selected.universe.id;value.configVersion=selected.calculation.version;value.selectedKeys=selected.keys;
     value.requested=members.length;value.supported=selected.supported;value.membershipRows=selected.universe.members.length;value.membershipTotal=selected.universe.members.length;
@@ -108,14 +132,16 @@ export async function runBollingerCloud(store:DiscoveryStore,config:BollingerClo
   };
   try {
     const candidates=await Promise.all(config.targets.map(async target=>{
-      const job=await store.latestJob(options.selected?.scope??cloudJobScope(target,config.top));
+      const job=await store.latestJob(jobScope(target));
       return upgradeState(job?.summary,target,config.top)??freshState(target);
     }));
     // Finish checkpointed work first; a new day gets its own immutable membership snapshot.
     state=candidates.find(s=>!isDone(s)&&s.phase!=="complete-with-errors")??candidates.find(s=>s.sourceDay!==sourceDay(s.target,now()))??candidates.find(s=>s.phase==="complete-with-errors")??null;
     if(!state)return {status:"UP_TO_DATE",jobs:candidates.map(s=>safeCloudJob(s as unknown as Record<string,unknown>,s.target))};
-    if((state.phase==="complete"||state.phase==="complete-with-errors")&&state.sourceDay!==sourceDay(state.target,now()))state=freshState(state.target);
-    await store.startJob(state.jobId,options.selected?.scope??cloudJobScope(state.target,config.top));
+    if((terminal(state)||state.lastError==="NO_SELECTION")&&state.sourceDay!==sourceDay(state.target,now()))state=freshState(state.target);
+    // A completed membership already proved this exact intersection empty; do not fetch it again today.
+    if(options.bootstrap&&state.universeId&&state.lastError==="NO_SELECTION")return {status:"NO_SELECTION",jobs:[publicJob()]};
+    await store.startJob(state.jobId,jobScope(state.target));
     state.budgetStopped=false;state.lastError=null;state.runToken=token;state.execution="RUNNING";
     if(state.phase==="complete-with-errors") {
       state.retryKeys=state.errors.map(e=>e.symbol);state.phase="collect";
@@ -131,12 +157,15 @@ export async function runBollingerCloud(store:DiscoveryStore,config:BollingerClo
           }});
           state.membership=result.progress;
           if(!result.snapshot){await save();continue;}
+          if(options.bootstrap&&targetOf(result.snapshot)!==state.target)throw new Error("UNIVERSE_UNSUPPORTED");
           await store.saveUniverse(result.snapshot);
           state.sourceDay=sourceDay(state.target,result.snapshot.knownAt);
-          const selected=selectUniverse(result.snapshot,{top:config.top,minWeight:0,sectors:[]});
-          state.universeId=result.snapshot.id;state.requested=selected.selected.length;state.supported=selected.supportedCount;
+          const request=options.bootstrap?.request,selected=selectUniverse(result.snapshot,request?.selection??{top:config.top,minWeight:0,sectors:[]});
+          const allowed=request?.symbols===undefined?null:new Set(request.symbols),members=selected.selected.filter(m=>!allowed||allowed.has(securityKey(m)));
+          state.universeId=result.snapshot.id;state.requested=members.length;state.supported=selected.supportedCount;
           state.membershipRows=result.snapshot.members.length;state.membershipTotal=state.membership?.total??result.snapshot.members.length;state.membership=null;
-          state.benchmarkKeys=[...new Set(selected.selected.map(m=>m.market==="KR"?m.exchange==="KOSDAQ"?"KOSDAQ":"KOSPI":result.snapshot!.kind==="NASDAQ_LISTED"?"NASDAQ_LISTED":"SP500"))];
+          if(request){state.selectedKeys=members.map(securityKey);if(!members.length)throw new Error("NO_SELECTION");}
+          state.benchmarkKeys=[...new Set(members.map(m=>m.market==="KR"?m.exchange==="KOSDAQ"?"KOSDAQ":"KOSPI":result.snapshot!.kind==="NASDAQ_LISTED"?"NASDAQ_LISTED":"SP500"))];
           state.phase="benchmarks";await save();
         }catch(error){
           const code=safeError(error,"MEMBERSHIP_FAILED");

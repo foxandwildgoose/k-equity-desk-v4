@@ -33,6 +33,8 @@ const kr={...universe(krMembers),asOf:storedDay,label:'QA SYNTHETIC KOSPI — NO
 const usMembers=[{...member('NVDA'),market:'US',exchange:'NASDAQ',name:'QA SYNTHETIC NVIDIA'},{...member('AAPL'),market:'US',exchange:'NASDAQ',name:'QA SYNTHETIC Apple'}];
 const us={...kr,id:'QA-SYNTHETIC-NASDAQ100',kind:'NASDAQ100',label:'QA SYNTHETIC Nasdaq100',members:usMembers,authoritative:true};
 const etf={...kr,id:'QA-SYNTHETIC-ETF',kind:'ETF',label:'QA SYNTHETIC ETF (069500)',members:[{...krMembers[0],weight:30},{...krMembers[1],weight:20},{...member('444444'),assetType:'cash',weight:50}]};
+const kosdaqMembers=Array.from({length:101},(_,i)=>({...member(String(600000+i)),exchange:'KOSDAQ',name:`QA SYNTHETIC KOSDAQ 종목 ${i+1}`,marketCap:(101-i)*1e12}));
+const kosdaq={...kr,id:'QA-SYNTHETIC-KOSDAQ',kind:'KOSDAQ',label:'QA SYNTHETIC KOSDAQ — NOT MARKET DATA',members:kosdaqMembers};
 for(const u of [kr,us,etf]){await store.saveUniverse(u);for(const m of u.members.filter(m=>m.assetType==='equity'))await store.saveFeatures(u.id,m,DISCOVERY_DEFAULTS.version,result.candidates,'QA SYNTHETIC — NOT MARKET DATA',m.market==='US'?'yahoo-us-adjusted-ohlcv':'yahoo-kr-raw-ohlcv');}
 const custom=sanitizeDiscoveryConfig({squeeze:20});
 await store.saveFeatures(kr.id,krMembers[0],custom.version,result.candidates,'QA SYNTHETIC — NOT MARKET DATA','yahoo-kr-raw-ohlcv');
@@ -40,8 +42,22 @@ const historical=eventStudy([{market:'KR',symbol:'005930',bars,candidates:result
 const browser=await chromium.launch({headless:true,args:['--no-sandbox']});const results=[];
 try {
   for(const theme of ['light','dark'])for(const viewport of [{id:'desktop',width:1440,height:900},{id:'tablet',width:768,height:1024},{id:'mobile',width:390,height:844}]) {
+    // Reset only this isolated fixture's KOSDAQ rows between browser contexts.
+    for(const table of ['bollinger_features','bollinger_members'])await pg.query(`DELETE FROM ${table} WHERE universe_id=$1`,[kosdaq.id]);
+    await pg.query('DELETE FROM bollinger_universes WHERE id=$1',[kosdaq.id]);
     const context=await browser.newContext({viewport:{width:viewport.width,height:viewport.height}}),page=await context.newPage(),calls=[],errors=[];
-    let cloudPhase='complete',operatorAuthorized=false,manualPhase='not-started';
+    let cloudPhase='complete',operatorAuthorized=false,manualPhase='not-started',bootstrapPhase='not-started',kosdaqSaved=false,hideIndexSnapshot=false,hideEtfSnapshot=false;
+    const catalogue=()=>[kr,...(kosdaqSaved?[kosdaq]:[]),...(hideIndexSnapshot?[]:[us]),...(hideEtfSnapshot?[]:[etf])].map(u=>({id:u.id,kind:u.kind,label:u.label,asOf:u.asOf,knownAt:u.knownAt,fetchedAt:u.fetchedAt,source:u.source,historical:false,members:u.members.length,sectors:['Technology','Unknown']}));
+    const selectedJob=data=>{
+      if(manualPhase==='not-started')return null;
+      const selected=[kr,kosdaq,us,etf].find(u=>u.id===data.universeId),keys=selectUniverse(selected,data.selection).selected.map(m=>`${m.market}:${m.symbol}`);
+      return safeCloudJob({schema:2,universeId:data.universeId,configVersion:data.configVersion,phase:manualPhase,execution:manualPhase==='complete'?'COMPLETE':'PAUSED',top:data.selection.top,requested:keys.length,successfulKeys:manualPhase==='complete'?keys:keys.slice(0,20),computedKeys:manualPhase==='complete'?keys:[],budgetStopped:manualPhase==='collect'},selected.kind);
+    };
+    const bootstrapJob=data=>{
+      if(bootstrapPhase==='not-started')return null;
+      const completed=bootstrapPhase==='complete',membershipReady=bootstrapPhase!=='membership',keys=selectUniverse(kosdaq,data.selection).selected.map(m=>`${m.market}:${m.symbol}`),finalized=completed?keys:membershipReady?keys.slice(0,5):[];
+      return safeCloudJob({schema:2,universeId:membershipReady?kosdaq.id:null,configVersion:data.configVersion,phase:bootstrapPhase,execution:completed?'COMPLETE':'PAUSED',top:data.selection.top,requested:membershipReady?keys.length:0,membershipRows:membershipReady?101:40,membershipTotal:101,successfulKeys:membershipReady?keys:[],provisionalKeys:membershipReady?keys:[],computedKeys:finalized,pendingCompute:membershipReady&&!completed?keys.slice(5):[],budgetStopped:!completed},'KOSDAQ');
+    };
     const cloudConfig=readBollingerCloudConfig({BOLLINGER_CLOUD_ENABLED:'true',BOLLINGER_CLOUD_TOP:'ALL',CRON_SECRET:'QA_SYNTHETIC_NOT_A_REAL_CRON_SECRET_12345'});
     page.on('pageerror',e=>errors.push(e.message));
     await page.addInitScript(theme=>localStorage.setItem('korea-equity-cc',JSON.stringify({state:{theme,watchlist:['005930'],usWatchlist:['NVDA']},version:4})),theme);
@@ -52,8 +68,8 @@ try {
       assert(name,`Unmapped server function ${route.request().url().split('/_serverFn/')[1]}`);
       const raw=route.request().method()==='POST'?route.request().postData():new URL(route.request().url()).searchParams.get('payload');
       const payload=raw?fromJSON(JSON.parse(raw)):{};const data=payload.data??payload;calls.push({name,data});let value=null;
-      if(name==='getDiscoveryCatalog')value={status:'READY',cloud:{...cloudConfig,enabled:cloudPhase!=='disabled',jobs:[safeCloudJob({schema:2,execution:cloudPhase==='collect'?'PAUSED':'COMPLETE',phase:cloudPhase==='disabled'?'not-started':cloudPhase,top:'ALL',requested:101,supported:101,membershipRows:101,membershipTotal:101,successfulKeys:krMembers.map(m=>`KR:${m.symbol}`),computedKeys:cloudPhase==='complete'?krMembers.map(m=>`KR:${m.symbol}`):[],budgetStopped:cloudPhase==='collect',lastRunAt:'2026-10-06T09:30:00Z'},'KOSPI')]},version:DISCOVERY_DEFAULTS.version,versions:[DISCOVERY_DEFAULTS.version,custom.version],universes:[kr,us,etf].map(u=>({id:u.id,kind:u.kind,label:u.label,asOf:u.asOf,knownAt:u.knownAt,fetchedAt:u.fetchedAt,source:u.source,historical:false,members:u.members.length,sectors:['Technology','Unknown']}))};
-      else if(name==='getDiscoveryRunProgress'){const keys=selectUniverse(await store.universe(data.universeId),data.selection).selected.map(m=>`${m.market}:${m.symbol}`);value={status:'READY',jobs:[safeCloudJob({schema:2,phase:manualPhase,execution:manualPhase==='complete'?'COMPLETE':'PAUSED',top:data.selection.top,requested:keys.length,successfulKeys:manualPhase==='complete'?keys:keys.slice(0,20),computedKeys:manualPhase==='complete'?keys:[],budgetStopped:manualPhase==='collect'},'KOSPI')]};}
+      if(name==='getDiscoveryCatalog')value={status:'READY',cloud:{...cloudConfig,enabled:cloudPhase!=='disabled',jobs:[safeCloudJob({schema:2,execution:cloudPhase==='collect'?'PAUSED':'COMPLETE',phase:cloudPhase==='disabled'?'not-started':cloudPhase,top:'ALL',requested:101,supported:101,membershipRows:101,membershipTotal:101,successfulKeys:krMembers.map(m=>`KR:${m.symbol}`),computedKeys:cloudPhase==='complete'?krMembers.map(m=>`KR:${m.symbol}`):[],budgetStopped:cloudPhase==='collect',lastRunAt:'2026-10-06T09:30:00Z'},'KOSPI')]},version:DISCOVERY_DEFAULTS.version,versions:[DISCOVERY_DEFAULTS.version,custom.version],universes:catalogue()};
+      else if(name==='getDiscoveryRunProgress'){const job=data.bootstrapTarget?bootstrapJob(data):selectedJob(data);value={status:'READY',jobs:job?[job]:[]};}
       else if(name==='getDiscoveryCandidates')value={status:'READY',...await store.query(data)};
       else if(name==='getDiscoveryUniversePreview'){
         const u=await store.universe(data.universeId),p=selectUniverse(u,data.selection);value={status:'READY',asOf:u.asOf,source:u.source,rankingBasis:p.rankingBasis,total:p.selected.length,supportedCount:p.supportedCount,excludedCount:p.excludedCount,selectedWeight:p.selectedWeight,knownWeight:p.knownWeight,warnings:p.warnings,rows:p.selected.slice(0,50),excluded:p.excluded};
@@ -63,28 +79,43 @@ try {
     });
     await page.route('**/api/bollinger/operator',async route=>{
       const method=route.request().method();
-      if(method==='POST'){const input=JSON.parse(route.request().postData()??'{}');assert.equal(input.secret,'QA_OPERATOR_PASSWORD_ONLY_1234567890');operatorAuthorized=true;}
+      if(method==='POST'){const input=JSON.parse(route.request().postData()??'{}');operatorAuthorized=input.secret==='QA_OPERATOR_PASSWORD_ONLY_1234567890';if(!operatorAuthorized){await route.fulfill({status:401,contentType:'application/json',body:JSON.stringify({authorized:false,status:'OPERATOR_AUTH_REQUIRED'})});return;}}
       if(method==='DELETE')operatorAuthorized=false;
       await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({authorized:operatorAuthorized,status:operatorAuthorized?'OPERATOR_AUTHORIZED':'OPERATOR_AUTH_REQUIRED'})});
     });
     await page.route('**/api/bollinger/collect',async route=>{
       assert.equal(operatorAuthorized,true,'anonymous collector command');
       const data=JSON.parse(route.request().postData()??'{}');calls.push({name:'collectSelected',data});
-      assert.equal(data.universeId,kr.id);assert.equal('budgetSeconds' in data,false);
+      assert.equal('budgetSeconds' in data,false);
+      if(data.bootstrapTarget){
+        assert.equal(data.bootstrapTarget,'KOSDAQ');assert.equal('universeId' in data,false);
+        assert.equal(data.configVersion,custom.version);assert.equal(data.selection.top,20);
+        bootstrapPhase=bootstrapPhase==='membership'?'refresh':bootstrapPhase==='refresh'?'complete':'membership';
+        if(bootstrapPhase!=='membership'){
+          await store.saveUniverse(kosdaq);kosdaqSaved=true;
+          const selectedMembers=selectUniverse(kosdaq,data.selection).selected;
+          for(const m of bootstrapPhase==='complete'?selectedMembers:selectedMembers.slice(0,5))await store.saveFeatures(kosdaq.id,m,data.configVersion,result.candidates,'QA SYNTHETIC — NOT MARKET DATA','yahoo-kr-raw-ohlcv');
+        }
+        await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({status:bootstrapPhase==='complete'?'COMPLETE':'PARTIAL_BUDGET',jobs:[bootstrapJob(data)]})});return;
+      }
+      assert.equal(data.universeId,kr.id);
       manualPhase=manualPhase==='collect'?'complete':'collect';
       if(manualPhase==='complete')for(const m of selectUniverse(kr,data.selection).selected)await store.saveFeatures(kr.id,m,data.configVersion,result.candidates,'QA SYNTHETIC — NOT MARKET DATA','yahoo-kr-raw-ohlcv');
-      await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({status:manualPhase==='complete'?'COMPLETE':'PARTIAL_BUDGET',jobs:[]})});
+      await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({status:manualPhase==='complete'?'COMPLETE':'PARTIAL_BUDGET',jobs:[selectedJob(data)]})});
     });
     const execute=()=>page.getByRole('button',{name:'실행',exact:true}).click();
     const run={theme,viewport:viewport.id,mode:'isolated-synthetic-DB-and-browser',success:false};
     try {
       await page.goto(`${base}/bollinger`,{waitUntil:'domcontentloaded'});
       const root=page.getByTestId('bollinger-screener');await root.waitFor();await page.getByRole('button',{name:'실행',exact:true}).waitFor();await page.getByLabel('편입 스냅샷').locator('option').nth(1).waitFor({state:'attached'});await page.waitForTimeout(300);assert.equal(calls.some(c=>c.name==='getDiscoveryCandidates'),false,'search ran before Execute');await execute();await page.getByRole('button',{name:'근거',exact:true}).or(page.getByRole('button',{name:'선정 근거',exact:true})).first().waitFor();
-      const cloud=page.getByRole('region',{name:'클라우드 수집 상태'});await cloud.waitFor();assert.match(await cloud.innerText(),/실행 완료/);
-      cloudPhase='collect';await page.getByRole('button',{name:'저장 자료 새로고침',exact:true}).click();await page.getByText('이어받기',{exact:false}).first().waitFor();assert.match(await cloud.innerText(),/가격 수집·계산/);
-      cloudPhase='disabled';await page.getByRole('button',{name:'저장 자료 새로고침',exact:true}).click();await page.getByText('Vercel 환경변수 BOLLINGER_CLOUD_ENABLED=true',{exact:false}).waitFor();
-      cloudPhase='complete';await page.getByRole('button',{name:'저장 자료 새로고침',exact:true}).click();await page.getByText('실행 완료',{exact:false}).first().waitFor();
-      assert.equal((await cloud.innerText()).includes('QA_SYNTHETIC_NOT_A_REAL_CRON_SECRET'),false,'operator secret exposed');
+      // Unrelated scheduled KOSPI history must not appear as the user's current execution.
+      assert.equal(await root.getByText('KOSPI · 실행 완료',{exact:true}).count(),0,'unrelated completed cron history shown');
+      assert.equal(await root.getByTestId('bollinger-run-progress').count(),0,'old cron progress rendered before a manual collection');
+      cloudPhase='collect';await page.getByRole('button',{name:'저장 자료 새로고침',exact:true}).click();await page.waitForTimeout(150);
+      assert.equal(await root.getByText('KOSPI · 일시 중단',{exact:true}).count(),0,'unrelated cron history shown');
+      cloudPhase='disabled';await page.getByRole('button',{name:'저장 자료 새로고침',exact:true}).click();await page.waitForTimeout(150);assert.match(await root.innerText(),/클라우드 수집 비활성|BOLLINGER_CLOUD_ENABLED/);
+      cloudPhase='complete';await page.getByRole('button',{name:'저장 자료 새로고침',exact:true}).click();await page.waitForTimeout(150);
+      assert.equal((await root.innerText()).includes('QA_SYNTHETIC_NOT_A_REAL_CRON_SECRET'),false,'operator secret exposed');
       assert.equal(await page.getByRole('button',{name:'Long Pre-Breakout',exact:true}).getAttribute('aria-pressed'),'true');
       assert.equal(await root.getByRole('row').count()>1||await root.locator('article').count()>0,true);
       await page.getByRole('button',{name:'근거',exact:true}).or(page.getByRole('button',{name:'선정 근거',exact:true})).first().click();
@@ -122,6 +153,60 @@ try {
       assert.ok(calls.some(c=>c.name==='getDiscoveryCandidates'&&c.data.asOf===storedDay));
       await page.getByRole('button',{name:'실행 권한 해제',exact:true}).click();
       for(const m of kr.members)await store.saveFeatures(kr.id,m,DISCOVERY_DEFAULTS.version,result.candidates,'QA SYNTHETIC — NOT MARKET DATA','yahoo-kr-raw-ohlcv');
+      // No KOSDAQ snapshot exists in this browser's catalog. Bootstrap must be possible
+      // without pressing a Vercel-only cron command or inventing a universe identifier.
+      const beforeBootstrapDraft=calls.filter(c=>['getDiscoveryCandidates','collectSelected'].includes(c.name)).length;
+      await selector.selectOption('KOSDAQ');await page.getByLabel('구성 범위').selectOption('20');await page.getByLabel('저장된 계산 버전').selectOption(custom.version);await page.getByLabel('조회 기준일').fill(testDay);await page.waitForTimeout(250);
+      assert.equal(await store.universe(kosdaq.id),null,'missing-market test had preexisting persisted universe');
+      assert.equal(await page.getByLabel('편입 스냅샷').locator('option').count(),1,'KOSDAQ fixture was not empty');
+      assert.equal(calls.filter(c=>['getDiscoveryCandidates','collectSelected'].includes(c.name)).length,beforeBootstrapDraft,'missing-market draft edits performed work');
+      assert.equal(await page.getByTestId('bollinger-execute').isEnabled(),true,'Execute deadlocked without snapshot');
+      run.missingUniverseScreenshot=`${out}/missing-kosdaq-${theme}-${viewport.id}.png`;await page.getByTestId('bollinger-execute').scrollIntoViewIfNeeded();await page.screenshot({path:run.missingUniverseScreenshot});
+      const beforePermission=calls.filter(c=>c.name==='collectSelected').length;
+      await execute();await page.getByRole('dialog').waitFor();await page.getByRole('button',{name:'권한 확인 후 실행',exact:true}).waitFor();await page.getByLabel('수집 실행 비밀값').fill('QA_NOT_SUBMITTED_CANCELLED');await page.getByRole('button',{name:'취소',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});
+      assert.equal(calls.filter(c=>c.name==='collectSelected').length,beforePermission,'cancelled bootstrap called collector');
+      assert.equal(await page.getByLabel('수집 실행 비밀값').count(),0,'cancelled password field retained');
+      await execute();await page.getByRole('dialog').waitFor();await page.getByLabel('수집 실행 비밀값').fill('QA_WRONG_OPERATOR_PASSWORD');await page.getByRole('button',{name:'권한 확인 후 실행',exact:true}).click();await page.getByRole('dialog').getByRole('alert').waitFor();
+      assert.equal(calls.filter(c=>c.name==='collectSelected').length,beforePermission,'failed owner authorization called collector');assert.equal(await page.getByLabel('수집 실행 비밀값').inputValue(),'');await page.getByRole('button',{name:'취소',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});
+      await execute();await page.getByRole('dialog').waitFor();await page.getByLabel('수집 실행 비밀값').fill('QA_OPERATOR_PASSWORD_ONLY_1234567890');await page.getByRole('button',{name:'권한 확인 후 실행',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});await page.getByText('시간 예산이 끝났습니다.',{exact:false}).first().waitFor();
+      const firstBootstrap=calls.find(c=>c.name==='collectSelected'&&c.data.bootstrapTarget==='KOSDAQ');assert.ok(firstBootstrap,'permission confirmation did not dispatch bootstrap');assert.equal(await page.getByLabel('편입 스냅샷').locator('option').count(),1,'partial membership became complete snapshot');
+      assert.equal(await store.universe(kosdaq.id),null,'partial membership was persisted as a completed universe');
+      run.pausedBootstrapScreenshot=`${out}/paused-kosdaq-${theme}-${viewport.id}.png`;await page.getByTestId('bollinger-collect').scrollIntoViewIfNeeded();await page.screenshot({path:run.pausedBootstrapScreenshot});
+      // Draft changes do not auto-resume or query. Resume freezes the original exact intent.
+      const bootstrapBeforeEdit=calls.filter(c=>['getDiscoveryCandidates','collectSelected'].includes(c.name)).length;
+      await page.getByLabel('구성 범위').selectOption('50');await page.waitForTimeout(150);assert.equal(calls.filter(c=>['getDiscoveryCandidates','collectSelected'].includes(c.name)).length,bootstrapBeforeEdit);await page.getByLabel('구성 범위').selectOption('20');
+      await page.getByTestId('bollinger-collect').click();
+      await page.getByLabel('편입 스냅샷').locator(`option[value="${kosdaq.id}"]`).waitFor({state:'attached'});
+      await page.waitForFunction(id=>document.querySelector('[aria-label="편입 스냅샷"]')?.value===id,kosdaq.id);
+      await page.waitForTimeout(250);
+      const persistedQuery={universeId:kosdaq.id,configVersion:custom.version,strategy:'long-pre-breakout',selection:firstBootstrap.data.selection,minScore:0,minCoverage:.8,sort:'score',asOf:storedDay,page:1,pageSize:50};
+      assert.equal((await store.query(persistedQuery)).availability.stored,5,'paused collection did not expose only its genuinely stored fixture rows');
+      run.persistedPausedScreenshot=`${out}/persisted-paused-kosdaq-${theme}-${viewport.id}.png`;await page.getByTestId('bollinger-collect').scrollIntoViewIfNeeded();await page.screenshot({path:run.persistedPausedScreenshot});
+      const beforeReload=calls.filter(c=>c.name==='collectSelected').length;
+      await page.reload({waitUntil:'domcontentloaded'});await page.getByTestId('bollinger-screener').waitFor();await page.getByLabel('편입 스냅샷').locator(`option[value="${kosdaq.id}"]`).waitFor({state:'attached'});await page.getByLabel('시장 / 편입 기준').locator('option:checked').filter({hasText:'KOSDAQ'}).waitFor({state:'attached'});
+      assert.equal(calls.filter(c=>c.name==='collectSelected').length,beforeReload,'reload automatically resumed provider collection');
+      assert.equal(await page.getByLabel('시장 / 편입 기준').inputValue(),'KOSDAQ','reload lost selected market');assert.equal(await page.getByLabel('구성 범위').inputValue(),'20','reload lost frozen Top20');assert.equal(await page.getByLabel('저장된 계산 버전').inputValue(),custom.version,'reload lost frozen custom calculation');
+      const publicIntent=await page.evaluate(()=>JSON.parse(sessionStorage.getItem('ked:bollinger:bootstrap-intent:v1')));
+      assert.equal(publicIntent.search.bootstrapTarget,'KOSDAQ');assert.equal(publicIntent.search.universeId,kosdaq.id);
+      assert.equal(Object.keys(publicIntent.search).some(key=>/secret|token|authorized|cookie/i.test(key)),false,'public resume intent stored authorization fields');
+      assert.match(await page.getByTestId('bollinger-collect').innerText(),/수집 이어받기/,'reload lost paused bootstrap scope');
+      await page.getByTestId('bollinger-collect').click();await page.getByText('선택 범위 수집·계산이 완료되었습니다.',{exact:false}).first().waitFor();await page.waitForTimeout(250);
+      const bootstrapRequests=calls.filter(c=>c.name==='collectSelected'&&c.data.bootstrapTarget==='KOSDAQ');assert.equal(bootstrapRequests.length,3);for(const resumed of bootstrapRequests.slice(1))assert.deepEqual(resumed.data,firstBootstrap.data,'resume changed bootstrap selection/version');
+      const completedQuery=await store.query(persistedQuery);assert.equal(completedQuery.availability.stored,20);assert.equal(completedQuery.availability.missingStored,0);
+      run.bootstrapEvidence={initialUniverseMissing:true,membershipPartialNotPublished:true,storedBeforeReload:5,storedAfterCompletion:completedQuery.availability.stored,resumeAfterReload:true,identicalRequests:bootstrapRequests.length,configurationVersion:custom.version,top:20};
+      assert.ok(calls.some(c=>c.name==='getDiscoveryCandidates'&&c.data.universeId===kosdaq.id&&c.data.configVersion===custom.version&&c.data.selection.top===20),'persisted bootstrap universe did not reach candidate query');
+      assert.ok(calls.some(c=>c.name==='getDiscoveryRunProgress'&&c.data.bootstrapTarget==='KOSDAQ'),'bootstrap progress scope was not queried');
+      assert.equal(await root.getByText(/1차 계산 .*상대 강도 최종 계산 전/).count(),0,'completed job falsely marked provisional');
+      assert.equal(await page.evaluate(()=>Object.keys(localStorage).some(k=>/operator|secret|password/i.test(k))),false,'bootstrap password persisted');
+      assert.equal(await page.evaluate(()=>[...Object.values(localStorage),...Object.values(sessionStorage)].some(value=>/QA_OPERATOR_PASSWORD_ONLY_|QA_WRONG_OPERATOR_PASSWORD|QA_NOT_SUBMITTED_CANCELLED/.test(value))),false,'operator fixture secret leaked into browser storage');
+      run.completedBootstrapScreenshot=`${out}/completed-kosdaq-${theme}-${viewport.id}.png`;await page.getByTestId('bollinger-execute').scrollIntoViewIfNeeded();await page.screenshot({path:run.completedBootstrapScreenshot});
+      // Unsupported bootstrap targets and incomplete ETF identifiers have an explicit reason.
+      hideIndexSnapshot=true;hideEtfSnapshot=true;await page.getByRole('button',{name:'저장 자료 새로고침',exact:true}).click();await selector.selectOption('NASDAQ100');await page.waitForTimeout(250);assert.equal(await page.getByTestId('bollinger-execute').isDisabled(),true);assert.match(await root.innerText(),/NASDAQ100|Nasdaq.?100/);assert.match(await root.innerText(),/지원|편입|스냅샷/);
+      await selector.selectOption('SP500');await page.waitForTimeout(150);assert.equal(await page.getByTestId('bollinger-execute').isDisabled(),true);assert.match(await root.innerText(),/SP500/);
+      await selector.selectOption('ETF');await page.getByLabel('ETF 수집 코드').fill('123');await page.waitForTimeout(250);assert.equal(await page.getByTestId('bollinger-execute').isDisabled(),true);assert.match(await root.innerText(),/6자리|6글자|6자/);
+      const beforeUnsupported=calls.filter(c=>c.name==='collectSelected').length;await page.getByLabel('ETF 수집 코드').fill('INVALID');await page.waitForTimeout(150);assert.equal(calls.filter(c=>c.name==='collectSelected').length,beforeUnsupported,'invalid ETF draft fetched a provider');
+      await page.getByLabel('ETF 수집 코드').fill('0233A0');await page.waitForTimeout(150);assert.equal(await page.getByTestId('bollinger-execute').isEnabled(),true,'eligible alphanumeric domestic ETF code rejected');assert.equal(calls.filter(c=>c.name==='collectSelected').length,beforeUnsupported,'valid ETF draft fetched without Execute');
+      await selector.selectOption('KOSDAQ');await page.getByLabel('구성 범위').selectOption('20');await page.waitForTimeout(150);await execute();await page.waitForTimeout(250);
       assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true,'horizontal page overflow');
       assert.equal(calls.some(c=>['getChartData','getBollingerScreener','getChartFlow'].includes(c.name)),false,'implicit provider fetch');
       assert.deepEqual(errors,[]);

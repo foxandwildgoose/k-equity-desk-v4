@@ -1,8 +1,8 @@
 import type { BollingerCloudConfig } from "./bollinger-cloud-config.ts";
-import type { SelectedBollingerInput } from "../lib/bollinger/collection-request.ts";
+import type { BollingerCollectionInput } from "../lib/bollinger/collection-request.ts";
 
 /** Loaded by protected routes only, after operator authorization. Both entry points share one service. */
-export async function runBollingerCollector(config: BollingerCloudConfig, input?: SelectedBollingerInput) {
+export async function runBollingerCollector(config: BollingerCloudConfig, input?: BollingerCollectionInput) {
   const [{ getDiscoveryStore }, runner, prices, { fetchDiscoveryBenchmark }] = await Promise.all([
     import("./bollinger-discovery-store.ts"), import("./bollinger-cloud.ts"),
     import("./bollinger-discovery-providers.ts"), import("./naver-market.ts"),
@@ -17,5 +17,8 @@ export async function runBollingerCollector(config: BollingerCloudConfig, input?
     },
   };
   const store = await getDiscoveryStore();
-  return input ? runner.runSelectedBollingerCloud(store, config, providers, input) : runner.runBollingerCloud(store, config, providers);
+  if (!input) return runner.runBollingerCloud(store, config, providers);
+  return "bootstrapTarget" in input
+    ? runner.runBootstrapBollingerCloud(store, config, providers, input)
+    : runner.runSelectedBollingerCloud(store, config, providers, input);
 }

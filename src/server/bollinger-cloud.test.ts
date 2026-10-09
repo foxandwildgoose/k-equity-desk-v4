@@ -7,11 +7,12 @@ import { PGlite } from "@electric-sql/pglite";
 import { createDiscoveryStore } from "./bollinger-discovery-store.ts";
 import { readBollingerCloudConfig, cloudJobScope, safeCloudJob } from "./bollinger-cloud-config.ts";
 import { handleBollingerCloud } from "./bollinger-cloud-handler.ts";
-import { runBollingerCloud, runSelectedBollingerCloud, readSelectedBollingerProgress, selectedBollingerScope, type SelectedBollingerRequest, type CloudProviders } from "./bollinger-cloud.ts";
+import { runBollingerCloud, runSelectedBollingerCloud, readSelectedBollingerProgress, selectedBollingerScope, runBootstrapBollingerCloud, readBootstrapBollingerProgress, bootstrapBollingerScope, type SelectedBollingerRequest, type CloudProviders } from "./bollinger-cloud.ts";
 import { fetchKrMembershipBatch, koreaDay } from "./bollinger-membership.ts";
 import { collectDiscovery, contextHistory, precomputeDiscovery } from "./bollinger-discovery-jobs.ts";
 import { discoveryBars, member, universe } from "../lib/bollinger/discovery-fixture.test-data.ts";
 import { analyzeDiscovery, sanitizeDiscoveryConfig, DISCOVERY_DEFAULTS } from "../lib/bollinger/discovery.ts";
+import type { BootstrapBollingerInput } from "../lib/bollinger/collection-request.ts";
 const migration=await readFile(new URL("../../migrations/0005_bollinger_discovery.sql",import.meta.url),"utf8");
 const SECRET="QA_ONLY_NOT_A_REAL_OPERATOR_SECRET_12345";
 const environment={BOLLINGER_CLOUD_ENABLED:"true",CRON_SECRET:SECRET};
@@ -269,4 +270,77 @@ test("availability exclusions distinguish missing storage, warmup, stale, covera
     const result=await store.query({universeId:u.id,configVersion:DISCOVERY_DEFAULTS.version,strategy:"squeeze-watch",selection:{top:"ALL",minWeight:0,sectors:[]},page:1,pageSize:50,minScore:50,minCoverage:.8,asOf:"2024-10-29"});
     assert.deepEqual(result.availability,{selected:7,stored:6,missingStored:1,warmup:1,stale:1,lowCoverage:1,strategyMismatch:1,lowScore:1,matched:1});
   }finally{await pg.close();}
+});
+const bootstrapRequest=(overrides:Partial<BootstrapBollingerInput>={}):BootstrapBollingerInput=>({bootstrapTarget:"KOSDAQ",configVersion:DISCOVERY_DEFAULTS.version,selection:{top:10,minWeight:0,sectors:[]},...overrides});
+test("empty KOSDAQ bootstrap checkpoints membership, resumes and applies exact intersection/version without exposing a partial universe",async()=>{
+  const {pg,store}=await database();try{
+    const members=Array.from({length:25},(_,i)=>({...member(String(500000+i)),exchange:"KOSDAQ" as const,marketCap:(100-i)*1e12,sector:i%2?"Technology":"Healthcare"}));
+    let elapsed=0,first=true,memberships=0;const fetched:string[]=[];
+    const p=providers(),version=sanitizeDiscoveryConfig({squeeze:12}).version;
+    const request=bootstrapRequest({configVersion:version,selection:{top:10,minWeight:0,sectors:["Technology"]},symbols:["KR:500001","KR:500007","KR:500023"]});
+    p.membership=async(target,previous,options)=>{
+      memberships++;assert.equal(target,"KOSDAQ");
+      if(first){first=false;elapsed=170000;const progress={nextPage:2,total:25,members:members.slice(0,10),asOf:"2024-10-29",collectionDay:"2024-10-29",startedAt:new Date(time()).toISOString()};await options.onPage(progress);return{progress,snapshot:null};}
+      assert.equal(previous?.nextPage,2);return{progress:null,snapshot:{...universe(members),id:"KOSDAQ:QA-BOOTSTRAP",kind:"KOSDAQ",knownAt:new Date(time()).toISOString(),fetchedAt:new Date(time()).toISOString(),historical:false}};
+    };
+    p.prices=async m=>{fetched.push(m.symbol);return{bars:discoveryBars(303),source:"QA",basis:"yahoo-kr-raw-ohlcv"};};
+    const initial=await runBootstrapBollingerCloud(store,config,p,request,{clock:()=>time()+elapsed,spacingMs:0});
+    assert.equal(initial.status,"PARTIAL_BUDGET");assert.equal(initial.jobs[0]?.universeId,null);assert.equal(initial.jobs[0]?.membershipRows,10);assert.equal(initial.jobs[0]?.execution,"PAUSED");assert.equal((await store.universes()).length,0);
+    const progress=await readBootstrapBollingerProgress(store,request);assert.equal(progress.jobs[0]?.universeId,null);assert.equal(memberships,1,"read-only polling never requests membership");
+    elapsed=0;const complete=await runBootstrapBollingerCloud(store,config,p,request,{clock:()=>time()+elapsed,spacingMs:0});
+    assert.equal(complete.status,"COMPLETE");assert.deepEqual(fetched,["500001","500007"]);assert.equal(complete.jobs[0]?.requested,2);assert.equal(complete.jobs[0]?.computed,2);assert.equal(complete.jobs[0]?.configVersion,version);assert.equal(complete.jobs[0]?.universeId,"KOSDAQ:QA-BOOTSTRAP");
+    assert.equal((await store.featureHistory("KOSDAQ:QA-BOOTSTRAP",members[1]!,version)).length,25);
+    assert.equal((await runBootstrapBollingerCloud(store,config,p,request,{clock:time,spacingMs:0})).status,"UP_TO_DATE");assert.equal(memberships,2);
+    assert.notEqual(bootstrapBollingerScope(request),selectedBollingerScope(selectedRequest({universeId:"KOSDAQ:QA-BOOTSTRAP",selection:request.selection,configVersion:version,symbols:request.symbols})));
+  }finally{await pg.close();}
+});
+test("bootstrap rejects fabricated targets, invalid versions, ETF Top100 and an empty symbol intersection before provider work",async()=>{
+  const {pg,store}=await database();try{
+    let providersCalled=0;const p=providers();p.membership=async()=>{providersCalled++;throw new Error("must not run");};
+    for(const [request,error] of [[bootstrapRequest({bootstrapTarget:"SP500"}),/UNIVERSE_UNSUPPORTED/],[bootstrapRequest({bootstrapTarget:"https://untrusted.example"}),/UNIVERSE_UNSUPPORTED/],[bootstrapRequest({configVersion:"forged"}),/CONFIGURATION_VERSION_INVALID/],[bootstrapRequest({bootstrapTarget:"ETF:069500",selection:{top:100,minWeight:0,sectors:[]}}),/SELECTION_INVALID/],[bootstrapRequest({symbols:[]}),/NO_SELECTION/]] as const)await assert.rejects(runBootstrapBollingerCloud(store,config,p,request,{clock:time,spacingMs:0}),error);
+    assert.equal(providersCalled,0);assert.equal((await store.universes()).length,0);
+  }finally{await pg.close();}
+});
+test("completed bootstrap preserves membership but does not invent prices when its chosen sector has no members",async()=>{
+  const {pg,store}=await database();try{
+    const p=providers();let memberships=0,prices=0,benchmarks=0;
+    p.membership=async()=>{memberships++;return{progress:null,snapshot:{...universe([{...member(),exchange:"KOSDAQ"}]),id:"KOSDAQ:EMPTY-QA",kind:"KOSDAQ",knownAt:new Date(time()).toISOString(),fetchedAt:new Date(time()).toISOString(),historical:false}};};
+    p.prices=async()=>{prices++;throw new Error("must not invent prices");};p.benchmark=async()=>{benchmarks++;throw new Error("empty selection needs no benchmark");};
+    const request=bootstrapRequest({selection:{top:10,minWeight:0,sectors:["Healthcare"]}});
+    const failed=await runBootstrapBollingerCloud(store,config,p,request,{clock:time,spacingMs:0});assert.equal(failed.status,"NO_SELECTION");assert.equal(failed.jobs[0]?.universeId,"KOSDAQ:EMPTY-QA");assert.equal(failed.jobs[0]?.lastError,"NO_SELECTION");assert.equal(failed.jobs[0]?.execution,"FAILED");assert.equal(prices,0);assert.equal(benchmarks,0);assert.equal((await store.universes()).length,1);
+    assert.equal((await runBootstrapBollingerCloud(store,config,p,request,{clock:time,spacingMs:0})).status,"NO_SELECTION");assert.equal(memberships,1);
+  }finally{await pg.close();}
+});
+test("bootstrap partial membership crossing collection days restarts pages through the existing shared membership service",async()=>{
+  const {pg,store}=await database();try{
+    const request=bootstrapRequest(),p=providers();let timestamp=Date.parse("2026-10-06T09:00:00Z"),pageCalls=0;
+    p.membership=async(_target,previous,options)=>{
+      const result=await fetchKrMembershipBatch("KOSDAQ",previous,{maxPages:1,spacingMs:0,now:()=>new Date(timestamp).toISOString(),checkpoint:options.checkpoint,onPage:options.onPage,fetcher:(async url=>{
+        const page=new URL(String(url)).searchParams.get("page");pageCalls++;
+        if(pageCalls===1){assert.equal(page,"1");timestamp+=170000;return listing(["005930"],2);}
+        if(pageCalls===2){assert.equal(page,"1","previous-day pages must restart");return listing(["403870"],2);}
+        assert.equal(page,"2");return listing(["000660"],2);
+      }) as typeof fetch});return{progress:result.progress,snapshot:result.snapshot};
+    };
+    assert.equal((await runBootstrapBollingerCloud(store,config,p,request,{clock:()=>timestamp,spacingMs:0})).status,"PARTIAL_BUDGET");assert.equal((await store.universes()).length,0);
+    timestamp=Date.parse("2026-10-07T09:00:00Z");const complete=await runBootstrapBollingerCloud(store,config,p,request,{clock:()=>timestamp,spacingMs:0});assert.equal(complete.status,"COMPLETE");
+    const snapshot=await store.universe(complete.jobs[0]!.universeId!);assert.deepEqual(snapshot?.members.map(m=>m.symbol),["403870","000660"]);assert.equal(snapshot?.asOf,"2026-10-06","retain the provider observation date");assert.equal(snapshot?.knownAt,"2026-10-07T09:00:00.000Z");assert.equal(pageCalls,3);
+  }finally{await pg.close();}
+});
+test("bootstrap retains completed snapshot, frozen keys and calculation version when a separate DB process resumes after price checkpoint",async()=>{
+  const path=await mkdtemp(join(tmpdir(),"bollinger-bootstrap-test-"));try{
+    const first=await database(path),members=Array.from({length:3},(_,i)=>({...member(String(500000+i)),exchange:"KOSDAQ" as const,marketCap:(3-i)*1e12})),version=sanitizeDiscoveryConfig({squeeze:12}).version;
+    const request=bootstrapRequest({configVersion:version}),received:string[]=[];let elapsed=0;
+    const p=providers();p.membership=async()=>({progress:null,snapshot:{...universe(members),id:"KOSDAQ:DISK-QA",kind:"KOSDAQ",knownAt:new Date(time()).toISOString(),fetchedAt:new Date(time()).toISOString(),historical:false}});
+    p.prices=async m=>{received.push(m.symbol);elapsed=170000;return{bars:discoveryBars(303),source:"QA",basis:"yahoo-kr-raw-ohlcv"};};
+    const partial=await runBootstrapBollingerCloud(first.store,config,p,request,{clock:()=>time()+elapsed,spacingMs:0});
+    assert.equal(partial.status,"PARTIAL_BUDGET");assert.equal(partial.jobs[0]?.universeId,"KOSDAQ:DISK-QA");assert.equal(partial.jobs[0]?.collected,1);
+    const originalJob=(await first.store.latestJob(bootstrapBollingerScope(request)))!;assert.deepEqual(originalJob.summary.selectedKeys,["KR:500000","KR:500001","KR:500002"]);await first.pg.close();
+    const second=await database(path);elapsed=0;p.membership=async()=>{throw new Error("completed membership must remain frozen across process/date changes");};
+    p.prices=async m=>{received.push(m.symbol);return{bars:discoveryBars(303),source:"QA",basis:"yahoo-kr-raw-ohlcv"};};
+    const resumed=await runBootstrapBollingerCloud(second.store,config,p,request,{clock:()=>time()+86400000+elapsed,spacingMs:0});
+    assert.equal(resumed.status,"COMPLETE");assert.equal(resumed.jobs[0]?.computed,3);assert.equal(resumed.jobs[0]?.universeId,"KOSDAQ:DISK-QA");assert.equal(resumed.jobs[0]?.configVersion,version);assert.deepEqual(received,["500000","500001","500002"]);
+    assert.equal((await second.store.latestJob(bootstrapBollingerScope(request)))?.id,originalJob.id);assert.equal((await second.store.universes()).length,1);assert.equal((await second.store.featureHistory("KOSDAQ:DISK-QA",members[0]!,version)).length,25);
+    assert.equal((await readBootstrapBollingerProgress(second.store,request)).jobs[0]?.execution,"COMPLETE");await second.pg.close();
+  }finally{await rm(path,{recursive:true,force:true});}
 });

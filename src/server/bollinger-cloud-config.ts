@@ -20,7 +20,7 @@ export const cloudJobScope = (target:CloudTarget,top:BollingerCloudConfig["top"]
 export function safeCloudJob(summary:Record<string,unknown>|null,target:CloudTarget,leaseActive=false) {
   const count=(name:string)=>typeof summary?.[name]==="number"&&Number.isFinite(summary[name])?Math.max(0,summary[name] as number):0;
   const phases=["membership","benchmarks","collect","refresh","complete","complete-with-errors"];
-  const failures=["MEMBERSHIP_FAILED","KR_MEMBERSHIP_CHANGED_RESTART_REQUIRED","BENCHMARK_FAILED","PRICE_FETCH_FAILED","NO_HISTORY","COMPUTE_FAILED","DATABASE_QUERY_FAILED","LEASE_LOST"];
+  const failures=["MEMBERSHIP_FAILED","KR_MEMBERSHIP_CHANGED_RESTART_REQUIRED","BENCHMARK_FAILED","PRICE_FETCH_FAILED","NO_HISTORY","COMPUTE_FAILED","DATABASE_QUERY_FAILED","LEASE_LOST","NO_SELECTION","SELECTION_INVALID","UNIVERSE_UNSUPPORTED"];
   const phase=phases.includes(String(summary?.phase))?String(summary?.phase):"not-started";
   const terminal=phase==="complete"||phase==="complete-with-errors";
   const execution=phase==="not-started"?"NOT_STARTED":leaseActive?"RUNNING":terminal?"COMPLETE":summary?.execution==="FAILED"||summary?.lastError?"FAILED":summary?.budgetStopped===true||summary?.execution==="PAUSED"?"PAUSED":"INTERRUPTED";

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { applyDiscoverySearch, discoverySearchSignature, discoveryResultState, DISCOVERY_EXECUTION_LABELS } from "./discovery-execution.ts";
+import { applyDiscoverySearch, discoverySearchSignature, discoveryResultState, discoveryBootstrapTarget, discoveryCollectionRequest, canBindBootstrapToDraft, saveDiscoveryBootstrapIntent, loadDiscoveryBootstrapIntent, DISCOVERY_BOOTSTRAP_SESSION_KEY, DISCOVERY_EXECUTION_LABELS } from "./discovery-execution.ts";
 
 const draft = () => ({ universeId: "kospi-snapshot", configVersion: "long-daily-2.0.0", strategy: "long-pre-breakout" as const,
   selection: { top: 100 as const, minWeight: 0, sectors: ["IT"] }, symbols: ["KR:005930"],
@@ -42,4 +42,38 @@ test("inactive persisted phases are visibly paused or interrupted, never called 
   assert.match(DISCOVERY_EXECUTION_LABELS.PAUSED, /이어받기 대기/);
   assert.match(DISCOVERY_EXECUTION_LABELS.INTERRUPTED, /중단/);
   assert.equal(DISCOVERY_EXECUTION_LABELS.RUNNING, "실행 중");
+});
+test("supported missing universes have explicit bootstrap targets while verified index membership is never substituted", () => {
+  assert.equal(discoveryBootstrapTarget("KOSDAQ", ""), "KOSDAQ");
+  assert.equal(discoveryBootstrapTarget("NASDAQ_LISTED", ""), "NASDAQ_LISTED");
+  for (const kind of ["SP500", "NASDAQ100", "WATCHLIST", "MANUAL"] as const) assert.equal(discoveryBootstrapTarget(kind, ""), null);
+  assert.equal(discoveryBootstrapTarget("ETF", "069500"), "ETF:069500");
+  assert.equal(discoveryBootstrapTarget("ETF", "KODEX"), null); assert.equal(discoveryBootstrapTarget("ETF", "QQQ"), null);
+});
+test("bootstrap operation retains exact progress scope after binding acquired snapshot and keeps search choices frozen", () => {
+  const intent = applyDiscoverySearch({ ...draft(), universeId: "", bootstrapTarget: "KOSDAQ" }, "2026-10-09");
+  const request = discoveryCollectionRequest(intent);
+  assert.ok(request && "bootstrapTarget" in request); assert.equal(request.bootstrapTarget, "KOSDAQ");
+  assert.deepEqual(discoveryCollectionRequest({ ...intent, universeId: "actual-kosdaq" }), request);
+  assert.notEqual(discoverySearchSignature(intent), discoverySearchSignature({ ...intent, bootstrapTarget: "KOSPI" }));
+  assert.equal(canBindBootstrapToDraft(intent, intent, "actual-kosdaq", "KOSDAQ"), true);
+  assert.equal(canBindBootstrapToDraft(intent, { ...intent, universeId: "actual-kosdaq", bootstrapTarget: undefined }, "actual-kosdaq", "KOSDAQ"), true);
+  assert.equal(canBindBootstrapToDraft(intent, intent, "actual-kosdaq", "KOSPI"), false);
+  assert.equal(canBindBootstrapToDraft(intent, { ...intent, selection: { ...intent.selection, top: 20 } }, "actual-kosdaq", "KOSDAQ"), false);
+  assert.equal(canBindBootstrapToDraft(intent, { ...intent, universeId: "user-selected-other" }, "actual-kosdaq", "KOSDAQ"), false);
+  assert.equal(discoveryCollectionRequest({ ...draft(), universeId: "", bootstrapTarget: undefined }), null);
+});
+test("reload restores bounded public bootstrap intent, including acquired ID, without replacing exact resume scope", () => {
+  const values=new Map<string,string>(),storage={getItem:(key:string)=>values.get(key)??null,setItem:(key:string,value:string)=>{values.set(key,value);},removeItem:(key:string)=>{values.delete(key);}};
+  const intent=applyDiscoverySearch({...draft(),universeId:"actual-kosdaq",bootstrapTarget:"KOSDAQ",selection:{top:20,minWeight:0,sectors:[]}},"2026-10-09");
+  saveDiscoveryBootstrapIntent(storage,intent);
+  const restored=loadDiscoveryBootstrapIntent(storage);assert.deepEqual(restored,intent);
+  assert.deepEqual(discoveryCollectionRequest(restored!),discoveryCollectionRequest(intent));
+  assert.doesNotMatch(values.get(DISCOVERY_BOOTSTRAP_SESSION_KEY)!,/secret|token|authorized|cookie/i);
+  saveDiscoveryBootstrapIntent(storage,draft());assert.equal(loadDiscoveryBootstrapIntent(storage),null);
+  values.set(DISCOVERY_BOOTSTRAP_SESSION_KEY,"{invalid");assert.equal(loadDiscoveryBootstrapIntent(storage),null);
+  values.set(DISCOVERY_BOOTSTRAP_SESSION_KEY,JSON.stringify({v:1,search:{...intent,secret:"not-allowed"}}));assert.equal(loadDiscoveryBootstrapIntent(storage),null);
+  values.set(DISCOVERY_BOOTSTRAP_SESSION_KEY,JSON.stringify({v:1,search:{...intent,selection:{...intent.selection,top:999}}}));assert.equal(loadDiscoveryBootstrapIntent(storage),null);
+  const blocked={getItem:()=>{throw new Error("blocked");},setItem:()=>{throw new Error("blocked");},removeItem:()=>{throw new Error("blocked");}};
+  assert.equal(loadDiscoveryBootstrapIntent(blocked),null);assert.doesNotThrow(()=>saveDiscoveryBootstrapIntent(blocked,intent));
 });

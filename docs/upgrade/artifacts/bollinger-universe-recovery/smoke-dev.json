@@ -1,0 +1,50 @@
+{
+  "url": "http://127.0.0.1:8080/bollinger",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Bollinger Screener 2.0 · Long Pre-Breakout",
+      "hasCanvas": false,
+      "bodyTextLen": 2024,
+      "bodyTextHash": "4828030d2b2d0ab837a87ed96a83d100f71dfec176926dd71a12ef2fe6756cce",
+      "bodyTextPrefix": "실시간: KIS Open API · KRX WebSocket(설정 시) · 백업: 네이버 금융 스냅샷 · 리포트: ",
+      "horizontalOverflow": false,
+      "consoleErrors": [
+        "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+        "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+        "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+        "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+        "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+        "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+      ],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/bollinger-universe-recovery/smoke-dev.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Bollinger Screener 2.0 · Long Pre-Breakout",
+      "hasCanvas": false,
+      "bodyTextLen": 1692,
+      "bodyTextHash": "7fc1fde78f084a7b116f4f8ee845cd8c348e73ca03574602d563ad6cd094478e",
+      "bodyTextPrefix": "KX Equity COMMAND 지수 수신 중… 실시간: KIS Open API · KRX WebSocket(설정 ",
+      "horizontalOverflow": false,
+      "consoleErrors": [
+        "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+        "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+        "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+        "Failed to load resource: the server responded with a status of 503 ()"
+      ],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/bollinger-universe-recovery/smoke-dev-mobile.png"
+    }
+  },
+  "brandWarnings": [
+    "BRAND NOTE: no custom public/og.jpg — the platform will serve the og.grok.me placeholder. Custom cards are the default for games of every kind (DOM board/word games included), whimsical apps, creative tools, and brand-forward pages — only plain utilities (converters, CRUD trackers, admin dashboards) keep the placeholder. If this app is not a plain utility, finish the brand-asset pass per /workspace/.grok/skills/og/SKILL.md."
+  ],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/bollinger-universe-recovery/smoke-dev.json"
+}
