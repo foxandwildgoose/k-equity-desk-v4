@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { applyDiscoverySearch, discoverySearchSignature, discoveryResultState, discoveryBootstrapTarget, discoveryCollectionRequest, canBindBootstrapToDraft, saveDiscoveryBootstrapIntent, loadDiscoveryBootstrapIntent, DISCOVERY_BOOTSTRAP_SESSION_KEY, DISCOVERY_EXECUTION_LABELS } from "./discovery-execution.ts";
+import { applyDiscoverySearch, applyDiscoveryStrategy, discoveryCollectionSelectionSignature, discoverySearchSignature, discoveryResultState, discoveryBootstrapTarget, discoveryCollectionRequest, canBindBootstrapToDraft, saveDiscoveryBootstrapIntent, loadDiscoveryBootstrapIntent, DISCOVERY_BOOTSTRAP_SESSION_KEY, DISCOVERY_EXECUTION_LABELS } from "./discovery-execution.ts";
 
 const draft = () => ({ universeId: "kospi-snapshot", configVersion: "long-daily-2.0.0", strategy: "long-pre-breakout" as const,
   selection: { top: 100 as const, minWeight: 0, sectors: ["IT"] }, symbols: ["KR:005930"],
@@ -42,6 +42,18 @@ test("inactive persisted phases are visibly paused or interrupted, never called 
   assert.match(DISCOVERY_EXECUTION_LABELS.PAUSED, /이어받기 대기/);
   assert.match(DISCOVERY_EXECUTION_LABELS.INTERRUPTED, /중단/);
   assert.equal(DISCOVERY_EXECUTION_LABELS.RUNNING, "실행 중");
+});
+test("strategy and read filters change the results without changing a resumable collection selection", () => {
+  const original=applyDiscoverySearch({...draft(),bootstrapTarget:"KOSDAQ"},"2026-10-09");
+  const next=applyDiscoveryStrategy(original,"squeeze-watch");
+  assert.equal(original.strategy,"long-pre-breakout");assert.equal(next.strategy,"squeeze-watch");
+  assert.notEqual(discoverySearchSignature(next),discoverySearchSignature(original));
+  assert.equal(discoveryCollectionSelectionSignature(next),discoveryCollectionSelectionSignature(original));
+  assert.deepEqual(discoveryCollectionRequest(next),discoveryCollectionRequest(original));
+  assert.equal(discoveryCollectionSelectionSignature({...next,minScore:70,minCoverage:.95,sort:"distance",asOf:"2026-10-02"}),discoveryCollectionSelectionSignature(original));
+  for(const change of [{universeId:"other"},{configVersion:"other"},{selection:{...next.selection,top:20 as const}},{symbols:["KR:000660"]}])assert.notEqual(discoveryCollectionSelectionSignature({...next,...change}),discoveryCollectionSelectionSignature(original));
+  const missing={...original,universeId:""};
+  assert.equal(canBindBootstrapToDraft(missing,{...missing,strategy:"squeeze-watch"},"acquired","KOSDAQ"),true);
 });
 test("supported missing universes have explicit bootstrap targets while verified index membership is never substituted", () => {
   assert.equal(discoveryBootstrapTarget("KOSDAQ", ""), "KOSDAQ");

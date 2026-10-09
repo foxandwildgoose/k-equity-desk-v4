@@ -1,0 +1,39 @@
+{
+  "checkedAt": "2026-10-09",
+  "baseline": "fc54e44dd0946782fa81b24e072acd4be4d6911c",
+  "dataScope": "Synthetic fixture in isolated PGlite; no real production Neon or broker verification",
+  "checks": {
+    "typecheck": "PASS",
+    "npmTest": {
+      "scriptTestsPassed": 214,
+      "scriptTestsSkipped": 12,
+      "appTestsPassed": 577,
+      "failed": 0
+    },
+    "lint": {
+      "errors": 0,
+      "warnings": 57
+    },
+    "productionBuild": "PASS",
+    "deployPackaging": "PASS",
+    "investorProductionBrowserCases": {
+      "passed": 6,
+      "failed": 0
+    },
+    "htsRegressionBrowserCases": {
+      "passed": 6,
+      "failed": 0
+    },
+    "genericSmoke": {
+      "devExit": 2,
+      "productionExit": 2,
+      "uncaughtPageErrors": 0,
+      "notes": "External certificate/resource errors and dynamic page-prefix baseline divergence are recorded separately."
+    }
+  },
+  "liveProduction": {
+    "status": "NOT_VERIFIED",
+    "reason": "Environment proxy refused CONNECT to production URL with HTTP 403; no production DATABASE_URL configured here"
+  },
+  "migrations": "No new migration or operational DB mutation"
+}

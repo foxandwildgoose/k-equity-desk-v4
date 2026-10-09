@@ -136,6 +136,8 @@ export type ChartMarkerInput = ChartEventInput;
 
 export interface ProChartProps {
   discovery?:DiscoveryChartContext;
+  /** Focused persisted-price study: retain this chart core without broker-flow panes or requests. */
+  analysisOnly?: boolean;
   code: string;
   market: "KR" | "US";
   instrument?: KrxInstrument;
@@ -148,6 +150,8 @@ export interface ProChartProps {
   profileSource?: string;
   indicatorBars?: OhlcBar[];
   priceBasisNote?: string;
+  /** Machine-readable stored-price identity; independent of the provenance label. */
+  priceBasis?: string;
   bars: OhlcBar[];
   interval: ChartInterval;
   minuteSize?: MinuteSize;
@@ -206,6 +210,14 @@ function safeStorage() {
   } catch {
     return null;
   }
+}
+
+function initialProLayout(market: "KR" | "US", htsAllowed: boolean, analysisOnly: boolean, chartType: ChartType, scale: ChartScale) {
+  const indicators = defaultIndicators(market).filter(item => analysisOnly
+    ? item.id !== "rsi" && item.id !== "macd"
+    : !htsAllowed || item.id !== "macd");
+  const layout = defaultLayout(indicators, analysisOnly ? "candles" : chartType, analysisOnly ? "normal" : scale);
+  return analysisOnly ? { ...layout, bollinger: sanitizeBollingerSettings({ ...layout.bollinger, panesExpanded: true }) } : layout;
 }
 
 function RangeHud({ stats, up, down }: { stats: RangePositionStats; up: string; down: string }) {
@@ -269,23 +281,29 @@ export function ProChart(props: ProChartProps) {
   const chart = useProChart(containerRef, theme, market);
   const fmt = useCallback((p: number) => formatChartPrice(p, market, rawBars[rawBars.length - 1]?.close), [market, rawBars]);
   const instrument = props.instrument ?? "stock";
+  const analysisOnly = props.analysisOnly === true;
   const scope = useMemo(() => ({ market, instrument, code, interval: intervalKey, layout: props.layoutScope ?? "detail" }), [market, instrument, code, intervalKey, props.layoutScope]);
   const scopeKey = htsSettingsKey(scope);
-  const [hts, setHts] = useState(() => defaultHtsSettings(market, instrument));
+  const htsDefaults = useMemo(() => {
+    const defaults = defaultHtsSettings(market, instrument);
+    return analysisOnly ? { ...defaults, enabled: false, profile: { ...defaults.profile, enabled: false } } : defaults;
+  }, [market, instrument, analysisOnly]);
+  const [hts, setHts] = useState(() => htsDefaults);
   const [legacyNotice, setLegacyNotice] = useState(false);
   const [htsLoaded, setHtsLoaded] = useState<string | null>(null);
   useEffect(() => {
     if (!props.instrument) return;
     const storage = safeStorage();
     const hadScoped = storage ? hasSavedHtsSettings(storage, scope) : false;
-    const loaded = storage ? loadHtsSettings(storage, scope) : defaultHtsSettings(market, instrument);
+    // A new study scope must not inherit the unrelated legacy global volume profile.
+    const loaded = storage && (!analysisOnly || hadScoped) ? loadHtsSettings(storage, scope) : htsDefaults;
     const oldLayout = storage && scope.layout === "detail" ? loadChartState(storage, market, code, intervalKey) : null;
     const oldRsi = oldLayout?.indicators.find((i) => i.id === "rsi");
     if (!hadScoped && oldRsi && Number.isFinite(Number(oldRsi.params.period))) loaded.rsiPeriod = Math.max(2, Math.min(200, Number(oldRsi.params.period)));
     setLegacyNotice(Boolean(!hadScoped && oldLayout));
     setHts(loaded);
     setHtsLoaded(scopeKey);
-  }, [scope, scopeKey, market, instrument, code, intervalKey, props.instrument]);
+  }, [scope, scopeKey, market, instrument, code, intervalKey, props.instrument, analysisOnly, htsDefaults]);
   useEffect(() => {
     if (htsLoaded !== scopeKey || !props.instrument) return;
     const storage = safeStorage();
@@ -294,7 +312,7 @@ export function ProChart(props: ProChartProps) {
   useEffect(() => {
     if (htsLoaded === scopeKey && !hts.trustStartDate && rawBars[0]) setHts((prev) => ({ ...prev, trustStartDate: rawBars[0]!.date.slice(0, 10) }));
   }, [rawBars, htsLoaded, scopeKey, hts.trustStartDate]);
-  const htsAllowed = market === "KR" || instrument === "etf" || instrument === "etn";
+  const htsAllowed = !analysisOnly && (market === "KR" || instrument === "etf" || instrument === "etn");
   const htsEnabled = htsAllowed && hts.enabled;
   const pricePaneIndex = htsEnabled ? 1 : 0;
   const vp = hts.profile;
@@ -303,7 +321,7 @@ export function ProChart(props: ProChartProps) {
   const currency = props.currency ?? (market === "KR" ? "KRW" : "USD");
 
   // ── Layout state (persisted per market/code/interval) ─────────────────
-  const [layout, setLayout] = useState<ChartLayoutState>(() => defaultLayout(defaultIndicators(market).filter((i) => !htsAllowed || i.id !== "macd"), chartPrefs.chartType, chartPrefs.scale));
+  const [layout, setLayout] = useState<ChartLayoutState>(() => initialProLayout(market, htsAllowed, analysisOnly, chartPrefs.chartType, chartPrefs.scale));
   const [history, dispatch] = useReducer(drawingReducer, undefined, () => initHistory());
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const persistenceInterval = `${intervalKey}:${instrument}:${props.layoutScope ?? "detail"}`;
@@ -311,7 +329,7 @@ export function ProChart(props: ProChartProps) {
   useEffect(() => {
     const store = safeStorage();
     const saved = store ? loadChartState(store, market, code, persistenceInterval) ?? (scope.layout === "detail" ? loadChartState(store, market, code, intervalKey) : null) : null;
-    const next = saved ?? defaultLayout(defaultIndicators(market).filter((i) => !htsAllowed || i.id !== "macd"), chartPrefs.chartType, chartPrefs.scale);
+    const next = saved ?? initialProLayout(market, htsAllowed, analysisOnly, chartPrefs.chartType, chartPrefs.scale);
     setLayout(next);
     dispatch({ type: "reset", items: next.drawings });
     setLoadedKey(layoutKey);
@@ -467,10 +485,10 @@ export function ProChart(props: ProChartProps) {
     discoverySeries.current=series;
     return()=>{try{chart.removeSeries(series);}catch{/* chart disposed */}if(discoverySeries.current===series)discoverySeries.current=null;};
   },[chart,pricePaneIndex,hasDiscovery]);
-  const discoveryBasisMatches=props.discovery?.market===market&&props.discovery.symbol===code&&(
+  const discoveryBasisMatches=props.discovery?.market===market&&props.discovery.symbol===code&&(props.priceBasis!==undefined?props.priceBasis===props.discovery.priceBasis:(
     props.discovery.priceBasis==="yahoo-us-adjusted-ohlcv"&&props.source.startsWith("yahoo-us-")||
     props.discovery.priceBasis==="yahoo-kr-raw-ohlcv"&&props.source.startsWith("yahoo-")||
-    props.discovery.priceBasis==="naver-raw-ohlcv"&&props.source.startsWith("naver-"));
+    props.discovery.priceBasis==="naver-raw-ohlcv"&&props.source.startsWith("naver-")));
   useEffect(()=>{
     const series=discoverySeries.current;if(!series)return;
     const history=new Map(props.discovery?.history.map(p=>[p.date,p.resistance])??[]);
@@ -776,8 +794,8 @@ export function ProChart(props: ProChartProps) {
     to: rawBars.at(-1) ? periodEndDay(rawBars.at(-1)!.date, interval).slice(0, 10) : "", interval,
     expectedDailyDates: (props.profileBars ?? (interval === "day" ? props.indicatorBars ?? rawBars : [])).map((b) => b.date.slice(0, 10)) }),
   [code, market, instrument, props.exchange, currency, quantityUnit, hts.trustStartDate, rawBars, interval, props.profileBars, props.indicatorBars]);
-  const flowQuery = useChartFlow(flowRequest, htsEnabled && Boolean(props.instrument) && htsLoaded === scopeKey && Boolean(hts.trustStartDate));
-  const flow = useMemo(() => flowQuery.data ?? emptyChartFlow(flowRequest, flowQuery.isError ? "데이터 요청 실패 · 재시도 필요" : props.instrument ? "데이터 확인 중" : "PRODUCT_TYPE_UNKNOWN · 상품 유형 미확인 · 메타데이터 재조회 필요"), [flowQuery.data, flowQuery.isError, flowRequest, props.instrument]);
+  const flowQuery = useChartFlow(flowRequest, !analysisOnly && htsEnabled && Boolean(props.instrument) && htsLoaded === scopeKey && Boolean(hts.trustStartDate));
+  const flow = useMemo(() => (!analysisOnly ? flowQuery.data : undefined) ?? emptyChartFlow(flowRequest, analysisOnly ? "저장 가격 분석 · 수급 별도 조회하지 않음" : flowQuery.isError ? "데이터 요청 실패 · 재시도 필요" : props.instrument ? "데이터 확인 중" : "PRODUCT_TYPE_UNKNOWN · 상품 유형 미확인 · 메타데이터 재조회 필요"), [analysisOnly, flowQuery.data, flowQuery.isError, flowRequest, props.instrument]);
   const effectiveTrustStart = useMemo(() => hts.trustMode === "available-cumulative"
     ? availableFlowStart(flow, (props.profileBars ?? (interval === "day" ? props.indicatorBars ?? rawBars : [])).map((b) => b.date.slice(0, 10)), hts.trustStartDate) ?? hts.trustStartDate
     : hts.trustStartDate, [flow, hts.trustMode, hts.trustStartDate, props.profileBars, props.indicatorBars, interval, rawBars]);
@@ -1637,7 +1655,7 @@ export function ProChart(props: ProChartProps) {
         <SheetContent portalContainer={fullscreenPortal} className="overflow-y-auto" onCloseAutoFocus={(event) => { if (htsTriggerRef.current?.isConnected) { event.preventDefault(); htsTriggerRef.current.focus(); } }}><SheetHeader><SheetTitle>차트·매물대 설정</SheetTitle><SheetDescription>현재 종목·주기·화면의 설정을 저장합니다. 기존 드로잉은 유지됩니다.</SheetDescription></SheetHeader>
           {legacyNotice && <p className="m-4 text-xs text-muted-foreground" role="status">기존 지표·드로잉과 RSI 기간을 보존했습니다. 공통 6단과 추가 지표를 함께 표시합니다. 기본값 복원은 공통 6단 설정만 변경합니다.</p>}
           <HtsSettingsPanel settings={hts} onChange={setHts} allowHts={htsAllowed} onRestore={() => {
-            setHts({ ...defaultHtsSettings(market, instrument), trustStartDate: hts.trustStartDate || rawBars[0]?.date.slice(0, 10) || "" });
+            setHts({ ...htsDefaults, trustStartDate: hts.trustStartDate || rawBars[0]?.date.slice(0, 10) || "" });
             setLegacyNotice(false);
           }} />
         </SheetContent>

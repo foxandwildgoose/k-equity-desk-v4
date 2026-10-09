@@ -9,7 +9,7 @@ import { readBollingerCloudConfig, cloudJobScope, safeCloudJob } from "./bolling
 import { handleBollingerCloud } from "./bollinger-cloud-handler.ts";
 import { runBollingerCloud, runSelectedBollingerCloud, readSelectedBollingerProgress, selectedBollingerScope, runBootstrapBollingerCloud, readBootstrapBollingerProgress, bootstrapBollingerScope, type SelectedBollingerRequest, type CloudProviders } from "./bollinger-cloud.ts";
 import { fetchKrMembershipBatch, koreaDay } from "./bollinger-membership.ts";
-import { collectDiscovery, contextHistory, precomputeDiscovery } from "./bollinger-discovery-jobs.ts";
+import { collectDiscovery, contextHistory, precomputeDiscovery, prepareDiscoveryContexts } from "./bollinger-discovery-jobs.ts";
 import { discoveryBars, member, universe } from "../lib/bollinger/discovery-fixture.test-data.ts";
 import { analyzeDiscovery, sanitizeDiscoveryConfig, DISCOVERY_DEFAULTS } from "../lib/bollinger/discovery.ts";
 import type { BootstrapBollingerInput } from "../lib/bollinger/collection-request.ts";
@@ -167,6 +167,14 @@ test("job diagnostics never serialize arbitrary nested job fields",()=>{
   const value=safeCloudJob({phase:"collect",successfulKeys:["KR:005930"],computedKeys:[],lastError:SECRET,secret:SECRET,headers:{authorization:SECRET},membership:{members:[]}},"KOSPI");
   assert.equal(value.collected,1);assert.equal(value.lastError,null);assert.doesNotMatch(JSON.stringify(value),new RegExp(SECRET));
 });
+test("public final-computation identities are validated symbols and legacy progress stays unconfirmed",()=>{
+  const summary={schema:2,phase:"refresh",computedKeys:["KR:005930","KR:005930","KR:0233A0","US:BRK.B",SECRET,"Bearer private-token",{authorization:SECRET},null]};
+  const safe=safeCloudJob(summary,"KOSPI");
+  assert.deepEqual(safe.computedSymbols,["KR:005930","KR:0233A0","US:BRK.B"]);
+  assert.doesNotMatch(JSON.stringify(safe),new RegExp(SECRET));
+  assert.equal(safeCloudJob({...summary,schema:1},"KOSPI").computedSymbols,null);
+  assert.equal(safeCloudJob(null,"KOSPI").computedSymbols,null);
+});
 test("Hobby uses one daily cron and only the collector requests the maximum function duration",async()=>{
   const vercel=JSON.parse(await readFile(new URL("../../vercel.json",import.meta.url),"utf8"));assert.deepEqual(vercel.crons,[{path:"/api/cron/bollinger",schedule:"30 9 * * *"}]);
   const vite=await readFile(new URL("../../vite.config.ts",import.meta.url),"utf8");assert.match(vite,/functionRules:.*"\/api\/cron\/bollinger".*maxDuration: "max"/);
@@ -249,6 +257,77 @@ test("first-pass observations are counted separately and final refresh resumes w
     assert.equal(partial.status,"PARTIAL_BUDGET");assert.equal(partial.jobs[0]?.provisional,2);assert.equal(partial.jobs[0]?.computed,1);assert.equal(partial.jobs[0]?.pendingCompute,1);assert.equal(partial.jobs[0]?.execution,"PAUSED");
     elapsed=0;const resumed=await runBollingerCloud(store,config,p,{clock:()=>time()+elapsed,spacingMs:0});assert.equal(resumed.status,"COMPLETE");assert.equal(resumed.jobs[0]?.computed,2);
   }finally{await pg.close();}
+});
+test("final cloud refresh prepares SQL peer contexts once without rewriting security observations or their RS ranks",async()=>{
+  const {pg,store}=await database();try{
+    const p=providers(20),prices=p.prices,aggregate=store.aggregateContexts,saveContext=store.saveContext;
+    let priceCalls=0,aggregations=0,securityContextWrites=0;
+    p.prices=async(...args)=>{priceCalls++;return prices(...args);};
+    store.saveContext=async(...args)=>{if(args[1].startsWith("security:"))securityContextWrites++;return saveContext(...args);};
+    store.aggregateContexts=async(...args)=>{aggregations++;assert.equal(securityContextWrites,20,"all first-pass observations exist before ranking");return aggregate(...args);};
+    const result=await runBollingerCloud(store,config,p,{clock:time,spacingMs:0});
+    assert.equal(result.status,"COMPLETE");assert.equal(result.jobs[0]?.computed,20);assert.equal(result.jobs[0]?.pendingCompute,0);
+    assert.equal(priceCalls,20);assert.equal(securityContextWrites,20);assert.equal(aggregations,1);
+    const contexts=await store.contextScope(universe().id,"security:KR:500019");
+    assert.ok(contexts.length);assert.ok(contexts.every(c=>c.rsPercentile!==null&&c.rsPercentile!==undefined),"final stock retains the peer ranks instead of overwriting them with first-pass values");
+  }finally{await pg.close();}
+});
+test("resumed final refresh prepares current peers again once and only computes pending securities without price refetch",async()=>{
+  const {pg,store}=await database();try{
+    const p=providers(6),prices=p.prices,aggregate=store.aggregateContexts,saveContext=store.saveContext,saveFeatures=store.saveFeatures;
+    let elapsed=0,priceCalls=0,aggregations=0,securityContextWrites=0,featureWrites=0;
+    const featureKeys:string[]=[];
+    p.prices=async(...args)=>{priceCalls++;return prices(...args);};
+    store.saveContext=async(...args)=>{if(args[1].startsWith("security:"))securityContextWrites++;return saveContext(...args);};
+    store.aggregateContexts=async(...args)=>{aggregations++;return aggregate(...args);};
+    store.saveFeatures=async(...args)=>{featureKeys.push(args[1].symbol);await saveFeatures(...args);if(++featureWrites===1)elapsed=170000;};
+    const partial=await runBollingerCloud(store,config,p,{clock:()=>time()+elapsed,spacingMs:0});
+    assert.equal(partial.status,"PARTIAL_BUDGET");assert.equal(partial.jobs[0]?.computed,1);assert.equal(partial.jobs[0]?.pendingCompute,5);assert.equal(aggregations,1);assert.equal(securityContextWrites,6);
+    const first=(await store.latestJob(cloudJobScope("KOSPI",20)))!;
+    // A different completed collection may update context between requests. No durable "prepared"
+    // flag can be trusted on resume, so the pending refresh must rank the current stored peers again.
+    const changed=(await store.contextScope(universe().id,"security:KR:500005")).map(c=>({...c,return63:100}));
+    await saveContext(universe().id,"security:KR:500005",changed);
+    elapsed=0;const resumed=await runBollingerCloud(store,config,p,{clock:()=>time()+elapsed,spacingMs:0});
+    assert.equal(resumed.status,"COMPLETE");assert.equal(resumed.jobs[0]?.computed,6);assert.equal(resumed.jobs[0]?.pendingCompute,0);assert.equal(aggregations,2);assert.equal(securityContextWrites,6);assert.equal(priceCalls,6);
+    assert.deepEqual(featureKeys,["500000","500001","500002","500003","500004","500005"]);
+    assert.equal((await store.latestJob(cloudJobScope("KOSPI",20)))?.id,first.id);
+    assert.ok((await store.contextScope(universe().id,"security:KR:500005")).every(c=>(c.rsPercentile??0)>80),"resume uses changed peer observations instead of a stale preparation");
+    assert.ok(((await store.featureHistory(universe().id,member("500005"),DISCOVERY_DEFAULTS.version)).at(-1)?.payload.rsPercentile??0)>80);
+  }finally{await pg.close();}
+});
+test("budget expiry after aggregate SQL stops before final feature writes and prepares again on resume",async()=>{
+  const {pg,store}=await database();try{
+    const aggregate=store.aggregateContexts,saveFeatures=store.saveFeatures;let elapsed=0,aggregations=0,writes=0;
+    store.aggregateContexts=async(...args)=>{await aggregate(...args);if(++aggregations===1)elapsed=170000;};
+    store.saveFeatures=async(...args)=>{writes++;return saveFeatures(...args);};
+    const p=providers(2),partial=await runBollingerCloud(store,config,p,{clock:()=>time()+elapsed,spacingMs:0});
+    assert.equal(partial.status,"PARTIAL_BUDGET");assert.equal(partial.jobs[0]?.computed,0);assert.equal(partial.jobs[0]?.pendingCompute,2);assert.equal(writes,0);
+    elapsed=0;const resumed=await runBollingerCloud(store,config,p,{clock:()=>time()+elapsed,spacingMs:0});
+    assert.equal(resumed.status,"COMPLETE");assert.equal(aggregations,2);assert.equal(writes,2);
+  }finally{await pg.close();}
+});
+test("lease loss after aggregate SQL does not publish final features",async()=>{
+  const {pg,store}=await database();try{
+    const aggregate=store.aggregateContexts,saveFeatures=store.saveFeatures;let writes=0;
+    store.aggregateContexts=async(...args)=>{await aggregate(...args);const state=(await store.latestJob(cloudJobScope("KOSPI",20)))!.summary;await store.release("bollinger:daily-provider",String(state.runToken));};
+    store.saveFeatures=async(...args)=>{writes++;return saveFeatures(...args);};
+    const result=await runBollingerCloud(store,config,providers(2),{clock:time,spacingMs:0});
+    assert.equal(result.status,"LEASE_LOST");assert.equal(result.jobs[0]?.computed,0);assert.equal(result.jobs[0]?.pendingCompute,2);assert.equal(writes,0);
+  }finally{await pg.close();}
+});
+test("prepared context handles cannot be persisted, forged, rebound to another store or used for first-pass writes",async()=>{
+  const first=await database(),second=await database();try{
+    const u=universe();await first.store.saveUniverse(u);await second.store.saveUniverse(u);
+    await first.store.saveBars(member(),discoveryBars(303),"QA","yahoo-kr-raw-ohlcv","2024-10-29T09:00:00Z");
+    await precomputeDiscovery(first.store,u.id,undefined,undefined,{contextOnly:true,recentDays:25});
+    const prepared=await prepareDiscoveryContexts(first.store,u.id);
+    await assert.rejects(precomputeDiscovery(first.store,u.id,undefined,undefined,{preparedContexts:JSON.parse(JSON.stringify(prepared))}),/PREPARED_CONTEXTS_INVALID/);
+    await assert.rejects(precomputeDiscovery(second.store,u.id,undefined,undefined,{preparedContexts:prepared}),/PREPARED_CONTEXTS_INVALID/);
+    await assert.rejects(precomputeDiscovery(first.store,u.id,undefined,undefined,{preparedContexts:prepared,contextOnly:true}),/PREPARED_CONTEXTS_INVALID/);
+    await first.store.saveUniverse({...u,id:"another-preparation-scope"});
+    await assert.rejects(precomputeDiscovery(first.store,"another-preparation-scope",undefined,undefined,{preparedContexts:prepared}),/PREPARED_CONTEXTS_INVALID/);
+  }finally{await first.pg.close();await second.pg.close();}
 });
 test("legacy interrupted refresh counts are upgraded to final-only counts before retry",async()=>{
   const {pg,store}=await database();try{

@@ -5,6 +5,7 @@ import { createDiscoveryStore,getDiscoveryStore } from "./bollinger-discovery-st
 import { collectDiscovery,runDiscoveryPrecompute } from "./bollinger-discovery-jobs.ts";
 import { analyzeDiscovery,DISCOVERY_DEFAULTS } from "../lib/bollinger/discovery.ts";
 import { discoveryBars,discoveryContexts,member,universe } from "../lib/bollinger/discovery-fixture.test-data.ts";
+import { readDiscoveryStockChart } from "./bollinger-discovery.ts";
 const migration=await readFile(new URL("../../migrations/0005_bollinger_discovery.sql",import.meta.url),"utf8");
 async function database(path?:string){const pg=new PGlite(path);await pg.waitReady;await pg.exec(migration);const store=createDiscoveryStore({query:async<T>(text:string,params:unknown[]=[]) => (await pg.query<T>(text,params)).rows});return{pg,store};}
 test("operational store fails explicitly without DATABASE_URL, never process-memory success",async()=>{
@@ -72,4 +73,47 @@ test("budget stops collection/precompute safely and releases shared lease for re
 });
 test("interactive server performs no provider/collector import or credential access",async()=>{
   const source=await readFile(new URL("./bollinger-discovery.ts",import.meta.url),"utf8");assert.doesNotMatch(source,/fetchOhlc|kiwoom|collectDiscovery|APP_KEY|APP_SECRET/);
+});
+test("zero matches retain all selected stocks, including nonmatch, missing, warmup and stale, with independent inspection pagination",async()=>{
+  const {pg,store}=await database();try{
+    const members=Array.from({length:30},(_,i)=>member(String(610000+i))),u=universe(members);await store.saveUniverse(u);
+    const bars=discoveryBars(303),candidate=analyzeDiscovery(bars,undefined,discoveryContexts(bars)).candidates.at(-1)!;
+    await store.saveFeatures(u.id,members[0]!,DISCOVERY_DEFAULTS.version,[{...candidate,state:"NEUTRAL",views:[]}],"QA NONMATCH","naver-raw-ohlcv");
+    await store.saveFeatures(u.id,members[2]!,DISCOVERY_DEFAULTS.version,[{...candidate,valid:false,state:"WARMUP"}],"QA WARMUP","naver-raw-ohlcv");
+    await store.saveFeatures(u.id,members[3]!,DISCOVERY_DEFAULTS.version,[{...candidate,date:"2024-01-02"}],"QA STALE","naver-raw-ohlcv");
+    const q={universeId:u.id,configVersion:DISCOVERY_DEFAULTS.version,strategy:"long-pre-breakout" as const,selection:{top:"ALL" as const,minWeight:0,sectors:[]},page:1,pageSize:25 as const,minScore:0,minCoverage:.8,asOf:candidate.date};
+    const response=await store.query(q);assert.equal(response.total,0);assert.equal(response.rows.length,0);assert.equal(response.inspection.total,30);assert.equal(response.inspection.rows.length,25);
+    const bySymbol=new Map(response.inspection.rows.map(r=>[r.symbol,r]));
+    assert.equal(bySymbol.get(members[0]!.symbol)?.assessment,"STRATEGY_MISMATCH");
+    const missing=bySymbol.get(members[1]!.symbol)!;assert.equal(missing.assessment,"NO_COMPUTED_HISTORY");assert.equal(missing.candidate,null);assert.equal(missing.source,null);assert.equal(missing.priceBasis,null);assert.equal(missing.computedAt,null);
+    assert.equal(bySymbol.get(members[2]!.symbol)?.assessment,"WARMUP");assert.equal(bySymbol.get(members[3]!.symbol)?.assessment,"STALE");
+    const second=await store.query({...q,page:2});assert.equal(second.inspection.rows.length,5);assert.ok(second.inspection.rows.every(r=>!bySymbol.has(r.symbol)));
+    const limited=await store.query({...q,symbols:[`${members[1]!.market}:${members[1]!.symbol}`]});assert.equal(limited.inspection.total,1);assert.equal(limited.inspection.rows[0]?.symbol,members[1]!.symbol);
+    const empty=await store.query({...q,symbols:[]});assert.deepEqual(empty.inspection,{total:0,rows:[]});
+  }finally{await pg.close();}
+});
+test("stored stock chart uses exact feature basis, preserves full warmup history and excludes future bars/features with reads only",async()=>{
+  const {pg,store}=await database();try{
+    const m=member(),u=universe([m]),bars=discoveryBars(303);await store.saveUniverse(u);
+    const candidate=analyzeDiscovery(bars,undefined,discoveryContexts(bars)).candidates.at(-1)!;
+    await store.saveBars(m,[...bars,{...bars.at(-1)!,date:"2024-10-30",close:999,high:1000}],"QA EXACT","naver-raw-ohlcv","2024-10-31T00:00:00Z");
+    await store.saveBars(m,[{...bars.at(-1)!,close:888,high:900}],"QA OTHER","yahoo-kr-raw-ohlcv","2024-10-31T00:00:00Z");
+    await store.saveFeatures(u.id,m,DISCOVERY_DEFAULTS.version,[candidate,{...candidate,date:"2024-10-30",close:999}],"QA EXACT","naver-raw-ohlcv");
+    const statements:string[]=[];const readStore=createDiscoveryStore({query:async<T>(text:string,params:unknown[]=[])=>{statements.push(text);return(await pg.query<T>(text,params)).rows;}});
+    const data=await readDiscoveryStockChart(readStore,{universeId:u.id,configVersion:DISCOVERY_DEFAULTS.version,market:m.market,symbol:m.symbol,asOf:"2024-10-29"},Date.parse("2024-11-01T00:00:00Z"));
+    assert.ok(data);assert.equal(data.priceBasis,"naver-raw-ohlcv");assert.equal(data.source,"QA EXACT");assert.equal(data.bars.length,303);assert.equal(data.bars.at(-1)?.close,bars.at(-1)?.close);assert.equal(data.candidate?.date,"2024-10-29");assert.equal(data.observation.last,"2024-10-29");assert.ok(data.discovery?.history.every(r=>r.date<="2024-10-29"));
+    assert.ok(statements.every(s=>/^SELECT\b/i.test(s.trim())));assert.ok(statements.some(s=>s.includes("LIMIT 5000")));
+    await assert.rejects(readDiscoveryStockChart(readStore,{universeId:u.id,configVersion:DISCOVERY_DEFAULTS.version,market:m.market,symbol:m.symbol,asOf:"2024-11-02"},Date.parse("2024-11-01T00:00:00Z")),/INVALID_AS_OF/);
+    await assert.rejects(readDiscoveryStockChart(readStore,{universeId:u.id,configVersion:DISCOVERY_DEFAULTS.version,market:"KR",symbol:"000000",asOf:"2024-10-29"},Date.parse("2024-11-01T00:00:00Z")),/MEMBER_MISSING/);
+  }finally{await pg.close();}
+});
+test("chart can inspect persisted prices before final feature but never substitutes another basis for a known feature",async()=>{
+  const {pg,store}=await database();try{
+    const m=member(),u=universe([m]),bars=discoveryBars(303);await store.saveUniverse(u);
+    await store.saveBars(m,bars,"QA ONLY STORED","yahoo-kr-raw-ohlcv","2024-10-29T00:00:00Z");
+    const request={universeId:u.id,configVersion:DISCOVERY_DEFAULTS.version,market:m.market,symbol:m.symbol,asOf:"2024-10-29"};
+    const data=await readDiscoveryStockChart(store,request,Date.parse("2024-11-01T00:00:00Z"));assert.ok(data);assert.equal(data.candidate,null);assert.equal(data.discovery,null);assert.equal(data.bars.length,303);assert.equal(data.source,"QA ONLY STORED");
+    const candidate=analyzeDiscovery(bars,undefined,discoveryContexts(bars)).candidates.at(-1)!;await store.saveFeatures(u.id,m,DISCOVERY_DEFAULTS.version,[candidate],"QA MISSING BASIS","naver-raw-ohlcv");
+    assert.equal(await readDiscoveryStockChart(store,request,Date.parse("2024-11-01T00:00:00Z")),null);
+  }finally{await pg.close();}
 });

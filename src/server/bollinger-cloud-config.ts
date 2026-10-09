@@ -25,6 +25,7 @@ export function safeCloudJob(summary:Record<string,unknown>|null,target:CloudTar
   const terminal=phase==="complete"||phase==="complete-with-errors";
   const execution=phase==="not-started"?"NOT_STARTED":leaseActive?"RUNNING":terminal?"COMPLETE":summary?.execution==="FAILED"||summary?.lastError?"FAILED":summary?.budgetStopped===true||summary?.execution==="PAUSED"?"PAUSED":"INTERRUPTED";
   return {target,phase,execution,requested:count("requested"),supported:count("supported"),nextOffset:count("nextOffset"),collected:Array.isArray(summary?.successfulKeys)?summary.successfulKeys.length:0,
+    computedSymbols:summary?.schema===2&&Array.isArray(summary?.computedKeys)?[...new Set(summary.computedKeys.filter((value):value is string=>typeof value==="string"&&/^(KR:[0-9A-Z]{6}|US:[A-Z][A-Z0-9.-]{0,14})$/.test(value)))].slice(0,15000):null,
     computed:summary?.schema===1&&!terminal?0:Array.isArray(summary?.computedKeys)?summary.computedKeys.length:0,errors:Array.isArray(summary?.errors)?summary.errors.length:0,
     provisional:Array.isArray(summary?.provisionalKeys)?summary.provisionalKeys.length:summary?.schema===1&&Array.isArray(summary?.computedKeys)?summary.computedKeys.length:0,pendingCompute:summary?.schema===1&&phase==="refresh"&&Array.isArray(summary?.successfulKeys)?summary.successfulKeys.length:Array.isArray(summary?.pendingCompute)?summary.pendingCompute.length:0,
     universeId:typeof summary?.universeId==="string"?summary.universeId:null,configVersion:typeof summary?.configVersion==="string"?summary.configVersion:null,

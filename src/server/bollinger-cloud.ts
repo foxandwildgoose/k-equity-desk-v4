@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { cloudJobScope, safeCloudJob, type BollingerCloudConfig, type CloudTarget } from "./bollinger-cloud-config.ts";
-import { BENCHMARKS, collectDiscovery, contextHistory, precomputeDiscovery, type PriceProvider } from "./bollinger-discovery-jobs.ts";
+import { BENCHMARKS, collectDiscovery, contextHistory, precomputeDiscovery, prepareDiscoveryContexts, type PreparedDiscoveryContexts, type PriceProvider } from "./bollinger-discovery-jobs.ts";
 import { selectUniverse, securityKey, type UniverseSnapshot, type UniverseSelection } from "../lib/bollinger/discovery-universe.ts";
 import { discoveryConfigFromVersion, DISCOVERY_DEFAULTS, type DiscoveryConfig } from "../lib/bollinger/discovery.ts";
 import { completedPriceBars } from "../lib/bollinger/bar-completion.ts";
@@ -101,6 +101,7 @@ export async function runBollingerCloud(store:DiscoveryStore,config:BollingerClo
   const deadline=started+config.budgetSeconds*1000-15000,scope="bollinger:daily-provider",token=randomUUID(),leaseSeconds=config.budgetSeconds+60;
   if(!await store.lease(scope,token,leaseSeconds))return {status:"ALREADY_RUNNING",jobs:[]};
   let state:CloudState|null=null;
+  let preparedContexts:PreparedDiscoveryContexts|undefined;
   const save=async()=>{
     if(!state)return;
     state.lastRunAt=now();
@@ -194,7 +195,10 @@ export async function runBollingerCloud(store:DiscoveryStore,config:BollingerClo
         if(state.pendingCompute.length) {
           const symbol=state.pendingCompute[0]!;
           try {
-            const computed=await precomputeDiscovery(store,state.universeId!,discoveryConfigFromVersion(state.configVersion).config,checkpoint,{symbols:[symbol],recentDays:config.recentStoredDays,contextOnly:state.phase!=="refresh",storeEvents:state.phase==="refresh",onSecurityComputed:async key=>{
+            // Every resume prepares peers once under this request's lease. Rewriting an individual
+            // context here would erase its aggregated RS rank and force a full SQL aggregate per stock.
+            if(state.phase==="refresh"&&!preparedContexts)preparedContexts=await prepareDiscoveryContexts(store,state.universeId!,checkpoint);
+            const computed=await precomputeDiscovery(store,state.universeId!,discoveryConfigFromVersion(state.configVersion).config,checkpoint,{symbols:[symbol],recentDays:config.recentStoredDays,contextOnly:state.phase!=="refresh",preparedContexts:state.phase==="refresh"?preparedContexts:undefined,storeEvents:state.phase==="refresh",onSecurityComputed:async key=>{
               state!.computedKeys=[...new Set([...state!.computedKeys,key])];
             }});
             if(!computed.securities)throw new Error("COMPUTE_FAILED");

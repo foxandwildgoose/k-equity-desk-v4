@@ -29,6 +29,15 @@ export function discoverySearchSignature(request: DiscoverySearchDraft): string 
     request.symbols === undefined ? null : [...new Set(request.symbols)].sort(),
     request.minScore, request.minCoverage, request.sort, request.asOf]);
 }
+/** View filters are DB reads; changing them must not create a new collection job. */
+export function discoveryCollectionSelectionSignature(request: DiscoverySearchDraft): string {
+  return JSON.stringify([request.universeId, request.universeId ? null : request.bootstrapTarget ?? null,
+    request.configVersion, request.selection.top, request.selection.minWeight,
+    [...request.selection.sectors].sort(), request.symbols === undefined ? null : [...new Set(request.symbols)].sort()]);
+}
+export function applyDiscoveryStrategy(request: AppliedDiscoverySearch, strategy: Strategy): AppliedDiscoverySearch {
+  return applyDiscoverySearch({ ...request, strategy }, request.asOf);
+}
 /** Missing snapshots can be acquired only through verified, explicit provider targets. */
 export function discoveryBootstrapTarget(kind: UniverseKind, etfCode: string): BootstrapBollingerInput["bootstrapTarget"] | null {
   if (kind === "KOSPI" || kind === "KOSDAQ" || kind === "NASDAQ_LISTED") return kind;
@@ -46,7 +55,7 @@ export function discoveryCollectionRequest(request: DiscoverySearchDraft): Bolli
 export function canBindBootstrapToDraft(frozen: DiscoverySearchDraft, draft: DiscoverySearchDraft, universeId: string,
   currentTarget: BootstrapBollingerInput["bootstrapTarget"] | null): boolean {
   if (!frozen.bootstrapTarget || frozen.bootstrapTarget !== currentTarget || (draft.universeId && draft.universeId !== universeId)) return false;
-  return discoverySearchSignature({ ...frozen, universeId: "" }) === discoverySearchSignature({ ...draft, universeId: "", bootstrapTarget: currentTarget });
+  return discoveryCollectionSelectionSignature({ ...frozen, universeId: "" }) === discoveryCollectionSelectionSignature({ ...draft, universeId: "", bootstrapTarget: currentTarget });
 }
 type IntentStorage = { getItem(key:string):string|null; setItem(key:string,value:string):void; removeItem(key:string):void };
 export const DISCOVERY_BOOTSTRAP_SESSION_KEY = "ked:bollinger:bootstrap-intent:v1";

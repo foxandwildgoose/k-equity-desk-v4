@@ -87,10 +87,24 @@ export async function collectDiscovery(store: DiscoveryStore, universeId: string
   }catch(error){summary.status="failed";await store.endJob(jobId,"failed",summary);throw error;}
   finally{if(!options.heldLease)await store.release(scope,token);}
 }
+export type PreparedDiscoveryContexts = Readonly<{universeId:string;usBenchmark:string}>;
+// An in-process handle belongs to one leased refresh invocation. It is never persisted in a job:
+// a resume must aggregate again because another completed collection may have changed contexts.
+const preparedContextStores=new WeakMap<PreparedDiscoveryContexts,DiscoveryStore>();
+const benchmarkFor=(kind:string)=>kind==="NASDAQ100"?"NASDAQ100":kind==="NASDAQ_LISTED"?"NASDAQ_LISTED":"SP500";
+export async function prepareDiscoveryContexts(store:DiscoveryStore,universeId:string,checkpoint?:()=>Promise<void>):Promise<PreparedDiscoveryContexts> {
+  await checkpoint?.();const universe=await store.universe(universeId);await checkpoint?.();
+  if(!universe)throw new Error("UNIVERSE_MISSING");
+  const usBenchmark=benchmarkFor(universe.kind);
+  await checkpoint?.();await store.aggregateContexts(universeId,usBenchmark);await checkpoint?.();
+  const prepared=Object.freeze({universeId,usBenchmark});preparedContextStores.set(prepared,store);return prepared;
+}
 /** Shared two-pass SQL precompute. Memory is bounded to one security, not the whole market. */
-export async function precomputeDiscovery(store: DiscoveryStore, universeId: string, raw?:unknown, checkpoint?:()=>Promise<void>,options:{symbols?:readonly string[];recentDays?:number;storeEvents?:boolean;contextOnly?:boolean;onSecurityComputed?:(key:string)=>Promise<void>}={}) {
+export async function precomputeDiscovery(store: DiscoveryStore, universeId: string, raw?:unknown, checkpoint?:()=>Promise<void>,options:{symbols?:readonly string[];recentDays?:number;storeEvents?:boolean;contextOnly?:boolean;preparedContexts?:PreparedDiscoveryContexts;onSecurityComputed?:(key:string)=>Promise<void>}={}) {
   const universe=await store.universe(universeId);if(!universe)throw new Error("UNIVERSE_MISSING");
   const config=sanitizeDiscoveryConfig(raw),members=selectUniverse(universe,{top:"ALL",minWeight:0,sectors:[]}).selected.filter(m=>!options.symbols||options.symbols.includes(securityKey(m)));
+  const usBenchmark=benchmarkFor(universe.kind),prepared=options.preparedContexts;
+  if(prepared&&(options.contextOnly||preparedContextStores.get(prepared)!==store||prepared.universeId!==universeId||prepared.usBenchmark!==usBenchmark))throw new Error("PREPARED_CONTEXTS_INVALID");
   const recentDays=options.recentDays===undefined?null:Math.max(1,Math.min(Math.floor(options.recentDays),5000));
   const histories=async(member:SecurityMember)=>{
     const meta=(await store.barMetadata(member)).filter(m=>["yahoo-us-adjusted-ohlcv","yahoo-kr-raw-ohlcv","naver-raw-ohlcv"].includes(m.price_basis)).sort((a,b)=>b.day.localeCompare(a.day)||b.fetched_at.localeCompare(a.fetched_at));
@@ -98,7 +112,7 @@ export async function precomputeDiscovery(store: DiscoveryStore, universeId: str
     return {bars:await store.bars(member.market,member.symbol,meta[0].price_basis),basis:meta[0].price_basis,source:meta[0].source};
   };
   let contextSecurities=0;
-  for(const member of members) {
+  for(const member of prepared?[]:members) {
     await checkpoint?.();const history=await histories(member);if(!history)continue;
     const contexts=contextHistory(history.bars,history.source);
     await store.saveContext(universeId,`security:${securityKey(member)}`,recentDays===null?contexts:contexts.slice(-recentDays));
@@ -106,8 +120,7 @@ export async function precomputeDiscovery(store: DiscoveryStore, universeId: str
   }
   // Collection builds the peer observations first. The final pass alone publishes features/events.
   if(options.contextOnly)return {features:0,events:0,version:config.version,securities:contextSecurities,priceBasis:"source-separated",delivery:"detected-only"};
-  const usBenchmark=universe.kind==="NASDAQ100"?"NASDAQ100":universe.kind==="NASDAQ_LISTED"?"NASDAQ_LISTED":"SP500";
-  await checkpoint?.();await store.aggregateContexts(universeId,usBenchmark);
+  if(!prepared)await prepareDiscoveryContexts(store,universeId,checkpoint);
   let features=0,events=0,securities=0;
   for(const member of members) {
     await checkpoint?.();const history=await histories(member);if(!history)continue;

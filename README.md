@@ -81,4 +81,4 @@ attachments/       마스터 프롬프트
 
 Grok Build 템플릿(PWA·배너) 파일이 `public/__grok`, `scripts/grok-pwa-*`, `server/` 에 포함되어 있습니다. 배포 시 필요하면 유지하거나 제거하세요.
 
-Bollinger Screener 2.0은 Universe와 결과 조건을 선택한 뒤 **실행**으로 저장 자료를 검색합니다. 부족한 자료는 운영자 권한 확인 후 **선택 범위 수집·계산**, 시간 제한 후에는 **수집 이어받기**로 확보합니다. KOSDAQ 등 편입 목록이 없을 때도 **실행 → 권한 확인 후 실행 → 수집 이어받기**로 최초 수집할 수 있습니다. 기존 Neon/Vercel Hobby를 재사용하는 [실행 순서](docs/upgrade/BOLLINGER_SCREENER_2.md)와 [이번 수정의 검증 기록](docs/upgrade/BOLLINGER_UNIVERSE_RECOVERY.md)을 참고하세요. 기존 키움 수집기와 차트 지표는 유지합니다.
+Bollinger Screener 2.0은 Universe를 선택한 뒤 **실행**으로 모든 선택 기업의 현재 상황과 저장된 일봉의 **볼린저 가격 차트**를 보여줍니다. 기업 이름으로 차트를 바꾸고, 전략 탭으로 판정을 즉시 비교합니다. 후보가 0개여도 기업은 숨기지 않습니다. 부족한 자료는 기존 운영자 권한의 **선택 범위 수집·계산** / **수집 이어받기**로 확보합니다. 기존 Neon/Vercel Hobby를 그대로 사용하는 [사용 순서·변경·검증 기록](docs/upgrade/BOLLINGER_INVESTOR_VIEW.md)을 참고하세요. 기존 키움 수집기와 차트 지표는 유지합니다.
