@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Search, RefreshCw, SlidersHorizontal, Play, Download, LockKeyhole, LoaderCircle } from "lucide-react";
+import { Search, RefreshCw, SlidersHorizontal, Play, Download, LockKeyhole, LoaderCircle, Square } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,37 +15,36 @@ import type { StoredCandidate } from "@/server/bollinger-discovery-store";
 import { BollingerManualDiagnostic } from "@/components/charts/BollingerManualDiagnostic";
 import { BollingerStockStudy } from "@/components/charts/BollingerStockStudy";
 import { BollingerInspectionList, discoveryStockKey } from "@/components/charts/BollingerInspectionList";
-import type { DiscoveryInspectionRow } from "@/lib/bollinger/discovery-inspection";
+import { discoveryStrategyDescription, discoveryStrategyReasons, type DiscoveryInspectionRow } from "@/lib/bollinger/discovery-inspection";
+import { isDiscoveryDay } from "@/lib/bollinger/discovery-dates";
+import { needsDiscoveryCollection, runDiscoveryCollection, type DiscoveryRunReply } from "@/lib/bollinger/discovery-run";
 import { activeBollingerLedgers, evaluateDiscoveryAlerts, loadBollingerLedger, saveBollingerLedger } from "@/lib/bollinger/alerts";
 import { notifyAlert } from "@/lib/wire/use-live-wire";
 
 export const Route=createFileRoute("/bollinger")({component:BollingerDiscoveryPage,head:()=>({meta:[{title:"Bollinger Screener 2.0 · Long Pre-Breakout"}]})});
 const LABELS:Record<Strategy,string>={"long-pre-breakout":"Long Pre-Breakout","squeeze-watch":"Squeeze Watch",triggered:"Triggered","follow-through":"Follow-Through","failed-breakout":"Failed Breakout",pullback:"Pullback","mean-reversion-watch":"Mean Reversion","bear-breakdown":"Bear / Breakdown"};
-const STRATEGY_GUIDE:Record<Strategy,string>={"long-pre-breakout":"상승 추세에서 변동성이 줄고 저항선 가까이에 있는 돌파 전 후보입니다.","squeeze-watch":"변동성이 낮은 종목을 관찰합니다. 압축만으로 상승이나 돌파가 확정되지는 않습니다.",triggered:"가격과 거래량의 돌파 조건을 통과한 종목입니다.","follow-through":"돌파 이후 가격 유지 조건을 확인하는 종목입니다.","failed-breakout":"돌파 이후 지지 실패가 감지된 종목입니다.",pullback:"상승 추세에서 눌림 조건을 관찰하는 종목입니다.","mean-reversion-watch":"밴드 이탈 뒤 평균 회귀 가능성을 관찰하는 조건입니다.","bear-breakdown":"하락 추세 또는 하단 이탈 조건을 확인합니다."};
 const STATUS:Record<string,string>={DATABASE_MISSING:"공유 DB 미설정 · 기존 Neon 연결이 필요합니다.",MIGRATION_0005_REQUIRED:"스크리너 저장 테이블 미적용 · migration 0005가 필요합니다.",UNIVERSE_MISSING:"편입 목록 미확보 · 수집기에 유니버스 등록이 필요합니다.",DATABASE_QUERY_FAILED:"저장 자료 조회 실패 · DB 연결과 실행 기록을 확인하세요."};
 const COLLECTION_STATUS:Record<string,string>={UNAUTHORIZED:"수집 실행 권한 확인이 필요합니다.",OPERATOR_AUTH_REQUIRED:"수집 실행 권한 확인이 필요합니다.",DISABLED:"클라우드 수집 비활성 · 서버 설정을 확인하세요.",CRON_SECRET_MISSING:"수집 실행 비밀값이 서버에 설정되지 않았습니다.",CRON_SECRET_INVALID:"서버의 수집 실행 비밀값 설정을 확인하세요.",INVALID_CONFIG:"수집 대상 설정을 확인하세요.",INVALID_REQUEST:"선택한 범위와 계산 버전을 확인하세요.",LEASE_BUSY:"다른 수집 작업이 실행 중입니다. 진행 상태를 확인하세요.",ALREADY_RUNNING:"다른 수집 작업이 실행 중입니다. 진행 상태를 확인하세요.",PARTIAL_BUDGET:"시간 예산이 끝났습니다. 수집 이어받기를 눌러 계속하세요.",COMPLETE:"선택 범위 수집·계산이 완료되었습니다.",UP_TO_DATE:"선택 범위의 저장 자료가 이미 최신입니다.",DATABASE_MISSING:STATUS.DATABASE_MISSING,MIGRATION_0005_REQUIRED:STATUS.MIGRATION_0005_REQUIRED,DATABASE_QUERY_FAILED:STATUS.DATABASE_QUERY_FAILED,NETWORK_FAILED:"서버 실행 응답을 확인하지 못했습니다. 진행 상태를 새로고침하고 중단 여부를 확인하세요."};
 Object.assign(COLLECTION_STATUS,{CONFIGURATION_INVALID:"클라우드 수집 설정이 유효하지 않습니다. 서버 설정을 확인하세요.",SELECTION_INVALID:"선택한 Top N·섹터·종목 코드를 확인하세요.",CONFIGURATION_VERSION_INVALID:"선택한 계산 버전을 사용할 수 없습니다. 저장된 버전을 확인하세요.",NO_SELECTION:"선택 범위에 수집 가능한 종목이 없습니다. 섹터·교집합·수동 코드를 확인하세요.",UNIVERSE_UNSUPPORTED:"이 편입 스냅샷의 수집은 아직 지원하지 않습니다. 지원하는 시장과 저장 자료를 사용하세요.",PRODUCTION_DEPLOYMENT_REQUIRED:"수집은 Production 배포에서 실행할 수 있습니다. 운영 사이트에서 실행하세요.",PARTIAL_ERRORS:"일부 종목의 수집·계산이 실패했습니다. 오류 수를 확인하고 수집 이어받기로 재시도하세요.",COMPLETE_WITH_WARNINGS:"선택 범위 계산은 끝났지만 시장 지표 등에 경고가 있습니다. 가용성과 진단을 확인하세요.",COLLECTION_FAILED:"수집 실행이 실패했습니다. 안전한 진단과 저장된 진행 상태를 확인하세요."});
 Object.assign(COLLECTION_STATUS,{MEMBERSHIP_FAILED:"편입 목록 수집이 실패했습니다. 공급자 연결을 확인하고 수집 이어받기로 재시도하세요.",KR_MEMBERSHIP_CHANGED_RESTART_REQUIRED:"수집 중 편입 목록이 변경되었습니다. 실행을 다시 눌러 검증된 목록부터 재시작하세요.",COMPUTE_FAILED:"저장 가격의 계산이 실패했습니다. 수집 이어받기로 실패 종목을 다시 계산하세요.",LEASE_LOST:"수집 실행 잠금이 종료되었습니다. 다른 작업의 종료 상태를 확인한 뒤 이어받으세요.",BENCHMARK_FAILED:"시장 지표 수신이 실패했습니다. 수집 이어받기로 재시도하고 상대 강도 가용성을 확인하세요.",BOOTSTRAP_TARGET_INVALID:"최초 수집 대상이 유효하지 않습니다. 지원하는 시장 또는 국내 ETF 6자리 코드를 확인하세요."});
+Object.assign(COLLECTION_STATUS,{STOPPED:"자동 이어받기를 중지했습니다. 진행 중이던 서버 요청은 저장을 마칠 수 있습니다. 수집 이어받기로 계속할 수 있습니다.",NO_PROGRESS:"저장 진행이 연속해서 늘지 않아 자동 이어받기를 중지했습니다. 종목별 오류와 수집 설정을 확인하세요.",CONTINUATION_LIMIT:"자동 이어받기 한도에 도달했습니다. 저장 위치는 유지되며 수집 이어받기로 계속할 수 있습니다.",COLLECTION_NOT_AVAILABLE:"분석 자료가 부족하지만 수집 설정 또는 선택 범위가 유효하지 않습니다. 수집 불가 안내를 확인하세요."});
 const format=(v:number|null|undefined,d=1)=>v==null||!Number.isFinite(v)?"—":v.toLocaleString("ko-KR",{maximumFractionDigits:d});
 const today=()=>new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Seoul",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
 type ProgressJob={target:string;phase:string;execution?:string;requested:number;collected:number;computed:number;computedSymbols?:string[]|null;provisional?:number;pendingCompute?:number;errors:number;benchmarkFailures:number;membershipRows:number;membershipTotal:number;lastRunAt:string|null;lastError:string|null;budgetStopped:boolean;top?:number|string|null};
-function RunProgress({job}:{job:ProgressJob}) {
+function RunProgress({job,automating=false}:{job:ProgressJob;automating?:boolean}) {
   return <div className="mt-3 border-t border-border pt-3" data-testid="bollinger-run-progress">
     <p className="font-medium">{job.target} · {DISCOVERY_EXECUTION_LABELS[job.execution??""]??"실행 상태 확인 중"}</p>
     <p className="mt-1 text-muted-foreground">단계: {DISCOVERY_PHASE_LABELS[job.phase]??"상태 확인 필요"} · {job.top?`선택 ${job.top==="ALL"?"전체":`Top ${job.top}`}`:"선택 범위"}</p>
     <p className="mt-1 text-muted-foreground">편입 {job.membershipRows} / {job.membershipTotal||"확인 중"} · 가격 저장 {job.collected} / {job.requested||"확인 중"} · 최종 계산 {job.computed} / {job.requested||"확인 중"} · 재계산 대기 {job.pendingCompute??0}</p>
     {job.phase!=="complete"&&job.phase!=="complete-with-errors"&&((job.provisional??0)>0)&&<p className="mt-1 text-muted-foreground">가격 기반 준비 {job.provisional}개 · 최종 분석과 별도로 집계합니다.</p>}
     {(job.errors>0||job.benchmarkFailures>0)&&<p className="mt-1 text-desk-orange">종목 오류 {job.errors} · 시장 지표 오류 {job.benchmarkFailures}</p>}
-    {job.execution==="PAUSED"&&<p className="mt-1 text-desk-orange">현재 자동으로 진행되지 않습니다. 선택 범위를 확인하고 수집 이어받기를 누르세요.</p>}
+    {job.execution==="PAUSED"&&!automating&&<p className="mt-1 text-desk-orange">현재 자동으로 진행되지 않습니다. 선택 범위를 확인하고 수집 이어받기를 누르세요.</p>}
     {job.execution==="INTERRUPTED"&&<p className="mt-1 text-desk-orange">실행 요청은 끝났고 작업이 남아 있습니다. 수집 이어받기로 저장 위치부터 계속할 수 있습니다.</p>}
     {job.lastError&&<p className="mt-1 text-desk-orange">수집 진단: {COLLECTION_STATUS[job.lastError]??"수집 실패 상태를 확인한 뒤 선택 범위 이어받기로 재시도하세요."}</p>}
     {job.lastRunAt&&<p className="mt-1 text-muted-foreground">최근 실행 {new Intl.DateTimeFormat("ko-KR",{timeZone:"Asia/Seoul",dateStyle:"short",timeStyle:"short"}).format(new Date(job.lastRunAt))} (한국시간)</p>}
   </div>;
 }
 const componentNames:Record<string,string>={market:"시장",sector:"섹터",trend:"롱 추세",compression:"변동성 압축",position:"돌파 전 위치",momentum:"모멘텀",relativeStrength:"시장 대비 RS",dryUp:"거래량 건조"};
-function ChartLink({row}:{row:StoredCandidate}) {
-  return <Link className="font-semibold text-desk-teal hover:underline" to="/chart" search={{symbols:`${row.market}:${row.symbol}`,layout:"1",interval:"day",range:"2y",discoveryUniverse:row.universeId,discoveryVersion:row.configVersion}}>{row.name}</Link>;
-}
 function Explanation({row,onClose}:{row:StoredCandidate|null;onClose:()=>void}) {
   return <Sheet open={!!row} onOpenChange={v=>{if(!v)onClose();}}><SheetContent className="overflow-y-auto"><SheetHeader><SheetTitle>{row?.name} · 선정 근거</SheetTitle><SheetDescription>{row?.symbol} · {row?.date} · 완료 일봉</SheetDescription></SheetHeader>{row&&<div className="space-y-4 text-sm">
     <div className="rounded-lg bg-muted p-3"><p className="font-medium">{row.state} · Long Readiness {format(row.score.value)}</p><p className="mt-2 text-xs text-muted-foreground">Coverage {format(row.score.coverage*100,0)}%. 점수는 수익 확률이 아닙니다.</p></div>
@@ -74,13 +73,15 @@ function BollingerDiscoveryPage() {
   const queryClient=useQueryClient();
   const watchlist=useAppStore(s=>s.watchlist),usWatchlist=useAppStore(s=>s.usWatchlist);
   const [strategy,setStrategy]=useState<Strategy>("long-pre-breakout"),[kind,setKind]=useState<UniverseKind>("KOSPI"),[universeId,setUniverseId]=useState("");
-  const [top,setTop]=useState<TopChoice>("ALL"),[sector,setSector]=useState(""),[search,setSearch]=useState(""),[minWeight,setMinWeight]=useState(0),[page,setPage]=useState(1),[pageSize,setPageSize]=useState<25|50|100>(50);
+  const [top,setTop]=useState<TopChoice>(20),[sector,setSector]=useState(""),[search,setSearch]=useState(""),[minWeight,setMinWeight]=useState(0),[page,setPage]=useState(1),[pageSize,setPageSize]=useState<25|50|100>(50);
   const [minScore,setMinScore]=useState(0),[minCoverage,setMinCoverage]=useState(.8),[sort,setSort]=useState<"score"|"distance"|"rs">("score"),[onlyWatchlist,setOnlyWatchlist]=useState(false),[manual,setManual]=useState(""),[selected,setSelected]=useState<StoredCandidate|null>(null),[advanced,setAdvanced]=useState(false);
   const [referenceDate,setReferenceDate]=useState(today);
-  const [focusedStockKey,setFocusedStockKey]=useState<string|null>(null),[showMatches,setShowMatches]=useState(false);
+  const [focusedStockSelection,setFocusedStockSelection]=useState<{scope:string;row:DiscoveryInspectionRow}|null>(null),[showMatches,setShowMatches]=useState(false);
   const studyReference=useRef<HTMLDivElement>(null);
   const [etfCode,setEtfCode]=useState("");
   const [applied,setApplied]=useState<AppliedDiscoverySearch|null>(null),[execution,setExecution]=useState(0),[collectBusy,setCollectBusy]=useState(false),[collectStatus,setCollectStatus]=useState("");
+  const [executeBusy,setExecuteBusy]=useState(false),[collectRound,setCollectRound]=useState(0);
+  const collectorController=useRef<AbortController|null>(null);
   const [operatorOpen,setOperatorOpen]=useState(false),[operatorSecret,setOperatorSecret]=useState(""),[operatorBusy,setOperatorBusy]=useState(false),[operatorError,setOperatorError]=useState("");
   const [operatorRun,setOperatorRun]=useState<AppliedDiscoverySearch|null>(null),pendingOperatorRun=useRef<AppliedDiscoverySearch|null>(null);
   const [sessionIntentReady,setSessionIntentReady]=useState(false);
@@ -106,7 +107,7 @@ function BollingerDiscoveryPage() {
   const bootstrapTarget=discoveryBootstrapTarget(kind,etfCode);
   const draft=useMemo(()=>({universeId,...(!universeId&&bootstrapTarget?{bootstrapTarget}:{}),configVersion:version,strategy,selection,symbols,minScore,minCoverage,sort,asOf:referenceDate}),[universeId,bootstrapTarget,version,strategy,selection,symbols,minScore,minCoverage,sort,referenceDate]);
   const draftReference=useRef({draft,bootstrapTarget});draftReference.current={draft,bootstrapTarget};
-  const invalidDate=!/^\d{4}-\d{2}-\d{2}$/.test(referenceDate)||referenceDate>today();
+  const invalidDate=!isDiscoveryDay(referenceDate)||referenceDate>today();
   const dirty=!!applied&&discoverySearchSignature(applied)!==discoverySearchSignature(draft);
   const collectionDirty=!!applied&&discoveryCollectionSelectionSignature(applied)!==discoveryCollectionSelectionSignature(draft);
   const query=useQuery({queryKey:["bollinger-discovery",applied,execution,page,pageSize],enabled:!!applied?.universeId,queryFn:()=>getDiscoveryCandidates({data:{...applied!,page,pageSize}}),staleTime:60000,retry:false,refetchOnWindowFocus:false,refetchInterval:collectBusy?5000:false,refetchIntervalInBackground:false});
@@ -126,17 +127,27 @@ function BollingerDiscoveryPage() {
     for(const event of result.fired)notifyAlert(`Bollinger · ${event.type}`,`${event.date} · 일별 수집 감지 · 앱 활성 세션 알림`);
   },[sessionAlerts,evidence.data,applied]);
   useEffect(()=>{setSelected(null);},[universeId,version,strategy,selection,minScore,minCoverage,sort,symbols]);
-  useEffect(()=>()=>{operation.current++;pendingOperatorRun.current=null;},[]);
+  useEffect(()=>{
+    const lifecycle=operation,pending=pendingOperatorRun,controller=collectorController;
+    const stop=()=>{if(document.visibilityState==="hidden")collectorController.current?.abort();};
+    document.addEventListener("visibilitychange",stop);
+    return()=>{lifecycle.current++;pending.current=null;controller.current?.abort();document.removeEventListener("visibilitychange",stop);};
+  },[]);
   const data=query.data,rows=(data?.rows??[]) as StoredCandidate[],counts=Object.fromEntries((data?.counts??[]).map(c=>[c.state,c.count]));
   const availability=data&&"availability" in data?data.availability:undefined;
   const inspectionRows:DiscoveryInspectionRow[]=data&&"inspection" in data?data.inspection.rows:[];
   const inspectionTotal=data&&"inspection" in data?data.inspection.total:0;
-  const focusedStock=inspectionRows.find(row=>discoveryStockKey(row)===focusedStockKey)??inspectionRows[0]??null;
+  const matchingRows:DiscoveryInspectionRow[]=rows.map(row=>({market:row.market,symbol:row.symbol,name:row.name,sector:row.sector,exchange:inspectionRows.find(item=>discoveryStockKey(item)===discoveryStockKey(row))?.exchange??"OTHER",candidate:row,source:row.source,priceBasis:row.priceBasis,computedAt:row.computedAt,dataStatus:inspectionRows.find(item=>discoveryStockKey(item)===discoveryStockKey(row))?.dataStatus,assessment:"MATCH",matched:true,reasons:discoveryStrategyReasons(row,applied?.strategy??strategy,applied?.configVersion??version).reasons}));
+  const visibleRows=showMatches?matchingRows:inspectionRows;
+  const focusScope=applied?discoveryCollectionSelectionSignature(applied):"";
+  const retained=focusedStockSelection?.scope===focusScope?focusedStockSelection.row:null;
+  const focusedStock=showMatches?(matchingRows.find(row=>retained&&discoveryStockKey(row)===discoveryStockKey(retained))??matchingRows[0]??null):(inspectionRows.find(row=>retained&&discoveryStockKey(row)===discoveryStockKey(retained))??retained??inspectionRows[0]??null);
   const focusStock=(row:DiscoveryInspectionRow)=>{
-    setFocusedStockKey(discoveryStockKey(row));
+    setFocusedStockSelection({scope:focusScope,row});
     studyReference.current?.scrollIntoView({block:"start",behavior:window.matchMedia("(prefers-reduced-motion: reduce)").matches?"instant":"smooth"});
   };
   const updatingJob=progress.data?.jobs.find(job=>job.requested>0&&job.execution!=="COMPLETE");
+  const stockErrors=new Map(progress.data?.jobs.flatMap(job=>(job.stockErrors??[]).map(error=>[error.symbol,error.code] as const))??[]);
   const pendingSymbols=new Set(updatingJob?.computedSymbols?inspectionRows.filter(row=>!updatingJob.computedSymbols!.includes(discoveryStockKey(row))).map(discoveryStockKey):[]);
   const resultState=discoveryResultState({applied:!!applied,fetching:query.isFetching,failed:query.isError,status:data?.status,selected:availability?.selected??data?.requestedCount,stored:availability?.stored,missingStored:availability?.missingStored,matched:data?.total});
   const emptyTitle={"not-started":"조건을 선택한 뒤 실행을 누르세요",running:"선택 범위의 저장 자료를 조회하고 있습니다",failed:"검색 실행을 완료하지 못했습니다","empty-selection":"선택 조건에 포함되는 종목이 없습니다","no-history":"선택 범위의 계산 자료가 없습니다",partial:"선택 범위의 자료가 일부 미확보되었습니다","no-matches":"검사 가능한 자료에서 조건에 맞는 후보가 없습니다",complete:"검색 실행 완료"}[resultState];
@@ -144,7 +155,7 @@ function BollingerDiscoveryPage() {
   const activeJob=progress.data?.jobs.some(j=>j.execution==="RUNNING")??false;
   const pausedJob=!collectionDirty&&progress.data?.jobs.some(j=>["PAUSED","INTERRUPTED","FAILED"].includes(j.execution??""));
   const unsupportedReason=kind==="SP500"||kind==="NASDAQ100"?`${kind}의 검증된 공식 편입 목록 자동 수집은 아직 지원하지 않습니다. 저장된 공식 스냅샷이 있어야 조회할 수 있습니다. NASDAQ_LISTED는 별도 시장입니다.`:kind==="ETF"?"ETF 수집 코드를 6자리로 입력하세요. ETF 이름이나 미국 ETF 티커로 국내 편입 목록을 추정하지 않습니다.":"먼저 KOSPI·KOSDAQ·NASDAQ_LISTED 등 기준 시장을 선택하고 관심종목 교집합 또는 수동 코드 필터를 적용하세요.";
-  const disabledReason=catalog.isPending?"저장 상태를 확인하고 있습니다.":catalog.isError?"저장 상태 조회에 실패했습니다. 저장 자료 새로고침을 누르세요.":catalog.data?.status!=="READY"?(STATUS[catalog.data?.status??""]??"DB 연결과 저장 테이블 상태를 확인하세요."):invalidDate?"조회 기준일을 오늘 또는 이전 날짜로 지정하세요.":invalidManual?"수동 코드 형식을 확인하세요.":collectBusy?"현재 선택 범위의 수집 요청을 실행하고 있습니다. 저장된 차트와 종목 분석은 아래에서 확인할 수 있습니다.":onlyWatchlist&&symbols?.length===0?"관심종목 교집합이 비어 있습니다. 관심종목을 추가하거나 교집합을 해제하세요.":"";
+  const disabledReason=catalog.isPending?"저장 상태를 확인하고 있습니다.":catalog.isError?"저장 상태 조회에 실패했습니다. 저장 자료 새로고침을 누르세요.":catalog.data?.status!=="READY"?(STATUS[catalog.data?.status??""]??"DB 연결과 저장 테이블 상태를 확인하세요."):invalidDate?"조회 기준일을 오늘 또는 이전 날짜로 지정하세요.":invalidManual?"수동 코드 형식을 확인하세요.":(collectBusy||executeBusy)?"선택 범위 분석을 실행하고 있습니다. 저장된 차트와 종목 분석은 아래에서 확인할 수 있습니다.":onlyWatchlist&&symbols?.length===0?"관심종목 교집합이 비어 있습니다. 관심종목을 추가하거나 교집합을 해제하세요.":"";
   const collectDisabledReason=disabledReason|| (activeJob?"선택 범위의 수집 작업이 이미 실행 중입니다.":!cloud?.enabled?"클라우드 수집이 비활성입니다. 서버의 BOLLINGER_CLOUD_ENABLED 설정을 확인하세요.":!cloud.secretValid?"서버의 CRON_SECRET 설정이 필요합니다.":!cloud.configurationValid?"서버의 수집 설정이 유효하지 않습니다.":!configRecognized?"선택한 계산 버전을 사용할 수 없습니다.":(!universeId&&!bootstrapTarget)||["SP500","NASDAQ100","WATCHLIST","MANUAL"].includes(kind)?unsupportedReason:operator.isPending?"수집 실행 권한 상태를 확인하고 있습니다.":"");
   const executeDisabledReason=disabledReason||(!universeId?collectDisabledReason:"");
   const bindBootstrapSnapshot=useCallback((request:AppliedDiscoverySearch,id:string)=>{
@@ -159,17 +170,32 @@ function BollingerDiscoveryPage() {
     const job=progress.data?.jobs.find(item=>item.universeId);
     if(job?.universeId)bindBootstrapSnapshot(applied,job.universeId);
   },[applied,progress.data,bindBootstrapSnapshot]);
-  const applyDraft=()=>{const next=applyDiscoverySearch(draft,referenceDate);setApplied(next);setExecution(n=>n+1);setPage(1);setSelected(null);return next;};
-  const execute=()=>{
+  const applyDraft=()=>{const base=applyDiscoverySearch(draft,referenceDate),next=!collectionDirty&&applied?.bootstrapTarget?{...base,bootstrapTarget:applied.bootstrapTarget}:base;setApplied(next);setExecution(n=>n+1);setPage(1);setSelected(null);return next;};
+  const requestPermission=(request:AppliedDiscoverySearch)=>{pendingOperatorRun.current=request;setOperatorRun(request);setOperatorOpen(true);setOperatorError("");};
+  const execute=async()=>{
     if(executeDisabledReason)return;
-    setCollectStatus("");const request=applyDraft();
-    if(!request.universeId){
-      if(operator.data?.authorized)void collectRequest(request);
-      else{pendingOperatorRun.current=request;setOperatorRun(request);setOperatorOpen(true);setOperatorError("");}
-    }
+    setShowMatches(false);setCollectStatus("");setExecuteBusy(true);
+    const request=applyDraft(),ticket=++operation.current,nextExecution=execution+1,scope=discoveryCollectionSelectionSignature(draft);
+    try{
+      if(!request.universeId){
+        if(operator.data?.authorized)await collectRequest(request);else requestPermission(request);
+        return;
+      }
+      const result=await queryClient.fetchQuery({queryKey:["bollinger-discovery",request,nextExecution,1,pageSize],queryFn:()=>getDiscoveryCandidates({data:{...request,page:1,pageSize}}),staleTime:0});
+      if(ticket!==operation.current||scope!==discoveryCollectionSelectionSignature(draftReference.current.draft))return;
+      const run=discoveryCollectionRequest(request);
+      const jobs=run?await getDiscoveryRunProgress({data:run}):null;
+      if(ticket!==operation.current||scope!==discoveryCollectionSelectionSignature(draftReference.current.draft))return;
+      const incomplete=jobs?.jobs.some(job=>job.requested>0&&job.execution!=="COMPLETE")??false;
+      if(needsDiscoveryCollection({status:result.status,availability:"availability" in result?result.availability:undefined,incomplete})){
+        if(collectDisabledReason){setCollectStatus("COLLECTION_NOT_AVAILABLE");return;}
+        if(operator.data?.authorized)await collectRequest(request);else requestPermission(request);
+      }
+    }catch{if(ticket===operation.current)setCollectStatus("DATABASE_QUERY_FAILED");}
+    finally{setExecuteBusy(false);}
   };
   const chooseStrategy=(next:Strategy)=>{
-    setStrategy(next);setPage(1);setSelected(null);
+    setStrategy(next);setShowMatches(true);setFocusedStockSelection(null);setPage(1);setSelected(null);
     setApplied(current=>current?applyDiscoveryStrategy(current,next):null);
     setExecution(value=>value+1);
   };
@@ -190,33 +216,60 @@ function BollingerDiscoveryPage() {
   const logout=async()=>{try{const response=await fetch("/api/bollinger/operator",{method:"DELETE",credentials:"same-origin"});if(response.ok)await operator.refetch();else setCollectStatus("UNAUTHORIZED");}catch{setCollectStatus("NETWORK_FAILED");}};
   const collectRequest=async(request:AppliedDiscoverySearch)=>{
     const collectionRequest=discoveryCollectionRequest(request);if(!collectionRequest)return;
-    const ticket=++operation.current;setCollectBusy(true);setCollectStatus("");
+    collectorController.current?.abort();
+    const controller=new AbortController();collectorController.current=controller;
+    const ticket=++operation.current;setCollectBusy(true);setCollectRound(0);setCollectStatus("");
+    const updateStored=()=>{
+      void catalog.refetch();
+      void queryClient.invalidateQueries({queryKey:["bollinger-discovery"]});
+      void queryClient.invalidateQueries({queryKey:["bollinger-run-progress"]});
+      void queryClient.invalidateQueries({queryKey:["bollinger-evidence"]});
+      void queryClient.invalidateQueries({queryKey:["bollinger-stock-chart"]});
+    };
     try{
-      const response=await fetch("/api/bollinger/collect",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify(collectionRequest)});
-      const payload:unknown=await response.json();if(ticket!==operation.current)return;
-      const status=payload&&typeof payload==="object"&&"status" in payload&&typeof payload.status==="string"?payload.status:"NETWORK_FAILED";
-      setCollectStatus(status);
-      if(payload&&typeof payload==="object"&&"jobs" in payload&&Array.isArray(payload.jobs)){
-        const bound=payload.jobs.find((item:unknown)=>item&&typeof item==="object"&&"universeId" in item&&typeof item.universeId==="string");
-        if(bound&&typeof bound.universeId==="string")bindBootstrapSnapshot(request,bound.universeId);
-      }
-      if(response.status===401){void operator.refetch();setOperatorOpen(true);}
-    }catch{if(ticket===operation.current)setCollectStatus("NETWORK_FAILED");}
-    finally{if(ticket===operation.current){setCollectBusy(false);setExecution(n=>n+1);void catalog.refetch();void queryClient.invalidateQueries({queryKey:["bollinger-run-progress"]});void queryClient.invalidateQueries({queryKey:["bollinger-evidence"]});void queryClient.invalidateQueries({queryKey:["bollinger-stock-chart"]});}}
+      const result=await runDiscoveryCollection(collectionRequest,{
+        signal:controller.signal,
+        request:async(input,signal)=>{
+          const response=await fetch("/api/bollinger/collect",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify(input),signal:AbortSignal.any([signal,AbortSignal.timeout(260000)])});
+          const payload:unknown=await response.json();
+          const status=response.status===401?"UNAUTHORIZED":payload&&typeof payload==="object"&&"status" in payload&&typeof payload.status==="string"?payload.status:"NETWORK_FAILED";
+          return {status,jobs:payload&&typeof payload==="object"&&"jobs" in payload&&Array.isArray(payload.jobs)?payload.jobs.filter((job):job is Record<string,unknown>=>!!job&&typeof job==="object"&&!Array.isArray(job)):[]} satisfies DiscoveryRunReply;
+        },
+        onRound:reply=>{
+          if(ticket!==operation.current)return;
+          setCollectRound(reply.rounds);setCollectStatus(reply.status);
+          const bound=reply.jobs?.find(job=>typeof job.universeId==="string");
+          if(bound&&typeof bound.universeId==="string")bindBootstrapSnapshot(request,bound.universeId);
+          updateStored();
+        },
+        delay:signal=>new Promise<void>((resolve,reject)=>{
+          if(signal.aborted){reject(new Error("STOPPED"));return;}
+          const abort=()=>{clearTimeout(timer);reject(new Error("STOPPED"));};
+          const timer=setTimeout(()=>{signal.removeEventListener("abort",abort);resolve();},500);
+          signal.addEventListener("abort",abort,{once:true});
+        }),
+      });
+      if(ticket!==operation.current)return;
+      setCollectStatus(result.status);
+      if(result.status==="UNAUTHORIZED"){void operator.refetch();requestPermission(request);}
+    }finally{
+      if(ticket===operation.current){setCollectBusy(false);setExecution(n=>n+1);updateStored();}
+      if(collectorController.current===controller)collectorController.current=null;
+    }
   };
   const collect=async()=>{
     if(collectDisabledReason)return;
-    if(!operator.data?.authorized){setOperatorRun(null);pendingOperatorRun.current=null;setOperatorOpen(true);setOperatorError("");return;}
     const next=applyDraft(),request=!collectionDirty&&applied?.bootstrapTarget?{...next,bootstrapTarget:applied.bootstrapTarget}:next;
     if(request.bootstrapTarget)setApplied(request);
+    if(!operator.data?.authorized){requestPermission(request);return;}
     await collectRequest(request);
   };
-  const reset=()=>{setMinScore(0);setMinCoverage(.8);setSort("score");setTop("ALL");setSector("");setMinWeight(0);setOnlyWatchlist(false);setManual("");setStrategy("long-pre-breakout");setVersion(DISCOVERY_DEFAULTS.version);setReferenceDate(today());};
+  const reset=()=>{setMinScore(0);setMinCoverage(.8);setSort("score");setTop(20);setSector("");setMinWeight(0);setOnlyWatchlist(false);setManual("");setStrategy("long-pre-breakout");setVersion(DISCOVERY_DEFAULTS.version);setReferenceDate(today());};
   return <div className="flex min-w-0 flex-col gap-5" data-testid="bollinger-screener"><PageHeader kicker="DAILY DISCOVERY · 2.0" title="Bollinger Screener" lead="선택한 기업의 볼린저 가격 차트와 현재 상황을 비교합니다. 조건에 맞지 않는 종목도 숨기지 않습니다."/>
     <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground"><span>완료 일봉 · BB 20 / 2 · BBW 125 · {applied?.configVersion??version}</span><Button variant="outline" className="min-h-11 gap-2" onClick={refreshStored}><RefreshCw className="size-4"/>저장 자료 새로고침</Button></div>
     {cloud&&<details className="text-xs text-muted-foreground" aria-label="수집 설정"><summary className="min-h-11 cursor-pointer">수집 설정 · {cloud.enabled?"활성":"비활성"}</summary><p className="pb-3 leading-relaxed">{!cloud.enabled?"서버의 BOLLINGER_CLOUD_ENABLED=true 설정과 재배포가 필요합니다.":!cloud.secretValid?"서버의 CRON_SECRET 설정이 필요합니다.":!cloud.configurationValid?"서버의 수집 설정을 확인하세요.":"선택 범위는 실행 버튼으로 적용합니다. 최초 편입 목록 수집과 가격·계산 수집은 운영자 권한으로 실행합니다. 저장 자료 새로고침은 조회만 합니다."}</p></details>}
     <section className="rounded-lg border border-border bg-card p-4" aria-label="유니버스 구성"><h2 className="flex items-center gap-2 font-semibold"><Search className="size-4"/>Universe</h2><div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      <label className="text-xs text-muted-foreground">시장 / 편입 기준<select className="mt-1 min-h-11 w-full rounded border border-input bg-card px-3 text-sm text-foreground" value={kind} onChange={e=>{setKind(e.target.value as UniverseKind);setUniverseId("");setTop("ALL");setSector("");setSearch("");}}>{UNIVERSE_KINDS.map(k=><option key={k}>{k}</option>)}</select></label>
+      <label className="text-xs text-muted-foreground">시장 / 편입 기준<select className="mt-1 min-h-11 w-full rounded border border-input bg-card px-3 text-sm text-foreground" value={kind} onChange={e=>{setKind(e.target.value as UniverseKind);setUniverseId("");setTop(20);setSector("");setSearch("");}}>{UNIVERSE_KINDS.map(k=><option key={k}>{k}</option>)}</select></label>
       <label className="text-xs text-muted-foreground">{kind==="ETF"?"ETF 이름 / 코드 검색":"저장된 편입 스냅샷"}{kind==="ETF"&&<Input className="mt-1 min-h-11" aria-label="ETF 검색" value={search} onChange={e=>setSearch(e.target.value)} placeholder="KODEX, TIGER, QQQ…"/>}<select aria-label="편입 스냅샷" className="mt-1 min-h-11 w-full rounded border border-input bg-card px-3 text-sm text-foreground" value={universeId} onChange={e=>setUniverseId(e.target.value)}><option value="">편입 이력 미확보</option>{available.map(u=><option key={u.id} value={u.id}>{u.label} · {u.asOf}</option>)}</select></label>
       <label className="text-xs text-muted-foreground">구성 범위<select className="mt-1 min-h-11 w-full rounded border border-input bg-card px-3 text-sm text-foreground" value={top} onChange={e=>setTop(e.target.value==="ALL"?"ALL":Number(e.target.value) as Exclude<TopChoice,"ALL">)}>{validTopOptions(kind).map(n=><option key={n} value={n}>{n==="ALL"?"ALL · 전체 편입":`Top ${n}`}</option>)}</select></label>
       <label className="text-xs text-muted-foreground">섹터<select className="mt-1 min-h-11 w-full rounded border border-input bg-card px-3 text-sm text-foreground" value={sector} onChange={e=>setSector(e.target.value)}><option value="">전체 섹터</option>{universe?.sectors.map(s=><option key={s}>{s}</option>)}</select></label></div>
@@ -229,23 +282,23 @@ function BollingerDiscoveryPage() {
       </details>
       <div className="mt-4 border-t border-border pt-4" aria-label="선택 범위 실행">
         <div className="flex flex-wrap items-center gap-2">
-          <Button className="min-h-11 gap-2" onClick={execute} disabled={!!executeDisabledReason} data-testid="bollinger-execute">{query.isFetching||collectBusy?<LoaderCircle className="size-4 animate-spin"/>:<Play className="size-4"/>}실행</Button>
+          <Button className="min-h-11 gap-2" onClick={()=>void execute()} disabled={!!executeDisabledReason} data-testid="bollinger-execute">{query.isFetching||collectBusy||executeBusy?<LoaderCircle className="size-4 animate-spin"/>:<Play className="size-4"/>}실행</Button>
           <Button variant="outline" className="min-h-11 gap-2" onClick={()=>void collect()} disabled={!!collectDisabledReason} data-testid="bollinger-collect">{collectBusy?<LoaderCircle className="size-4 animate-spin"/>:<Download className="size-4"/>}{collectBusy?"수집·계산 실행 중…":pausedJob?"수집 이어받기":"선택 범위 수집·계산"}</Button>
           <Button ref={operatorButton} variant="ghost" className="min-h-11 gap-2" onClick={()=>{if(operator.data?.authorized)void logout();else{setOperatorOpen(true);setOperatorError("");}}} disabled={operatorBusy||collectBusy||(!operator.data?.authorized&&!cloud?.secretValid)}><LockKeyhole className="size-4"/>{operator.data?.authorized?"실행 권한 해제":"실행 권한 확인"}</Button>
         </div>
-        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{universeId?"실행하면 선택 종목 전체의 상태와 볼린저 차트를 보여줍니다. 가격 자료가 없는 종목은 수집·계산으로 확보합니다.":"저장된 편입 목록이 없으면 실행은 권한 확인 후 최초 편입 목록·가격·계산 수집을 시작합니다."} 시장·구성 범위는 실행으로 적용하고, 전략 버튼은 저장 자료의 보기만 즉시 바꿉니다.</p>
+        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{universeId?"실행하면 선택 종목 전체의 상태와 볼린저 차트를 보여줍니다. 가격이나 분석이 부족하면 실행 권한 확인 후 같은 범위를 수집합니다.":"저장된 편입 목록이 없으면 실행은 권한 확인 후 최초 편입 목록·가격·계산 수집을 시작합니다."} 실행은 부족한 자료의 수집·계산까지 연결합니다. 권한 확인 후 시간 제한에 걸리면 자동으로 이어받습니다. 전략 버튼은 저장된 분석 결과만 즉시 전환합니다.</p>
         {(executeDisabledReason||collectDisabledReason)&&<p className="mt-2 text-xs text-desk-orange" role="status" data-testid="bollinger-disabled-reason">{executeDisabledReason?`실행 불가: ${executeDisabledReason}`:`수집 불가: ${collectDisabledReason}`}</p>}
-        <p className="mt-2 text-xs" role="status" data-testid="bollinger-draft-status">{!applied?"실행 전 · Universe와 결과 조건을 선택하고 실행을 누르세요.":dirty?"조건 변경 · 아직 적용하지 않았습니다. 아래 결과는 이전 실행 조건입니다. 실행을 눌러 적용하세요.":!applied.universeId?operatorRun?"최초 수집 실행 권한 확인 대기 · 권한 확인 후 실행을 눌러 시작하세요.":collectBusy?"선택한 시장의 편입 목록부터 수집하고 있습니다…":"최초 편입 수집 진행 상태를 확인하세요. 중단된 작업은 수집 이어받기로 계속합니다.":query.isFetching?"선택 조건으로 저장 자료를 조회하고 있습니다…":query.isError||data&&data.status!=="READY"?"선택 조건 조회 실패 · 아래 진단을 확인하세요.":"선택 조건 적용 완료 · 아래 결과가 이번 실행 결과입니다."}</p>
+        <p className="mt-2 text-xs" role="status" data-testid="bollinger-draft-status">{!applied?"실행 전 · Universe와 결과 조건을 선택하고 실행을 누르세요.":dirty?"조건 변경 · 아직 적용하지 않았습니다. 아래 결과는 이전 실행 조건입니다. 실행을 눌러 적용하세요.":!applied.universeId?operatorRun?"최초 수집 실행 권한 확인 대기 · 권한 확인 후 실행을 눌러 시작하세요.":collectBusy?"선택한 시장의 편입 목록부터 수집하고 있습니다…":"최초 편입 수집 진행 상태를 확인하세요. 중단된 작업은 수집 이어받기로 계속합니다.":collectBusy?"선택 범위의 가격·분석을 확보하고 있습니다. 완료된 종목부터 아래에 표시합니다.":executeBusy?"선택 범위의 저장 자료와 갱신 필요 여부를 확인하고 있습니다…":query.isFetching?"선택 조건으로 저장 자료를 조회하고 있습니다…":query.isError||data&&data.status!=="READY"?"선택 조건 조회 실패 · 아래 진단을 확인하세요.":"선택 조건 적용 완료 · 아래에 종목별 차트와 전략 결과를 표시합니다."}</p>
         {invalidDate&&<p className="mt-2 text-xs text-desk-orange" role="alert">조회 기준일은 오늘 또는 이전의 유효한 날짜로 지정하세요.</p>}
         {applied&&applied.asOf!==today()&&<p className="mt-2 text-xs text-desk-orange" role="status">과거 기준 조회 {applied.asOf} · 오늘의 최신 후보 결과가 아닙니다.</p>}
         {invalidManual&&<p className="mt-2 text-xs text-desk-orange" role="alert">수동 코드는 KR:005930 또는 US:NVDA 형식으로 입력하세요. 잘못된 코드를 자동으로 제외해 실행하지 않습니다.</p>}
-        {collectBusy&&<p className="mt-2 text-xs text-desk-teal" role="status">선택 범위 수집 요청을 실행 중입니다. 5초마다 저장된 진행 상태를 확인합니다.</p>}
-        {collectStatus&&<p className="mt-2 text-xs text-desk-orange" role="status">{COLLECTION_STATUS[collectStatus]??"수집 요청이 종료되었습니다. 아래 진행 상태와 최종 계산 수를 확인하세요."}</p>}
-        {applied&&<details className="mt-3 text-xs" aria-label="선택 범위 수집 진행"><summary className="min-h-11 cursor-pointer font-medium">자료 갱신 상태 · {collectBusy?"실행 중":updatingJob?"최종 분석 미완료":"저장 자료 확인"}{updatingJob?` · 최종 ${updatingJob.computed}/${updatingJob.requested}`:""}</summary><p className="font-medium">이번 실행의 수집 상태 · {catalog.data?.universes.find(u=>u.id===applied.universeId)?.label??applied.bootstrapTarget??"선택한 편입 스냅샷"} · {applied.selection.top==="ALL"?"전체 지원 종목":`Top ${applied.selection.top}`}</p>{progress.isError||progress.data&&progress.data.status!=="READY"?<p className="mt-2 text-desk-orange">{STATUS[progress.data?.status??""]??COLLECTION_STATUS[progress.data?.status??""]??"수집 진행 상태를 확인하지 못했습니다. 저장 자료 새로고침을 누르세요."}</p>:progress.data?.jobs.length?progress.data.jobs.map((job,i)=><RunProgress key={`${job.target}:${i}`} job={job}/>):<p className="mt-2 text-muted-foreground">{progress.isFetching?"진행 상태 확인 중…":"선택 범위의 수집 실행 기록이 없습니다. 저장 자료 검색과 수집 실행은 별개입니다."}</p>}</details>}
+        {collectBusy&&<div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-desk-teal" role="status" data-testid="bollinger-active-run"><p>선택 범위 분석 중 · {collectRound+1}번째 요청 · 시간 제한에 걸리면 자동 이어받습니다. 이 페이지를 열어 두세요.</p><Button variant="outline" className="min-h-11 gap-2" data-testid="bollinger-cancel" onClick={()=>collectorController.current?.abort()}><Square className="size-4"/>자동 이어받기 중지</Button></div>}
+        {collectStatus&&<p className="mt-2 text-xs text-desk-orange" role="status" data-testid="bollinger-collection-status">{collectBusy&&collectStatus==="PARTIAL_BUDGET"?"저장된 진행 위치에서 다음 요청을 이어가고 있습니다…":COLLECTION_STATUS[collectStatus]??"수집 요청이 종료되었습니다. 아래 진행 상태와 최종 계산 수를 확인하세요."}</p>}
+        {applied&&<details className="mt-3 text-xs" aria-label="선택 범위 수집 진행"><summary className="min-h-11 cursor-pointer font-medium">자료 갱신 상태 · {collectBusy?"실행 중":updatingJob?"최종 분석 미완료":"저장 자료 확인"}{updatingJob?` · 최종 ${updatingJob.computed}/${updatingJob.requested}`:""}</summary><p className="font-medium">이번 실행의 수집 상태 · {catalog.data?.universes.find(u=>u.id===applied.universeId)?.label??applied.bootstrapTarget??"선택한 편입 스냅샷"} · {applied.selection.top==="ALL"?"전체 지원 종목":`Top ${applied.selection.top}`}</p>{progress.isError||progress.data&&progress.data.status!=="READY"?<p className="mt-2 text-desk-orange">{STATUS[progress.data?.status??""]??COLLECTION_STATUS[progress.data?.status??""]??"수집 진행 상태를 확인하지 못했습니다. 저장 자료 새로고침을 누르세요."}</p>:progress.data?.jobs.length?progress.data.jobs.map((job,i)=><RunProgress key={`${job.target}:${i}`} job={job} automating={collectBusy}/>):<p className="mt-2 text-muted-foreground">{progress.isFetching?"진행 상태 확인 중…":"선택 범위의 수집 실행 기록이 없습니다. 저장 자료 검색과 수집 실행은 별개입니다."}</p>}</details>}
       </div>
       <details className="mt-2 text-xs"><summary className="min-h-11 cursor-pointer text-muted-foreground">편입 미리보기 · 수동 코드 필터</summary><Input className="mb-3 min-h-11" value={manual} onChange={e=>setManual(e.target.value)} placeholder="선택 사항: KR:005930, US:NVDA" aria-label="저장 자료 수동 종목 필터"/><div className="grid gap-2 sm:grid-cols-2">{preview.data?.rows.map(m=><p className="min-w-0 truncate" key={`${m.market}:${m.symbol}`}>{m.name} · {m.symbol} · {m.market} · {m.sector}{kind==="ETF"?` · ${format(m.weight)}%`:""}</p>)}</div>{(preview.data?.total??0)>50&&<p className="mt-2 text-muted-foreground">첫 50개 미리보기입니다. 검색은 전체 선택 범위에 적용됩니다.</p>}</details>
     </section>
-    <section className="space-y-3" aria-label="종목 상황별 보기"><h2 className="text-sm font-semibold">종목 상황별 보기 · 자료 재수집 없이 전환</h2><div className="flex flex-wrap gap-2" role="group" aria-label="전략 선택">{STRATEGIES.map(s=><Button key={s} aria-pressed={strategy===s} variant={strategy===s?"default":"outline"} className="min-h-11" onClick={()=>chooseStrategy(s)}>{LABELS[s]}</Button>)}</div><p className="text-sm text-muted-foreground">{STRATEGY_GUIDE[applied?.strategy??strategy]} {applied?`조건 일치 ${data?.total??0}개 / 선택 ${inspectionTotal}개`:"먼저 시장과 구성 범위를 선택하고 실행하세요."}</p></section>
+    <section className="space-y-3" aria-label="종목 상황별 보기" data-testid="bollinger-strategy-view"><h2 className="text-sm font-semibold">종목 상황별 보기 · 자료 재수집 없이 전환</h2><div className="flex flex-wrap gap-2" role="group" aria-label="전략 선택">{STRATEGIES.map(s=><Button key={s} aria-pressed={strategy===s} variant={strategy===s?"default":"outline"} className="min-h-11" onClick={()=>chooseStrategy(s)}>{LABELS[s]}</Button>)}</div><p className="text-sm text-muted-foreground">{discoveryStrategyDescription(applied?.strategy??strategy,applied?.configVersion??version)} {applied?`조건 일치 ${data?.total??0}개 / 선택 ${inspectionTotal}개`:"먼저 시장과 구성 범위를 선택하고 실행하세요."}</p></section>
     {focusedStock&&applied?.universeId&&<div ref={studyReference} className="scroll-mt-4"><BollingerStockStudy universeId={applied.universeId} configVersion={applied.configVersion} asOf={applied.asOf} stock={focusedStock} onExplain={setSelected}/></div> }
     <details className="rounded-lg border border-border p-4"><summary className="min-h-11 cursor-pointer text-sm font-medium">선택 종목 {inspectionTotal}개 · 현재 조건 일치 {data?.total??0}개 · 집계 상세</summary>    <section className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-5" aria-label="후보 파이프라인">{[["실행 선택 범위",availability?.selected??data?.requestedCount],["계산 자료 저장",availability?.stored],["계산 자료 미확보",availability?.missingStored],["가용",data&&"pipeline" in data?data.pipeline?.investible:undefined],["상승 추세",data&&"pipeline" in data?data.pipeline?.bullish:undefined],["압축",data&&"pipeline" in data?data.pipeline?.compressed:undefined],["돌파 전",data&&"pipeline" in data?data.pipeline?.preBreakout:undefined],["ARMED",data?counts.ARMED??0:undefined],["TRIGGERED",data?counts.TRIGGERED??0:undefined],["FOLLOW THROUGH",data?counts.FOLLOW_THROUGH??0:undefined],["FAILED",data?counts.FAILED??0:undefined],["WARMUP",availability?.warmup??(data?counts.WARMUP??0:undefined)]].map(([label,count])=><div className="rounded-lg border border-border bg-card p-3" key={label}><p className="text-xs text-muted-foreground">{label}</p><p className="mt-2 text-2xl font-semibold tabular-nums">{count??"—"}</p></div>)}</section></details>
     <section className="rounded-lg border border-border bg-card p-4" aria-label="검색 필터"><div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-sm font-medium">결과 조건</h2><Button className="min-h-11 gap-2" variant="ghost" aria-expanded={advanced} onClick={()=>setAdvanced(!advanced)}><SlidersHorizontal className="size-4"/>고급 기준</Button></div><div className="mt-2 flex flex-wrap items-end gap-3"><label className="text-xs text-muted-foreground">저장된 계산 버전<select className="mt-1 block min-h-11 max-w-xs rounded border border-input bg-card px-3 text-sm text-foreground" value={version} onChange={e=>setVersion(e.target.value)}>{[...new Set([DISCOVERY_DEFAULTS.version,...(catalog.data?.versions??[])])].map(v=><option key={v} value={v}>{v===DISCOVERY_DEFAULTS.version?"기본 · 2.0":v.slice(0,55)}</option>)}</select></label>
@@ -253,25 +306,25 @@ function BollingerDiscoveryPage() {
       <label className="text-xs text-muted-foreground">Long Readiness ≥<Input className="mt-1 min-h-11 w-24" type="number" min={0} max={100} value={minScore} onChange={e=>setMinScore(Math.max(0,Math.min(100,Number(e.target.value)||0)))}/></label><label className="text-xs text-muted-foreground">Coverage ≥ %<Input className="mt-1 min-h-11 w-24" type="number" min={0} max={100} value={Math.round(minCoverage*100)} onChange={e=>setMinCoverage(Math.max(0,Math.min(100,Number(e.target.value)||0))/100)}/></label><label className="text-xs text-muted-foreground">정렬<select className="mt-1 block min-h-11 rounded border border-input bg-card px-3 text-sm text-foreground" value={sort} onChange={e=>setSort(e.target.value as typeof sort)}><option value="score">Long Readiness</option><option value="distance">저항 거리</option><option value="rs">RS 분위수</option></select></label><Button variant="outline" className="min-h-11" onClick={reset}>기본값 복원</Button></div>
       {advanced&&<div className="mt-4 border-t border-border pt-4 text-xs leading-relaxed text-muted-foreground"><p>{!configRecognized&&"알 수 없는 계산 버전 · 아래 기본 기준은 이 버전의 검증 결과가 아닙니다. "}계산 기준: BB 20 / 2 · BBW 125 · squeeze ≤ {config.squeeze} · 저항 거리 0–{config.distanceMax}% · %B {config.percentBMin}–{config.percentBMax} · RSI {config.rsiMin}–{config.rsiMax} 상승 · RVOL 중앙값 ≤ {config.dryMax} · 돌파 RVOL ≥ {config.triggerRvol} · 실패 1–{config.failedWindow}봉.</p><p className="mt-2">계산 기준은 수집기의 --config와 precompute로 새 버전을 저장합니다. 화면 필터는 저장된 값만 검색합니다. ARMED는 매수 신호가 아니며 점수는 확률이 아닙니다.</p><DiscoveryThresholds key={version} config={config}/></div>}
     </section>
-    <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground" aria-live="polite"><span>{!applied?"검색 실행 전":!applied.universeId?collectBusy?"최초 편입 목록 수집 실행 중…":"최초 편입 목록 확보 대기 · 완료된 검색 결과가 아닙니다.":query.isFetching?"저장 자료 조회 중…":query.isError||data&&data.status!=="READY"?"검색 실행 실패":`${dirty?"이전 실행 결과 · ":"검색 완료 · "}${LABELS[applied.strategy]} · ${data?.total??0}개 일치`} {applied&&`· ${applied.asOf===today()?"조회 기준":"과거 기준 조회"} ${applied.asOf}`}</span><div className="flex flex-wrap items-center gap-3"><Button variant="outline" className="min-h-11 gap-2" onClick={execute} disabled={!!executeDisabledReason}><Play className="size-4"/>조건 적용 · 실행</Button><label>페이지 크기 <select className="min-h-11 rounded border border-input bg-card px-2" value={pageSize} onChange={e=>{setPageSize(Number(e.target.value) as 25|50|100);setPage(1);}}>{[25,50,100].map(n=><option key={n}>{n}</option>)}</select></label></div></div>
+    <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground" aria-live="polite"><span>{!applied?"검색 실행 전":!applied.universeId?collectBusy?"최초 편입 목록 수집 실행 중…":"최초 편입 목록 확보 대기 · 완료된 검색 결과가 아닙니다.":query.isFetching?"저장 자료 조회 중…":query.isError||data&&data.status!=="READY"?"검색 실행 실패":`${dirty?"이전 실행 결과 · ":"검색 완료 · "}${LABELS[applied.strategy]} · ${data?.total??0}개 일치`} {applied&&`· ${applied.asOf===today()?"조회 기준":"과거 기준 조회"} ${applied.asOf}`}</span><div className="flex flex-wrap items-center gap-3"><Button variant="outline" className="min-h-11 gap-2" onClick={()=>void execute()} disabled={!!executeDisabledReason}><Play className="size-4"/>조건 적용 · 실행</Button><label>페이지 크기 <select className="min-h-11 rounded border border-input bg-card px-2" value={pageSize} onChange={e=>{setPageSize(Number(e.target.value) as 25|50|100);setPage(1);}}>{[25,50,100].map(n=><option key={n}>{n}</option>)}</select></label></div></div>
     {(catalog.isError||query.isError||catalog.data&&catalog.data.status!=="READY"||data&&data.status!=="READY")&&<p role="status" className="rounded-lg border border-border bg-muted p-4 text-sm">{catalog.isError||query.isError?"저장 자료 조회 실패 · 연결을 확인하고 실행을 다시 누르세요.":STATUS[data?.status??catalog.data?.status??""]??"저장 연결을 확인 중입니다."}</p>}
     {applied&&availability&&<section className="rounded-lg border border-border bg-muted p-4 text-xs leading-relaxed" aria-label="실행 결과 가용성" data-testid="bollinger-availability">
-      <p className="font-medium">{dirty?"이전 실행의 자료 범위":"이번 실행의 자료 범위"}: 선택 {availability.selected}개 · 계산 저장 {availability.stored}개 · 미확보 {availability.missingStored}개 · 조건 일치 {availability.matched}개</p>
-      <p className="mt-2 text-muted-foreground">워밍업·기본 조건 미달 {availability.warmup} · 오래된 계산 {availability.stale} · Coverage 미달 {availability.lowCoverage} · 전략 조건 제외 {availability.strategyMismatch} · 점수 조건 제외 {availability.lowScore}</p>
-      {availability.missingStored>0&&<p className="mt-2 text-desk-orange">선택 범위 전체를 검사한 결과가 아닙니다. 미확보 {availability.missingStored}개의 가격·계산 자료는 선택 범위 수집·계산으로 확보하세요.</p>}
+      <p className="font-medium">{dirty?"이전 실행의 자료 범위":"이번 실행의 자료 범위"}: 선택 {availability.selected}개 · 계산 저장 {availability.stored}개 · 분석 미확보 {availability.missingStored}개 · 가격 미확보 {availability.missingPriceHistory??0}개 · 조건 일치 {availability.matched}개</p>
+      <p className="mt-2 text-muted-foreground">워밍업·기본 조건 미달 {availability.warmup} · 전략 평가 자료 부족 {availability.unavailable??0} · 오래된 계산 {availability.stale} · 가격 갱신 후 재계산 대기 {availability.outdatedCalculation??0} · Coverage 미달 {availability.lowCoverage} · 전략 조건 제외 {availability.strategyMismatch} · 점수 조건 제외 {availability.lowScore}</p>
+      {availability.missingStored>0&&<p className="mt-2 text-desk-orange">선택 범위 전체의 분석이 완료되지 않았습니다. 미확보 {availability.missingStored}개는 {collectBusy?"수집·계산 중이며 완료된 자료부터 표시합니다.":"실행으로 자료를 확보하거나 종목별 부족 사유를 확인하세요."}</p>}
       {availability.stale>0&&<p className="mt-2 text-desk-orange">오래된 계산 자료는 최신 후보에서 제외했습니다. 선택 범위 수집·계산으로 갱신하거나 저장 최신일로 과거 결과를 조회할 수 있습니다.</p>}
+      {(availability.outdatedCalculation??0)>0&&<p className="mt-2 text-desk-orange">저장 가격이 이전 분석 이후 갱신되었습니다. 아래 판정은 갱신 전 분석이며, 실행으로 최종 분석을 다시 계산합니다.</p>}
       {data&&"dates" in data&&data.dates?.last&&data.dates.last<today()&&<div className="mt-3 flex flex-wrap items-center gap-3"><Button variant="outline" className="min-h-11" onClick={executeLatestStored} disabled={dirty||collectBusy||query.isFetching}>저장 최신일로 조회</Button><span className="text-muted-foreground">저장 최신일 {data.dates.last} · 과거 기준 조회로 표시하며 최신 후보로 간주하지 않습니다.</span></div>}
     </section>}
-    <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">선택 기업별 상황</h2><p className="mt-1 text-sm text-muted-foreground">기업 이름을 누르면 위의 볼린저 차트가 바뀝니다. 전략 미일치도 종목과 이유를 표시합니다.</p></div><div className="flex flex-wrap gap-2" role="group" aria-label="종목 표시 범위"><Button variant={!showMatches?"default":"outline"} aria-pressed={!showMatches} className="min-h-11" onClick={()=>{setShowMatches(false);setPage(1);}}>전체 선택 {inspectionTotal}</Button><Button variant={showMatches?"default":"outline"} aria-pressed={showMatches} className="min-h-11" onClick={()=>{setShowMatches(true);setPage(1);}}>조건 일치 {data?.total??0}</Button></div></div>
+    <div className="flex flex-wrap items-center justify-between gap-3" data-testid="bollinger-visible-results"><div><h2 className="text-lg font-semibold">{showMatches?`${LABELS[applied?.strategy??strategy]} · 조건 일치 종목`:"전체 선택 기업별 상황"}</h2><p className="mt-1 text-sm text-muted-foreground">기업 이름을 누르면 볼린저 차트가 바뀝니다. 전략 버튼은 조건 일치 종목을 보여주며, 전체 선택에서 미일치와 자료 부족도 확인할 수 있습니다.</p></div><div className="flex flex-wrap gap-2" role="group" aria-label="종목 표시 범위"><Button variant={!showMatches?"default":"outline"} aria-pressed={!showMatches} className="min-h-11" onClick={()=>{setShowMatches(false);setPage(1);}}>전체 선택 {inspectionTotal}</Button><Button variant={showMatches?"default":"outline"} aria-pressed={showMatches} className="min-h-11" onClick={()=>{setShowMatches(true);setPage(1);}}>조건 일치 {data?.total??0}</Button></div></div>
     {updatingJob&&<p className="rounded-md border border-border bg-muted p-3 text-sm" role="status">이번 자료 갱신의 최종 분석은 {updatingJob.computed}/{updatingJob.requested}개입니다. 아래 종목은 이미 저장된 분석일 기준이며, 대기 종목의 판정은 갱신 후 달라질 수 있습니다.</p>}
-    {!showMatches&&inspectionRows.length?<BollingerInspectionList rows={inspectionRows} focused={focusedStock?discoveryStockKey(focusedStock):null} onFocus={focusStock} onExplain={explainInspection} pendingSymbols={pendingSymbols}/>:rows.length?<><div className="hidden overflow-x-auto rounded-lg border border-border md:block"><table className="w-full text-xs" aria-label="Long Pre-Breakout 후보"><thead className="bg-muted text-muted-foreground"><tr>{["종목 / 시장 / 섹터","상태","Long Readiness","BBW 분위수","저항 거리","%B / RSI","RVOL / 건조","RS 20 / 63","Coverage","기준일","확인"].map(t=><th className="whitespace-nowrap p-3 text-left font-medium" key={t}>{t}</th>)}</tr></thead><tbody>{rows.map(row=><tr className="border-t border-border" key={`${row.market}:${row.symbol}`}><td className="p-3"><ChartLink row={row}/><p className="mt-1 text-muted-foreground">{row.symbol} · {row.market} · {row.sector}</p></td><td className="p-3">{row.state}</td><td className="p-3 font-semibold">{format(row.score.value)}</td><td className="p-3">{format(row.bbwPercentile)}%</td><td className="p-3">{format(row.distance)}%</td><td className="p-3">{format(row.percentB,2)} / {format(row.rsi)}</td><td className="p-3">{format(row.rvol,2)} / {format(row.dryRvol,2)}×</td><td className="p-3">{format(row.rs20)} / {format(row.rs63)}pp</td><td className="p-3">{format(row.score.coverage*100,0)}%</td><td className="whitespace-nowrap p-3">{row.date}</td><td className="p-3"><Button variant="ghost" className="min-h-11" onClick={()=>setSelected(row)}>근거</Button></td></tr>)}</tbody></table></div>
-      <div className="grid gap-3 md:hidden">{rows.map(row=><article className="rounded-lg border border-border bg-card p-4" key={`${row.market}:${row.symbol}`}><div className="flex justify-between gap-2"><ChartLink row={row}/><span className="text-xs text-desk-teal">{row.state}</span></div><p className="mt-1 text-xs text-muted-foreground">{row.symbol} · {row.market} · {row.sector}</p><dl className="mt-4 grid grid-cols-3 gap-3 text-sm">{[["Readiness",format(row.score.value)],["저항 거리",`${format(row.distance)}%`],["BBW 분위수",`${format(row.bbwPercentile)}%`],["RS 63",`${format(row.rs63)}pp`],["건조 RVOL",`${format(row.dryRvol,2)}×`],["Coverage",`${format(row.score.coverage*100,0)}%`]].map(([t,v])=><div key={t}><dt className="text-xs text-muted-foreground">{t}</dt><dd className="mt-1 font-medium">{v}</dd></div>)}</dl><div className="mt-4 flex items-center justify-between gap-2"><p className="text-xs text-muted-foreground">{row.date}</p><Button className="min-h-11" variant="outline" onClick={()=>setSelected(row)}>선정 근거</Button></div></article>)}</div></>:<div className="rounded-lg border border-dashed border-border p-8 text-center" aria-live="polite" data-testid="bollinger-result-status"><h2 className="text-sm font-medium">{applied&&!applied.universeId?collectBusy?"선택한 시장의 최초 편입 목록을 수집하고 있습니다":"편입 목록 확보 대기 · 수집 상태를 확인하세요":!universeId&&!applied?bootstrapTarget?"실행으로 최초 편입 목록을 확보할 수 있습니다":"선택한 편입 목록의 자동 수집을 지원하지 않습니다":emptyTitle}</h2><p className="mt-2 text-xs leading-relaxed text-muted-foreground">{applied&&!applied.universeId?"권한 확인 전에는 수집하지 않습니다. 중단된 작업은 수집 이어받기로 계속하며 편입 목록이 저장되면 같은 실행 조건의 결과를 조회합니다.":!universeId&&!applied?bootstrapTarget?"Universe와 결과 조건을 선택하고 실행을 누르세요. 편입 스냅샷이 없어도 목록부터 수집할 수 있습니다.":unsupportedReason:emptyDescription}</p></div>}
+    {visibleRows.length?<BollingerInspectionList rows={visibleRows} focused={focusedStock?discoveryStockKey(focusedStock):null} onFocus={focusStock} onExplain={explainInspection} pendingSymbols={pendingSymbols} stockErrors={stockErrors}/>:<div className="rounded-lg border border-dashed border-border p-8 text-center" aria-live="polite" data-testid="bollinger-result-status"><h2 className="text-sm font-medium">{applied&&!applied.universeId?collectBusy?"선택한 시장의 최초 편입 목록을 수집하고 있습니다":"편입 목록 확보 대기 · 수집 상태를 확인하세요":!universeId&&!applied?bootstrapTarget?"실행으로 최초 편입 목록을 확보할 수 있습니다":"선택한 편입 목록의 자동 수집을 지원하지 않습니다":showMatches?query.isFetching?`${LABELS[applied?.strategy??strategy]} · 저장 분석 조회 중…`:`${LABELS[applied?.strategy??strategy]} · 조건 일치 ${data?.total??0}개`:emptyTitle}</h2><p className="mt-2 text-xs leading-relaxed text-muted-foreground">{applied&&!applied.universeId?"권한 확인 전에는 수집하지 않습니다. 중단된 작업은 수집 이어받기로 계속하며 편입 목록이 저장되면 같은 실행 조건의 결과를 조회합니다.":!universeId&&!applied?bootstrapTarget?"Universe와 결과 조건을 선택하고 실행을 누르세요. 편입 스냅샷이 없어도 목록부터 수집할 수 있습니다.":unsupportedReason:emptyDescription}</p></div>}
     <div className="flex items-center justify-end gap-3 text-sm"><Button variant="outline" className="min-h-11" disabled={page<=1} onClick={()=>setPage(page-1)}>이전</Button><span>{page} / {Math.max(1,Math.ceil((showMatches?data?.total??0:inspectionTotal)/pageSize))}</span><Button variant="outline" className="min-h-11" disabled={page*pageSize>=(showMatches?data?.total??0:inspectionTotal)} onClick={()=>setPage(page+1)}>다음</Button></div>
-    {data&&"dates" in data&&<p className="text-xs text-muted-foreground">실제 저장 관측일 {data.dates?.first??"미확보"} ~ {data.dates?.last??"미확보"}. 최근 기준은 4달력일이며 휴장일을 임의로 확정하지 않습니다.</p>}<Evidence data={evidence.data?.evidence}/><details className="rounded-lg border border-border bg-card p-4 text-sm"><summary className="min-h-11 cursor-pointer font-medium">Signal monitoring · 감지와 알림 전송</summary><label className="flex min-h-11 items-center gap-2 text-xs"><input type="checkbox" checked={sessionAlerts} onChange={e=>setSessionAlerts(e.target.checked)}/>이 브라우저의 활성 세션 알림</label><p className="mt-2 text-xs text-muted-foreground">수집 실행 시 DB에 이벤트를 중복 없이 기록합니다. detected와 알림 전달은 별도입니다. 운영 스케줄러·24시간 감시·메시지 발송은 확인하지 않았습니다.</p>{evidence.data?.events.slice(0,20).map((e,i)=><p className="mt-2 text-xs" key={i}>{String(e.market)}:{String(e.symbol)} · {e.payload.date} · {e.payload.type} · {e.delivery_status}</p>)}</details>
+    {data&&"dates" in data&&<p className="text-xs text-muted-foreground">실제 저장 관측일 {data.dates?.first??"미확보"} ~ {data.dates?.last??"미확보"}. 최근 기준은 4달력일이며 휴장일을 임의로 확정하지 않습니다.</p>}<details className="rounded-lg border border-border p-4"><summary className="min-h-11 cursor-pointer text-sm font-medium">전략 연구 · 저장된 백테스트</summary><Evidence data={evidence.data?.evidence}/></details><details className="rounded-lg border border-border bg-card p-4 text-sm"><summary className="min-h-11 cursor-pointer font-medium">Signal monitoring · 감지와 알림 전송</summary><label className="flex min-h-11 items-center gap-2 text-xs"><input type="checkbox" checked={sessionAlerts} onChange={e=>setSessionAlerts(e.target.checked)}/>이 브라우저의 활성 세션 알림</label><p className="mt-2 text-xs text-muted-foreground">수집 실행 시 DB에 이벤트를 중복 없이 기록합니다. detected와 알림 전달은 별도입니다. 운영 스케줄러·24시간 감시·메시지 발송은 확인하지 않았습니다.</p>{evidence.data?.events.slice(0,20).map((e,i)=><p className="mt-2 text-xs" key={i}>{String(e.market)}:{String(e.symbol)} · {e.payload.date} · {e.payload.type} · {e.delivery_status}</p>)}</details>
     <details className="rounded-lg border border-border p-4"><summary className="min-h-11 cursor-pointer text-sm font-medium">선택 종목 수동 진단 · 기존 최대 10개 경로</summary><p className="mb-4 text-xs text-muted-foreground">명시적 조회에 한해 기존 시세 경로를 사용합니다. 기본 검색과 별개인 진단입니다.</p><BollingerManualDiagnostic/></details><Explanation row={selected} onClose={()=>setSelected(null)}/>
     <Sheet open={operatorOpen} onOpenChange={open=>{if(open)setOperatorOpen(true);else closeOperator();}}><SheetContent className="overflow-y-auto" onCloseAutoFocus={event=>{event.preventDefault();operatorButton.current?.focus();}}><SheetHeader><SheetTitle>수집 실행 권한 확인</SheetTitle><SheetDescription>저장 자료 검색은 누구나 사용할 수 있습니다. 가격 수집·계산은 운영자에게만 허용됩니다.</SheetDescription></SheetHeader><form className="space-y-4 px-4" onSubmit={event=>{event.preventDefault();void authorize();}}>
       <p className="text-sm leading-relaxed text-muted-foreground">Vercel에 등록한 CRON_SECRET을 입력하세요. 키움 App Key·App Secret을 입력하는 곳이 아닙니다.</p>
-      {operatorRun&&<p className="text-sm leading-relaxed">{operatorRun.bootstrapTarget} · {operatorRun.selection.top==="ALL"?"전체 지원 종목":`Top ${operatorRun.selection.top}`}의 최초 수집을 시작합니다. 아래 확인 버튼을 누르면 이 선택 범위로 수집·계산을 실행합니다.</p>}
+      {operatorRun&&<p className="text-sm leading-relaxed">{operatorRun.bootstrapTarget??catalog.data?.universes.find(u=>u.id===operatorRun.universeId)?.label??"선택 범위"} · {operatorRun.selection.top==="ALL"?"전체 지원 종목":`Top ${operatorRun.selection.top}`}의 가격 수집·분석을 시작합니다. 아래 확인 버튼을 누르면 이 선택 범위로 수집·계산을 실행합니다.</p>}
       <label className="block text-sm">수집 실행 비밀값<Input className="mt-2 min-h-11" type="password" value={operatorSecret} onChange={event=>setOperatorSecret(event.target.value)} autoComplete="new-password" autoCapitalize="none" spellCheck={false} aria-label="수집 실행 비밀값" disabled={operatorBusy}/></label>
       <p className="text-xs leading-relaxed text-muted-foreground">입력값은 권한 확인에만 사용하며 제출·닫기 시 입력란에서 제거합니다. 로그인 상태는 서버가 설정하는 보호된 세션 쿠키로 유지됩니다.</p>
       {operatorError&&<p className="text-sm text-desk-orange" role="alert">{operatorError}</p>}

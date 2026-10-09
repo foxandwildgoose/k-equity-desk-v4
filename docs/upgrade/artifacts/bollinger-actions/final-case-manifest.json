@@ -1,0 +1,515 @@
+{
+  "scope": "Isolated synthetic DB plus frozen production-browser build; no actual Vercel/Neon/provider verification claimed",
+  "generatedAt": "2026-10-09T15:15:32.629438+00:00",
+  "actions": {
+    "passed": 6,
+    "cases": [
+      {
+        "theme": "light",
+        "viewport": "desktop",
+        "verification": "actions-latest.json",
+        "success": true,
+        "nativeRanges": {
+          "recent120": 120,
+          "recent250": 250,
+          "entire": 303
+        },
+        "autoCollectionRequests": 3,
+        "strategyIdentities": true,
+        "noBrokerFlow": true,
+        "base": "http://127.0.0.1:8194"
+      },
+      {
+        "theme": "light",
+        "viewport": "mobile",
+        "verification": "actions-initial.json",
+        "success": true,
+        "nativeRanges": {
+          "recent120": 120,
+          "recent250": 250,
+          "entire": 303
+        },
+        "autoCollectionRequests": 3,
+        "strategyIdentities": true,
+        "noBrokerFlow": true
+      },
+      {
+        "theme": "dark",
+        "viewport": "mobile",
+        "verification": "actions-initial.json",
+        "success": true,
+        "nativeRanges": {
+          "recent120": 120,
+          "recent250": 250,
+          "entire": 303
+        },
+        "autoCollectionRequests": 3,
+        "strategyIdentities": true,
+        "noBrokerFlow": true
+      },
+      {
+        "theme": "light",
+        "viewport": "tablet",
+        "verification": "actions-corrected.json",
+        "success": true,
+        "nativeRanges": {
+          "recent120": 120,
+          "recent250": 250,
+          "entire": 303
+        },
+        "autoCollectionRequests": 3,
+        "strategyIdentities": true,
+        "noBrokerFlow": true
+      },
+      {
+        "theme": "dark",
+        "viewport": "desktop",
+        "verification": "actions-corrected.json",
+        "success": true,
+        "nativeRanges": {
+          "recent120": 120,
+          "recent250": 250,
+          "entire": 303
+        },
+        "autoCollectionRequests": 3,
+        "strategyIdentities": true,
+        "noBrokerFlow": true
+      },
+      {
+        "theme": "dark",
+        "viewport": "tablet",
+        "verification": "actions-corrected.json",
+        "success": true,
+        "nativeRanges": {
+          "recent120": 120,
+          "recent250": 250,
+          "entire": 303
+        },
+        "autoCollectionRequests": 3,
+        "strategyIdentities": true,
+        "noBrokerFlow": true
+      }
+    ],
+    "initialFailures": [
+      {
+        "theme": "light",
+        "viewport": "tablet",
+        "error": "Expected values to be strictly equal:\n\n0 !== 25\n",
+        "verification": "actions-initial.json",
+        "cause": "Fixed200ms pagination assertion preceded async data; corrected waits actual count and changed/exact IDs"
+      },
+      {
+        "theme": "dark",
+        "viewport": "desktop",
+        "error": "Expected values to be strictly equal:\n\n0 !== 25\n",
+        "verification": "actions-initial.json",
+        "cause": "Fixed200ms pagination assertion preceded async data; corrected waits actual count and changed/exact IDs"
+      },
+      {
+        "theme": "dark",
+        "viewport": "tablet",
+        "error": "Expected values to be strictly equal:\n\n0 !== 25\n",
+        "verification": "actions-initial.json",
+        "cause": "Fixed200ms pagination assertion preceded async data; corrected waits actual count and changed/exact IDs"
+      }
+    ]
+  },
+  "rangeVisual": {
+    "passed": true,
+    "verification": "range-visual.json",
+    "fullLightDesktop": "/workspace/screenshots/bollinger-actions/final-range-visual",
+    "fullDarkDesktop": "/workspace/screenshots/bollinger-actions/final-corrected-production"
+  },
+  "legacy": {
+    "status": "passed",
+    "latestDirectory": "/workspace/screenshots/bollinger-investor-analysis/final-clock-pinned-production",
+    "initialFailureVerification": "legacy-initial.json",
+    "fixtureCorrections": [
+      "Initial feature→price save order made all calculations genuinely outdated under new freshness detection; seed all shared prices first then features",
+      "Prior context deliberately deleted80stocks across all versions but restored default only; reseed default/custom feature versions before each context",
+      "Prior missing-price scenario healed600002, whose shared price row outlived the per-context universe reset; reset fixture KOSDAQ price keys as well",
+      "Pin browser Date to seeded day12:00KST; actual timer/continuation and native asOf checks remain active"
+    ],
+    "remainingCaseCount": 5,
+    "completedCaseProof": "legacy-light-desktop.json",
+    "cases": [
+      {
+        "theme": "light",
+        "viewport": "desktop",
+        "success": true,
+        "verification": "legacy-light-desktop.json",
+        "proofKind": "completedstdout-plus-screenshots from interruptedmatrix",
+        "base": "http://127.0.0.1:8193"
+      },
+      {
+        "theme": "light",
+        "viewport": "tablet",
+        "success": true,
+        "verification": "legacy-before-clock-pin.json",
+        "proofKind": "fullverificationresult",
+        "base": "http://127.0.0.1:8194",
+        "initialAvailability": null,
+        "bootstrapEvidence": {
+          "initialUniverseMissing": true,
+          "membershipPartialNotPublished": true,
+          "storedBeforeReload": 5,
+          "storedAfterCompletion": 20,
+          "resumeAfterReload": true,
+          "identicalRequests": 3,
+          "configurationVersion": "long-daily-2.0.0:squeeze=20",
+          "top": 20
+        },
+        "investorEvidence": {
+          "selected": 20,
+          "strictMatches": 0,
+          "shownNames": 20,
+          "firstCanvas": {
+            "canvases": 19,
+            "drawable": 2,
+            "upperPixels": 16,
+            "lowerPixels": 12,
+            "redCandlePixels": 0,
+            "blueCandlePixels": 1326,
+            "upperColor": "#607D96",
+            "lowerColor": "#80738C"
+          },
+          "secondCanvas": {
+            "canvases": 19,
+            "drawable": 2,
+            "upperPixels": 16,
+            "lowerPixels": 12,
+            "redCandlePixels": 0,
+            "blueCandlePixels": 1331,
+            "upperColor": "#607D96",
+            "lowerColor": "#80738C"
+          },
+          "focusRebound": true,
+          "missingPriceHasNoCanvas": true,
+          "asOfFutureClipped": true,
+          "brokerFlowCalls": 0,
+          "strategyChangesReadOnly": true,
+          "pausedStrategyKeepsResume": true,
+          "stockClickScrollsChart": true,
+          "storedRefreshReloadsChart": true,
+          "explicitPriceBasisAccepted": true
+        }
+      },
+      {
+        "theme": "light",
+        "viewport": "mobile",
+        "success": true,
+        "verification": "legacy-clock-pinned.json",
+        "proofKind": "fullverificationresult",
+        "base": "http://127.0.0.1:8194",
+        "initialAvailability": {
+          "selected": 101,
+          "stored": 101,
+          "missingStored": 0,
+          "warmup": 0,
+          "stale": 0,
+          "lowCoverage": 0,
+          "unavailable": 0,
+          "strategyMismatch": 0,
+          "lowScore": 0,
+          "matched": 101,
+          "missingPriceHistory": 0,
+          "outdatedCalculation": 0
+        },
+        "bootstrapEvidence": {
+          "initialUniverseMissing": true,
+          "membershipPartialNotPublished": true,
+          "storedBeforeReload": 5,
+          "storedAfterCompletion": 20,
+          "resumeAfterReload": true,
+          "identicalRequests": 3,
+          "configurationVersion": "long-daily-2.0.0:squeeze=20",
+          "top": 20
+        },
+        "investorEvidence": {
+          "selected": 20,
+          "strictMatches": 0,
+          "shownNames": 20,
+          "firstCanvas": {
+            "canvases": 19,
+            "drawable": 2,
+            "upperPixels": 8,
+            "lowerPixels": 14,
+            "redCandlePixels": 0,
+            "blueCandlePixels": 1052,
+            "upperColor": "#607D96",
+            "lowerColor": "#80738C"
+          },
+          "secondCanvas": {
+            "canvases": 19,
+            "drawable": 2,
+            "upperPixels": 8,
+            "lowerPixels": 14,
+            "redCandlePixels": 0,
+            "blueCandlePixels": 1057,
+            "upperColor": "#607D96",
+            "lowerColor": "#80738C"
+          },
+          "focusRebound": true,
+          "missingPriceHasNoCanvas": true,
+          "asOfFutureClipped": true,
+          "brokerFlowCalls": 0,
+          "strategyChangesReadOnly": true,
+          "pausedStrategyKeepsResume": true,
+          "stockClickScrollsChart": true,
+          "storedRefreshReloadsChart": true,
+          "explicitPriceBasisAccepted": true
+        }
+      },
+      {
+        "theme": "dark",
+        "viewport": "desktop",
+        "success": true,
+        "verification": "legacy-clock-pinned.json",
+        "proofKind": "fullverificationresult",
+        "base": "http://127.0.0.1:8194",
+        "initialAvailability": {
+          "selected": 101,
+          "stored": 101,
+          "missingStored": 0,
+          "warmup": 0,
+          "stale": 0,
+          "lowCoverage": 0,
+          "unavailable": 0,
+          "strategyMismatch": 0,
+          "lowScore": 0,
+          "matched": 101,
+          "missingPriceHistory": 0,
+          "outdatedCalculation": 0
+        },
+        "bootstrapEvidence": {
+          "initialUniverseMissing": true,
+          "membershipPartialNotPublished": true,
+          "storedBeforeReload": 5,
+          "storedAfterCompletion": 20,
+          "resumeAfterReload": true,
+          "identicalRequests": 3,
+          "configurationVersion": "long-daily-2.0.0:squeeze=20",
+          "top": 20
+        },
+        "investorEvidence": {
+          "selected": 20,
+          "strictMatches": 0,
+          "shownNames": 20,
+          "firstCanvas": {
+            "canvases": 19,
+            "drawable": 2,
+            "upperPixels": 39,
+            "lowerPixels": 40,
+            "redCandlePixels": 0,
+            "blueCandlePixels": 2133,
+            "upperColor": "#8DA7BC",
+            "lowerColor": "#AA9BB5"
+          },
+          "secondCanvas": {
+            "canvases": 19,
+            "drawable": 2,
+            "upperPixels": 39,
+            "lowerPixels": 40,
+            "redCandlePixels": 0,
+            "blueCandlePixels": 2137,
+            "upperColor": "#8DA7BC",
+            "lowerColor": "#AA9BB5"
+          },
+          "focusRebound": true,
+          "missingPriceHasNoCanvas": true,
+          "asOfFutureClipped": true,
+          "brokerFlowCalls": 0,
+          "strategyChangesReadOnly": true,
+          "pausedStrategyKeepsResume": true,
+          "stockClickScrollsChart": true,
+          "storedRefreshReloadsChart": true,
+          "explicitPriceBasisAccepted": true
+        }
+      },
+      {
+        "theme": "dark",
+        "viewport": "tablet",
+        "success": true,
+        "verification": "legacy-clock-pinned.json",
+        "proofKind": "fullverificationresult",
+        "base": "http://127.0.0.1:8194",
+        "initialAvailability": {
+          "selected": 101,
+          "stored": 101,
+          "missingStored": 0,
+          "warmup": 0,
+          "stale": 0,
+          "lowCoverage": 0,
+          "unavailable": 0,
+          "strategyMismatch": 0,
+          "lowScore": 0,
+          "matched": 101,
+          "missingPriceHistory": 0,
+          "outdatedCalculation": 0
+        },
+        "bootstrapEvidence": {
+          "initialUniverseMissing": true,
+          "membershipPartialNotPublished": true,
+          "storedBeforeReload": 5,
+          "storedAfterCompletion": 20,
+          "resumeAfterReload": true,
+          "identicalRequests": 3,
+          "configurationVersion": "long-daily-2.0.0:squeeze=20",
+          "top": 20
+        },
+        "investorEvidence": {
+          "selected": 20,
+          "strictMatches": 0,
+          "shownNames": 20,
+          "firstCanvas": {
+            "canvases": 19,
+            "drawable": 2,
+            "upperPixels": 15,
+            "lowerPixels": 9,
+            "redCandlePixels": 0,
+            "blueCandlePixels": 1327,
+            "upperColor": "#8DA7BC",
+            "lowerColor": "#AA9BB5"
+          },
+          "secondCanvas": {
+            "canvases": 19,
+            "drawable": 2,
+            "upperPixels": 15,
+            "lowerPixels": 9,
+            "redCandlePixels": 0,
+            "blueCandlePixels": 1332,
+            "upperColor": "#8DA7BC",
+            "lowerColor": "#AA9BB5"
+          },
+          "focusRebound": true,
+          "missingPriceHasNoCanvas": true,
+          "asOfFutureClipped": true,
+          "brokerFlowCalls": 0,
+          "strategyChangesReadOnly": true,
+          "pausedStrategyKeepsResume": true,
+          "stockClickScrollsChart": true,
+          "storedRefreshReloadsChart": true,
+          "explicitPriceBasisAccepted": true
+        }
+      },
+      {
+        "theme": "dark",
+        "viewport": "mobile",
+        "success": true,
+        "verification": "legacy-clock-pinned.json",
+        "proofKind": "fullverificationresult",
+        "base": "http://127.0.0.1:8194",
+        "initialAvailability": {
+          "selected": 101,
+          "stored": 101,
+          "missingStored": 0,
+          "warmup": 0,
+          "stale": 0,
+          "lowCoverage": 0,
+          "unavailable": 0,
+          "strategyMismatch": 0,
+          "lowScore": 0,
+          "matched": 101,
+          "missingPriceHistory": 0,
+          "outdatedCalculation": 0
+        },
+        "bootstrapEvidence": {
+          "initialUniverseMissing": true,
+          "membershipPartialNotPublished": true,
+          "storedBeforeReload": 5,
+          "storedAfterCompletion": 20,
+          "resumeAfterReload": true,
+          "identicalRequests": 3,
+          "configurationVersion": "long-daily-2.0.0:squeeze=20",
+          "top": 20
+        },
+        "investorEvidence": {
+          "selected": 20,
+          "strictMatches": 0,
+          "shownNames": 20,
+          "firstCanvas": {
+            "canvases": 19,
+            "drawable": 2,
+            "upperPixels": 8,
+            "lowerPixels": 7,
+            "redCandlePixels": 0,
+            "blueCandlePixels": 1052,
+            "upperColor": "#8DA7BC",
+            "lowerColor": "#AA9BB5"
+          },
+          "secondCanvas": {
+            "canvases": 19,
+            "drawable": 2,
+            "upperPixels": 8,
+            "lowerPixels": 7,
+            "redCandlePixels": 0,
+            "blueCandlePixels": 1057,
+            "upperColor": "#8DA7BC",
+            "lowerColor": "#AA9BB5"
+          },
+          "focusRebound": true,
+          "missingPriceHasNoCanvas": true,
+          "asOfFutureClipped": true,
+          "brokerFlowCalls": 0,
+          "strategyChangesReadOnly": true,
+          "pausedStrategyKeepsResume": true,
+          "stockClickScrollsChart": true,
+          "storedRefreshReloadsChart": true,
+          "explicitPriceBasisAccepted": true
+        }
+      }
+    ],
+    "passed": 6,
+    "initialFailures": [
+      {
+        "verification": "legacy-initial.json",
+        "cause": "Features were seeded before prices, correctly triggering newly detected outdated calculations and permission dialog"
+      },
+      {
+        "verification": "legacy-before-clock-pin.json",
+        "cause": "Four later cases crossed actual Korea midnight after seed creation at four-day freshness boundary; frozen browser Date resolves determinism without relaxing freshness"
+      }
+    ]
+  },
+  "limits": [
+    "Stage identities deliberately synthetic to verify filtering; engine mathematics tested separately",
+    "Hidden-tab cancellation uses simulated visibilitychange",
+    "Transport-failure scenario is safe HTTP503, not an actual socket loss",
+    "CLI/store fixtures use memory PGlite and do not establish operational persistence"
+  ],
+  "entryHashReadAtManifestCreation": "18eca189476a5777a2c6d26438ec0deb3864bee4895be148dd49e7bca60a58ca",
+  "uiMatrixBase": "http://127.0.0.1:8193",
+  "latestProduction": {
+    "base": "http://127.0.0.1:8194",
+    "entrySha256": "18eca189476a5777a2c6d26438ec0deb3864bee4895be148dd49e7bca60a58ca",
+    "changeSinceUiMatrix": "Store-only cross-basis freshness patch; frontend unchanged",
+    "fullActionsLightDesktopPassed": true,
+    "verification": "actions-latest.json"
+  },
+  "baselineCommit": "b3db39e",
+  "beforeFixProofs": [
+    {
+      "case": "range",
+      "verification": "baseline-range.json",
+      "failure": "Native120 viewportspan124"
+    },
+    {
+      "case": "strategies",
+      "verification": "baseline-strategies.json",
+      "failure": "SqueezeWatch rendered all20 instead of6matchingidentities"
+    },
+    {
+      "case": "execute",
+      "verification": "baseline-execute.json",
+      "failure": "Partial3/20 Execute didnot launch permission/collection"
+    }
+  ],
+  "artifactScreenshots": {
+    "light120": "light-120.png",
+    "light250": "light-250.png",
+    "dark120": "dark-120.png",
+    "dark250": "dark-250.png",
+    "squeezeDark": "squeeze-dark.png",
+    "triggeredDark": "triggered-dark.png"
+  }
+}

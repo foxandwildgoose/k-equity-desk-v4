@@ -347,7 +347,7 @@ test("availability exclusions distinguish missing storage, warmup, stale, covera
     const cases=[{...candidate,valid:false},{...candidate,date:"2024-10-01",valid:true},{...candidate,valid:true,score:{...candidate.score,value:90,coverage:.7}},{...candidate,valid:true,score:{...candidate.score,value:90,coverage:1},views:[]},{...candidate,valid:true,score:{...candidate.score,value:20,coverage:1},views:["squeeze-watch" as const]},{...candidate,valid:true,score:{...candidate.score,value:90,coverage:1},views:["squeeze-watch" as const]}];
     for(let i=0;i<cases.length;i++)await store.saveFeatures(u.id,members[i]!,DISCOVERY_DEFAULTS.version,[cases[i]!],"QA","yahoo-kr-raw-ohlcv");
     const result=await store.query({universeId:u.id,configVersion:DISCOVERY_DEFAULTS.version,strategy:"squeeze-watch",selection:{top:"ALL",minWeight:0,sectors:[]},page:1,pageSize:50,minScore:50,minCoverage:.8,asOf:"2024-10-29"});
-    assert.deepEqual(result.availability,{selected:7,stored:6,missingStored:1,warmup:1,stale:1,lowCoverage:1,strategyMismatch:1,lowScore:1,matched:1});
+    assert.deepEqual(result.availability,{selected:7,stored:6,missingStored:1,warmup:1,stale:1,lowCoverage:1,unavailable:0,strategyMismatch:1,lowScore:1,matched:1,missingPriceHistory:7,outdatedCalculation:0});
   }finally{await pg.close();}
 });
 const bootstrapRequest=(overrides:Partial<BootstrapBollingerInput>={}):BootstrapBollingerInput=>({bootstrapTarget:"KOSDAQ",configVersion:DISCOVERY_DEFAULTS.version,selection:{top:10,minWeight:0,sectors:[]},...overrides});
@@ -422,4 +422,183 @@ test("bootstrap retains completed snapshot, frozen keys and calculation version 
     assert.equal((await second.store.latestJob(bootstrapBollingerScope(request)))?.id,originalJob.id);assert.equal((await second.store.universes()).length,1);assert.equal((await second.store.featureHistory("KOSDAQ:DISK-QA",members[0]!,version)).length,25);
     assert.equal((await readBootstrapBollingerProgress(second.store,request)).jobs[0]?.execution,"COMPLETE");await second.pg.close();
   }finally{await rm(path,{recursive:true,force:true});}
+});
+test("a completed selected Top20 checkpoint repairs missing scoped calculations from existing prices before returning complete",async()=>{
+  const {pg,store}=await database();try{
+    const members=Array.from({length:20},(_,i)=>({...member(String(500000+i)),marketCap:(20-i)*1e12}));await store.saveUniverse(universe(members));
+    const request=selectedRequest({selection:{top:20,minWeight:0,sectors:[]},configVersion:sanitizeDiscoveryConfig({squeeze:12}).version}),p=providers(20);let priceCalls=0;
+    const prices=p.prices;p.prices=async(...args)=>{priceCalls++;return prices(...args);};
+    assert.equal((await runSelectedBollingerCloud(store,config,p,request,{clock:time,spacingMs:0})).status,"COMPLETE");
+    const job=(await store.latestJob(selectedBollingerScope(request)))!;
+    await pg.query("DELETE FROM bollinger_features WHERE universe_id=$1 AND config_version=$2 AND symbol=ANY($3::text[])",[request.universeId,request.configVersion,members.slice(2).map(m=>m.symbol)]);
+    const before=await store.query({universeId:request.universeId,configVersion:request.configVersion,strategy:"squeeze-watch",selection:request.selection,page:1,pageSize:50,minScore:0,minCoverage:0,asOf:"2024-10-29"});
+    assert.equal(before.availability.missingStored,18);
+    const repaired=await runSelectedBollingerCloud(store,config,p,request,{clock:time,spacingMs:0});
+    assert.equal(repaired.status,"COMPLETE",JSON.stringify(repaired));assert.equal(repaired.jobs[0]?.computed,20);assert.equal(repaired.jobs[0]?.pendingCompute,0);assert.equal(priceCalls,20,"repair never repeats already persisted price requests");
+    assert.equal((await store.latestJob(selectedBollingerScope(request)))?.id,job.id);
+    const after=await store.query({universeId:request.universeId,configVersion:request.configVersion,strategy:"squeeze-watch",selection:request.selection,page:1,pageSize:50,minScore:0,minCoverage:0,asOf:"2024-10-29"});
+    assert.equal(after.availability.missingStored,0);assert.equal(after.availability.missingPriceHistory,0);assert.equal(after.inspection.rows.length,20);
+    assert.ok(after.inspection.rows.every(r=>r.candidate!==null));
+    assert.equal((await store.featureHistory(request.universeId,members[0]!,DISCOVERY_DEFAULTS.version)).length,0,"custom configuration is not relabelled as default");
+    assert.equal((await runSelectedBollingerCloud(store,config,p,request,{clock:time,spacingMs:0})).status,"UP_TO_DATE");assert.equal(priceCalls,20);
+  }finally{await pg.close();}
+});
+test("completed calculations with absent same-basis prices refetch only the missing stock and verify all selected data",async()=>{
+  const {pg,store}=await database();try{
+    const members=Array.from({length:3},(_,i)=>({...member(String(500000+i)),marketCap:(3-i)*1e12}));await store.saveUniverse(universe(members));
+    const p=providers(3),request=selectedRequest();const prices=p.prices,received:string[]=[];p.prices=async(m,initial)=>{received.push(m.symbol);return prices(m,initial);};
+    assert.equal((await runSelectedBollingerCloud(store,config,p,request,{clock:time,spacingMs:0})).status,"COMPLETE");
+    await pg.query("DELETE FROM bollinger_daily_bars WHERE market='KR' AND symbol='500001'");
+    const repaired=await runSelectedBollingerCloud(store,config,p,request,{clock:time,spacingMs:0});assert.equal(repaired.status,"COMPLETE",JSON.stringify(repaired));assert.equal(repaired.jobs[0]?.computed,3);
+    assert.deepEqual(received,["500000","500001","500002","500001"]);
+    const coverage=await store.calculationCoverage(request.universeId,request.configVersion,members.map(m=>`KR:${m.symbol}`));
+    assert.ok(coverage.every(r=>r.priceDate&&r.featureDate===r.priceDate&&r.featureComputedAt&&r.priceFetchedAt&&Date.parse(r.featureComputedAt)>=Date.parse(r.priceFetchedAt)));
+  }finally{await pg.close();}
+});
+test("one stock without computable history does not block other selected stocks and explicit retry computes it without refetching prices",async()=>{
+  const {pg,store}=await database();try{
+    const p=providers(6),metadata=store.barMetadata,prices=p.prices;let priceCalls=0;
+    p.prices=async(...args)=>{priceCalls++;return prices(...args);};store.barMetadata=async(...args)=>args[0].symbol==="500000"?[]:metadata(...args);
+    const partial=await runBollingerCloud(store,config,p,{clock:time,spacingMs:0});
+    assert.equal(partial.status,"PARTIAL_ERRORS");assert.equal(partial.jobs[0]?.computed,5);assert.equal(partial.jobs[0]?.pendingCompute,0);assert.deepEqual(partial.jobs[0]?.stockErrors,[{symbol:"KR:500000",code:"COMPUTE_FAILED"}]);assert.equal(priceCalls,6);
+    for(let i=1;i<6;i++)assert.equal((await store.featureHistory(universe().id,member(String(500000+i)),DISCOVERY_DEFAULTS.version)).length,25);
+    store.barMetadata=metadata;const retried=await runBollingerCloud(store,config,p,{clock:time,spacingMs:0});
+    assert.equal(retried.status,"COMPLETE");assert.equal(retried.jobs[0]?.computed,6);assert.deepEqual(retried.jobs[0]?.stockErrors,[]);assert.equal(priceCalls,6);
+  }finally{await pg.close();}
+});
+test("final feature persistence is verified and a falsely acknowledged write cannot report complete",async()=>{
+  const {pg,store}=await database();try{
+    const p=providers(2),saveFeatures=store.saveFeatures,prices=p.prices;let priceCalls=0;
+    p.prices=async(...args)=>{priceCalls++;return prices(...args);};store.saveFeatures=async(...args)=>{if(args[1].symbol!=="500000")return saveFeatures(...args);};
+    const partial=await runBollingerCloud(store,config,p,{clock:time,spacingMs:0});
+    assert.equal(partial.status,"PARTIAL_ERRORS");assert.equal(partial.jobs[0]?.computed,1);assert.deepEqual(partial.jobs[0]?.stockErrors,[{symbol:"KR:500000",code:"COMPUTE_FAILED"}]);
+    store.saveFeatures=saveFeatures;const retry=await runBollingerCloud(store,config,p,{clock:time,spacingMs:0});
+    assert.equal(retry.status,"COMPLETE");assert.equal(retry.jobs[0]?.computed,2);assert.equal(priceCalls,2);
+  }finally{await pg.close();}
+});
+test("infrastructure SQL failure preserves pending work and is not misreported as a stock failure",async()=>{
+  const {pg,store}=await database();try{
+    const saveFeatures=store.saveFeatures,p=providers(2),prices=p.prices;let priceCalls=0;
+    p.prices=async(...args)=>{priceCalls++;return prices(...args);};store.saveFeatures=async()=>{throw new Error("private SQL connection detail");};
+    const failed=await runBollingerCloud(store,config,p,{clock:time,spacingMs:0});
+    assert.equal(failed.status,"DATABASE_QUERY_FAILED");assert.equal(failed.jobs[0]?.computed,0);assert.equal(failed.jobs[0]?.pendingCompute,2);assert.deepEqual(failed.jobs[0]?.stockErrors,[]);assert.doesNotMatch(JSON.stringify(failed),/private SQL/);
+    store.saveFeatures=saveFeatures;assert.equal((await runBollingerCloud(store,config,p,{clock:time,spacingMs:0})).status,"COMPLETE");assert.equal(priceCalls,2);
+  }finally{await pg.close();}
+});
+test("unsupported provider price basis is not stored as successful history",async()=>{
+  const {pg,store}=await database();try{
+    const p=providers(1);p.prices=async()=>({bars:discoveryBars(303),source:"QA",basis:"unsupported-basis"});
+    const result=await runBollingerCloud(store,config,p,{clock:time,spacingMs:0});assert.equal(result.status,"PARTIAL_ERRORS");assert.equal(result.jobs[0]?.collected,0);assert.deepEqual(result.jobs[0]?.stockErrors,[{symbol:"KR:500000",code:"PRICE_FETCH_FAILED"}]);
+    assert.equal((await store.bars("KR","500000","unsupported-basis")).length,0);
+  }finally{await pg.close();}
+});
+test("correction to an older stored bar invalidates completed calculations even when the latest observation date did not change",async()=>{
+  const {pg,store}=await database();try{
+    const p=providers(1),prices=p.prices;let priceCalls=0;p.prices=async(...args)=>{priceCalls++;return prices(...args);};
+    assert.equal((await runBollingerCloud(store,config,p,{clock:time,spacingMs:0})).status,"COMPLETE");
+    const before=(await store.featureHistory(universe().id,member("500000"),DISCOVERY_DEFAULTS.version)).at(-1)!;
+    const correctedDay=discoveryBars(303)[150]!.date;
+    await pg.query(`UPDATE bollinger_daily_bars SET payload=jsonb_set(payload,'{close}',to_jsonb((payload->>'close')::float8+0.01)),
+      fetched_at=(SELECT max(computed_at)+interval '1 millisecond' FROM bollinger_features WHERE universe_id=$1 AND symbol='500000')
+      WHERE market='KR' AND symbol='500000' AND day=$2`,[universe().id,correctedDay]);
+    const proof=(await store.calculationCoverage(universe().id,DISCOVERY_DEFAULTS.version,["KR:500000"]))[0]!;
+    assert.equal(proof.priceDate,proof.featureDate);assert.ok(Date.parse(proof.priceFetchedAt!)>Date.parse(proof.featureComputedAt!));
+    const query={universeId:universe().id,configVersion:DISCOVERY_DEFAULTS.version,strategy:"squeeze-watch" as const,selection:{top:20 as const,minWeight:0,sectors:[]},page:1,pageSize:50 as const,minScore:0,minCoverage:0,asOf:"2024-10-29"};
+    const pending=await store.query(query);assert.equal(pending.availability.outdatedCalculation,1);assert.equal(pending.availability.stale,0);
+    assert.equal(pending.inspection.rows[0]?.dataStatus?.reason,"FINAL_COMPUTE_OUTDATED");assert.equal(pending.inspection.rows[0]?.dataStatus?.priceCount,303);assert.ok(pending.inspection.rows[0]?.candidate,"previous analysis remains available with a pending update explanation");
+    const repaired=await runBollingerCloud(store,config,p,{clock:time,spacingMs:0});assert.equal(repaired.status,"COMPLETE");assert.equal(priceCalls,1);
+    assert.equal((await store.query(query)).availability.outdatedCalculation,0);
+    const after=(await store.featureHistory(universe().id,member("500000"),DISCOVERY_DEFAULTS.version)).at(-1)!;
+    const priorSma=before.payload.score.components.trend!.inputs.sma200,currentSma=after.payload.score.components.trend!.inputs.sma200;
+    assert.equal(typeof priorSma,"number");assert.equal(typeof currentSma,"number");assert.ok(Math.abs((currentSma as number)-(priorSma as number)-0.01/200)<1e-10);
+  }finally{await pg.close();}
+});
+test("legacy cross-market price bases cannot satisfy Korean or US calculation coverage",async()=>{
+  const {pg,store}=await database();try{
+    const kr=member("500000"),us={...member("AAPL"),market:"US" as const,exchange:"NASDAQ" as const},u=universe([kr,us]);await store.saveUniverse(u);
+    await store.saveBars(kr,discoveryBars(303),"QA WRONG MARKET","yahoo-us-adjusted-ohlcv",new Date(time()).toISOString());
+    await store.saveBars(us,discoveryBars(303),"QA WRONG MARKET","naver-raw-ohlcv",new Date(time()).toISOString());
+    const coverage=await store.calculationCoverage(u.id,DISCOVERY_DEFAULTS.version,["KR:500000","US:AAPL"]);assert.ok(coverage.every(r=>r.priceDate===null));
+    const computed=await precomputeDiscovery(store,u.id,undefined,undefined,{contextOnly:true,recentDays:25});assert.equal(computed.securities,0);
+  }finally{await pg.close();}
+});
+test("price persistence SQL failure stops the collector without advancing the stock or masquerading as provider failure",async()=>{
+  const {pg,store}=await database();try{
+    const saveBars=store.saveBars,p=providers(2),prices=p.prices,received:string[]=[];
+    p.prices=async(m,initial)=>{received.push(m.symbol);return prices(m,initial);};
+    store.saveBars=async(...args)=>{if(args[0].symbol==="500000")throw new Error("private persistence connection detail");return saveBars(...args);};
+    const failed=await runBollingerCloud(store,config,p,{clock:time,spacingMs:0});
+    assert.equal(failed.status,"DATABASE_QUERY_FAILED");assert.equal(failed.jobs[0]?.nextOffset,0);assert.equal(failed.jobs[0]?.collected,0);assert.deepEqual(failed.jobs[0]?.stockErrors,[]);assert.doesNotMatch(JSON.stringify(failed),/private persistence/);assert.deepEqual(received,["500000"]);
+    store.saveBars=saveBars;const resumed=await runBollingerCloud(store,config,p,{clock:time,spacingMs:0});assert.equal(resumed.status,"COMPLETE");assert.deepEqual(received,["500000","500000","500001"]);
+  }finally{await pg.close();}
+});
+test("benchmark persistence SQL failure is fatal rather than a recoverable provider warning",async()=>{
+  const {pg,store}=await database();try{
+    const saveBars=store.saveBars,p=providers(2);let priceCalls=0;p.prices=async()=>{priceCalls++;throw new Error("must not continue after DB failure");};
+    store.saveBars=async(...args)=>{if(args[0].symbol==="^KS11")throw new Error("private benchmark DB detail");return saveBars(...args);};
+    const failed=await runBollingerCloud(store,config,p,{clock:time,spacingMs:0});
+    assert.equal(failed.status,"DATABASE_QUERY_FAILED");assert.equal(priceCalls,0);assert.equal(failed.jobs[0]?.nextOffset,0);assert.deepEqual(failed.jobs[0]?.stockErrors,[]);assert.doesNotMatch(JSON.stringify(failed),/private benchmark/);
+  }finally{await pg.close();}
+});
+test("completed selected checkpoints repair wrong or duplicated identities instead of trusting equal counts",async()=>{
+  const {pg,store}=await database();try{
+    const members=Array.from({length:3},(_,i)=>({...member(String(500000+i)),marketCap:(3-i)*1e12}));await store.saveUniverse(universe(members));
+    const p=providers(3),request=selectedRequest(),prices=p.prices;let priceCalls=0;p.prices=async(...args)=>{priceCalls++;return prices(...args);};
+    assert.equal((await runSelectedBollingerCloud(store,config,p,request,{clock:time,spacingMs:0})).status,"COMPLETE");
+    const keys=members.map(m=>`KR:${m.symbol}`),original=(await store.latestJob(selectedBollingerScope(request)))!;
+    for(const wrong of [[keys[0]!,keys[1]!,"KR:999999"],[keys[0]!,keys[0]!,keys[2]!]]) {
+      const job=(await store.latestJob(selectedBollingerScope(request)))!;await store.endJob(job.id,"complete",{...job.summary,computedKeys:wrong});
+      const repaired=await runSelectedBollingerCloud(store,config,p,request,{clock:time,spacingMs:0});
+      assert.equal(repaired.status,"COMPLETE");assert.deepEqual(repaired.jobs[0]?.computedSymbols,keys);assert.equal(priceCalls,3,"identity repair uses existing prices");
+      assert.equal((await store.latestJob(selectedBollingerScope(request)))?.id,original.id);
+      assert.equal((await runSelectedBollingerCloud(store,config,p,request,{clock:time,spacingMs:0})).status,"UP_TO_DATE");
+    }
+  }finally{await pg.close();}
+});
+test("bootstrap completed checkpoint reconstructs frozen requested identities after legacy selected keys are corrupted",async()=>{
+  const {pg,store}=await database();try{
+    const p=providers(3),prices=p.prices,request=bootstrapRequest({bootstrapTarget:"KOSPI"});let priceCalls=0;p.prices=async(...args)=>{priceCalls++;return prices(...args);};
+    assert.equal((await runBootstrapBollingerCloud(store,config,p,request,{clock:time,spacingMs:0})).status,"COMPLETE");
+    const job=(await store.latestJob(bootstrapBollingerScope(request)))!;
+    await store.endJob(job.id,"complete",{...job.summary,selectedKeys:["KR:500000","KR:500001","KR:999999"],computedKeys:["KR:500000","KR:500001","KR:999999"]});
+    p.membership=async()=>{throw new Error("completed immutable membership must not be re-fetched");};
+    const repaired=await runBootstrapBollingerCloud(store,config,p,request,{clock:time,spacingMs:0});
+    assert.equal(repaired.status,"COMPLETE");assert.deepEqual(repaired.jobs[0]?.computedSymbols,["KR:500000","KR:500001","KR:500002"]);assert.equal(priceCalls,3);
+    assert.deepEqual((await store.latestJob(bootstrapBollingerScope(request)))?.summary.selectedKeys,["KR:500000","KR:500001","KR:500002"]);
+  }finally{await pg.close();}
+});
+test("new same-basis prices expose pending final analysis before the four-day stale threshold and only after their observation date",async()=>{
+  const {pg,store}=await database();try{
+    const p=providers(1);assert.equal((await runBollingerCloud(store,config,p,{clock:time,spacingMs:0})).status,"COMPLETE");
+    const newBar={...discoveryBars(303).at(-1)!,date:"2024-10-30"};await store.saveBars(member("500000"),[newBar],"QA SHARED RANGE","yahoo-kr-raw-ohlcv","2024-10-30T09:30:00Z");
+    const query={universeId:universe().id,configVersion:DISCOVERY_DEFAULTS.version,strategy:"squeeze-watch" as const,selection:{top:20 as const,minWeight:0,sectors:[]},page:1,pageSize:50 as const,minScore:0,minCoverage:0,asOf:"2024-10-30"};
+    const pending=await store.query(query);assert.equal(pending.availability.stale,0);assert.equal(pending.availability.outdatedCalculation,1);assert.equal(pending.availability.missingStored,0);
+    const row=pending.inspection.rows[0]!;assert.equal(row.dataStatus?.lastPriceDate,"2024-10-30");assert.equal(row.dataStatus?.reason,"FINAL_COMPUTE_OUTDATED");assert.ok(row.candidate);
+    const prior=await store.query({...query,asOf:"2024-10-29"});assert.equal(prior.availability.outdatedCalculation,0);assert.equal(prior.inspection.rows[0]?.dataStatus?.reason,null);
+  }finally{await pg.close();}
+});
+test("completed-checkpoint coverage SQL failure is a terminal database error without provider work",async()=>{
+  const {pg,store}=await database();try{
+    const p=providers(1);assert.equal((await runBollingerCloud(store,config,p,{clock:time,spacingMs:0})).status,"COMPLETE");
+    store.calculationCoverage=async()=>{throw new Error("private database credentials detail");};p.prices=async()=>{throw new Error("no provider retry allowed");};
+    const failed=await runBollingerCloud(store,config,p,{clock:time,spacingMs:0});assert.equal(failed.status,"DATABASE_QUERY_FAILED");assert.doesNotMatch(JSON.stringify(failed),/private|credentials/);
+  }finally{await pg.close();}
+});
+test("availability detects a newer allowed price basis while displayed analysis stays pinned and future or wrong-market prices are excluded",async()=>{
+  const {pg,store}=await database();try{
+    assert.equal((await runBollingerCloud(store,config,providers(3),{clock:time,spacingMs:0})).status,"COMPLETE");
+    const bars=discoveryBars(303),next={...bars.at(-1)!,date:"2024-10-30"};
+    await store.saveBars(member("500000"),[next],"QA NAVER NEXT DAY","naver-raw-ohlcv","2024-10-30T09:30:00Z");
+    await store.saveBars(member("500001"),bars,"QA NAVER SAME DAY","naver-raw-ohlcv","2024-10-29T09:31:00Z");
+    await store.saveBars(member("500002"),[...bars,next],"QA WRONG MARKET","yahoo-us-adjusted-ohlcv","2024-10-30T09:30:00Z");
+    const query={universeId:universe().id,configVersion:DISCOVERY_DEFAULTS.version,strategy:"squeeze-watch" as const,selection:{top:20 as const,minWeight:0,sectors:[]},page:1,pageSize:50 as const,minScore:0,minCoverage:0,asOf:"2024-10-30"};
+    const current=await store.query(query);assert.equal(current.availability.outdatedCalculation,2);assert.equal(current.availability.missingPriceHistory,0);assert.equal(current.availability.stale,0);
+    for(const row of current.inspection.rows){assert.equal(row.priceBasis,"yahoo-kr-raw-ohlcv");assert.equal(row.source,"QA SYNTHETIC");assert.equal(row.dataStatus?.priceCount,303);assert.equal(row.dataStatus?.lastPriceDate,"2024-10-29");assert.equal(row.candidate?.date,"2024-10-29");}
+    assert.equal(current.inspection.rows.find(r=>r.symbol==="500000")?.dataStatus?.reason,"FINAL_COMPUTE_OUTDATED");
+    assert.equal(current.inspection.rows.find(r=>r.symbol==="500001")?.dataStatus?.reason,"FINAL_COMPUTE_OUTDATED");
+    assert.equal(current.inspection.rows.find(r=>r.symbol==="500002")?.dataStatus?.reason,null);
+    const prior=await store.query({...query,asOf:"2024-10-29"});assert.equal(prior.availability.outdatedCalculation,1);assert.equal(prior.inspection.rows.find(r=>r.symbol==="500000")?.dataStatus?.reason,null,"future Naver observation is excluded before its date");
+    const proof=await store.calculationCoverage(universe().id,DISCOVERY_DEFAULTS.version,["KR:500000","KR:500001","KR:500002"]);
+    assert.equal(proof.find(r=>r.key==="KR:500000")?.priceBasis,"naver-raw-ohlcv");assert.equal(proof.find(r=>r.key==="KR:500001")?.priceBasis,"naver-raw-ohlcv");assert.equal(proof.find(r=>r.key==="KR:500002")?.priceBasis,"yahoo-kr-raw-ohlcv");
+  }finally{await pg.close();}
 });

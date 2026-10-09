@@ -1,0 +1,57 @@
+{
+  "scope": "Synthetic tests only; not real trading/backtest performance",
+  "productionEntry": "/workspace/.onboarding/builds/k-equity-desk-v4/functions/__server.func/index.mjs",
+  "base": "http://127.0.0.1:8193",
+  "testDay": "2026-10-09",
+  "storedDay": "2026-10-05",
+  "results": [
+    {
+      "theme": "light",
+      "viewport": "desktop",
+      "mode": "isolated-synthetic-DB-and-browser",
+      "success": false,
+      "error": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: '저장 자료 새로고침', exact: true })\u001b[22m\n",
+      "pageErrors": []
+    },
+    {
+      "theme": "light",
+      "viewport": "tablet",
+      "mode": "isolated-synthetic-DB-and-browser",
+      "success": false,
+      "error": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: '저장 자료 새로고침', exact: true })\u001b[22m\n",
+      "pageErrors": []
+    },
+    {
+      "theme": "light",
+      "viewport": "mobile",
+      "mode": "isolated-synthetic-DB-and-browser",
+      "success": false,
+      "error": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: '저장 자료 새로고침', exact: true })\u001b[22m\n",
+      "pageErrors": []
+    },
+    {
+      "theme": "dark",
+      "viewport": "desktop",
+      "mode": "isolated-synthetic-DB-and-browser",
+      "success": false,
+      "error": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: '저장 자료 새로고침', exact: true })\u001b[22m\n",
+      "pageErrors": []
+    },
+    {
+      "theme": "dark",
+      "viewport": "tablet",
+      "mode": "isolated-synthetic-DB-and-browser",
+      "success": false,
+      "error": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: '저장 자료 새로고침', exact: true })\u001b[22m\n",
+      "pageErrors": []
+    },
+    {
+      "theme": "dark",
+      "viewport": "mobile",
+      "mode": "isolated-synthetic-DB-and-browser",
+      "success": false,
+      "error": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: '저장 자료 새로고침', exact: true })\u001b[22m\n",
+      "pageErrors": []
+    }
+  ]
+}

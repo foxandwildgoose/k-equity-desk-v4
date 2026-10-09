@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { analyzeDiscovery, type Candidate } from "./discovery.ts";
+import { analyzeDiscovery, sanitizeDiscoveryConfig, STRATEGIES, type Candidate } from "./discovery.ts";
 import { discoveryBars, discoveryContexts } from "./discovery-fixture.test-data.ts";
-import { discoverySituation, inspectDiscoveryCandidate } from "./discovery-inspection.ts";
+import { discoverySituation, discoveryStrategyDescription, discoveryStrategyReasons, discoveryStrategyRequiredInputs, inspectDiscoveryCandidate } from "./discovery-inspection.ts";
 
 const bars=discoveryBars(303);
 const candidate=analyzeDiscovery(bars,undefined,discoveryContexts(bars)).candidates.at(-1)!;
@@ -13,9 +13,44 @@ test("inspection retains missing, warmup, stale, coverage, strategy and score ex
   assert.equal(inspectDiscoveryCandidate({...candidate,date:"2024-01-02"},conditions).assessment,"STALE");
   assert.equal(inspectDiscoveryCandidate({...candidate,score:{...candidate.score,coverage:.7}},conditions).assessment,"LOW_COVERAGE");
   assert.equal(inspectDiscoveryCandidate({...candidate,views:[]},conditions).assessment,"STRATEGY_MISMATCH");
-  assert.equal(inspectDiscoveryCandidate({...candidate,score:{...candidate.score,value:null}},conditions).assessment,"LOW_SCORE");
+  assert.equal(inspectDiscoveryCandidate({...candidate,score:{...candidate.score,value:null}},conditions).assessment,"DATA_UNAVAILABLE");
   assert.equal(inspectDiscoveryCandidate({...candidate,score:{...candidate.score,value:0}},{...conditions,minScore:1}).assessment,"LOW_SCORE");
   assert.equal(inspectDiscoveryCandidate(candidate,conditions).matched,true);
+});
+test("strategy tabs apply independent persisted flags and explanations rather than repeating Long gates",()=>{
+  const observed={...candidate,state:"NEUTRAL" as const,views:[],bbwPercentile:30,percentB:.6,rvol:.8,trigger:null,trend:"bullish" as const};
+  const explanations=STRATEGIES.map(strategy=>discoveryStrategyReasons(observed,strategy).reasons.join(" "));
+  assert.equal(new Set(explanations).size,STRATEGIES.length);
+  const squeeze=discoveryStrategyReasons(observed,"squeeze-watch");assert.equal(squeeze.reasons.length,1);assert.match(squeeze.reasons[0]!,/BBW.*30\.0.*10/);assert.doesNotMatch(squeeze.reasons.join(" "),/RSI|저항 거리|건조/);
+  assert.match(discoveryStrategyReasons(observed,"pullback").reasons.join(" "),/%B.*0\.60.*0\.2.*0\.5/);
+  assert.match(discoveryStrategyReasons(observed,"mean-reversion-watch").reasons.join(" "),/중립/);
+  assert.match(discoveryStrategyReasons(observed,"follow-through").reasons.join(" "),/유효 돌파/);
+  assert.match(discoveryStrategyReasons(observed,"failed-breakout").reasons.join(" "),/되밀림/);
+  for(const strategy of STRATEGIES){
+    const flagged={...observed,views:[strategy]};
+    assert.equal(inspectDiscoveryCandidate(flagged,{...conditions,strategy}).assessment,"MATCH");
+    for(const other of STRATEGIES.filter(s=>s!==strategy))assert.equal(inspectDiscoveryCandidate(flagged,{...conditions,strategy:other}).matched,false);
+  }
+});
+test("unknown strategy inputs and null scores stay distinct from a known failed criterion",()=>{
+  const incomplete={...candidate,state:"NEUTRAL" as const,views:[],bbwPercentile:null};
+  const unknown=inspectDiscoveryCandidate(incomplete,{...conditions,strategy:"squeeze-watch"});assert.equal(unknown.assessment,"DATA_UNAVAILABLE");assert.match(unknown.reasons[0]!,/BBW.*資料|BBW.*자료/);
+  const known=inspectDiscoveryCandidate({...incomplete,bbwPercentile:50},{...conditions,strategy:"squeeze-watch"});assert.equal(known.assessment,"STRATEGY_MISMATCH");assert.match(known.reasons[0]!,/50\.0/);
+  const noMomentum={...candidate,state:"NEUTRAL" as const,views:["squeeze-watch" as const],bbwPercentile:5,rsi:null,rsiSlope:null};
+  assert.equal(inspectDiscoveryCandidate(noMomentum,{...conditions,strategy:"squeeze-watch"}).matched,true);
+  assert.equal(inspectDiscoveryCandidate(noMomentum,conditions).assessment,"DATA_UNAVAILABLE");
+  const unknownTrend={...candidate,state:"NEUTRAL" as const,views:[],trend:null};assert.equal(inspectDiscoveryCandidate(unknownTrend,{...conditions,strategy:"mean-reversion-watch"}).assessment,"DATA_UNAVAILABLE");
+  // The actual recorded lower-breakdown flag may be valid even when an unrelated trend field is unavailable.
+  assert.equal(inspectDiscoveryCandidate({...unknownTrend,views:["bear-breakdown"]},{...conditions,strategy:"bear-breakdown"}).matched,true);
+});
+test("strategy criteria follow recognized configuration while optional market data never becomes a required squeeze gate",()=>{
+  const config=sanitizeDiscoveryConfig({squeeze:7,compression:15,triggerRvol:2,distanceMax:3,requireMarket:1,requireSector:1});
+  assert.match(discoveryStrategyDescription("squeeze-watch",config.version),/7%/);
+  assert.match(discoveryStrategyDescription("triggered",config.version),/2배/);
+  assert.match(discoveryStrategyDescription("long-pre-breakout",config.version),/0~3%/);
+  assert.ok(discoveryStrategyRequiredInputs("long-pre-breakout",config.version).numeric.includes("score.components.market.score"));
+  assert.deepEqual(discoveryStrategyRequiredInputs("squeeze-watch",config.version),{numeric:["bbwPercentile"],text:[]});
+  assert.ok(!discoveryStrategyRequiredInputs("long-pre-breakout").numeric.includes("score.components.market.score"));
 });
 test("recent previous completed trading date stays visible and future/invalid dates never match",()=>{
   assert.equal(inspectDiscoveryCandidate(candidate,{...conditions,asOf:"2024-10-30"}).matched,true);

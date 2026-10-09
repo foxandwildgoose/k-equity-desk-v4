@@ -1,0 +1,16 @@
+{
+  "theme": "light",
+  "viewport": "desktop",
+  "success": true,
+  "scope": "Actual completed legacy case stdout; fullmatrix was intentionally terminated later before finalverificationwrite",
+  "base": "http://127.0.0.1:8193",
+  "sourceLog": "/workspace/.onboarding/run/bollinger-legacy-final-isolated.log",
+  "evidenceDirectory": "/workspace/screenshots/bollinger-investor-analysis/final-isolated-production",
+  "bootstrap": {
+    "missing": "missing-kosdaq-light-desktop.png",
+    "paused": "paused-kosdaq-light-desktop.png",
+    "completed": "completed-kosdaq-light-desktop.png"
+  },
+  "priceChart": "investor-chart-light-desktop.png",
+  "allStockZeroMatches": "zero-match-analysis-light-desktop.png"
+}

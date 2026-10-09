@@ -1,0 +1,96 @@
+{
+  "scope": "synthetic isolated production-browser actions; no live provider or operational DB",
+  "base": "http://127.0.0.1:8191",
+  "testCase": "execute",
+  "day": "2026-10-09",
+  "storedDay": "2026-10-08",
+  "results": [
+    {
+      "theme": "light",
+      "viewport": "desktop",
+      "testCase": "execute",
+      "mode": "isolated-synthetic-DB-and-production-browser",
+      "success": false,
+      "error": "locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('dialog') to be visible\u001b[22m\n",
+      "calls": [
+        {
+          "name": "getMarketQuotes",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getMarketIndices",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getMarketSnapshot",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "long-pre-breakout",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryStockChart",
+          "strategy": null,
+          "symbol": "700000",
+          "asOf": "2026-10-09",
+          "page": null
+        },
+        {
+          "name": "getMarketIndices",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        }
+      ]
+    }
+  ]
+}

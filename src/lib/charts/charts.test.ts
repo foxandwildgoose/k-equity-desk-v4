@@ -14,7 +14,7 @@ import {
 } from "./drawings.ts";
 import { chartStateKey, defaultLayout, DEFAULT_OVERLAYS, loadChartState, migrateLegacyDrawings, migrateLegacyOnce, parseChartState, saveChartState, type StorageLike } from "./persistence.ts";
 import { computeInstance, INDICATORS, indicatorCacheKey, newInstance, sanitizeParams, searchIndicators, INDICATOR_BY_ID, defaultIndicators } from "./catalog.ts";
-import { alignByTime, barsToCsv, capBars, chartExportName, extendedHoursRuns, normalizeLogicalRange, percentFromFirstVisible, replaySlice, replayStep, sessionBreaks, visibleWindow } from "./tools.ts";
+import { alignByTime, barsToCsv, capBars, chartExportName, extendedHoursRuns, normalizeLogicalRange, percentFromFirstVisible, recentBarsLogicalRange, replaySlice, replayStep, sessionBreaks, visibleWindow } from "./tools.ts";
 import { sma, rsi } from "../chart-indicators.ts";
 
 function memStore(init: Record<string, string> = {}): StorageLike & { data: Record<string, string> } {
@@ -31,6 +31,22 @@ test("native axis resize roundoff preserves the selected candle window and fract
   assert.deepEqual(normalizeLogicalRange({ from: 122.0833333333, to: 165.125 }), { from: 122.0833333333, to: 165.125 });
   assert.deepEqual(visibleWindow(200, { from: 122.0833333333, to: 165.125 }), { from: 123, to: 165 });
   assert.equal(normalizeLogicalRange(null), null);
+});
+
+test("explicit recent-bar windows fit the requested real-candle count and half-bar boundaries", () => {
+  const total = 303;
+  for (const count of [120, 250, total]) {
+    const range = recentBarsLogicalRange(total, count)!;
+    assert.equal(range.to - range.from, count);
+    assert.deepEqual(visibleWindow(total, range), { from: total - count, to: total - 1 });
+  }
+  assert.deepEqual(recentBarsLogicalRange(303, 120), { from: 182.5, to: 302.5 });
+  assert.deepEqual(recentBarsLogicalRange(303, 250), { from: 52.5, to: 302.5 });
+  assert.deepEqual(recentBarsLogicalRange(80, 250), { from: -0.5, to: 79.5 }, "limited history is shown honestly");
+  assert.deepEqual(recentBarsLogicalRange(1, 120), { from: -0.5, to: 0.5 });
+  for (const [total, count] of [[0, 120], [303, 0], [303, Number.NaN], [Number.POSITIVE_INFINITY, 120]]) {
+    assert.equal(recentBarsLogicalRange(total, count), null);
+  }
 });
 
 test("AT-36 drawings: create, update, lock, hide, remove, undo/redo, persist", () => {

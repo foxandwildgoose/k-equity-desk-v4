@@ -3,7 +3,7 @@ import { readFile,mkdtemp,rm } from "node:fs/promises";import {tmpdir} from "nod
 import { PGlite } from "@electric-sql/pglite";
 import { createDiscoveryStore,getDiscoveryStore } from "./bollinger-discovery-store.ts";
 import { collectDiscovery,runDiscoveryPrecompute } from "./bollinger-discovery-jobs.ts";
-import { analyzeDiscovery,DISCOVERY_DEFAULTS } from "../lib/bollinger/discovery.ts";
+import { analyzeDiscovery,DISCOVERY_DEFAULTS,sanitizeDiscoveryConfig } from "../lib/bollinger/discovery.ts";
 import { discoveryBars,discoveryContexts,member,universe } from "../lib/bollinger/discovery-fixture.test-data.ts";
 import { readDiscoveryStockChart } from "./bollinger-discovery.ts";
 const migration=await readFile(new URL("../../migrations/0005_bollinger_discovery.sql",import.meta.url),"utf8");
@@ -115,5 +115,51 @@ test("chart can inspect persisted prices before final feature but never substitu
     const data=await readDiscoveryStockChart(store,request,Date.parse("2024-11-01T00:00:00Z"));assert.ok(data);assert.equal(data.candidate,null);assert.equal(data.discovery,null);assert.equal(data.bars.length,303);assert.equal(data.source,"QA ONLY STORED");
     const candidate=analyzeDiscovery(bars,undefined,discoveryContexts(bars)).candidates.at(-1)!;await store.saveFeatures(u.id,m,DISCOVERY_DEFAULTS.version,[candidate],"QA MISSING BASIS","naver-raw-ohlcv");
     assert.equal(await readDiscoveryStockChart(store,request,Date.parse("2024-11-01T00:00:00Z")),null);
+  }finally{await pg.close();}
+});
+test("strategy-specific unknown-data counts are separate and disjoint from known exclusions and matches",async()=>{
+  const {pg,store}=await database();try{
+    const members=Array.from({length:6},(_,i)=>member(String(620000+i))),u=universe(members);await store.saveUniverse(u);
+    const bars=discoveryBars(303),candidate=analyzeDiscovery(bars,undefined,discoveryContexts(bars)).candidates.at(-1)!;
+    const score=(value:number|null)=>({...candidate.score,value,coverage:1});
+    const variants=[{...candidate,views:[],bbwPercentile:null,score:score(70)},{...candidate,views:[],bbwPercentile:30,score:score(70)},{...candidate,views:["squeeze-watch" as const],bbwPercentile:5,score:score(null)},{...candidate,views:["squeeze-watch" as const],bbwPercentile:5,score:score(50)},{...candidate,views:["squeeze-watch" as const],bbwPercentile:5,score:score(90)}];
+    for(let i=0;i<variants.length;i++)await store.saveFeatures(u.id,members[i]!,DISCOVERY_DEFAULTS.version,[variants[i]!],"QA STRATEGY COUNTS","naver-raw-ohlcv");
+    const q={universeId:u.id,configVersion:DISCOVERY_DEFAULTS.version,strategy:"squeeze-watch" as const,selection:{top:"ALL" as const,minWeight:0,sectors:[]},page:1,pageSize:25 as const,minScore:80,minCoverage:.8,asOf:candidate.date};
+    const result=await store.query(q);assert.equal(result.total,1);assert.equal(result.availability.unavailable,2);assert.equal(result.availability.strategyMismatch,1);assert.equal(result.availability.lowScore,1);assert.equal(result.availability.missingStored,1);
+    const assessments=Object.fromEntries(result.inspection.rows.map(row=>[row.symbol,row.assessment]));assert.equal(assessments[members[0]!.symbol],"DATA_UNAVAILABLE");assert.equal(assessments[members[1]!.symbol],"STRATEGY_MISMATCH");assert.equal(assessments[members[2]!.symbol],"DATA_UNAVAILABLE");assert.equal(assessments[members[3]!.symbol],"LOW_SCORE");assert.equal(assessments[members[4]!.symbol],"MATCH");assert.equal(assessments[members[5]!.symbol],"NO_COMPUTED_HISTORY");
+    const a=result.availability;assert.equal(a.missingStored+a.warmup+a.stale+a.lowCoverage+a.unavailable+a.strategyMismatch+a.lowScore+a.matched,a.selected);
+  }finally{await pg.close();}
+});
+test("selected stock price facts distinguish absent exact-basis prices, unfinished calculation and another configuration",async()=>{
+  const {pg,store}=await database();try{
+    const members=Array.from({length:6},(_,i)=>member(String(630000+i))),u=universe(members),other={...u,id:`${u.id}-other`};await store.saveUniverse(u);await store.saveUniverse(other);
+    const bars=discoveryBars(303),candidate=analyzeDiscovery(bars,undefined,discoveryContexts(bars)).candidates.at(-1)!;
+    await store.saveFeatures(u.id,members[0]!,DISCOVERY_DEFAULTS.version,[candidate],"QA EXACT MISSING","naver-raw-ohlcv");
+    await store.saveBars(members[0]!,bars,"QA OTHER BASIS","yahoo-kr-raw-ohlcv","2024-10-29T00:00:00Z");
+    for(const i of [1,2,3,4])await store.saveBars(members[i]!,bars,"QA PRICES","naver-raw-ohlcv","2024-10-29T00:00:00Z");
+    await store.saveFeatures(u.id,members[2]!,sanitizeDiscoveryConfig({squeeze:8}).version,[candidate],"QA OTHER CONFIGURATION","naver-raw-ohlcv");
+    await store.saveFeatures(other.id,members[3]!,sanitizeDiscoveryConfig({squeeze:8}).version,[candidate],"QA OTHER SNAPSHOT","naver-raw-ohlcv");
+    await store.saveFeatures(u.id,members[4]!,DISCOVERY_DEFAULTS.version,[candidate],"QA COMPLETE","naver-raw-ohlcv");
+    await store.saveBars(members[5]!,[{...bars.at(-1)!,date:"2024-10-30"}],"QA FUTURE","naver-raw-ohlcv","2024-10-30T00:00:00Z");
+    const q={universeId:u.id,configVersion:DISCOVERY_DEFAULTS.version,strategy:"long-pre-breakout" as const,selection:{top:"ALL" as const,minWeight:0,sectors:[]},page:1,pageSize:25 as const,minScore:0,minCoverage:.8,asOf:candidate.date};
+    const response=await store.query(q),bySymbol=new Map(response.inspection.rows.map(row=>[row.symbol,row]));
+    assert.equal(response.availability.missingPriceHistory,2);
+    assert.equal(bySymbol.get(members[0]!.symbol)?.dataStatus?.reason,"NO_PRICE_HISTORY");assert.equal(bySymbol.get(members[0]!.symbol)?.dataStatus?.priceCount,0);
+    assert.equal(bySymbol.get(members[1]!.symbol)?.dataStatus?.reason,"FINAL_COMPUTE_MISSING");assert.equal(bySymbol.get(members[1]!.symbol)?.dataStatus?.priceCount,303);assert.equal(bySymbol.get(members[1]!.symbol)?.dataStatus?.lastPriceDate,candidate.date);
+    assert.equal(bySymbol.get(members[2]!.symbol)?.dataStatus?.reason,"CONFIGURATION_NOT_COMPUTED");
+    assert.equal(bySymbol.get(members[3]!.symbol)?.dataStatus?.reason,"FINAL_COMPUTE_MISSING");
+    assert.equal(bySymbol.get(members[4]!.symbol)?.dataStatus?.reason,null);assert.equal(bySymbol.get(members[4]!.symbol)?.dataStatus?.priceCount,303);
+    assert.equal(bySymbol.get(members[5]!.symbol)?.dataStatus?.reason,"NO_PRICE_HISTORY");
+    const outOfRange=await store.query({...q,page:2});assert.equal(outOfRange.inspection.rows.length,0);assert.equal(outOfRange.availability.missingPriceHistory,2);
+  }finally{await pg.close();}
+});
+test("all-selected inspection honors score, distance and relative-strength sort with unknown values last",async()=>{
+  const {pg,store}=await database();try{
+    const members=Array.from({length:4},(_,i)=>member(String(640000+i))),u=universe(members);await store.saveUniverse(u);
+    const bars=discoveryBars(303),candidate=analyzeDiscovery(bars,undefined,discoveryContexts(bars)).candidates.at(-1)!;
+    const values=[{score:10,distance:1,rs:50},{score:90,distance:5,rs:10},{score:50,distance:3,rs:90}];
+    for(let i=0;i<values.length;i++){const v=values[i]!;await store.saveFeatures(u.id,members[i]!,DISCOVERY_DEFAULTS.version,[{...candidate,score:{...candidate.score,value:v.score},distance:v.distance,rsPercentile:v.rs}],"QA SORT","naver-raw-ohlcv");}
+    const q={universeId:u.id,configVersion:DISCOVERY_DEFAULTS.version,strategy:"long-pre-breakout" as const,selection:{top:"ALL" as const,minWeight:0,sectors:[]},page:1,pageSize:25 as const,minScore:0,minCoverage:.8,asOf:candidate.date};
+    for(const [sort,order] of [["score",[1,2,0,3]],["distance",[0,2,1,3]],["rs",[2,0,1,3]]] as const){const result=await store.query({...q,sort});assert.deepEqual(result.inspection.rows.map(r=>r.symbol),order.map(i=>members[i]!.symbol));}
   }finally{await pg.close();}
 });

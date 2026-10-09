@@ -102,6 +102,7 @@ import {
   sessionBreaks,
   visibleWindow,
   normalizeLogicalRange,
+  recentBarsLogicalRange,
 } from "@/lib/charts/tools";
 import { barTimeOf, dayOfTime } from "@/lib/charts/bar-time";
 import { kstDayKey } from "@/lib/feed/time";
@@ -156,6 +157,10 @@ export interface ProChartProps {
   interval: ChartInterval;
   minuteSize?: MinuteSize;
   range?: string;
+  /** Explicit viewport request; calculation and price data keep their full history. */
+  visibleBarCount?: number;
+  /** Increment to restore a selected viewport after manual pan/zoom. */
+  visibleRangeRevision?: number;
   /** Persistence key part, e.g. "day" or "minute-5". */
   intervalKey: string;
   source: string;
@@ -560,15 +565,16 @@ export function ProChart(props: ProChartProps) {
   }, [mainEpoch, bars, times, layout.chartType]);
 
   // Fit once per dataset key.
-  const fittedKey = useRef<string | null>(null);
+  const fittedKey = useRef<{ chart: IChartApi; key: string } | null>(null);
   useEffect(() => {
     if (!chart || !rawBars.length) return;
-    const key = `${layoutKey}|${props.range ?? ""}|${props.minuteSize ?? ""}`;
-    if (fittedKey.current === key) return;
-    fittedKey.current = key;
     const n = bars.length;
-    chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, n - (interval === "minute" ? 160 : 180)), to: n + 4 });
-  }, [chart, bars.length, rawBars.length, layoutKey, props.range, props.minuteSize, interval]);
+    const explicitRange = props.visibleBarCount == null ? null : recentBarsLogicalRange(n, props.visibleBarCount);
+    const key = `${layoutKey}|${props.range ?? ""}|${props.minuteSize ?? ""}|${explicitRange ? `${n}:${props.visibleBarCount}:${props.visibleRangeRevision ?? 0}` : "default"}`;
+    if (fittedKey.current?.chart === chart && fittedKey.current.key === key) return;
+    fittedKey.current = { chart, key };
+    chart.timeScale().setVisibleLogicalRange(explicitRange ?? { from: Math.max(0, n - (interval === "minute" ? 160 : 180)), to: n + 4 });
+  }, [chart, bars.length, rawBars.length, layoutKey, props.range, props.minuteSize, props.visibleBarCount, props.visibleRangeRevision, interval]);
 
   // ── Compare overlay (F7.8) ─────────────────────────────────────────────
   const [compare, setCompare] = useState<string[]>([]);

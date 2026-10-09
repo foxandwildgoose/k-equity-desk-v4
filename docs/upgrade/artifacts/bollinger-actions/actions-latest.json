@@ -1,0 +1,1740 @@
+{
+  "scope": "synthetic isolated production-browser actions; no live provider or operational DB",
+  "base": "http://127.0.0.1:8194",
+  "testCase": "all",
+  "day": "2026-10-09",
+  "storedDay": "2026-10-08",
+  "results": [
+    {
+      "theme": "light",
+      "viewport": "desktop",
+      "testCase": "all",
+      "mode": "isolated-synthetic-DB-and-production-browser",
+      "success": true,
+      "execute": {
+        "initiallyStored": 3,
+        "selected": 20,
+        "automaticallyStored": 20,
+        "requests": 3,
+        "ownerRequired": true,
+        "cancelBeforeAuthorization": true,
+        "badSecretBlocked": true
+      },
+      "range": {
+        "recent120": {
+          "from": 182.5,
+          "to": 302.5,
+          "span": 120,
+          "hash": 3223252118,
+          "upper": 45,
+          "lower": 56
+        },
+        "recent250": {
+          "from": 52.5,
+          "to": 302.5,
+          "span": 250,
+          "hash": 4169059632,
+          "upper": 49,
+          "lower": 57
+        },
+        "entire": {
+          "from": -0.5,
+          "to": 302.5,
+          "span": 303,
+          "hash": 1532486122,
+          "upper": 37,
+          "lower": 52
+        },
+        "returned120": {
+          "from": 182.5,
+          "to": 302.5,
+          "span": 120,
+          "hash": 3223252118,
+          "upper": 45,
+          "lower": 56
+        },
+        "fullHistory": 303,
+        "sma200": 124.24687029909657,
+        "sma200Stable": true,
+        "noRefetch": true,
+        "noCollection": true
+      },
+      "strategies": {
+        "distinctIdentities": true,
+        "emptyStrategyHonest": true,
+        "allSelectedRecoverable": true,
+        "executeRestoresAllSelected": true,
+        "noCollection": true
+      },
+      "actions": {
+        "priceRetry": true,
+        "lateStockIgnored": true,
+        "lateStrategyIgnored": true,
+        "futureDateBlocked": true,
+        "manualDraftAndScope": true,
+        "paginationIdentities": true,
+        "pageSizeResets": true,
+        "noCollection": true,
+        "bandToggleNative": true,
+        "pngExport": true,
+        "csvVisibleRangeAndWarmup": true,
+        "resetDraftOnly": true
+      },
+      "collectionControls": {
+        "cancelStopsFurtherRequests": true,
+        "explicitResumeCompletes": true,
+        "networkFailureStops": true,
+        "executeRetries": true,
+        "unchangedProgressStopsAfter4": true,
+        "hiddenTabStopsContinuation": true
+      },
+      "calls": [
+        {
+          "name": "getMarketQuotes",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getMarketIndices",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getMarketSnapshot",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "long-pre-breakout",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryStockChart",
+          "strategy": null,
+          "symbol": "700000",
+          "asOf": "2026-10-09",
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "long-pre-breakout",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "long-pre-breakout",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "collectSelected",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryStockChart",
+          "strategy": null,
+          "symbol": "700000",
+          "asOf": "2026-10-09",
+          "page": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "long-pre-breakout",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "collectSelected",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryStockChart",
+          "strategy": null,
+          "symbol": "700000",
+          "asOf": "2026-10-09",
+          "page": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "long-pre-breakout",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "collectSelected",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryStockChart",
+          "strategy": null,
+          "symbol": "700000",
+          "asOf": "2026-10-09",
+          "page": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryStockChart",
+          "strategy": null,
+          "symbol": "700000",
+          "asOf": "2026-10-09",
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "long-pre-breakout",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "long-pre-breakout",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "long-pre-breakout",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "squeeze-watch",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "triggered",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryStockChart",
+          "strategy": null,
+          "symbol": "700003",
+          "asOf": "2026-10-09",
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryStockChart",
+          "strategy": null,
+          "symbol": "700004",
+          "asOf": "2026-10-09",
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "failed-breakout",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryStockChart",
+          "strategy": null,
+          "symbol": "700005",
+          "asOf": "2026-10-09",
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "pullback",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryStockChart",
+          "strategy": null,
+          "symbol": "700006",
+          "asOf": "2026-10-09",
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "bear-breakdown",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryStockChart",
+          "strategy": null,
+          "symbol": "700008",
+          "asOf": "2026-10-09",
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "long-pre-breakout",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryStockChart",
+          "strategy": null,
+          "symbol": "700009",
+          "asOf": "2026-10-09",
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "mean-reversion-watch",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "mean-reversion-watch",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "mean-reversion-watch",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "mean-reversion-watch",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryStockChart",
+          "strategy": null,
+          "symbol": "700000",
+          "asOf": "2026-10-09",
+          "page": null
+        },
+        {
+          "name": "getDiscoveryStockChart",
+          "strategy": null,
+          "symbol": "700000",
+          "asOf": "2026-10-09",
+          "page": null
+        },
+        {
+          "name": "getDiscoveryStockChart",
+          "strategy": null,
+          "symbol": "700007",
+          "asOf": "2026-10-09",
+          "page": null
+        },
+        {
+          "name": "getDiscoveryStockChart",
+          "strategy": null,
+          "symbol": "700002",
+          "asOf": "2026-10-09",
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "triggered",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-08",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryStockChart",
+          "strategy": null,
+          "symbol": "700000",
+          "asOf": "2026-10-08",
+          "page": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-08",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getMarketIndices",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 2
+        },
+        {
+          "name": "getDiscoveryStockChart",
+          "strategy": null,
+          "symbol": "700025",
+          "asOf": "2026-10-09",
+          "page": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "collectSelected",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getMarketQuotes",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryStockChart",
+          "strategy": null,
+          "symbol": "700000",
+          "asOf": "2026-10-09",
+          "page": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "collectSelected",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryStockChart",
+          "strategy": null,
+          "symbol": "700000",
+          "asOf": "2026-10-09",
+          "page": null
+        },
+        {
+          "name": "collectSelected",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryStockChart",
+          "strategy": null,
+          "symbol": "700000",
+          "asOf": "2026-10-09",
+          "page": null
+        },
+        {
+          "name": "getDiscoveryStockChart",
+          "strategy": null,
+          "symbol": "700000",
+          "asOf": "2026-10-09",
+          "page": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "collectSelected",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryStockChart",
+          "strategy": null,
+          "symbol": "700000",
+          "asOf": "2026-10-09",
+          "page": null
+        },
+        {
+          "name": "getDiscoveryStockChart",
+          "strategy": null,
+          "symbol": "700000",
+          "asOf": "2026-10-09",
+          "page": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "collectSelected",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryStockChart",
+          "strategy": null,
+          "symbol": "700000",
+          "asOf": "2026-10-09",
+          "page": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "collectSelected",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryStockChart",
+          "strategy": null,
+          "symbol": "700000",
+          "asOf": "2026-10-09",
+          "page": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "collectSelected",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryStockChart",
+          "strategy": null,
+          "symbol": "700000",
+          "asOf": "2026-10-09",
+          "page": null
+        },
+        {
+          "name": "getDiscoveryStockChart",
+          "strategy": null,
+          "symbol": "700000",
+          "asOf": "2026-10-09",
+          "page": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "collectSelected",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryStockChart",
+          "strategy": null,
+          "symbol": "700000",
+          "asOf": "2026-10-09",
+          "page": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "collectSelected",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getMarketIndices",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryStockChart",
+          "strategy": null,
+          "symbol": "700000",
+          "asOf": "2026-10-09",
+          "page": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "collectSelected",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryStockChart",
+          "strategy": null,
+          "symbol": "700000",
+          "asOf": "2026-10-09",
+          "page": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "collectSelected",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryStockChart",
+          "strategy": null,
+          "symbol": "700000",
+          "asOf": "2026-10-09",
+          "page": null
+        },
+        {
+          "name": "getDiscoveryStockChart",
+          "strategy": null,
+          "symbol": "700000",
+          "asOf": "2026-10-09",
+          "page": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "collectSelected",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryStockChart",
+          "strategy": null,
+          "symbol": "700000",
+          "asOf": "2026-10-09",
+          "page": null
+        },
+        {
+          "name": "collectSelected",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryStockChart",
+          "strategy": null,
+          "symbol": "700000",
+          "asOf": "2026-10-09",
+          "page": null
+        },
+        {
+          "name": "collectSelected",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryStockChart",
+          "strategy": null,
+          "symbol": "700000",
+          "asOf": "2026-10-09",
+          "page": null
+        },
+        {
+          "name": "getDiscoveryStockChart",
+          "strategy": null,
+          "symbol": "700000",
+          "asOf": "2026-10-09",
+          "page": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "collectSelected",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryStockChart",
+          "strategy": null,
+          "symbol": "700000",
+          "asOf": "2026-10-09",
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "collectSelected",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryStockChart",
+          "strategy": null,
+          "symbol": "700000",
+          "asOf": "2026-10-09",
+          "page": null
+        },
+        {
+          "name": "collectSelected",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryStockChart",
+          "strategy": null,
+          "symbol": "700000",
+          "asOf": "2026-10-09",
+          "page": null
+        },
+        {
+          "name": "getDiscoveryStockChart",
+          "strategy": null,
+          "symbol": "700000",
+          "asOf": "2026-10-09",
+          "page": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "strategy": null,
+          "symbol": null,
+          "asOf": null,
+          "page": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "strategy": "follow-through",
+          "symbol": null,
+          "asOf": "2026-10-09",
+          "page": 1
+        }
+      ]
+    }
+  ]
+}

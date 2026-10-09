@@ -39,12 +39,17 @@ const kosdaqMembers=Array.from({length:101},(_,i)=>({...member(String(600000+i))
 const kosdaq={...kr,id:'QA-SYNTHETIC-KOSDAQ',kind:'KOSDAQ',label:'QA SYNTHETIC KOSDAQ — NOT MARKET DATA',members:kosdaqMembers};
 const stockBars=m=>bars.map(b=>m.symbol==='500001'||m.symbol==='600001'?{...b,open:b.open*1.2,high:b.high*1.2,low:b.low*1.2,close:b.close*1.2}:b);
 const stockCandidates=m=>m.symbol==='500001'||m.symbol==='600001'?analyzeDiscovery(stockBars(m),undefined,discoveryContexts(stockBars(m))).candidates:result.candidates;
-for(const u of [kr,us,etf]){await store.saveUniverse(u);for(const m of u.members.filter(m=>m.assetType==='equity')){const basis=m.market==='US'?'yahoo-us-adjusted-ohlcv':'yahoo-kr-raw-ohlcv';await store.saveFeatures(u.id,m,DISCOVERY_DEFAULTS.version,stockCandidates(m),'QA SYNTHETIC — NOT MARKET DATA',basis);if(!['500002','600002'].includes(m.symbol))await store.saveBars(m,stockBars(m),'QA SYNTHETIC — NOT MARKET DATA',basis,`${testDay}T00:00:00Z`);}}
+// Shared price saves precede every snapshot's calculation, as in the real collector.
+// A later shared price upsert intentionally invalidates older feature timestamps.
+for(const u of [kr,us,etf]){await store.saveUniverse(u);for(const m of u.members.filter(m=>m.assetType==='equity')){const basis=m.market==='US'?'yahoo-us-adjusted-ohlcv':'yahoo-kr-raw-ohlcv';await store.saveBars(m,stockBars(m),'QA SYNTHETIC — NOT MARKET DATA',basis,`${testDay}T00:00:00Z`);}}
+for(const u of [kr,us,etf])for(const m of u.members.filter(m=>m.assetType==='equity'))await store.saveFeatures(u.id,m,DISCOVERY_DEFAULTS.version,stockCandidates(m),'QA SYNTHETIC — NOT MARKET DATA',m.market==='US'?'yahoo-us-adjusted-ohlcv':'yahoo-kr-raw-ohlcv');
 // A future stored bar deliberately exists. Historical chart reads must clip it.
 await store.saveBars(krMembers[0],[{...bars.at(-1),date:new Date(Date.parse(`${testDay}T00:00:00Z`)+86400000).toISOString().slice(0,10),close:999,open:999,high:1000,low:998}],'QA SYNTHETIC — NOT MARKET DATA','yahoo-kr-raw-ohlcv',`${testDay}T00:00:00Z`);
 const custom=sanitizeDiscoveryConfig({squeeze:20});
-await store.saveFeatures(kr.id,krMembers[0],custom.version,result.candidates,'QA SYNTHETIC — NOT MARKET DATA','yahoo-kr-raw-ohlcv');
+for(const m of kr.members)await store.saveFeatures(kr.id,m,custom.version,stockCandidates(m),'QA SYNTHETIC — NOT MARKET DATA','yahoo-kr-raw-ohlcv');
 const historical=eventStudy([{market:'KR',symbol:'005930',bars,candidates:result.candidates,priceBasis:'yahoo-kr-raw-ohlcv'}],[kr],{start:'2025-01-01',end:storedDay,developmentEnd:'2025-09-01',validationEnd:'2026-03-01',minimumSamples:30,allowCurrentResearch:true,commissionBps:5,slippageBps:10,configVersion:DISCOVERY_DEFAULTS.version});
+// Copy the exact full-history fixture once; SQL resets avoid reparsing it for every viewport.
+await pg.query('CREATE TEMP TABLE qa_initial_features AS SELECT * FROM bollinger_features WHERE universe_id=$1',[kr.id]);
 async function nativeCanvasEvidence(chart,theme) {
   const style=getBollingerRenderingStyle(theme);
   const observed=await chart.getByTestId('chart-canvas').evaluate((root,colors)=>{
@@ -66,10 +71,17 @@ async function nativeCanvasEvidence(chart,theme) {
 const browser=await chromium.launch({headless:true,args:['--no-sandbox']});const results=[];
 try {
   for(const theme of ['light','dark'].filter(value=>!args.includes('--theme')||value===option('--theme')))for(const viewport of [{id:'desktop',width:1440,height:900},{id:'tablet',width:768,height:1024},{id:'mobile',width:390,height:844}].filter(value=>!args.includes('--viewport')||value.id===option('--viewport'))) {
+    if(args.includes('--variants')&&!option('--variants','').split(',').includes(`${theme}:${viewport.id}`))continue;
     // Reset only this isolated fixture's KOSDAQ rows between browser contexts.
     for(const table of ['bollinger_features','bollinger_members'])await pg.query(`DELETE FROM ${table} WHERE universe_id=$1`,[kosdaq.id]);
     await pg.query('DELETE FROM bollinger_universes WHERE id=$1',[kosdaq.id]);
+    await pg.query("DELETE FROM bollinger_daily_bars WHERE market='KR' AND symbol=ANY($1::text[])",[kosdaqMembers.map(m=>m.symbol)]);
+    // Restore exactly both full-history initial versions after deliberate partial collection.
+    await pg.exec(`INSERT INTO bollinger_features SELECT universe_id,config_version,market,symbol,day,state,score,coverage,views,valid,source,price_basis,payload,now() FROM qa_initial_features ON CONFLICT(universe_id,config_version,market,symbol,day) DO UPDATE SET state=EXCLUDED.state,score=EXCLUDED.score,coverage=EXCLUDED.coverage,views=EXCLUDED.views,valid=EXCLUDED.valid,source=EXCLUDED.source,price_basis=EXCLUDED.price_basis,payload=EXCLUDED.payload,computed_at=now()`);
     const context=await browser.newContext({viewport:{width:viewport.width,height:viewport.height},reducedMotion:'reduce'}),page=await context.newPage(),calls=[],errors=[];
+    // Timers remain real, while the deliberately four-day freshness boundary
+    // cannot cross Korea midnight between fixture creation and later viewports.
+    await page.clock.setFixedTime(new Date(`${testDay}T03:00:00Z`));
     let cloudPhase='complete',operatorAuthorized=false,manualPhase='not-started',bootstrapPhase='not-started',kosdaqSaved=false,hideIndexSnapshot=false,hideEtfSnapshot=false;
     const catalogue=()=>[kr,...(kosdaqSaved?[kosdaq]:[]),...(hideIndexSnapshot?[]:[us]),...(hideEtfSnapshot?[]:[etf])].map(u=>({id:u.id,kind:u.kind,label:u.label,asOf:u.asOf,knownAt:u.knownAt,fetchedAt:u.fetchedAt,source:u.source,historical:false,members:u.members.length,sectors:['Technology','Unknown']}));
     const selectedJob=data=>{
@@ -94,7 +106,7 @@ try {
       const payload=raw?fromJSON(JSON.parse(raw)):{};const data=payload.data??payload;calls.push({name,data});let value=null;
       if(name==='getDiscoveryCatalog')value={status:'READY',cloud:{...cloudConfig,enabled:cloudPhase!=='disabled',jobs:[safeCloudJob({schema:2,execution:cloudPhase==='collect'?'PAUSED':'COMPLETE',phase:cloudPhase==='disabled'?'not-started':cloudPhase,top:'ALL',requested:101,supported:101,membershipRows:101,membershipTotal:101,successfulKeys:krMembers.map(m=>`KR:${m.symbol}`),computedKeys:cloudPhase==='complete'?krMembers.map(m=>`KR:${m.symbol}`):[],budgetStopped:cloudPhase==='collect',lastRunAt:'2026-10-06T09:30:00Z'},'KOSPI')]},version:DISCOVERY_DEFAULTS.version,versions:[DISCOVERY_DEFAULTS.version,custom.version],universes:catalogue()};
       else if(name==='getDiscoveryRunProgress'){const job=data.bootstrapTarget?bootstrapJob(data):selectedJob(data);value={status:'READY',jobs:job?[job]:[]};}
-      else if(name==='getDiscoveryCandidates')value={status:'READY',...await store.query(data)};
+      else if(name==='getDiscoveryCandidates'){value={status:'READY',...await store.query(data)};if(!run.initialAvailability)run.initialAvailability=value.availability;}
       else if(name==='getDiscoveryStockChart'){try{const chart=await readDiscoveryStockChart(store,data);value={status:chart?'READY':'NO_HISTORY',data:chart};}catch(error){value={status:['MEMBER_MISSING','INVALID_AS_OF','UNIVERSE_MISSING'].includes(error.message)?error.message:'DATABASE_QUERY_FAILED',data:null};}}
       else if(name==='getDiscoveryUniversePreview'){
         const u=await store.universe(data.universeId),p=selectUniverse(u,data.selection);value={status:'READY',asOf:u.asOf,source:u.source,rankingBasis:p.rankingBasis,total:p.selected.length,supportedCount:p.supportedCount,excludedCount:p.excludedCount,selectedWeight:p.selectedWeight,knownWeight:p.knownWeight,warnings:p.warnings,rows:p.selected.slice(0,50),excluded:p.excluded};
@@ -122,7 +134,9 @@ try {
           for(const m of selectedMembers)if(m.symbol!=='600002')await store.saveBars(m,stockBars(m),'QA SYNTHETIC — NOT MARKET DATA','yahoo-kr-raw-ohlcv',`${testDay}T00:00:00Z`);
           for(const m of bootstrapPhase==='complete'?selectedMembers:selectedMembers.slice(0,5))await store.saveFeatures(kosdaq.id,m,data.configVersion,stockCandidates(m),'QA SYNTHETIC — NOT MARKET DATA','yahoo-kr-raw-ohlcv');
         }
-        await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({status:bootstrapPhase==='complete'?'COMPLETE':'PARTIAL_BUDGET',jobs:[bootstrapJob(data)]})});return;
+        // Explicit provider-error checkpoints preserve reload/manual-resume QA.
+        // Successful budget continuation is exercised by qa-bollinger-actions.mjs.
+        await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({status:bootstrapPhase==='complete'?'COMPLETE':'PARTIAL_ERRORS',jobs:[bootstrapJob(data)]})});return;
       }
       assert.equal(data.universeId,kr.id);
       manualPhase=manualPhase==='collect'?'complete':'collect';
@@ -133,7 +147,7 @@ try {
     const run={theme,viewport:viewport.id,mode:'isolated-synthetic-DB-and-browser',success:false};
     try {
       await page.goto(`${base}/bollinger`,{waitUntil:'domcontentloaded'});
-      const root=page.getByTestId('bollinger-screener');await root.waitFor();await page.getByRole('button',{name:'실행',exact:true}).waitFor();await page.getByLabel('편입 스냅샷').locator('option').nth(1).waitFor({state:'attached'});await page.waitForTimeout(300);assert.equal(calls.some(c=>c.name==='getDiscoveryCandidates'),false,'search ran before Execute');await execute();await page.getByRole('button',{name:/^(분석 근거|근거|선정 근거)$/}).first().waitFor();
+      const root=page.getByTestId('bollinger-screener');await root.waitFor();await page.getByRole('button',{name:'실행',exact:true}).waitFor();await page.getByLabel('편입 스냅샷').locator('option').nth(1).waitFor({state:'attached'});await page.getByLabel('구성 범위').selectOption('ALL');await page.waitForTimeout(300);assert.equal(calls.some(c=>c.name==='getDiscoveryCandidates'),false,'search ran before Execute');await execute();await page.getByRole('button',{name:/^(분석 근거|근거|선정 근거)$/}).first().waitFor();
       // Unrelated scheduled KOSPI history must not appear as the user's current execution.
       assert.equal(await root.getByText('KOSPI · 실행 완료',{exact:true}).count(),0,'unrelated completed cron history shown');
       assert.equal(await root.getByTestId('bollinger-run-progress').count(),0,'old cron progress rendered before a manual collection');
@@ -147,7 +161,7 @@ try {
       await page.getByRole('button',{name:/^(분석 근거|근거|선정 근거)$/}).first().click();
       await page.getByRole('dialog').waitFor();assert.match(await page.getByRole('dialog').innerText(),/RSI|Wilder/);await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'hidden'});
       // The original strict candidate view and explanation remain available.
-      await page.getByRole('button',{name:/^조건 일치 \d+$/}).click();await page.getByRole('button',{name:/^(근거|선정 근거)$/}).first().waitFor();
+      await page.getByRole('button',{name:/^조건 일치 \d+$/}).click();await page.getByRole('button',{name:/^(분석 근거|근거|선정 근거)$/}).first().waitFor();
       await page.getByRole('button',{name:/^전체 선택 \d+$/}).click();
       await page.getByRole('button',{name:'다음',exact:true}).click();await page.waitForTimeout(150);assert.ok(calls.some(c=>c.name==='getDiscoveryCandidates'&&c.data.page===2));
       for(const strategy of ['Triggered','Follow-Through','Failed Breakout','Pullback','Mean Reversion','Bear / Breakdown','Squeeze Watch','Long Pre-Breakout']){const before=calls.filter(c=>c.name==='getDiscoveryCandidates').length,collections=calls.filter(c=>c.name==='collectSelected').length;await page.getByRole('button',{name:strategy,exact:true}).click();await page.waitForFunction(()=>document.querySelector('[data-testid="bollinger-screener"]')?.textContent?.includes('검색 완료'));await page.waitForTimeout(150);assert.equal(await page.getByRole('button',{name:strategy,exact:true}).getAttribute('aria-pressed'),'true');assert.ok(calls.filter(c=>c.name==='getDiscoveryCandidates').length>before,'strategy tab did not immediately search stored results');assert.equal(calls.filter(c=>c.name==='collectSelected').length,collections,'strategy tab invoked collector');}
@@ -167,15 +181,15 @@ try {
       // Reproduce selected100 / stored20 without mutating any operational DB.
       await pg.query("DELETE FROM bollinger_features WHERE universe_id=$1 AND NOT(symbol=ANY($2::text[]))",[kr.id,krMembers.slice(0,20).map(m=>m.symbol)]);
       await page.getByLabel('구성 범위').selectOption('100');await execute();
+      await page.getByRole('dialog').waitFor();await page.getByRole('button',{name:'취소',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});
       await page.getByText('미확보 80개',{exact:false}).first().waitFor();
       run.partialScreenshot=`${out}/partial-${theme}-${viewport.id}.png`;await page.getByTestId('bollinger-execute').scrollIntoViewIfNeeded();await page.screenshot({path:run.partialScreenshot});
       await page.getByTestId('bollinger-collect').click();await page.getByRole('dialog').waitFor();
-      await page.getByLabel('수집 실행 비밀값').fill('QA_OPERATOR_PASSWORD_ONLY_1234567890');await page.getByRole('button',{name:'권한 확인',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});
+      await page.getByLabel('수집 실행 비밀값').fill('QA_OPERATOR_PASSWORD_ONLY_1234567890');await page.getByRole('button',{name:'권한 확인 후 실행',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});
       assert.equal(await page.getByLabel('수집 실행 비밀값').count(),0);
       assert.equal(await page.evaluate(()=>Object.keys(localStorage).some(k=>/operator|secret|password/i.test(k))),false,'operator secret persisted');
-      await page.getByTestId('bollinger-collect').click();await page.getByText('시간 예산이 끝났습니다.',{exact:false}).first().waitFor();
-      assert.ok(calls.some(c=>c.name==='collectSelected'&&c.data.selection.top===100));
-      await page.getByTestId('bollinger-collect').click();await page.getByText('선택 범위 수집·계산이 완료되었습니다.',{exact:false}).first().waitFor();
+      await page.getByText('선택 범위 수집·계산이 완료되었습니다.',{exact:false}).first().waitFor();
+      assert.equal(calls.filter(c=>c.name==='collectSelected'&&c.data.selection.top===100).length,2,'authorized partial selection did not automatically finish');
       await page.getByText('미확보 0개',{exact:false}).first().waitFor();
       // The latest stored date is an explicit historical query, never secretly a new current baseline.
       await page.getByRole('button',{name:'저장 최신일로 조회',exact:true}).click();await page.getByText('과거 기준 조회',{exact:false}).first().waitFor();
@@ -197,7 +211,7 @@ try {
       assert.equal(await page.getByLabel('수집 실행 비밀값').count(),0,'cancelled password field retained');
       await execute();await page.getByRole('dialog').waitFor();await page.getByLabel('수집 실행 비밀값').fill('QA_WRONG_OPERATOR_PASSWORD');await page.getByRole('button',{name:'권한 확인 후 실행',exact:true}).click();await page.getByRole('dialog').getByRole('alert').waitFor();
       assert.equal(calls.filter(c=>c.name==='collectSelected').length,beforePermission,'failed owner authorization called collector');assert.equal(await page.getByLabel('수집 실행 비밀값').inputValue(),'');await page.getByRole('button',{name:'취소',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});
-      await execute();await page.getByRole('dialog').waitFor();await page.getByLabel('수집 실행 비밀값').fill('QA_OPERATOR_PASSWORD_ONLY_1234567890');await page.getByRole('button',{name:'권한 확인 후 실행',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});await page.getByText('시간 예산이 끝났습니다.',{exact:false}).first().waitFor();
+      await execute();await page.getByRole('dialog').waitFor();await page.getByLabel('수집 실행 비밀값').fill('QA_OPERATOR_PASSWORD_ONLY_1234567890');await page.getByRole('button',{name:'권한 확인 후 실행',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});await page.getByText('일부 종목의 수집·계산이 실패했습니다.',{exact:false}).first().waitFor();
       const firstBootstrap=calls.find(c=>c.name==='collectSelected'&&c.data.bootstrapTarget==='KOSDAQ');assert.ok(firstBootstrap,'permission confirmation did not dispatch bootstrap');assert.equal(await page.getByLabel('편입 스냅샷').locator('option').count(),1,'partial membership became complete snapshot');
       assert.equal(await store.universe(kosdaq.id),null,'partial membership was persisted as a completed universe');
       run.pausedBootstrapScreenshot=`${out}/paused-kosdaq-${theme}-${viewport.id}.png`;await page.getByTestId('bollinger-collect').scrollIntoViewIfNeeded();await page.screenshot({path:run.pausedBootstrapScreenshot});
@@ -243,6 +257,8 @@ try {
       const investorQuery=await store.query({...persistedQuery,strategy:'triggered',asOf:testDay});
       assert.equal(investorQuery.total,0,'zero-strict-match fixture unexpectedly matched');
       assert.equal(investorQuery.inspection.total,20);assert.equal(investorQuery.inspection.rows.length,20);
+      await page.getByTestId('bollinger-result-status').waitFor();
+      await page.getByRole('button',{name:'전체 선택 20',exact:true}).click();
       const list=page.getByTestId('bollinger-inspection-list');await list.waitFor();
       const visibleStocks=viewport.width>=768?list.getByTestId('bollinger-inspection-row'):list.getByTestId('bollinger-inspection-card');
       assert.equal(await visibleStocks.count(),20,'zero matches hid selected stock analysis');
@@ -276,6 +292,7 @@ try {
       await study.getByText('가격 차트를 표시할 자료가 없습니다.',{exact:false}).waitFor();
       assert.equal(await study.getByTestId('chart-canvas').count(),0,'missing saved prices left another stock canvas visible');
       assert.match(await study.innerText(),/저장된 가격 이력/);
+      await store.saveBars(kosdaqMembers[2],stockBars(kosdaqMembers[2]),'QA SYNTHETIC — NOT MARKET DATA','yahoo-kr-raw-ohlcv',`${testDay}T00:00:00Z`);await store.saveFeatures(kosdaq.id,kosdaqMembers[2],custom.version,stockCandidates(kosdaqMembers[2]),'QA SYNTHETIC — NOT MARKET DATA','yahoo-kr-raw-ohlcv');
       await page.getByRole('button',{name:`${kosdaqMembers[0].name} 볼린저 차트 보기`,exact:true}).click();await priceChart.getByTestId('chart-canvas').waitFor();
       const historicalKr=await readDiscoveryStockChart(store,{universeId:kr.id,configVersion:DISCOVERY_DEFAULTS.version,market:'KR',symbol:krMembers[0].symbol,asOf:storedDay});
       assert.equal(historicalKr.bars.length,303);assert.ok(historicalKr.bars.every(b=>b.date<=storedDay));assert.notEqual(historicalKr.bars.at(-1).close,999,'future stored bar leaked into historical chart');
@@ -301,7 +318,7 @@ try {
       await page.getByRole('button',{name:/^(분석 근거|근거|선정 근거)$/}).first().scrollIntoViewIfNeeded();
       await page.screenshot({path:`${out}/candidates-${theme}-${viewport.id}.png`});run.success=true;
     }catch(error){run.success=false;run.error=error.message.length>1800?`${error.message.slice(0,1800)} [truncated]`:error.message;run.pageErrors=errors;await page.screenshot({path:`${out}/FAILED-${theme}-${viewport.id}.png`,fullPage:true});}
-    results.push(run);console.log(JSON.stringify({theme,viewport:viewport.id,success:run.success,error:run.error}));await context.close();
+    results.push(run);await writeFile(`${out}/verification.json`,JSON.stringify({scope:'Synthetic tests only; not real trading/backtest performance',productionEntry:entry,base,testDay,storedDay,results},null,2));console.log(JSON.stringify({theme,viewport:viewport.id,success:run.success,error:run.error}));await context.close();
   }
 }finally{await browser.close();await pg.close();}
 await writeFile(`${out}/verification.json`,JSON.stringify({scope:'Synthetic tests only; not real trading/backtest performance',productionEntry:entry,base,testDay,storedDay,results},null,2));

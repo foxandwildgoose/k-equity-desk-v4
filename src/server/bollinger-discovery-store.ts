@@ -4,7 +4,7 @@ import { selectUniverse, type UniverseSelection, type UniverseSnapshot, type Sec
 import type { BollingerBar } from "../lib/bollinger/types.ts";
 import type { eventStudy } from "../lib/bollinger/discovery-backtest.ts";
 import { isDiscoveryDay } from "../lib/bollinger/discovery-dates.ts";
-import { inspectDiscoveryCandidate, type DiscoveryInspectionRow } from "../lib/bollinger/discovery-inspection.ts";
+import { discoveryStrategyRequiredInputs, inspectDiscoveryCandidate, type DiscoveryInspectionRow } from "../lib/bollinger/discovery-inspection.ts";
 
 export type StoredCandidate = Candidate & { market: "KR" | "US"; symbol: string; name: string; sector: string; source: string; priceBasis: string; computedAt: string; universeId:string; configVersion:string };
 export type DiscoveryQuery = { universeId: string; configVersion: string; strategy: Strategy; selection: UniverseSelection; page: number; pageSize: 25 | 50 | 100; minScore: number; minCoverage: number; asOf: string; symbols?: string[]; sort?: "score" | "distance" | "rs" };
@@ -42,6 +42,25 @@ export function createDiscoveryStore(sql: Pick<Sql, "query">) {
     async contexts(universeId: string) { return sql.query<{ scope: string; payload: Context }>("SELECT scope,payload FROM bollinger_context WHERE universe_id=$1 ORDER BY day", [universeId]); },
     async contextScope(universeId:string,scope:string) { return (await sql.query<{payload:Context}>("SELECT payload FROM bollinger_context WHERE universe_id=$1 AND scope=$2 ORDER BY day",[universeId,scope])).map(r=>r.payload); },
     async barMetadata(member:SecurityMember,end="9999-12-31") { return sql.query<{price_basis:string;source:string;day:string;fetched_at:string}>("SELECT DISTINCT ON(price_basis) price_basis,source,day::text,fetched_at::text FROM bollinger_daily_bars WHERE market=$1 AND symbol=$2 AND day<=$3 ORDER BY price_basis,day DESC,fetched_at DESC",[member.market,member.symbol,end]); },
+    /** Exact snapshot/version completion proof, never a relabel of another universe's calculations. */
+    async calculationCoverage(universeId:string,version:string,keys:readonly string[]) {
+      return sql.query<{key:string;priceDate:string|null;priceBasis:string|null;priceFetchedAt:string|null;featureDate:string|null;featureComputedAt:string|null;contextDate:string|null}>(`WITH prices AS (
+        SELECT DISTINCT ON(market,symbol) market,symbol,price_basis,day,fetched_at,max(fetched_at) OVER(PARTITION BY market,symbol,price_basis) AS updated_at
+        FROM bollinger_daily_bars WHERE market||':'||symbol=ANY($3::text[])
+        AND ((market='KR' AND price_basis=ANY(ARRAY['yahoo-kr-raw-ohlcv','naver-raw-ohlcv'])) OR (market='US' AND price_basis='yahoo-us-adjusted-ohlcv'))
+        ORDER BY market,symbol,day DESC,fetched_at DESC,price_basis
+      ), features AS (
+        SELECT DISTINCT ON(market,symbol,price_basis) market,symbol,price_basis,day,computed_at FROM bollinger_features
+        WHERE universe_id=$1 AND config_version=$2 AND market||':'||symbol=ANY($3::text[]) ORDER BY market,symbol,price_basis,day DESC,computed_at DESC
+      ), contexts AS (
+        SELECT scope,max(day) AS day FROM bollinger_context WHERE universe_id=$1 AND substring(scope FROM 10)=ANY($3::text[]) GROUP BY scope
+      ) SELECT m.market||':'||m.symbol AS key,p.day::text AS "priceDate",p.price_basis AS "priceBasis",
+        p.updated_at::text AS "priceFetchedAt",f.day::text AS "featureDate",f.computed_at::text AS "featureComputedAt",c.day::text AS "contextDate"
+      FROM bollinger_members m LEFT JOIN prices p ON p.market=m.market AND p.symbol=m.symbol
+      LEFT JOIN features f ON f.market=m.market AND f.symbol=m.symbol AND f.price_basis=p.price_basis
+      LEFT JOIN contexts c ON c.scope='security:'||m.market||':'||m.symbol
+      WHERE m.universe_id=$1 AND m.market||':'||m.symbol=ANY($3::text[])`,[universeId,version,keys]);
+    },
     /** Server aggregation over stored observations; no full-market history in process memory. */
     async aggregateContexts(universeId:string,usBenchmark:string) {
       await sql.query(`INSERT INTO bollinger_context(universe_id,day,scope,source,payload)
@@ -106,20 +125,48 @@ export function createDiscoveryStore(sql: Pick<Sql, "query">) {
       const filter = `WHERE f.views ? $5 AND f.score >= $6 AND f.coverage >= $7 AND f.valid AND f.day >= $3::date - INTERVAL '4 days'`;
       const total = (await sql.query<{ count: number }>(`${latest} SELECT count(*)::int AS count FROM latest f ${filter}`,params))[0]?.count ?? 0;
       // Disjoint exclusions explain an empty result without inventing missing observations.
-      const excluded=(await sql.query<{stored:number;warmup:number;stale:number;lowCoverage:number;strategyMismatch:number;lowScore:number}>(`${latest} SELECT count(*)::int AS stored,
+      const required=discoveryStrategyRequiredInputs(q.strategy,q.configVersion);
+      const missingRequired=`EXISTS(SELECT 1 FROM unnest($8::text[]) AS required(path) WHERE COALESCE(jsonb_typeof(jsonb_extract_path(payload,VARIADIC string_to_array(path,'.'))),'null')<>'number') OR EXISTS(SELECT 1 FROM unnest($9::text[]) AS required(path) WHERE COALESCE(jsonb_typeof(jsonb_extract_path(payload,VARIADIC string_to_array(path,'.'))),'null')<>'string')`;
+      const excluded=(await sql.query<{stored:number;warmup:number;stale:number;lowCoverage:number;unavailable:number;strategyMismatch:number;lowScore:number}>(`${latest} SELECT count(*)::int AS stored,
         count(*) FILTER(WHERE NOT valid)::int AS warmup,
         count(*) FILTER(WHERE valid AND day<$3::date-INTERVAL '4 days')::int AS stale,
         count(*) FILTER(WHERE valid AND day>=$3::date-INTERVAL '4 days' AND coverage<$7)::int AS "lowCoverage",
-        count(*) FILTER(WHERE valid AND day>=$3::date-INTERVAL '4 days' AND coverage>=$7 AND NOT(views ? $5))::int AS "strategyMismatch",
-        count(*) FILTER(WHERE valid AND day>=$3::date-INTERVAL '4 days' AND coverage>=$7 AND views ? $5 AND (score IS NULL OR score<$6))::int AS "lowScore" FROM latest`,params))[0];
-      const availability={selected:selectedKeys.length,stored:excluded?.stored??0,missingStored:Math.max(0,selectedKeys.length-(excluded?.stored??0)),warmup:excluded?.warmup??0,stale:excluded?.stale??0,lowCoverage:excluded?.lowCoverage??0,strategyMismatch:excluded?.strategyMismatch??0,lowScore:excluded?.lowScore??0,matched:total};
+        count(*) FILTER(WHERE valid AND day>=$3::date-INTERVAL '4 days' AND coverage>=$7 AND (score IS NULL OR (NOT(views ? $5) AND (${missingRequired}))))::int AS unavailable,
+        count(*) FILTER(WHERE valid AND day>=$3::date-INTERVAL '4 days' AND coverage>=$7 AND score IS NOT NULL AND NOT(views ? $5) AND NOT(${missingRequired}))::int AS "strategyMismatch",
+        count(*) FILTER(WHERE valid AND day>=$3::date-INTERVAL '4 days' AND coverage>=$7 AND views ? $5 AND score IS NOT NULL AND score<$6)::int AS "lowScore" FROM latest`,[...params,required.numeric,required.text]))[0];
+      const availability={selected:selectedKeys.length,stored:excluded?.stored??0,missingStored:Math.max(0,selectedKeys.length-(excluded?.stored??0)),warmup:excluded?.warmup??0,stale:excluded?.stale??0,lowCoverage:excluded?.lowCoverage??0,unavailable:excluded?.unavailable??0,strategyMismatch:excluded?.strategyMismatch??0,lowScore:excluded?.lowScore??0,matched:total};
       const sort = q.sort === "distance" ? "(f.payload->>'distance')::float8 ASC NULLS LAST" : q.sort === "rs" ? "(f.payload->>'rsPercentile')::float8 DESC NULLS LAST" : "f.score DESC NULLS LAST";
       const rows = await sql.query<{ payload: Candidate; market: "KR" | "US"; symbol: string; name: string; sector: string; source: string; price_basis: string; computed_at: string }>(`${latest} SELECT f.payload,f.market,f.symbol,m.name,m.sector,f.source,f.price_basis,f.computed_at FROM latest f JOIN bollinger_members m ON m.universe_id=f.universe_id AND m.market=f.market AND m.symbol=f.symbol ${filter} ORDER BY ${sort},f.market,f.symbol LIMIT $8 OFFSET $9`, [...params,q.pageSize,(q.page-1)*q.pageSize]);
       // LEFT JOIN preserves every server-selected member, including missing and nonmatching calculations.
       // This separately paginated inspection never changes the strict candidate result above.
-      const inspected = await sql.query<{ payload: Candidate|null; market:"KR"|"US";symbol:string;name:string;sector:string;exchange:SecurityMember["exchange"];source:string|null;price_basis:string|null;computed_at:string|null }>(`${latest} SELECT f.payload,m.market,m.symbol,m.name,m.sector,m.payload->>'exchange' AS exchange,f.source,f.price_basis,f.computed_at::text FROM bollinger_members m LEFT JOIN latest f ON f.market=m.market AND f.symbol=m.symbol WHERE m.universe_id=$1 AND m.market||':'||m.symbol=ANY($4::text[]) ORDER BY array_position($4::text[],m.market||':'||m.symbol) LIMIT $5 OFFSET $6`,[q.universeId,q.configVersion,q.asOf,selectedKeys,q.pageSize,(q.page-1)*q.pageSize]);
-      const inspection={total:selectedKeys.length,rows:inspected.map(r=>({market:r.market,symbol:r.symbol,name:r.name,sector:r.sector,exchange:r.exchange,candidate:r.payload,source:r.source,priceBasis:r.price_basis,computedAt:r.computed_at,...inspectDiscoveryCandidate(r.payload,q)} satisfies DiscoveryInspectionRow))};
-      return { rows: rows.map(r => ({ ...r.payload, market:r.market,symbol:r.symbol,name:r.name,sector:r.sector,source:r.source,priceBasis:r.price_basis,computedAt:r.computed_at,universeId:q.universeId,configVersion:q.configVersion } as StoredCandidate)), inspection, total, counts, pipeline, availability, selection: { ...selection, selected: undefined, excluded: selection.excluded.slice(0,50).map(m => ({ name:m.name,reason:m.assetType === "equity" ? "identity-unverified" : m.assetType })) }, universe: { ...universe, members: undefined, excludedHoldings: undefined }, dates:sourceDates[0], requestedCount:selectedKeys.length };
+      type InspectedRow={payload:Candidate|null;market:"KR"|"US";symbol:string;name:string;sector:string;exchange:SecurityMember["exchange"];source:string|null;price_basis:string|null;computed_at:string|null;price_count:number|null;last_price_date:string|null;other_configuration:boolean;outdated_calculation:boolean};
+      const metadata = await sql.query<{missingPriceHistory:number;outdatedCalculation:number;inspected:InspectedRow[]}>(`${latest}, prices AS (
+        SELECT market,symbol,price_basis,count(*)::int AS price_count,max(day) AS day,max(fetched_at) AS fetched_at
+        FROM bollinger_daily_bars WHERE day<=$3 AND market||':'||symbol=ANY($4::text[])
+        AND ((market='KR' AND price_basis=ANY(ARRAY['yahoo-kr-raw-ohlcv','naver-raw-ohlcv'])) OR (market='US' AND price_basis='yahoo-us-adjusted-ohlcv')) GROUP BY market,symbol,price_basis
+      ), latest_prices AS (
+        SELECT DISTINCT ON(market,symbol) market,symbol,price_basis,day,fetched_at,max(fetched_at) OVER(PARTITION BY market,symbol,price_basis) AS updated_at
+        FROM bollinger_daily_bars WHERE day<=$3 AND market||':'||symbol=ANY($4::text[])
+        AND ((market='KR' AND price_basis=ANY(ARRAY['yahoo-kr-raw-ohlcv','naver-raw-ohlcv'])) OR (market='US' AND price_basis='yahoo-us-adjusted-ohlcv'))
+        ORDER BY market,symbol,day DESC,fetched_at DESC,price_basis
+      ), other_configurations AS (
+        SELECT DISTINCT market,symbol FROM bollinger_features WHERE universe_id=$1 AND config_version<>$2 AND day<=$3 AND market||':'||symbol=ANY($4::text[])
+      ), selected AS (SELECT f.payload,f.score,m.market,m.symbol,m.name,m.sector,m.payload->>'exchange' AS exchange,f.source,f.price_basis,f.computed_at::text,
+        p.price_count,p.day::text AS last_price_date,o.symbol IS NOT NULL AS other_configuration,
+        COALESCE(f.price_basis<>n.price_basis OR f.day<n.day OR f.computed_at<n.updated_at,false) AS outdated_calculation,array_position($4::text[],m.market||':'||m.symbol) AS selection_order
+      FROM bollinger_members m LEFT JOIN latest f ON f.market=m.market AND f.symbol=m.symbol
+      LEFT JOIN LATERAL(SELECT * FROM prices p WHERE p.market=m.market AND p.symbol=m.symbol AND (f.price_basis IS NULL OR p.price_basis=f.price_basis) ORDER BY p.day DESC,p.fetched_at DESC,p.price_basis LIMIT 1)p ON true
+      LEFT JOIN latest_prices n ON n.market=m.market AND n.symbol=m.symbol
+      LEFT JOIN other_configurations o ON o.market=m.market AND o.symbol=m.symbol
+      WHERE m.universe_id=$1 AND m.market||':'||m.symbol=ANY($4::text[]))
+      SELECT (SELECT count(*)::int FROM selected WHERE price_count IS NULL) AS "missingPriceHistory",
+        (SELECT count(*)::int FROM selected WHERE outdated_calculation) AS "outdatedCalculation",
+        COALESCE((SELECT jsonb_agg(p) FROM (SELECT * FROM selected f ORDER BY ${sort},selection_order LIMIT $5 OFFSET $6)p),'[]'::jsonb) AS inspected`,[q.universeId,q.configVersion,q.asOf,selectedKeys,q.pageSize,(q.page-1)*q.pageSize]);
+      const inspected=metadata[0]?.inspected??[];
+      const inspection={total:selectedKeys.length,rows:inspected.map(r=>({market:r.market,symbol:r.symbol,name:r.name,sector:r.sector,exchange:r.exchange,candidate:r.payload,source:r.source,priceBasis:r.price_basis,computedAt:r.computed_at,
+        dataStatus:{priceCount:r.price_count??0,lastPriceDate:r.last_price_date,outdatedCalculation:r.outdated_calculation,reason:!r.price_count?"NO_PRICE_HISTORY":r.outdated_calculation?"FINAL_COMPUTE_OUTDATED":r.payload?null:r.other_configuration?"CONFIGURATION_NOT_COMPUTED":"FINAL_COMPUTE_MISSING"},
+        ...inspectDiscoveryCandidate(r.payload,q)} satisfies DiscoveryInspectionRow))};
+      return { rows: rows.map(r => ({ ...r.payload, market:r.market,symbol:r.symbol,name:r.name,sector:r.sector,source:r.source,priceBasis:r.price_basis,computedAt:r.computed_at,universeId:q.universeId,configVersion:q.configVersion } as StoredCandidate)), inspection, total, counts, pipeline, availability:{...availability,missingPriceHistory:metadata[0]?.missingPriceHistory??0,outdatedCalculation:metadata[0]?.outdatedCalculation??0}, selection: { ...selection, selected: undefined, excluded: selection.excluded.slice(0,50).map(m => ({ name:m.name,reason:m.assetType === "equity" ? "identity-unverified" : m.assetType })) }, universe: { ...universe, members: undefined, excludedHoldings: undefined }, dates:sourceDates[0], requestedCount:selectedKeys.length };
     },
     async lease(scope: string, token: string, seconds = 900) { const rows = await sql.query("INSERT INTO bollinger_job_leases(scope,token,expires_at) VALUES($1,$2,now()+$3*interval '1 second') ON CONFLICT(scope) DO UPDATE SET token=EXCLUDED.token,expires_at=EXCLUDED.expires_at WHERE bollinger_job_leases.expires_at < now() RETURNING token",[scope,token,seconds]); return rows.length === 1; },
     async renew(scope: string, token: string, seconds = 900) { return (await sql.query("UPDATE bollinger_job_leases SET expires_at=now()+$3*interval '1 second' WHERE scope=$1 AND token=$2 AND expires_at>now() RETURNING token",[scope,token,seconds])).length === 1; },

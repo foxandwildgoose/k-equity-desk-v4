@@ -36,7 +36,8 @@ export function BollingerStockStudy({ universeId, configVersion, asOf, stock, on
   stock: StudyStock;
   onExplain?: (candidate: StoredCandidate) => void;
 }) {
-  const [windowBars, setWindowBars] = useState<120 | 250>(120);
+  const [windowBars, setWindowBars] = useState<120 | 250 | "all">(120);
+  const [rangeRevision, setRangeRevision] = useState(0);
   const query = useQuery({
     queryKey: ["bollinger-stock-chart", universeId, configVersion, stock.market, stock.symbol, asOf],
     queryFn: () => getDiscoveryStockChart({ data: { universeId, configVersion, market: stock.market, symbol: stock.symbol, asOf } }),
@@ -51,7 +52,9 @@ export function BollingerStockStudy({ universeId, configVersion, asOf, stock, on
     date: bar.date, label: bar.date.slice(5), open: bar.open, high: bar.high, low: bar.low, close: bar.close,
     volume: bar.volume, volumeValid: bar.volumeValid, bullish: bar.close >= bar.open,
   })), [data?.bars]);
-  const displayed = useMemo(() => history.slice(-windowBars), [history, windowBars]);
+  const requestedCount = windowBars === "all" ? history.length : windowBars;
+  const visibleCount = Math.min(history.length, requestedCount);
+  const firstVisible = history[history.length - visibleCount];
   const last = history.at(-1);
   const candidate = data?.candidate ?? null;
   const situation = discoverySituation(candidate);
@@ -65,8 +68,8 @@ export function BollingerStockStudy({ universeId, configVersion, asOf, stock, on
         <p className="mt-1 text-sm text-muted-foreground">볼린저 밴드와 가격을 함께 보고 종목의 현재 위치를 확인합니다.</p>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex gap-1" role="group" aria-label="저장 가격 표시 범위">
-          {([120, 250] as const).map(count => <Button key={count} type="button" variant={windowBars === count ? "default" : "outline"} className="min-h-11" aria-pressed={windowBars === count} onClick={() => setWindowBars(count)}>최근 {count}봉</Button>)}
+        <div className="flex flex-wrap gap-1" role="group" aria-label="저장 가격 표시 범위">
+          {([120, 250, "all"] as const).map(count => <Button key={count} type="button" variant={windowBars === count ? "default" : "outline"} className="min-h-11" aria-pressed={windowBars === count} onClick={() => { setWindowBars(count); setRangeRevision(revision => revision + 1); }}>{count === "all" ? "전체 저장 이력" : `최근 ${count}봉`}</Button>)}
         </div>
         <Button type="button" variant="outline" className="min-h-11 gap-2" disabled={query.isFetching} onClick={() => void query.refetch()} aria-label={`${name} 저장 가격 다시 조회`}>
           <RefreshCw className={query.isFetching ? "size-4 animate-spin" : "size-4"}/>다시 조회
@@ -90,6 +93,10 @@ export function BollingerStockStudy({ universeId, configVersion, asOf, stock, on
             <div><dt className="inline text-muted-foreground">전략 평가일 </dt><dd className="inline">{candidate.date}</dd></div>
           </dl> : <p className="text-xs text-muted-foreground">저장 가격으로 밴드는 표시할 수 있습니다. 최종 전략 평가는 아직 저장되지 않았습니다.</p>}
         </div>
+        <p className="text-sm text-muted-foreground" role="status" data-testid="bollinger-study-window-status" data-requested-bars={requestedCount} data-available-bars={visibleCount}>
+          선택 표시 범위 · {windowBars === "all" ? "전체 저장 이력" : `최근 ${windowBars}봉`} · {visibleCount.toLocaleString("ko-KR")}개 일봉 · {firstVisible?.date ?? "—"} ~ {last.date}
+          {visibleCount < requestedCount && ` · 저장 이력이 ${visibleCount}봉이므로 확보된 구간만 표시합니다.`}
+        </p>
         <ProChart
           key={`${universeId}:${configVersion}:${stock.market}:${stock.symbol}`}
           analysisOnly
@@ -101,7 +108,9 @@ export function BollingerStockStudy({ universeId, configVersion, asOf, stock, on
           currency={stock.market === "KR" ? "KRW" : "USD"}
           quantityUnit="주"
           layoutScope={`bollinger-study:${universeId}:${configVersion}`}
-          bars={displayed}
+          bars={history}
+          visibleBarCount={requestedCount}
+          visibleRangeRevision={rangeRevision}
           indicatorBars={history}
           profileBars={history}
           profileSource={data.source}

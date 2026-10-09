@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { cloudJobScope, safeCloudJob, type BollingerCloudConfig, type CloudTarget } from "./bollinger-cloud-config.ts";
-import { BENCHMARKS, collectDiscovery, contextHistory, precomputeDiscovery, prepareDiscoveryContexts, type PreparedDiscoveryContexts, type PriceProvider } from "./bollinger-discovery-jobs.ts";
+import { BENCHMARKS, collectDiscovery, contextHistory, databaseQuery, precomputeDiscovery, prepareDiscoveryContexts, type PreparedDiscoveryContexts, type PriceProvider } from "./bollinger-discovery-jobs.ts";
 import { selectUniverse, securityKey, type UniverseSnapshot, type UniverseSelection } from "../lib/bollinger/discovery-universe.ts";
 import { discoveryConfigFromVersion, DISCOVERY_DEFAULTS, type DiscoveryConfig } from "../lib/bollinger/discovery.ts";
 import { completedPriceBars } from "../lib/bollinger/bar-completion.ts";
@@ -23,7 +23,10 @@ export type CloudProviders = {
   benchmark:(symbol:typeof BENCHMARKS[keyof typeof BENCHMARKS])=>Promise<{bars:BollingerBar[];source:string}>;
 };
 const sourceDay=(target:CloudTarget,now:string)=>target==="NASDAQ_LISTED"?new Intl.DateTimeFormat("en-CA",{timeZone:"America/New_York",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(now)):koreaDay(now);
-const isDone=(state:CloudState)=>state.phase==="complete"&&Object.values(state.benchmarkStatus).every(s=>s==="received");
+const isDone=(state:CloudState)=>{
+  const computed=new Set(state.computedKeys),selected=new Set(state.selectedKeys??state.successfulKeys);
+  return state.phase==="complete"&&computed.size===state.requested&&computed.size===state.computedKeys.length&&selected.size===computed.size&&[...selected].every(key=>computed.has(key))&&state.errors.length===0&&Object.values(state.benchmarkStatus).every(s=>s==="received");
+};
 const terminal=(state:CloudState)=>state.phase==="complete"||state.phase==="complete-with-errors";
 const safeError=(error:unknown,fallback:string)=>error instanceof Error&&["JOB_BUDGET_EXHAUSTED","LEASE_LOST","KR_MEMBERSHIP_CHANGED_RESTART_REQUIRED","MEMBERSHIP_FAILED","COMPUTE_FAILED","DATABASE_QUERY_FAILED","NO_SELECTION","SELECTION_INVALID","UNIVERSE_UNSUPPORTED"].includes(error.message)?error.message:fallback;
 function fresh(target:CloudTarget,config:BollingerCloudConfig,now:string):CloudState {
@@ -99,7 +102,7 @@ export async function runBootstrapBollingerCloud(store:DiscoveryStore,config:Bol
 export async function runBollingerCloud(store:DiscoveryStore,config:BollingerCloudConfig,providers:CloudProviders,options:{clock?:()=>number;spacingMs?:number;selected?:SelectedRun;bootstrap?:BootstrapRun}={}) {
   const clock=options.clock??Date.now,started=clock(),now=()=>new Date(clock()).toISOString();
   const deadline=started+config.budgetSeconds*1000-15000,scope="bollinger:daily-provider",token=randomUUID(),leaseSeconds=config.budgetSeconds+60;
-  if(!await store.lease(scope,token,leaseSeconds))return {status:"ALREADY_RUNNING",jobs:[]};
+  if(!await databaseQuery(()=>store.lease(scope,token,leaseSeconds)))return {status:"ALREADY_RUNNING",jobs:[]};
   let state:CloudState|null=null;
   let preparedContexts:PreparedDiscoveryContexts|undefined;
   const save=async()=>{
@@ -122,7 +125,27 @@ export async function runBollingerCloud(store:DiscoveryStore,config:BollingerClo
   };
   const checkpoint=async()=>{
     if(clock()>=deadline)throw new Error("JOB_BUDGET_EXHAUSTED");
-    if(!await store.renew(scope,token,leaseSeconds))throw new Error("LEASE_LOST");
+    if(!await databaseQuery(()=>store.renew(scope,token,leaseSeconds)))throw new Error("LEASE_LOST");
+  };
+  const coverage=async(value:CloudState)=>{
+    await checkpoint();const universe=await databaseQuery(()=>store.universe(value.universeId!));if(!universe)throw new Error("UNIVERSE_MISSING");
+    const request=options.bootstrap?.request,allowed=request?.symbols===undefined?null:new Set(request.symbols);
+    const keys=options.selected?.keys??selectUniverse(universe,request?.selection??{top:value.top,minWeight:0,sectors:[]}).selected.map(securityKey).filter(key=>!allowed||allowed.has(key));
+    const rows=await databaseQuery(()=>store.calculationCoverage(universe.id,value.configVersion,keys));await checkpoint();
+    return {keys,rows,ready:rows.filter(r=>r.priceDate&&r.featureDate&&r.featureDate>=r.priceDate&&r.featureComputedAt&&r.priceFetchedAt&&Date.parse(r.featureComputedAt)>=Date.parse(r.priceFetchedAt)).map(r=>r.key)};
+  };
+  const repairCompleted=async(value:CloudState)=>{
+    if(value.phase!=="complete"||!value.universeId)return value;
+    const persisted=await coverage(value),ready=new Set(persisted.ready);
+    const computed=new Set(value.computedKeys);
+    if(persisted.keys.every(key=>ready.has(key)&&computed.has(key))&&computed.size===value.computedKeys.length&&computed.size===persisted.keys.length)return value;
+    // A completed/legacy checkpoint is not proof that this snapshot/version still has features.
+    // Rebuild from persisted same-basis prices first; only absent prices enter provider retries.
+    const withPrices=persisted.rows.filter(r=>r.priceDate).map(r=>r.key),priced=new Set(withPrices);
+    value.requested=persisted.keys.length;value.selectedKeys=persisted.keys;value.nextOffset=value.requested;
+    value.successfulKeys=withPrices;value.computedKeys=persisted.ready;value.provisionalKeys=[];
+    value.pendingCompute=[...withPrices];value.retryKeys=persisted.keys.filter(key=>!priced.has(key));
+    value.errors=[];value.phase="collect";value.execution="PAUSED";return value;
   };
   let nextProviderRequest=started;
   const paced=async<T>(request:()=>Promise<T>)=>{
@@ -134,7 +157,9 @@ export async function runBollingerCloud(store:DiscoveryStore,config:BollingerClo
   try {
     const candidates=await Promise.all(config.targets.map(async target=>{
       const job=await store.latestJob(jobScope(target));
-      return upgradeState(job?.summary,target,config.top)??freshState(target);
+      const value=upgradeState(job?.summary,target,config.top)??freshState(target);
+      if(options.selected&&(value.universeId!==options.selected.universe.id||value.configVersion!==options.selected.calculation.version))return freshState(target);
+      return repairCompleted(value);
     }));
     // Finish checkpointed work first; a new day gets its own immutable membership snapshot.
     state=candidates.find(s=>!isDone(s)&&s.phase!=="complete-with-errors")??candidates.find(s=>s.sourceDay!==sourceDay(s.target,now()))??candidates.find(s=>s.phase==="complete-with-errors")??null;
@@ -145,7 +170,8 @@ export async function runBollingerCloud(store:DiscoveryStore,config:BollingerClo
     await store.startJob(state.jobId,jobScope(state.target));
     state.budgetStopped=false;state.lastError=null;state.runToken=token;state.execution="RUNNING";
     if(state.phase==="complete-with-errors") {
-      state.retryKeys=state.errors.map(e=>e.symbol);state.phase="collect";
+      state.retryKeys=state.errors.filter(e=>e.code!=="COMPUTE_FAILED").map(e=>e.symbol);
+      state.pendingCompute=state.errors.filter(e=>e.code==="COMPUTE_FAILED").map(e=>e.symbol);state.phase="collect";
     }
     if(state.phase==="complete"){state.benchmarkOffset=0;state.phase="benchmarks";}
     await save();
@@ -159,7 +185,7 @@ export async function runBollingerCloud(store:DiscoveryStore,config:BollingerClo
           state.membership=result.progress;
           if(!result.snapshot){await save();continue;}
           if(options.bootstrap&&targetOf(result.snapshot)!==state.target)throw new Error("UNIVERSE_UNSUPPORTED");
-          await store.saveUniverse(result.snapshot);
+          await databaseQuery(()=>store.saveUniverse(result.snapshot!));
           state.sourceDay=sourceDay(state.target,result.snapshot.knownAt);
           const request=options.bootstrap?.request,selected=selectUniverse(result.snapshot,request?.selection??{top:config.top,minWeight:0,sectors:[]});
           const allowed=request?.symbols===undefined?null:new Set(request.symbols),members=selected.selected.filter(m=>!allowed||allowed.has(securityKey(m)));
@@ -179,10 +205,10 @@ export async function runBollingerCloud(store:DiscoveryStore,config:BollingerClo
         try {
           const response=await paced(()=>providers.benchmark(BENCHMARKS[key])),market=key==="KOSPI"||key==="KOSDAQ"?"KR":"US";
           const bars=completedPriceBars(response.bars,{market,interval:"day"}).filter(b=>b.completed);
-          const stored=await store.saveBars({market,symbol:BENCHMARKS[key]},bars,response.source,"price-index",now());
+          const stored=await databaseQuery(()=>store.saveBars({market,symbol:BENCHMARKS[key]},bars,response.source,"price-index",now()));
           if(!stored)throw new Error("NO_HISTORY");
-          const history=await store.bars(market,BENCHMARKS[key],"price-index");
-          await store.saveContext(state.universeId!,`market:${key}`,contextHistory(history,response.source).slice(-config.recentStoredDays));
+          const history=await databaseQuery(()=>store.bars(market,BENCHMARKS[key],"price-index"));
+          await databaseQuery(()=>store.saveContext(state!.universeId!,`market:${key}`,contextHistory(history,response.source).slice(-config.recentStoredDays)));
           state.benchmarkStatus[key]="received";
         }catch(error){
           const code=safeError(error,"BENCHMARK_FAILED");if(code!=="BENCHMARK_FAILED")throw error;
@@ -202,15 +228,26 @@ export async function runBollingerCloud(store:DiscoveryStore,config:BollingerClo
               state!.computedKeys=[...new Set([...state!.computedKeys,key])];
             }});
             if(!computed.securities)throw new Error("COMPUTE_FAILED");
+            state.errors=state.errors.filter(e=>e.symbol!==symbol||e.code!=="COMPUTE_FAILED");
             if(state.phase!=="refresh")state.provisionalKeys=[...new Set([...state.provisionalKeys,symbol])];
             state.pendingCompute.shift();await save();
-          }catch(error){throw new Error(safeError(error,"COMPUTE_FAILED"));}
+          }catch(error){
+            const code=safeError(error,"DATABASE_QUERY_FAILED");if(code!=="COMPUTE_FAILED")throw new Error(code);
+            // One stock without calculable history cannot block every remaining selected stock.
+            state.errors=state.errors.filter(e=>e.symbol!==symbol);state.errors.push({symbol,code});
+            state.computedKeys=state.computedKeys.filter(key=>key!==symbol);state.pendingCompute.shift();await save();
+          }
           continue;
         }
-        if(state.phase==="refresh") {state.phase=state.errors.length?"complete-with-errors":"complete";state.execution="COMPLETE";await save();break;}
+        if(state.phase==="refresh") {
+          const persisted=await coverage(state),ready=new Set(persisted.ready);
+          for(const symbol of persisted.keys)if(!ready.has(symbol)&&!state.errors.some(e=>e.symbol===symbol))state.errors.push({symbol,code:"COMPUTE_FAILED"});
+          state.computedKeys=persisted.keys.filter(key=>ready.has(key));
+          state.phase=state.errors.length?"complete-with-errors":"complete";state.execution="COMPLETE";await save();break;
+        }
         if(state.nextOffset>=state.requested&&!state.retryKeys.length) {
           // Second pass updates the selected securities against all collected peer contexts.
-          state.phase="refresh";state.computedKeys=[];state.pendingCompute=[...state.successfulKeys];await save();continue;
+          state.phase="refresh";state.computedKeys=[];state.pendingCompute=state.successfulKeys.filter(key=>state!.provisionalKeys.includes(key));await save();continue;
         }
         const retry=state.retryKeys.slice(0,1),remaining=Math.max(1,deadline-clock());
         const result=await collectDiscovery(store,state.universeId!,(member,initial)=>paced(()=>providers.prices(member,initial)),{offset:state.nextOffset,limit:retry.length?0:1,symbols:state.selectedKeys??undefined,retrySymbols:retry,budgetMs:remaining,spacingMs:0,retries:1,precompute:false,heldLease:{token,seconds:leaseSeconds}});

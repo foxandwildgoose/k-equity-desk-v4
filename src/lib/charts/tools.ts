@@ -148,6 +148,15 @@ export function normalizeLogicalRange(range: { from: number; to: number } | null
   return { from: boundary(range.from), to: boundary(range.to) };
 }
 
+/** Fit an explicit number of recent real bars, including each edge candle's
+ * half-bar width. Keep calculation history intact; only the viewport changes. */
+export function recentBarsLogicalRange(total: number, requested: number): { from: number; to: number } | null {
+  if (!Number.isFinite(total) || !Number.isFinite(requested) || total < 1 || requested < 1) return null;
+  const available = Math.floor(total);
+  const count = Math.min(available, Math.floor(requested));
+  return { from: available - count - 0.5, to: available - 0.5 };
+}
+
 /** Visible index window from a logical range, clamped to the data. */
 export function visibleWindow(total: number, range: { from: number; to: number } | null): { from: number; to: number } {
   const stable = normalizeLogicalRange(range);

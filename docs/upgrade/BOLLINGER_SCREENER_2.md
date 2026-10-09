@@ -1,6 +1,6 @@
 # Bollinger Screener 2.0 — 구현·운영·검증 보고서
 
-**선택 기업별 상황·저장 가격 볼린저 차트와 즉시 전략 전환의 최신 동작은 [BOLLINGER_INVESTOR_VIEW.md](BOLLINGER_INVESTOR_VIEW.md)를 참고한다.** 아래는 이전 수집/실행 구현 기록이며 새 화면의 기본 보기는 전체 선택 기업이다.
+**실행·부족 자료 수집·자동 이어받기·전략별 일치 목록·저장 가격 차트의 현재 동작은 [BOLLINGER_ACTIONS_VERIFICATION.md](BOLLINGER_ACTIONS_VERIFICATION.md)를 참고한다.** [BOLLINGER_INVESTOR_VIEW.md](BOLLINGER_INVESTOR_VIEW.md)와 아래 내용은 이전 구현·검사 기록이다. 현재 전체 선택 보기에서 모든 선택 기업을 검토하고, 전략 버튼으로 해당 조건 일치 보기로 전환할 수 있다.
 
 최신 확인일: 2026-10-09 한국시간. 이번 최초 편입 복구 수정의 기준 커밋: `f423716`. 초기 구현 기준: `4fc2d9e7c23e7d41b159a2d1032fe06c312e9d40`.
 
