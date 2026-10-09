@@ -1,7 +1,8 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { cloudJobScope, safeCloudJob, type BollingerCloudConfig, type CloudTarget } from "./bollinger-cloud-config.ts";
 import { BENCHMARKS, collectDiscovery, contextHistory, precomputeDiscovery, type PriceProvider } from "./bollinger-discovery-jobs.ts";
-import { selectUniverse, type UniverseSnapshot } from "../lib/bollinger/discovery-universe.ts";
+import { selectUniverse, securityKey, type UniverseSnapshot, type UniverseSelection } from "../lib/bollinger/discovery-universe.ts";
+import { discoveryConfigFromVersion, DISCOVERY_DEFAULTS, type DiscoveryConfig } from "../lib/bollinger/discovery.ts";
 import { completedPriceBars } from "../lib/bollinger/bar-completion.ts";
 import { koreaDay, type KrMembershipProgress } from "./bollinger-membership.ts";
 import type { DiscoveryStore } from "./bollinger-discovery-store.ts";
@@ -9,11 +10,11 @@ import type { BollingerBar } from "../lib/bollinger/types.ts";
 
 type Phase = "membership" | "benchmarks" | "collect" | "refresh" | "complete" | "complete-with-errors";
 type CloudState = {
-  schema:1; jobId:string; target:CloudTarget; top:BollingerCloudConfig["top"]; sourceDay:string; phase:Phase;
+  schema:2; jobId:string; target:CloudTarget; top:BollingerCloudConfig["top"]; sourceDay:string; phase:Phase;
   universeId:string|null; membership:KrMembershipProgress|null; membershipRows:number; membershipTotal:number;
-  requested:number; supported:number; nextOffset:number; successfulKeys:string[]; computedKeys:string[]; pendingCompute:string[];
+  requested:number; supported:number; nextOffset:number; successfulKeys:string[]; provisionalKeys:string[]; computedKeys:string[]; pendingCompute:string[];
   errors:{symbol:string;code:string}[]; retryKeys:string[]; benchmarkKeys:string[]; benchmarkOffset:number; benchmarkStatus:Record<string,string>;
-  lastRunAt:string; lastError:string|null; budgetStopped:boolean;
+  lastRunAt:string; lastError:string|null; budgetStopped:boolean;runToken:string|null;execution:"RUNNING"|"PAUSED"|"COMPLETE"|"FAILED";configVersion:string;selectedKeys:string[]|null;
 };
 export type CloudProviders = {
   membership:(target:CloudTarget,previous:KrMembershipProgress|null,options:{checkpoint:()=>Promise<void>;onPage:(progress:KrMembershipProgress)=>Promise<void>})=>Promise<{progress:KrMembershipProgress|null;snapshot:UniverseSnapshot|null}>;
@@ -25,10 +26,56 @@ const isDone=(state:CloudState)=>state.phase==="complete"&&Object.values(state.b
 const terminal=(state:CloudState)=>state.phase==="complete"||state.phase==="complete-with-errors";
 const safeError=(error:unknown,fallback:string)=>error instanceof Error&&["JOB_BUDGET_EXHAUSTED","LEASE_LOST","KR_MEMBERSHIP_CHANGED_RESTART_REQUIRED","MEMBERSHIP_FAILED","COMPUTE_FAILED","DATABASE_QUERY_FAILED"].includes(error.message)?error.message:fallback;
 function fresh(target:CloudTarget,config:BollingerCloudConfig,now:string):CloudState {
-  return {schema:1,jobId:randomUUID(),target,top:config.top,sourceDay:sourceDay(target,now),phase:"membership",universeId:null,membership:null,membershipRows:0,membershipTotal:0,requested:0,supported:0,nextOffset:0,successfulKeys:[],computedKeys:[],pendingCompute:[],errors:[],retryKeys:[],benchmarkKeys:[],benchmarkOffset:0,benchmarkStatus:{},lastRunAt:now,lastError:null,budgetStopped:false};
+  return {schema:2,jobId:randomUUID(),target,top:config.top,sourceDay:sourceDay(target,now),phase:"membership",universeId:null,membership:null,membershipRows:0,membershipTotal:0,requested:0,supported:0,nextOffset:0,successfulKeys:[],provisionalKeys:[],computedKeys:[],pendingCompute:[],errors:[],retryKeys:[],benchmarkKeys:[],benchmarkOffset:0,benchmarkStatus:{},lastRunAt:now,lastError:null,budgetStopped:false,runToken:null,execution:"PAUSED",configVersion:DISCOVERY_DEFAULTS.version,selectedKeys:null};
+}
+function upgradeState(raw:Record<string,unknown>|undefined,target:CloudTarget,top:BollingerCloudConfig["top"]):CloudState|null {
+  if(!raw||![1,2].includes(Number(raw.schema))||raw.target!==target||raw.top!==top)return null;
+  const state=raw as unknown as CloudState;
+  if(raw.schema===1){
+    // Legacy counts described first-pass features, not completed peer refreshes.
+    state.provisionalKeys=[...state.computedKeys];
+    if(!terminal(state)){state.computedKeys=[];if(state.phase==="refresh")state.pendingCompute=[...state.successfulKeys];}
+    state.schema=2;state.configVersion=DISCOVERY_DEFAULTS.version;state.selectedKeys=null;state.runToken=null;state.execution="PAUSED";
+  }
+  return state;
+}
+export type SelectedBollingerRequest={universeId:string;configVersion:string;selection:UniverseSelection;symbols?:string[]};
+function canonicalRequest(request:SelectedBollingerRequest) {
+  if(typeof request.universeId!=="string"||!request.universeId||request.universeId.length>160)throw new Error("SELECTION_INVALID");
+  if(typeof request.configVersion!=="string"||request.configVersion.length>1500||!discoveryConfigFromVersion(request.configVersion).recognized)throw new Error("CONFIGURATION_VERSION_INVALID");
+  const s=request.selection;
+  if(!s||!["ALL",10,20,50,100,200].includes(s.top)||!Number.isFinite(s.minWeight)||s.minWeight<0||s.minWeight>100||!Array.isArray(s.sectors)||s.sectors.length>30||s.sectors.some(v=>typeof v!=="string"||v.length>80))throw new Error("SELECTION_INVALID");
+  if(request.symbols!==undefined&&(!Array.isArray(request.symbols)||request.symbols.length>15000||request.symbols.some(v=>typeof v!=="string"||!/^(KR:[0-9A-Z]{6}|US:[A-Z][A-Z0-9.-]{0,14})$/.test(v))))throw new Error("SELECTION_INVALID");
+  return {universeId:request.universeId,configVersion:request.configVersion,selection:{top:s.top,minWeight:s.minWeight,sectors:[...new Set(s.sectors)].sort()},...(request.symbols===undefined?{}:{symbols:[...new Set(request.symbols)].sort()})};
+}
+export function selectedBollingerScope(request:SelectedBollingerRequest) {return `bollinger:selected:v1:${createHash("sha256").update(JSON.stringify(canonicalRequest(request))).digest("hex")}`;}
+function targetOf(universe:UniverseSnapshot):CloudTarget {
+  if(["KOSPI","KOSDAQ","NASDAQ_LISTED"].includes(universe.kind))return universe.kind as CloudTarget;
+  const code=/^ETF:([0-9A-Z]{6}):/.exec(universe.id)?.[1];
+  if(universe.kind==="ETF"&&code)return `ETF:${code}`;
+  throw new Error("UNIVERSE_UNSUPPORTED");
+}
+type SelectedRun={scope:string;universe:UniverseSnapshot;keys:string[];supported:number;calculation:DiscoveryConfig};
+async function resolveSelected(store:DiscoveryStore,request:SelectedBollingerRequest):Promise<SelectedRun> {
+  const canonical=canonicalRequest(request),universe=await store.universe(canonical.universeId);
+  if(!universe)throw new Error("UNIVERSE_MISSING");targetOf(universe);
+  if(universe.kind==="ETF"&&![10,20,50,"ALL"].includes(canonical.selection.top))throw new Error("SELECTION_INVALID");
+  const selection=selectUniverse(universe,canonical.selection),keys=selection.selected.map(securityKey).filter(key=>canonical.symbols===undefined||canonical.symbols.includes(key));
+  if(!keys.length)throw new Error("NO_SELECTION");
+  return {scope:selectedBollingerScope(canonical),universe,keys,supported:selection.supportedCount,calculation:discoveryConfigFromVersion(canonical.configVersion).config};
+}
+export async function readSelectedBollingerProgress(store:DiscoveryStore,request:SelectedBollingerRequest) {
+  const selected=await resolveSelected(store,request),summary=(await store.latestJob(selected.scope))?.summary??null;
+  const active=typeof summary?.runToken==="string"&&await store.leaseMatches("bollinger:daily-provider",summary.runToken);
+  const state=summary?upgradeState(summary,targetOf(selected.universe),request.selection.top):null;
+  return {status:"READY",jobs:[safeCloudJob(state as unknown as Record<string,unknown>|null,targetOf(selected.universe),active)]};
+}
+export async function runSelectedBollingerCloud(store:DiscoveryStore,config:BollingerCloudConfig,providers:CloudProviders,request:SelectedBollingerRequest,options:{clock?:()=>number;spacingMs?:number}={}) {
+  const selected=await resolveSelected(store,request);
+  return runBollingerCloud(store,{...config,targets:[targetOf(selected.universe)],top:request.selection.top},providers,{...options,selected});
 }
 /** One shared DB lease and durable job checkpoints. No background work outlives the request. */
-export async function runBollingerCloud(store:DiscoveryStore,config:BollingerCloudConfig,providers:CloudProviders,options:{clock?:()=>number;spacingMs?:number}={}) {
+export async function runBollingerCloud(store:DiscoveryStore,config:BollingerCloudConfig,providers:CloudProviders,options:{clock?:()=>number;spacingMs?:number;selected?:SelectedRun}={}) {
   const clock=options.clock??Date.now,started=clock(),now=()=>new Date(clock()).toISOString();
   const deadline=started+config.budgetSeconds*1000-15000,scope="bollinger:daily-provider",token=randomUUID(),leaseSeconds=config.budgetSeconds+60;
   if(!await store.lease(scope,token,leaseSeconds))return {status:"ALREADY_RUNNING",jobs:[]};
@@ -36,7 +83,17 @@ export async function runBollingerCloud(store:DiscoveryStore,config:BollingerClo
   const save=async()=>{
     if(!state)return;
     state.lastRunAt=now();
-    await store.endJob(state.jobId,state.phase,state);
+    const status=state.execution==="RUNNING"?"running":state.execution==="PAUSED"?"paused":state.execution==="FAILED"?"failed":state.phase;
+    await store.endJob(state.jobId,status,state);
+  };
+  const publicJob=()=>safeCloudJob(state as unknown as Record<string,unknown>|null,state!.target,false);
+  const freshState=(target:CloudTarget)=>{
+    const value=fresh(target,config,now()),selected=options.selected;if(!selected)return value;
+    const keys=new Set(selected.keys),members=selectUniverse(selected.universe,{top:"ALL",minWeight:0,sectors:[]}).selected.filter(m=>keys.has(securityKey(m)));
+    value.universeId=selected.universe.id;value.configVersion=selected.calculation.version;value.selectedKeys=selected.keys;
+    value.requested=members.length;value.supported=selected.supported;value.membershipRows=selected.universe.members.length;value.membershipTotal=selected.universe.members.length;
+    value.benchmarkKeys=[...new Set(members.map(m=>m.market==="KR"?m.exchange==="KOSDAQ"?"KOSDAQ":"KOSPI":selected.universe.kind==="NASDAQ_LISTED"?"NASDAQ_LISTED":"SP500"))];
+    value.phase="benchmarks";return value;
   };
   const checkpoint=async()=>{
     if(clock()>=deadline)throw new Error("JOB_BUDGET_EXHAUSTED");
@@ -51,16 +108,15 @@ export async function runBollingerCloud(store:DiscoveryStore,config:BollingerClo
   };
   try {
     const candidates=await Promise.all(config.targets.map(async target=>{
-      const job=await store.latestJob(cloudJobScope(target,config.top));
-      const old=job?.summary as unknown as CloudState|undefined;
-      return old?.schema===1&&old.target===target&&old.top===config.top?old:fresh(target,config,now());
+      const job=await store.latestJob(options.selected?.scope??cloudJobScope(target,config.top));
+      return upgradeState(job?.summary,target,config.top)??freshState(target);
     }));
     // Finish checkpointed work first; a new day gets its own immutable membership snapshot.
     state=candidates.find(s=>!isDone(s)&&s.phase!=="complete-with-errors")??candidates.find(s=>s.sourceDay!==sourceDay(s.target,now()))??candidates.find(s=>s.phase==="complete-with-errors")??null;
     if(!state)return {status:"UP_TO_DATE",jobs:candidates.map(s=>safeCloudJob(s as unknown as Record<string,unknown>,s.target))};
-    if((state.phase==="complete"||state.phase==="complete-with-errors")&&state.sourceDay!==sourceDay(state.target,now()))state=fresh(state.target,config,now());
-    await store.startJob(state.jobId,cloudJobScope(state.target,config.top));
-    state.budgetStopped=false;state.lastError=null;
+    if((state.phase==="complete"||state.phase==="complete-with-errors")&&state.sourceDay!==sourceDay(state.target,now()))state=freshState(state.target);
+    await store.startJob(state.jobId,options.selected?.scope??cloudJobScope(state.target,config.top));
+    state.budgetStopped=false;state.lastError=null;state.runToken=token;state.execution="RUNNING";
     if(state.phase==="complete-with-errors") {
       state.retryKeys=state.errors.map(e=>e.symbol);state.phase="collect";
     }
@@ -109,21 +165,22 @@ export async function runBollingerCloud(store:DiscoveryStore,config:BollingerClo
         if(state.pendingCompute.length) {
           const symbol=state.pendingCompute[0]!;
           try {
-            const computed=await precomputeDiscovery(store,state.universeId!,undefined,checkpoint,{symbols:[symbol],recentDays:config.recentStoredDays,storeEvents:state.phase==="refresh",onSecurityComputed:async key=>{
+            const computed=await precomputeDiscovery(store,state.universeId!,discoveryConfigFromVersion(state.configVersion).config,checkpoint,{symbols:[symbol],recentDays:config.recentStoredDays,contextOnly:state.phase!=="refresh",storeEvents:state.phase==="refresh",onSecurityComputed:async key=>{
               state!.computedKeys=[...new Set([...state!.computedKeys,key])];
             }});
             if(!computed.securities)throw new Error("COMPUTE_FAILED");
+            if(state.phase!=="refresh")state.provisionalKeys=[...new Set([...state.provisionalKeys,symbol])];
             state.pendingCompute.shift();await save();
           }catch(error){throw new Error(safeError(error,"COMPUTE_FAILED"));}
           continue;
         }
-        if(state.phase==="refresh") {state.phase=state.errors.length?"complete-with-errors":"complete";await save();break;}
+        if(state.phase==="refresh") {state.phase=state.errors.length?"complete-with-errors":"complete";state.execution="COMPLETE";await save();break;}
         if(state.nextOffset>=state.requested&&!state.retryKeys.length) {
           // Second pass updates the selected securities against all collected peer contexts.
-          state.phase="refresh";state.pendingCompute=[...state.successfulKeys];await save();continue;
+          state.phase="refresh";state.computedKeys=[];state.pendingCompute=[...state.successfulKeys];await save();continue;
         }
         const retry=state.retryKeys.slice(0,1),remaining=Math.max(1,deadline-clock());
-        const result=await collectDiscovery(store,state.universeId!,(member,initial)=>paced(()=>providers.prices(member,initial)),{offset:state.nextOffset,limit:retry.length?0:1,retrySymbols:retry,budgetMs:remaining,spacingMs:0,retries:1,precompute:false,heldLease:{token,seconds:leaseSeconds}});
+        const result=await collectDiscovery(store,state.universeId!,(member,initial)=>paced(()=>providers.prices(member,initial)),{offset:state.nextOffset,limit:retry.length?0:1,symbols:state.selectedKeys??undefined,retrySymbols:retry,budgetMs:remaining,spacingMs:0,retries:1,precompute:false,heldLease:{token,seconds:leaseSeconds}});
         // Keep retry work until collection has made progress; budget exhaustion never consumes it.
         if(retry.length&&result.errors.every(e=>e.code!=="JOB_BUDGET_EXHAUSTED"&&e.code!=="RETRY_PENDING"))state.retryKeys.shift();
         state.nextOffset=Math.min(state.requested,result.nextOffset);
@@ -136,10 +193,10 @@ export async function runBollingerCloud(store:DiscoveryStore,config:BollingerClo
         if(result.status==="partial-budget")throw new Error("JOB_BUDGET_EXHAUSTED");
       }
     }
-    return {status:state.phase==="complete"?isDone(state)?"COMPLETE":"COMPLETE_WITH_WARNINGS":"PARTIAL_ERRORS",jobs:[safeCloudJob(state as unknown as Record<string,unknown>,state.target)]};
+    return {status:state.phase==="complete"?isDone(state)?"COMPLETE":"COMPLETE_WITH_WARNINGS":"PARTIAL_ERRORS",jobs:[publicJob()]};
   }catch(error){
     const code=safeError(error,"DATABASE_QUERY_FAILED");
-    if(state){state.budgetStopped=code==="JOB_BUDGET_EXHAUSTED";state.lastError=state.budgetStopped?null:code;await save();}
-    return {status:code==="JOB_BUDGET_EXHAUSTED"?"PARTIAL_BUDGET":code,jobs:state?[safeCloudJob(state as unknown as Record<string,unknown>,state.target)]:[]};
+    if(state){state.budgetStopped=code==="JOB_BUDGET_EXHAUSTED";state.lastError=state.budgetStopped?null:code;state.execution=state.budgetStopped?"PAUSED":"FAILED";await save();}
+    return {status:code==="JOB_BUDGET_EXHAUSTED"?"PARTIAL_BUDGET":code,jobs:state?[publicJob()]:[]};
   }finally{await store.release(scope,token);}
 }

@@ -14,9 +14,9 @@ export function contextHistory(bars: BollingerBar[], source: string): Context[] 
 }
 /** Single global DB lease covers this provider's rate budget across processes.
  * The bounded serial runner is deliberately conservative; retries use the same pacing. */
-export async function collectDiscovery(store: DiscoveryStore, universeId: string, provider: PriceProvider, options: { offset?: number; limit?: number; budgetMs?: number; spacingMs?: number; config?: unknown; retrySymbols?:string[]; precompute?:boolean; retries?:number; heldLease?:{token:string;seconds:number}; fetchBenchmarks?: (symbol: typeof BENCHMARKS[keyof typeof BENCHMARKS]) => Promise<{bars:BollingerBar[];source:string}> } = {}) {
+export async function collectDiscovery(store: DiscoveryStore, universeId: string, provider: PriceProvider, options: { offset?: number; limit?: number; budgetMs?: number; spacingMs?: number; config?: unknown; symbols?:readonly string[]; retrySymbols?:string[]; precompute?:boolean; retries?:number; heldLease?:{token:string;seconds:number}; fetchBenchmarks?: (symbol: typeof BENCHMARKS[keyof typeof BENCHMARKS]) => Promise<{bars:BollingerBar[];source:string}> } = {}) {
   const universe=await store.universe(universeId);if(!universe)throw new Error("UNIVERSE_MISSING");
-  const config=sanitizeDiscoveryConfig(options.config), members=selectUniverse(universe,{top:"ALL",minWeight:0,sectors:[]}).selected;
+  const config=sanitizeDiscoveryConfig(options.config), members=selectUniverse(universe,{top:"ALL",minWeight:0,sectors:[]}).selected.filter(m=>options.symbols===undefined||options.symbols.includes(securityKey(m)));
   const jobId=randomUUID(),scope="bollinger:daily-provider",token=options.heldLease?.token??randomUUID(),leaseSeconds=options.heldLease?.seconds??900;
   if(options.heldLease?!await store.renew(scope,token,leaseSeconds):!await store.lease(scope,token,leaseSeconds))throw new Error("COLLECTOR_ALREADY_RUNNING");
   const started=Date.now(),deadline=started+Math.min(options.budgetMs??1_800_000,3_600_000),spacing=Math.max(options.spacingMs??1500,0);
@@ -88,7 +88,7 @@ export async function collectDiscovery(store: DiscoveryStore, universeId: string
   finally{if(!options.heldLease)await store.release(scope,token);}
 }
 /** Shared two-pass SQL precompute. Memory is bounded to one security, not the whole market. */
-export async function precomputeDiscovery(store: DiscoveryStore, universeId: string, raw?:unknown, checkpoint?:()=>Promise<void>,options:{symbols?:readonly string[];recentDays?:number;storeEvents?:boolean;onSecurityComputed?:(key:string)=>Promise<void>}={}) {
+export async function precomputeDiscovery(store: DiscoveryStore, universeId: string, raw?:unknown, checkpoint?:()=>Promise<void>,options:{symbols?:readonly string[];recentDays?:number;storeEvents?:boolean;contextOnly?:boolean;onSecurityComputed?:(key:string)=>Promise<void>}={}) {
   const universe=await store.universe(universeId);if(!universe)throw new Error("UNIVERSE_MISSING");
   const config=sanitizeDiscoveryConfig(raw),members=selectUniverse(universe,{top:"ALL",minWeight:0,sectors:[]}).selected.filter(m=>!options.symbols||options.symbols.includes(securityKey(m)));
   const recentDays=options.recentDays===undefined?null:Math.max(1,Math.min(Math.floor(options.recentDays),5000));
@@ -97,11 +97,15 @@ export async function precomputeDiscovery(store: DiscoveryStore, universeId: str
     if(!meta[0])return null;
     return {bars:await store.bars(member.market,member.symbol,meta[0].price_basis),basis:meta[0].price_basis,source:meta[0].source};
   };
+  let contextSecurities=0;
   for(const member of members) {
     await checkpoint?.();const history=await histories(member);if(!history)continue;
     const contexts=contextHistory(history.bars,history.source);
     await store.saveContext(universeId,`security:${securityKey(member)}`,recentDays===null?contexts:contexts.slice(-recentDays));
+    contextSecurities++;
   }
+  // Collection builds the peer observations first. The final pass alone publishes features/events.
+  if(options.contextOnly)return {features:0,events:0,version:config.version,securities:contextSecurities,priceBasis:"source-separated",delivery:"detected-only"};
   const usBenchmark=universe.kind==="NASDAQ100"?"NASDAQ100":universe.kind==="NASDAQ_LISTED"?"NASDAQ_LISTED":"SP500";
   await checkpoint?.();await store.aggregateContexts(universeId,usBenchmark);
   let features=0,events=0,securities=0;

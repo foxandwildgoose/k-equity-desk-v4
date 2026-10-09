@@ -184,7 +184,7 @@ export default defineConfig(({ command, isPreview }) => ({
             // Jobs keep a shorter checkpointed budget and never run during build.
             // Vercel merges vercel.json crons with Build Output API crons.
             // Register the schedule only in vercel.json to avoid duplicate jobs.
-            vercel: { functionRules: { "/api/cron/bollinger": { maxDuration: "max" } } },
+            vercel: { functionRules: { "/api/cron/bollinger": { maxDuration: "max" }, "/api/bollinger/collect": { maxDuration: "max" } } },
             // This Nitro/Rolldown version emits an undeclared ssr_exports binding
             // when splitting the Start server entry. Inline server chunks; client
             // chart/code splitting remains unchanged. Verified by production preview.

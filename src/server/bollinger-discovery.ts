@@ -20,7 +20,11 @@ export async function discoveryCatalog() {
   try {
     const store=await getDiscoveryStore();
     const universes=await store.universes();
-    cloud.jobs=await Promise.all(configuration.targets.map(async target=>safeCloudJob((await store.latestJob(cloudJobScope(target,configuration.top)))?.summary??null,target)));
+    cloud.jobs=await Promise.all(configuration.targets.map(async target=>{
+      const summary=(await store.latestJob(cloudJobScope(target,configuration.top)))?.summary??null;
+      const active=typeof summary?.runToken==="string"&&await store.leaseMatches("bollinger:daily-provider",summary.runToken);
+      return safeCloudJob(summary,target,active);
+    }));
     return {status:"READY",cloud,version:DISCOVERY_DEFAULTS.version,versions:await store.configurations(),universes:universes.map(u=>({id:u.id,kind:u.kind,label:u.label,asOf:u.asOf,knownAt:u.knownAt,fetchedAt:u.fetchedAt,source:u.source,sourceUrl:u.sourceUrl,historical:u.historical,rankAsOf:u.rankAsOf??null,members:u.members.length,sectors:[...new Set(u.members.map(m=>m.sector))].sort()}))};
   }catch(error){return {status:safeStatus(error),cloud,version:DISCOVERY_DEFAULTS.version,versions:[],universes:[]};}
 }

@@ -39,6 +39,8 @@ import { Route as UsResearchIndexRouteImport } from './routes/us-research.index'
 import { Route as UsResearchReportIdRouteImport } from './routes/us-research.$reportId'
 import { Route as UsSymbolRouteImport } from './routes/us.$symbol'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as ApiBollingerCollectRouteImport } from './routes/api.bollinger.collect'
+import { Route as ApiBollingerOperatorRouteImport } from './routes/api.bollinger.operator'
 import { Route as ApiCronBollingerRouteImport } from './routes/api.cron.bollinger'
 
 const IndexRoute = IndexRouteImport.update({
@@ -191,6 +193,16 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiBollingerCollectRoute = ApiBollingerCollectRouteImport.update({
+  id: '/api/bollinger/collect',
+  path: '/api/bollinger/collect',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiBollingerOperatorRoute = ApiBollingerOperatorRouteImport.update({
+  id: '/api/bollinger/operator',
+  path: '/api/bollinger/operator',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiCronBollingerRoute = ApiCronBollingerRouteImport.update({
   id: '/api/cron/bollinger',
   path: '/api/cron/bollinger',
@@ -228,6 +240,8 @@ export interface FileRoutesByFullPath {
   '/news/': typeof NewsIndexRoute
   '/us-research/': typeof UsResearchIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/bollinger/collect': typeof ApiBollingerCollectRoute
+  '/api/bollinger/operator': typeof ApiBollingerOperatorRoute
   '/api/cron/bollinger': typeof ApiCronBollingerRoute
 }
 export interface FileRoutesByTo {
@@ -259,6 +273,8 @@ export interface FileRoutesByTo {
   '/news': typeof NewsIndexRoute
   '/us-research': typeof UsResearchIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/bollinger/collect': typeof ApiBollingerCollectRoute
+  '/api/bollinger/operator': typeof ApiBollingerOperatorRoute
   '/api/cron/bollinger': typeof ApiCronBollingerRoute
 }
 export interface FileRoutesById {
@@ -293,6 +309,8 @@ export interface FileRoutesById {
   '/news/': typeof NewsIndexRoute
   '/us-research/': typeof UsResearchIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/bollinger/collect': typeof ApiBollingerCollectRoute
+  '/api/bollinger/operator': typeof ApiBollingerOperatorRoute
   '/api/cron/bollinger': typeof ApiCronBollingerRoute
 }
 export interface FileRouteTypes {
@@ -328,6 +346,8 @@ export interface FileRouteTypes {
     | '/news/'
     | '/us-research/'
     | '/api/auth/$'
+    | '/api/bollinger/collect'
+    | '/api/bollinger/operator'
     | '/api/cron/bollinger'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -359,6 +379,8 @@ export interface FileRouteTypes {
     | '/news'
     | '/us-research'
     | '/api/auth/$'
+    | '/api/bollinger/collect'
+    | '/api/bollinger/operator'
     | '/api/cron/bollinger'
   id:
     | '__root__'
@@ -392,6 +414,8 @@ export interface FileRouteTypes {
     | '/news/'
     | '/us-research/'
     | '/api/auth/$'
+    | '/api/bollinger/collect'
+    | '/api/bollinger/operator'
     | '/api/cron/bollinger'
   fileRoutesById: FileRoutesById
 }
@@ -422,6 +446,8 @@ export interface RootRouteChildren {
   UsSymbolRoute: typeof UsSymbolRoute
   NewsIndexRoute: typeof NewsIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiBollingerCollectRoute: typeof ApiBollingerCollectRoute
+  ApiBollingerOperatorRoute: typeof ApiBollingerOperatorRoute
   ApiCronBollingerRoute: typeof ApiCronBollingerRoute
 }
 
@@ -637,6 +663,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/bollinger/collect': {
+      id: '/api/bollinger/collect'
+      path: '/api/bollinger/collect'
+      fullPath: '/api/bollinger/collect'
+      preLoaderRoute: typeof ApiBollingerCollectRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/bollinger/operator': {
+      id: '/api/bollinger/operator'
+      path: '/api/bollinger/operator'
+      fullPath: '/api/bollinger/operator'
+      preLoaderRoute: typeof ApiBollingerOperatorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/cron/bollinger': {
       id: '/api/cron/bollinger'
       path: '/api/cron/bollinger'
@@ -700,6 +740,8 @@ const rootRouteChildren: RootRouteChildren = {
   UsSymbolRoute: UsSymbolRoute,
   NewsIndexRoute: NewsIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiBollingerCollectRoute: ApiBollingerCollectRoute,
+  ApiBollingerOperatorRoute: ApiBollingerOperatorRoute,
   ApiCronBollingerRoute: ApiCronBollingerRoute,
 }
 export const routeTree = rootRouteImport

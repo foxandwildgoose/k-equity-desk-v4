@@ -17,12 +17,17 @@ export function readBollingerCloudConfig(env:Record<string,string|undefined>=pro
 export type BollingerCloudConfig = ReturnType<typeof readBollingerCloudConfig>;
 export const cloudJobScope = (target:CloudTarget,top:BollingerCloudConfig["top"]) => `bollinger:cloud:v1:${target}:${top}`;
 /** Allowlisted public status, never the raw job summary or runtime environment. */
-export function safeCloudJob(summary:Record<string,unknown>|null,target:CloudTarget) {
+export function safeCloudJob(summary:Record<string,unknown>|null,target:CloudTarget,leaseActive=false) {
   const count=(name:string)=>typeof summary?.[name]==="number"&&Number.isFinite(summary[name])?Math.max(0,summary[name] as number):0;
   const phases=["membership","benchmarks","collect","refresh","complete","complete-with-errors"];
   const failures=["MEMBERSHIP_FAILED","KR_MEMBERSHIP_CHANGED_RESTART_REQUIRED","BENCHMARK_FAILED","PRICE_FETCH_FAILED","NO_HISTORY","COMPUTE_FAILED","DATABASE_QUERY_FAILED","LEASE_LOST"];
-  return {target,phase:phases.includes(String(summary?.phase))?String(summary?.phase):"not-started",requested:count("requested"),supported:count("supported"),nextOffset:count("nextOffset"),collected:Array.isArray(summary?.successfulKeys)?summary.successfulKeys.length:0,
-    computed:Array.isArray(summary?.computedKeys)?summary.computedKeys.length:0,errors:Array.isArray(summary?.errors)?summary.errors.length:0,
+  const phase=phases.includes(String(summary?.phase))?String(summary?.phase):"not-started";
+  const terminal=phase==="complete"||phase==="complete-with-errors";
+  const execution=phase==="not-started"?"NOT_STARTED":leaseActive?"RUNNING":terminal?"COMPLETE":summary?.execution==="FAILED"||summary?.lastError?"FAILED":summary?.budgetStopped===true||summary?.execution==="PAUSED"?"PAUSED":"INTERRUPTED";
+  return {target,phase,execution,requested:count("requested"),supported:count("supported"),nextOffset:count("nextOffset"),collected:Array.isArray(summary?.successfulKeys)?summary.successfulKeys.length:0,
+    computed:summary?.schema===1&&!terminal?0:Array.isArray(summary?.computedKeys)?summary.computedKeys.length:0,errors:Array.isArray(summary?.errors)?summary.errors.length:0,
+    provisional:Array.isArray(summary?.provisionalKeys)?summary.provisionalKeys.length:summary?.schema===1&&Array.isArray(summary?.computedKeys)?summary.computedKeys.length:0,pendingCompute:summary?.schema===1&&phase==="refresh"&&Array.isArray(summary?.successfulKeys)?summary.successfulKeys.length:Array.isArray(summary?.pendingCompute)?summary.pendingCompute.length:0,
+    universeId:typeof summary?.universeId==="string"?summary.universeId:null,configVersion:typeof summary?.configVersion==="string"?summary.configVersion:null,
     benchmarkFailures:summary?.benchmarkStatus&&typeof summary.benchmarkStatus==="object"?Object.values(summary.benchmarkStatus).filter(s=>s!=="received").length:0,
     membershipRows:count("membershipRows"),membershipTotal:count("membershipTotal"),
     lastRunAt:typeof summary?.lastRunAt==="string"&&Number.isFinite(Date.parse(summary.lastRunAt))?summary.lastRunAt:null,

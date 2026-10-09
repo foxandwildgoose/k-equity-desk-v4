@@ -1,0 +1,1829 @@
+{
+  "scope": "Synthetic tests only; not real trading/backtest performance",
+  "productionEntry": "/workspace/.onboarding/builds/k-equity-desk-v4/functions/__server.func/index.mjs",
+  "base": "http://127.0.0.1:8180",
+  "testDay": "2026-10-09",
+  "storedDay": "2026-10-05",
+  "results": [
+    {
+      "theme": "light",
+      "viewport": "desktop",
+      "mode": "isolated-synthetic-DB-and-browser",
+      "success": true,
+      "partialScreenshot": "/workspace/screenshots/bollinger-execution/final-production/partial-light-desktop.png",
+      "calls": [
+        {
+          "name": "getMarketQuotes",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getMarketIndices",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getMarketSnapshot",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 2,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "triggered"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "follow-through"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "failed-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "pullback"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "mean-reversion-watch"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "bear-breakdown"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "squeeze-watch"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "collectSelected",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "collectSelected",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        }
+      ],
+      "screenshot": "/workspace/screenshots/bollinger-execution/final-production/screener-light-desktop.png"
+    },
+    {
+      "theme": "light",
+      "viewport": "tablet",
+      "mode": "isolated-synthetic-DB-and-browser",
+      "success": true,
+      "partialScreenshot": "/workspace/screenshots/bollinger-execution/final-production/partial-light-tablet.png",
+      "calls": [
+        {
+          "name": "getMarketQuotes",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getMarketIndices",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getMarketSnapshot",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 2,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "triggered"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "follow-through"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "failed-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "pullback"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "mean-reversion-watch"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "bear-breakdown"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "squeeze-watch"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "collectSelected",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "collectSelected",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        }
+      ],
+      "screenshot": "/workspace/screenshots/bollinger-execution/final-production/screener-light-tablet.png"
+    },
+    {
+      "theme": "light",
+      "viewport": "mobile",
+      "mode": "isolated-synthetic-DB-and-browser",
+      "success": true,
+      "partialScreenshot": "/workspace/screenshots/bollinger-execution/final-production/partial-light-mobile.png",
+      "calls": [
+        {
+          "name": "getMarketQuotes",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getMarketIndices",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getMarketSnapshot",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 2,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "triggered"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "follow-through"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "failed-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "pullback"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "mean-reversion-watch"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "bear-breakdown"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "squeeze-watch"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getMarketIndices",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "collectSelected",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "collectSelected",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getMarketQuotes",
+          "page": null,
+          "strategy": null
+        }
+      ],
+      "screenshot": "/workspace/screenshots/bollinger-execution/final-production/screener-light-mobile.png"
+    },
+    {
+      "theme": "dark",
+      "viewport": "desktop",
+      "mode": "isolated-synthetic-DB-and-browser",
+      "success": true,
+      "partialScreenshot": "/workspace/screenshots/bollinger-execution/final-production/partial-dark-desktop.png",
+      "calls": [
+        {
+          "name": "getMarketQuotes",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getMarketIndices",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getMarketSnapshot",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 2,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "triggered"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "follow-through"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "failed-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "pullback"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "mean-reversion-watch"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "bear-breakdown"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "squeeze-watch"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getMarketIndices",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "collectSelected",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "collectSelected",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getMarketQuotes",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        }
+      ],
+      "screenshot": "/workspace/screenshots/bollinger-execution/final-production/screener-dark-desktop.png"
+    },
+    {
+      "theme": "dark",
+      "viewport": "tablet",
+      "mode": "isolated-synthetic-DB-and-browser",
+      "success": true,
+      "partialScreenshot": "/workspace/screenshots/bollinger-execution/final-production/partial-dark-tablet.png",
+      "calls": [
+        {
+          "name": "getMarketQuotes",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getMarketIndices",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getMarketSnapshot",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 2,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "triggered"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "follow-through"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "failed-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "pullback"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "mean-reversion-watch"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "bear-breakdown"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "squeeze-watch"
+        },
+        {
+          "name": "getMarketIndices",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "collectSelected",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getMarketQuotes",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "collectSelected",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getMarketIndices",
+          "page": null,
+          "strategy": null
+        }
+      ],
+      "screenshot": "/workspace/screenshots/bollinger-execution/final-production/screener-dark-tablet.png"
+    },
+    {
+      "theme": "dark",
+      "viewport": "mobile",
+      "mode": "isolated-synthetic-DB-and-browser",
+      "success": true,
+      "partialScreenshot": "/workspace/screenshots/bollinger-execution/final-production/partial-dark-mobile.png",
+      "calls": [
+        {
+          "name": "getMarketQuotes",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getMarketIndices",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getMarketSnapshot",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 2,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "triggered"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "follow-through"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "failed-breakout"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "pullback"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "mean-reversion-watch"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "bear-breakdown"
+        },
+        {
+          "name": "getMarketIndices",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "squeeze-watch"
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryUniversePreview",
+          "page": 1,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getMarketQuotes",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "collectSelected",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "collectSelected",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCatalog",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryEvidence",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryRunProgress",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        },
+        {
+          "name": "getMarketIndices",
+          "page": null,
+          "strategy": null
+        },
+        {
+          "name": "getDiscoveryCandidates",
+          "page": 1,
+          "strategy": "long-pre-breakout"
+        }
+      ],
+      "screenshot": "/workspace/screenshots/bollinger-execution/final-production/screener-dark-mobile.png"
+    }
+  ]
+}

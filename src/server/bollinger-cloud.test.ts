@@ -7,11 +7,11 @@ import { PGlite } from "@electric-sql/pglite";
 import { createDiscoveryStore } from "./bollinger-discovery-store.ts";
 import { readBollingerCloudConfig, cloudJobScope, safeCloudJob } from "./bollinger-cloud-config.ts";
 import { handleBollingerCloud } from "./bollinger-cloud-handler.ts";
-import { runBollingerCloud, type CloudProviders } from "./bollinger-cloud.ts";
+import { runBollingerCloud, runSelectedBollingerCloud, readSelectedBollingerProgress, selectedBollingerScope, type SelectedBollingerRequest, type CloudProviders } from "./bollinger-cloud.ts";
 import { fetchKrMembershipBatch, koreaDay } from "./bollinger-membership.ts";
 import { collectDiscovery, contextHistory, precomputeDiscovery } from "./bollinger-discovery-jobs.ts";
 import { discoveryBars, member, universe } from "../lib/bollinger/discovery-fixture.test-data.ts";
-import { DISCOVERY_DEFAULTS } from "../lib/bollinger/discovery.ts";
+import { analyzeDiscovery, sanitizeDiscoveryConfig, DISCOVERY_DEFAULTS } from "../lib/bollinger/discovery.ts";
 const migration=await readFile(new URL("../../migrations/0005_bollinger_discovery.sql",import.meta.url),"utf8");
 const SECRET="QA_ONLY_NOT_A_REAL_OPERATOR_SECRET_12345";
 const environment={BOLLINGER_CLOUD_ENABLED:"true",CRON_SECRET:SECRET};
@@ -170,4 +170,103 @@ test("Hobby uses one daily cron and only the collector requests the maximum func
   const vercel=JSON.parse(await readFile(new URL("../../vercel.json",import.meta.url),"utf8"));assert.deepEqual(vercel.crons,[{path:"/api/cron/bollinger",schedule:"30 9 * * *"}]);
   const vite=await readFile(new URL("../../vite.config.ts",import.meta.url),"utf8");assert.match(vite,/functionRules:.*"\/api\/cron\/bollinger".*maxDuration: "max"/);
   assert.doesNotMatch(vite,/deploymentConfig|config:\s*\{\s*crons:/,"the schedule belongs only in vercel.json, not generated Build Output API config");
+});
+const selectedRequest=(overrides:Partial<SelectedBollingerRequest>={}):SelectedBollingerRequest=>({universeId:universe().id,configVersion:DISCOVERY_DEFAULTS.version,selection:{top:10,minWeight:0,sectors:[]},...overrides});
+test("selected collection freezes exact stored snapshot, sector and symbol intersection instead of cron Top20",async()=>{
+  const {pg,store}=await database();try{
+    const members=Array.from({length:30},(_,i)=>({...member(String(500000+i)),marketCap:(100-i)*1e12,sector:i%2?"Technology":"Healthcare"}));
+    await store.saveUniverse(universe(members));const p=providers(),fetched:string[]=[];
+    p.membership=async()=>{throw new Error("selected request must not replace the snapshot");};
+    p.prices=async m=>{fetched.push(m.symbol);return{bars:discoveryBars(303),source:"QA",basis:"yahoo-kr-raw-ohlcv"};};
+    const request=selectedRequest({selection:{top:10,minWeight:0,sectors:["Technology"]},symbols:["KR:500001","KR:500007","KR:500027"]});
+    const result=await runSelectedBollingerCloud(store,config,p,request,{clock:time,spacingMs:0});
+    assert.equal(result.status,"COMPLETE");assert.deepEqual(fetched,["500001","500007"]);
+    assert.equal(result.jobs[0]?.requested,2);assert.equal(result.jobs[0]?.computed,2);assert.equal(result.jobs[0]?.provisional,2);assert.equal(result.jobs[0]?.execution,"COMPLETE");
+    assert.equal(result.jobs[0]?.universeId,request.universeId);
+    const progress=await readSelectedBollingerProgress(store,request);assert.equal(progress.jobs[0]?.execution,"COMPLETE");
+    assert.equal((await runSelectedBollingerCloud(store,config,p,request,{clock:time,spacingMs:0})).status,"UP_TO_DATE");assert.equal(fetched.length,2);
+  }finally{await pg.close();}
+});
+test("selected Top100 is the requested scope even when scheduled configuration is Top20",async()=>{
+  const {pg,store}=await database();try{
+    await store.saveUniverse(universe(Array.from({length:110},(_,i)=>({...member(String(500000+i)),marketCap:(110-i)*1e12}))));
+    let elapsed=0;const p=providers();p.prices=async()=>{elapsed=170000;return{bars:discoveryBars(303),source:"QA",basis:"yahoo-kr-raw-ohlcv"};};
+    const result=await runSelectedBollingerCloud(store,config,p,selectedRequest({selection:{top:100,minWeight:0,sectors:[]}}),{clock:()=>time()+elapsed,spacingMs:0});
+    assert.equal(result.status,"PARTIAL_BUDGET");assert.equal(result.jobs[0]?.requested,100);assert.equal(result.jobs[0]?.supported,110);assert.equal(result.jobs[0]?.collected,1);assert.equal(result.jobs[0]?.computed,0);assert.equal(result.jobs[0]?.execution,"PAUSED");
+  }finally{await pg.close();}
+});
+test("selected scope is deterministic, idempotent and separate across snapshot/config/top/symbols",()=>{
+  const a=selectedRequest({selection:{top:10,minWeight:0,sectors:["Technology","Healthcare"]},symbols:["KR:005930","KR:000660"]});
+  const b=selectedRequest({selection:{top:10,minWeight:0,sectors:["Healthcare","Technology","Technology"]},symbols:["KR:000660","KR:005930","KR:005930"]});
+  assert.equal(selectedBollingerScope(a),selectedBollingerScope(b));
+  for(const other of [selectedRequest({universeId:"another"}),selectedRequest({configVersion:sanitizeDiscoveryConfig({squeeze:12}).version}),selectedRequest({selection:{top:100,minWeight:0,sectors:[]}}),selectedRequest({symbols:[]})])assert.notEqual(selectedBollingerScope(a),selectedBollingerScope(other));
+  assert.throws(()=>selectedBollingerScope(selectedRequest({configVersion:"forged"})),/CONFIGURATION_VERSION_INVALID/);
+  assert.throws(()=>selectedBollingerScope(selectedRequest({symbols:["http://untrusted.example"]})),/SELECTION_INVALID/);
+});
+test("selected scope retains frozen security keys and configured engine version across a separate DB restart",async()=>{
+  const path=await mkdtemp(join(tmpdir(),"bollinger-selected-test-"));try{
+    const first=await database(path),members=[{...member("500000"),marketCap:2e12},member("500001")];await first.store.saveUniverse(universe(members));
+    const version=sanitizeDiscoveryConfig({squeeze:12}).version,request=selectedRequest({configVersion:version});
+    let elapsed=0;const p=providers();const received:string[]=[];
+    p.membership=async()=>{throw new Error("must keep stored snapshot");};
+    p.prices=async m=>{received.push(m.symbol);elapsed=170000;return{bars:discoveryBars(303),source:"QA",basis:"yahoo-kr-raw-ohlcv"};};
+    assert.equal((await runSelectedBollingerCloud(first.store,config,p,request,{clock:()=>time()+elapsed,spacingMs:0})).status,"PARTIAL_BUDGET");
+    assert.deepEqual((await first.store.latestJob(selectedBollingerScope(request)))?.summary.selectedKeys,["KR:500000","KR:500001"]);await first.pg.close();
+    const second=await database(path);elapsed=0;p.prices=async m=>{received.push(m.symbol);return{bars:discoveryBars(303),source:"QA",basis:"yahoo-kr-raw-ohlcv"};};
+    const complete=await runSelectedBollingerCloud(second.store,config,p,request,{clock:()=>time()+elapsed,spacingMs:0});assert.equal(complete.status,"COMPLETE");assert.deepEqual(received,["500000","500001"]);
+    assert.equal(complete.jobs[0]?.configVersion,version);assert.equal((await second.store.featureHistory(request.universeId,members[0]!,version)).length,25);assert.equal((await second.store.featureHistory(request.universeId,members[0]!,DISCOVERY_DEFAULTS.version)).length,0);await second.pg.close();
+  }finally{await rm(path,{recursive:true,force:true});}
+});
+test("selected requests reject missing/unsupported/empty snapshots before providers are invoked",async()=>{
+  const {pg,store}=await database();try{
+    const p=providers();await assert.rejects(runSelectedBollingerCloud(store,config,p,selectedRequest()),/UNIVERSE_MISSING/);
+    await store.saveUniverse({...universe(),kind:"MANUAL"});await assert.rejects(runSelectedBollingerCloud(store,config,p,selectedRequest()),/UNSUPPORTED/);
+    await store.saveUniverse({...universe(),id:"another"});await assert.rejects(runSelectedBollingerCloud(store,config,p,selectedRequest({universeId:"another",symbols:[]})),/NO_SELECTION/);
+  }finally{await pg.close();}
+});
+test("progress matches the current private run lease and distinguishes lost worker from live processing",async()=>{
+  const {pg,store}=await database();try{
+    await store.saveUniverse(universe());const request=selectedRequest(),p=providers(1);
+    p.prices=async()=>{
+      const progress=await readSelectedBollingerProgress(store,request);assert.equal(progress.jobs[0]?.execution,"RUNNING");
+      const raw=(await store.latestJob(selectedBollingerScope(request)))!.summary;assert.equal(typeof raw.runToken,"string");
+      assert.doesNotMatch(JSON.stringify(progress),new RegExp(raw.runToken as string));return{bars:discoveryBars(303),source:"QA",basis:"yahoo-kr-raw-ohlcv"};
+    };
+    await runSelectedBollingerCloud(store,config,p,request,{clock:time,spacingMs:0});
+    const job=(await store.latestJob(selectedBollingerScope(request)))!;
+    await store.endJob(job.id,"running",{...job.summary,phase:"refresh",execution:"RUNNING",budgetStopped:false});
+    assert.equal((await readSelectedBollingerProgress(store,request)).jobs[0]?.execution,"INTERRUPTED");
+    await store.lease("bollinger:daily-provider","unrelated-private-run");
+    assert.equal((await readSelectedBollingerProgress(store,request)).jobs[0]?.execution,"INTERRUPTED");await store.release("bollinger:daily-provider","unrelated-private-run");
+  }finally{await pg.close();}
+});
+test("first-pass observations are counted separately and final refresh resumes without reporting false completion",async()=>{
+  const {pg,store}=await database();try{
+    const p=providers(2);let elapsed=0,refreshes=0;
+    const original=store.saveFeatures;store.saveFeatures=async(...args)=>{await original(...args);if(++refreshes===1)elapsed=170000;};
+    const partial=await runBollingerCloud(store,config,p,{clock:()=>time()+elapsed,spacingMs:0});
+    assert.equal(partial.status,"PARTIAL_BUDGET");assert.equal(partial.jobs[0]?.provisional,2);assert.equal(partial.jobs[0]?.computed,1);assert.equal(partial.jobs[0]?.pendingCompute,1);assert.equal(partial.jobs[0]?.execution,"PAUSED");
+    elapsed=0;const resumed=await runBollingerCloud(store,config,p,{clock:()=>time()+elapsed,spacingMs:0});assert.equal(resumed.status,"COMPLETE");assert.equal(resumed.jobs[0]?.computed,2);
+  }finally{await pg.close();}
+});
+test("legacy interrupted refresh counts are upgraded to final-only counts before retry",async()=>{
+  const {pg,store}=await database();try{
+    const p=providers(1);await runBollingerCloud(store,config,p,{clock:time,spacingMs:0});
+    const job=(await store.latestJob(cloudJobScope("KOSPI",20)))!;
+    const summary={...job.summary,schema:1,phase:"refresh",computedKeys:["KR:500000"],pendingCompute:[],runToken:undefined,provisionalKeys:undefined,execution:undefined};
+    await store.endJob(job.id,"refresh",summary);
+    assert.equal(safeCloudJob(summary,"KOSPI").computed,0);assert.equal(safeCloudJob(summary,"KOSPI").pendingCompute,1);
+    let refreshed=0;const original=store.saveFeatures;store.saveFeatures=async(...args)=>{refreshed++;return original(...args);};
+    const result=await runBollingerCloud(store,config,p,{clock:time,spacingMs:0});assert.equal(result.status,"COMPLETE");assert.equal(refreshed,1);assert.equal(result.jobs[0]?.computed,1);
+  }finally{await pg.close();}
+});
+test("availability exclusions distinguish missing storage, warmup, stale, coverage, strategy and score",async()=>{
+  const {pg,store}=await database();try{
+    const members=Array.from({length:7},(_,i)=>member(String(500000+i))),u=universe(members);await store.saveUniverse(u);
+    const candidate=analyzeDiscovery(discoveryBars(303)).candidates.at(-1)!;
+    const cases=[{...candidate,valid:false},{...candidate,date:"2024-10-01",valid:true},{...candidate,valid:true,score:{...candidate.score,value:90,coverage:.7}},{...candidate,valid:true,score:{...candidate.score,value:90,coverage:1},views:[]},{...candidate,valid:true,score:{...candidate.score,value:20,coverage:1},views:["squeeze-watch" as const]},{...candidate,valid:true,score:{...candidate.score,value:90,coverage:1},views:["squeeze-watch" as const]}];
+    for(let i=0;i<cases.length;i++)await store.saveFeatures(u.id,members[i]!,DISCOVERY_DEFAULTS.version,[cases[i]!],"QA","yahoo-kr-raw-ohlcv");
+    const result=await store.query({universeId:u.id,configVersion:DISCOVERY_DEFAULTS.version,strategy:"squeeze-watch",selection:{top:"ALL",minWeight:0,sectors:[]},page:1,pageSize:50,minScore:50,minCoverage:.8,asOf:"2024-10-29"});
+    assert.deepEqual(result.availability,{selected:7,stored:6,missingStored:1,warmup:1,stale:1,lowCoverage:1,strategyMismatch:1,lowScore:1,matched:1});
+  }finally{await pg.close();}
 });
