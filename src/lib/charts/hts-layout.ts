@@ -156,6 +156,9 @@ export function changedHtsPanelHeights(
 export function htsFlowSummaryPoint(metric: FlowMetric, aligned: AlignedFlowMetric, date: string, hovering: boolean, daily = true): AlignedFlowPoint | undefined {
   const exact = aligned.points.find(point => point.date === date);
   if (hovering || exact?.value != null || !["available", "partial"].includes(aligned.capability)) return exact;
+  // A fixed/available cumulative total is unavailable after a missing session.
+  // Its earlier valid total is not the latest total, even as a caption fallback.
+  if (!daily) return exact;
   const real = (rows: FlowObservation[]) => rows.length > 0 && rows.every(row => row.provider === "kiwoom" && row.environment === "real");
   const previous = aligned.points.filter(point => point.date <= date && point.value != null && real(point.observations)).at(-1);
   if (previous) return { ...previous, reason: `최신 가격일 ${date} 자료 미공표/미수집 · 최근 실제 관측값` };
@@ -171,7 +174,7 @@ export function htsFlowSummaryPoint(metric: FlowMetric, aligned: AlignedFlowMetr
 
 /** A hovered missing observation cannot inherit the provider's latest as-of. */
 export function htsFlowPointDetails(metric: FlowMetric, aligned: AlignedFlowMetric, point: AlignedFlowPoint | undefined, fetchedAt: string, stale: boolean): {
-  capability: FlowMetric["capability"]; status: string; asOf: string; fetchedAt: string; dateBasis: string; final: string;
+  capability: FlowMetric["capability"]; status: string; detailStatus: string; asOf: string; fetchedAt: string; dateBasis: string; final: string;
 } {
   const unavailable = aligned.capability !== "available" && aligned.capability !== "partial";
   const reason = unavailable
@@ -191,9 +194,17 @@ export function htsFlowPointDetails(metric: FlowMetric, aligned: AlignedFlowMetr
     available: "제공", partial: "일부 기간 제공", "not-configured": "설정 필요",
     "not-supported": "공급자 미지원", "not-applicable": "해당 없음", error: "요청 오류", unknown: "확인 중",
   };
+  const label = metric.health ? KIWOOM_HEALTH_LABELS[metric.health] : capabilityNames[aligned.capability];
+  const scheduled = metric.diagnostics?.collectionState;
+  const schedulingLabel = scheduled && scheduled !== metric.health ? KIWOOM_HEALTH_LABELS[scheduled] : "";
+  const compactReason = (unavailable ? reason : point?.reason || aligned.reason || metric.reason || "").split(" · ").filter(part =>
+    part && part !== label && !/공급자 기준일|공표시각|확정 여부|ETF\/ETN|시장$|요청 시작일까지 확보/.test(part),
+  ).slice(0, 2).join(" · ");
+  const shortReason = compactReason.length > 76 ? `${compactReason.slice(0, 75)}…` : compactReason;
   return {
     capability: aligned.capability,
-    status: [metric.health ? KIWOOM_HEALTH_LABELS[metric.health] : capabilityNames[aligned.capability], metric.health ? "" : metric.status ? FLOW_STATUS_LABELS[metric.status] : "", reason, (metric.stale ?? stale) ? "오래된 데이터" : "", `최종 관측 ${metric.providedTo ?? "미확인"}`, `확보 ${metric.providedFrom ?? "—"}~${metric.providedTo ?? "—"}`, `${acquisitionLabel} ${acquisition}`, `기준 ${dateBasis}`, final].filter(Boolean).join(" · "),
+    status: [label, shortReason, schedulingLabel, metric.observations.length && (metric.stale ?? stale) ? "저장 자료 갱신 대기" : ""].filter(Boolean).join(" · "),
+    detailStatus: [label, schedulingLabel, metric.health ? "" : metric.status ? FLOW_STATUS_LABELS[metric.status] : "", reason, (metric.stale ?? stale) ? "오래된 데이터" : "", `최종 관측 ${metric.providedTo ?? "미확인"}`, `확보 ${metric.providedFrom ?? "—"}~${metric.providedTo ?? "—"}`, `${acquisitionLabel} ${acquisition}`, `기준 ${dateBasis}`, final].filter(Boolean).join(" · "),
     asOf: point?.asOf || "미확인", fetchedAt: acquisition, dateBasis, final,
   };
 }

@@ -1,5 +1,6 @@
 import { isFlowDate, type FlowRequest } from "../lib/charts/hts-flow.ts";
 
+/** Read scope may include a listed stock's full history; collector backfill remains separately bounded. */
 export function validateFlowRequest(input: FlowRequest): FlowRequest {
   const code = input.code?.trim().toUpperCase();
   if (
@@ -24,7 +25,7 @@ export function validateFlowRequest(input: FlowRequest): FlowRequest {
     !isFlowDate(input.from) ||
     !isFlowDate(input.to) ||
     input.from > input.to ||
-    Date.parse(input.to) - Date.parse(input.from) > 20 * 366 * 86_400_000
+    Date.parse(input.to) - Date.parse(input.from) > 100 * 366 * 86_400_000
   )
     throw new Error("유효하지 않은 조회 기간");
   return { ...input, code };

@@ -1,11 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { UserButton } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { getKiwoomDiagnostics } from "@/lib/kiwoom-diagnostic-fns";
 import { KIWOOM_HEALTH_LABELS, KIWOOM_NEXT_STEPS } from "@/lib/charts/hts-flow";
+import { useSecuritySearch } from "@/lib/use-market";
 
 const DIAGNOSTIC_STATUS_LABELS = {
   ...KIWOOM_HEALTH_LABELS,
@@ -21,15 +24,30 @@ function collectorTime(value: string | null | undefined) {
   return `${new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", dateStyle: "short", timeStyle: "medium" }).format(new Date(value))} KST`;
 }
 
-export const Route = createFileRoute("/status/kiwoom")({ component: KiwoomStatus });
+export const Route = createFileRoute("/status/kiwoom")({
+  validateSearch: (search: Record<string, unknown>): { code?: string } => {
+    const code = typeof search.code === "string" ? search.code.trim().toUpperCase() : "";
+    return { code: /^[0-9A-Z]{6}$/.test(code) ? code : undefined };
+  },
+  component: KiwoomStatus,
+});
 function KiwoomStatus() {
   const { user } = useCurrentUserState();
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const code = search.code ?? "005930";
+  const [draftCode, setDraftCode] = useState(code);
+  useEffect(() => setDraftCode(code), [code]);
+  const normalizedCode = draftCode.trim().toUpperCase();
+  const codeValid = /^[0-9A-Z]{6}$/.test(normalizedCode);
+  const security = useSecuritySearch(code);
+  const namedSecurity = security.data?.pages.flatMap(page => page.hits).find(hit => hit.region === "KR" && hit.code === code && !hit.isEtf);
   const to = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Seoul" }).format(new Date());
   const query = useQuery({
-    queryKey: ["kiwoom-diagnostics", user?.isDevFallback ? null : user?.id, to],
-    queryFn: () =>
+    queryKey: ["kiwoom-diagnostics", user?.isDevFallback ? null : user?.id, code, to],
+    queryFn: ({ signal }) =>
       getKiwoomDiagnostics({
-        data: { code: "005930", from: `${Number(to.slice(0, 4)) - 1}-01-01`, to },
+        data: { code, from: `${Number(to.slice(0, 4)) - 1}-01-01`, to }, signal,
       }),
     retry: false,
     staleTime: 30000,
@@ -43,6 +61,18 @@ function KiwoomStatus() {
         lead="공개 시장자료 읽기 설정과 소유자 전용 운영 진단을 구분합니다. 저장 이력 점검은 소유자만 가능하며, 토큰 발급·수집·DB 마이그레이션은 실행하지 않습니다."
         aside={user && !user.isDevFallback ? <UserButton /> : undefined}
       />
+      <form className="flex flex-wrap items-end gap-3" onSubmit={event => {
+        event.preventDefault();
+        if (codeValid) void navigate({ search: { code: normalizedCode } });
+      }} data-testid="kiwoom-diagnostic-symbol-form">
+        <label className="grid gap-1 text-sm">
+          <span>점검할 국내 주식 종목코드</span>
+          <Input value={draftCode} onChange={event => setDraftCode(event.target.value)} maxLength={6} autoComplete="off" aria-describedby="kiwoom-diagnostic-symbol-help" aria-invalid={Boolean(draftCode) && !codeValid} data-testid="kiwoom-diagnostic-symbol" />
+        </label>
+        <Button type="submit" disabled={!codeValid} data-testid="kiwoom-diagnostic-symbol-apply">종목 적용</Button>
+        <p id="kiwoom-diagnostic-symbol-help" className="text-xs text-muted-foreground">KOSPI·KOSDAQ의 6자리 종목코드를 입력하세요. 입력만으로 종목이 바뀌지 않습니다.</p>
+      </form>
+      <p className="text-sm font-semibold" data-testid="kiwoom-diagnostic-active-symbol">점검 종목 · {namedSecurity?.nameKo ? `${namedSecurity.nameKo} (${code})` : code}</p>
       <div className="flex flex-wrap gap-2">
         <Button onClick={() => void query.refetch()} disabled={query.isFetching}>
           상태 새로고침

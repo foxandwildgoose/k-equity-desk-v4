@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { changedHtsPanelHeights, contiguousHtsLineRuns, htsFlowPointDetails, htsPaneIndices, htsVolumeAverage, periodEndDay, prepareHtsIndicatorHistory, pricePanePoint, profileRangeBars } from "./hts-layout.ts";
+import { changedHtsPanelHeights, contiguousHtsLineRuns, htsFlowPointDetails, htsFlowSummaryPoint, htsPaneIndices, htsVolumeAverage, periodEndDay, prepareHtsIndicatorHistory, pricePanePoint, profileRangeBars } from "./hts-layout.ts";
 import { defaultHtsSettings, parseHtsSettings } from "./hts-settings.ts";
 import { rsiWithSignal } from "../chart-indicators.ts";
-import type { AlignedFlowMetric, AlignedFlowPoint, FlowMetric } from "./hts-flow.ts";
+import { alignChartFlow, emptyChartFlow, type AlignedFlowMetric, type AlignedFlowPoint, type FlowMetric, type FlowObservation } from "./hts-flow.ts";
 
 test("stock/ETF shared pane plan keeps price second and volume last with extras", () => {
   assert.deepEqual(htsPaneIndices(), { rsi: 0, price: 1, credit: 2, foreign: 3, investmentTrust: 4, volume: 5 });
@@ -157,9 +157,11 @@ test("partial flow captions keep queue/owner status alongside missing-date reaso
       observations: [], providedFrom: null, providedTo: null };
     const aligned: AlignedFlowMetric = { capability: "partial", reason, points: [point] };
     const details = htsFlowPointDetails(metric, aligned, point, "", true);
-    assert.ok(details.status.includes(reason));
-    assert.ok(details.status.includes(point.reason));
-    assert.equal(details.status.split(reason).length - 1, 1, "aligned/provider reason is not repeated");
+    assert.ok(details.detailStatus.includes(reason));
+    assert.ok(details.detailStatus.includes(point.reason));
+    assert.equal(details.detailStatus.split(reason).length - 1, 1, "aligned/provider reason is not repeated");
+    assert.match(details.status, /키움 수집 예약됨/);
+    assert.match(details.status, /기준일 이후 누락/);
     assert.equal(details.asOf, "미확인");
     assert.equal(point.value, null);
   }
@@ -172,8 +174,9 @@ test("flow captions preserve actionable provider reasons and never borrow a futu
   const details = htsFlowPointDetails(metric, aligned, point, "2026-10-03T01:00:00Z", true);
   assert.match(details.status, /설정 필요 · KIS 인증 미설정/);
   assert.equal(details.capability, "not-configured", "raw capability remains available for structured details/exports");
-  assert.match(details.status, /오래된 데이터/);
-  assert.match(details.status, /조회 2026-10-03T01:00:00Z/);
+  assert.match(details.detailStatus, /오래된 데이터/);
+  assert.match(details.detailStatus, /조회 2026-10-03T01:00:00Z/);
+  assert.doesNotMatch(details.status, /조회|확보|확정 여부/);
   assert.equal(details.asOf, "미확인");
   assert.equal(details.dateBasis, "미확인");
   assert.equal(details.final, "확정 여부 미확인");
@@ -186,6 +189,77 @@ test("flow captions preserve actionable provider reasons and never borrow a futu
   assert.equal(available.fetchedAt, "2026-01-02T01:00:00Z");
   assert.equal(available.dateBasis, "결제일");
   assert.equal(available.final, "잠정");
+});
+
+test("short pane captions retain the actionable cause while complete metadata remains in details", () => {
+  const reason = "DB 연결 실패 · 운영자 확인 필요 · 공급자 기준일/공표시각/확정 여부 미확인";
+  const metric: FlowMetric = { capability: "error", health: "DATABASE_FAILED", reason, unit: "%", source: "키움증권", observations: [], providedFrom: null, providedTo: null };
+  const aligned: AlignedFlowMetric = { capability: "error", reason, points: [] };
+  const details = htsFlowPointDetails(metric, aligned, undefined, "2026-10-10T00:00:00Z", true);
+  assert.match(details.status, /키움 DB 연결\/조회 실패 · DB 연결 실패/);
+  assert.ok(details.status.length < 110);
+  assert.doesNotMatch(details.status, /공표시각|T00:00|오래된 데이터/);
+  assert.ok(details.detailStatus.includes(reason));
+  assert.match(details.detailStatus, /조회 2026-10-10T00:00:00Z/);
+});
+
+test("queued collection never replaces the last provider failure in pane captions", () => {
+  const reason = "안전한 API 조회 실패 · 재수집 대기";
+  const metric: FlowMetric = { capability: "error", health: "API_FAILED", reason, unit: "%", source: "키움증권", observations: [], providedFrom: null, providedTo: null,
+    diagnostics: { apiId: "ka10008", pages: 0, rows: 0, validValues: 0, invalidRows: 0, stopReason: "api-failed", missingDates: null, calendarBasis: "미확인", stored: false, errorCode: null, environment: "real", mode: "collector", marketScope: "KRX", collectionState: "COLLECTION_QUEUED" } };
+  const details = htsFlowPointDetails(metric, { capability: "error", reason, points: [] }, undefined, "", true);
+  assert.match(details.status, /^키움 API 조회 실패/);
+  assert.match(details.status, /키움 수집 예약됨/);
+  assert.match(details.detailStatus, /키움 API 조회 실패 · 키움 수집 예약됨/);
+  assert.ok(details.detailStatus.includes(reason));
+});
+
+function summaryFixture(values: Array<[string, number]>) {
+  const request = { code: "018260", market: "KR", instrument: "stock", exchange: "KRX", currency: "KRW", quantityUnit: "주", from: "2026-09-01", to: "2026-09-07", interval: "day" } as const;
+  const response = emptyChartFlow(request);
+  const observations: FlowObservation[] = values.map(([date, value]) => ({ date, value, unit: "주", source: "isolated test fixture", sourceField: "invtrt", asOf: date, dateBasis: "trade-date", fetchedAt: "2026-09-08T00:00:00Z", availableAt: null, final: null, derived: false, provider: "kiwoom", environment: "real" }));
+  response.investmentTrust = { ...response.investmentTrust, capability: "partial", health: "PARTIAL", observations };
+  return response;
+}
+
+test("fixed cumulative latest caption remains unconfirmed after a middle gap instead of reusing an earlier total", () => {
+  const response = summaryFixture([["2026-09-01", 1_100_000], ["2026-09-02", -50_000], ["2026-09-04", 120_000]]);
+  const dates = ["2026-09-01", "2026-09-02", "2026-09-03", "2026-09-04"];
+  const aligned = alignChartFlow(response, { dates, expectedDailyDates: dates, interval: "day", cumulativeStart: dates[0]!, investmentTrustMode: "cumulative" }).investmentTrust;
+  assert.deepEqual(aligned.points.map(point => point.value), [1_100_000, 1_050_000, null, null]);
+  const latest = htsFlowSummaryPoint(response.investmentTrust, aligned, dates.at(-1)!, false, false);
+  assert.equal(latest, aligned.points.at(-1));
+  assert.equal(latest?.value, null);
+  assert.match(latest?.reason ?? "", /누적순매수 미확정/);
+  assert.equal(htsFlowSummaryPoint(response.investmentTrust, aligned, "2026-09-07", false, false), undefined, "an absent latest date cannot borrow a past cumulative total either");
+});
+
+test("available cumulative latest caption remains null when the latest continuous segment ends before the price date", () => {
+  const response = summaryFixture([["2026-09-01", 1_100_000], ["2026-09-02", -50_000], ["2026-09-04", 0]]);
+  const dates = ["2026-09-01", "2026-09-02", "2026-09-03", "2026-09-04", "2026-09-07"];
+  const aligned = alignChartFlow(response, { dates, expectedDailyDates: dates, interval: "day", cumulativeStart: dates[0]!, investmentTrustMode: "available-cumulative" }).investmentTrust;
+  assert.equal(aligned.points.at(-2)?.value, 0, "genuine zero on the available segment remains valid");
+  const latest = htsFlowSummaryPoint(response.investmentTrust, aligned, dates.at(-1)!, false, false);
+  assert.equal(latest, aligned.points.at(-1));
+  assert.equal(latest?.value, null);
+  assert.match(latest?.reason ?? "", /누적순매수 미확정/);
+});
+
+test("daily summaries retain a clearly dated real observation but never bypass hover, replay, or mock restrictions", () => {
+  const response = summaryFixture([["2026-09-01", 120_000], ["2026-09-02", -85_000]]);
+  const dates = ["2026-09-01", "2026-09-02", "2026-09-03"];
+  const aligned = alignChartFlow(response, { dates, expectedDailyDates: dates, interval: "day", cumulativeStart: dates[0]!, investmentTrustMode: "daily" }).investmentTrust;
+  const previous = htsFlowSummaryPoint(response.investmentTrust, aligned, dates.at(-1)!, false, true);
+  assert.equal(previous?.date, "2026-09-02");
+  assert.equal(previous?.value, -85_000);
+  assert.match(previous?.reason ?? "", /최신 가격일 2026-09-03.*최근 실제 관측값/);
+  assert.equal(htsFlowSummaryPoint(response.investmentTrust, aligned, dates.at(-1)!, true, true)?.value, null);
+  const replay = alignChartFlow(response, { dates, expectedDailyDates: dates, interval: "day", cumulativeStart: dates[0]!, investmentTrustMode: "daily", replayAt: "2026-09-03T06:30:00Z" }).investmentTrust;
+  assert.equal(replay.capability, "unknown");
+  assert.equal(htsFlowSummaryPoint(response.investmentTrust, replay, dates.at(-1)!, false, true)?.value, null);
+  const mock = { ...response.investmentTrust, observations: response.investmentTrust.observations.map(row => ({ ...row, environment: "mock" as const })) };
+  const mockAligned = alignChartFlow({ ...response, investmentTrust: mock }, { dates, expectedDailyDates: dates, interval: "day", cumulativeStart: dates[0]!, investmentTrustMode: "daily" }).investmentTrust;
+  assert.equal(htsFlowSummaryPoint(mock, mockAligned, dates.at(-1)!, false, true)?.value, null);
 });
 
 test("native line segments split missing observations without turning genuine zero or negative quantities into gaps", () => {

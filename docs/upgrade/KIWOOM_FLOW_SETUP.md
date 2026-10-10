@@ -1,10 +1,10 @@
 # 키움 실데이터 수집·웹 연결 설정
 
-확인일: 2026-10-05 (한국시간). 자동 수집 개선의 시작 remote main: 8f570097d03c277a6f3fcd0b5c5015953dc75d6d.
+갱신일: 2026-10-10. 이번 수정 기준 main: `94405aa74ef36ce94cc329f4d0201f21528074b6`. 2026-10-05 운영자 실수신 확인 기록은 아래에 보존합니다.
 
 운영자가 검증한 경로는 **고정 출발 IP Windows 수집기 → 키움 실전 REST → 공유 Neon PostgreSQL → Vercel collector 웹앱 → 기존 세 차트 패널**입니다. OAuth·API 수신·영속 저장·별도 프로세스 재조회와 005930 화면은 운영자 검증으로 완료되었습니다. Codex가 실전 broker 호출을 직접 실행했다는 의미는 아닙니다. [출처가 표시된 실수신 기록](../../artifacts/kiwoom-production-live/verification-2026-10-05.json)과 [검증 보고서](KIWOOM_FLOW_VERIFICATION.md)를 참고하세요.
 
-이번 변경을 반영한 배포와 Windows 작업 설치는 아직 재확인하지 않았으므로 **DEPLOYMENT_RECHECK_REQUIRED**입니다. 수동 실행으로 확인된 API 경로를 유지하고, 멈춘 수집기 대신 대기열을 계속 소비할 Windows 작업을 추가합니다. 과거 sandbox의 DISABLED/DATABASE_MISSING 결과는 [historical notice](../../artifacts/kiwoom-current-main/README.md)에 분리했으며 현재 운영 시스템의 실패로 사용하지 않습니다.
+운영자는 기존 PC가 켜질 때 PowerShell 수집기가 자동 실행된다고 확인했습니다. 재설치보다 **기존 PC 코드 갱신과 실행 중인 수집기 재시작**이 우선입니다. 자동 실행 자체와 각 종목의 대기열 처리·실저장 성공은 별개이므로 이번 변경 반영 후 **DEPLOYMENT_RECHECK_REQUIRED**입니다. 과거 sandbox의 DISABLED/DATABASE_MISSING 결과는 [historical notice](../../artifacts/kiwoom-current-main/README.md)에 분리했으며 현재 운영 시스템의 실패로 사용하지 않습니다.
 
 ## 운영자가 검증한 구성
 
@@ -79,7 +79,7 @@ try {
 
 migration 명령에는 비밀 내용을 넣지 않습니다. 파일 검증·로그·진단은 원문을 출력하지 않습니다. 위 주입은 초기 migration을 위한 현재 세션에서만 사용하며 **설치 후 매일 반복할 절차가 아닙니다**. 이후 예약 작업이 파일을 직접 읽습니다.
 
-0004가 아직 적용되지 않아 heartbeat를 읽을 수 없으면 상태는 UNKNOWN입니다. 이 경우 이전 네 테이블의 검증된 자료를 무효화하거나 collector 웹을 broker 직접 호출로 전환하지 않습니다. 자동 worker를 운영하기 전에 0004 적용과 owner-only 상태 조회를 확인하세요.
+0004가 아직 적용되지 않아 heartbeat를 읽을 수 없으면 상태는 UNKNOWN입니다. 이 경우 이전 네 테이블의 검증된 자료를 무효화하거나 collector 웹을 broker 직접 호출로 전환하지 않습니다. 0004가 없으면 worker는 안전한 경고 후 기존 네 테이블의 수집을 계속하고 heartbeat는 UNKNOWN으로 남깁니다. 0004는 상태 관측용이며 이번 수정에 새 migration은 없습니다. 이미 적용했다면 반복 적용할 필요가 없습니다.
 
 ### 3. 자동 작업 설치 및 즉시 시작
 
@@ -109,7 +109,7 @@ Task Scheduler는 IgnoreNew로 두 번째 인스턴스를 막고, Windows global
 
 worker 시작 시 **doctor/IP → 실제 OAuth/005930 세 API 각 1페이지 → 명시 종목 수집 → 별도 프로세스 저장 재조회**를 한 번 수행합니다. 이후에는 **bounded kiwoom:targets → heartbeat → 300초 대기 → 반복**합니다. 비싼 005930 검증을 5분마다 다시 실행하지 않습니다. 기본 명시 종목은 stock:005930입니다. 반복 poll은 60~600초를 허용하며 기본값은 300초입니다. 수집 범위와 partial·재시도·전역 제한을 유지하고 새 주기로 이력을 0으로 채우지 않습니다.
 
-사용자가 국내주식 차트를 열면 웹이 부족하거나 오래된 종목을 DB에 예약합니다. 가동 중인 worker는 현재 주기가 끝난 뒤 다음 poll에서 예약을 찾습니다. **유휴·정상 네트워크·due 대상이면 대기 발견은 최대 약 5분**입니다. 이미 처리 중인 종목, 10개 단위 대기열, 재시도/backoff와 공급자 응답에 따라 완료는 더 걸립니다. 차트의 현재 5분 주기 재조회도 별도입니다. “5분 안에 모든 수집·화면 표시 완료”를 보장하지 않습니다. Vercel은 계속 collector 모드이며 broker 자격증명이 필요하지 않습니다.
+사용자가 국내주식 차트를 열면 웹이 부족하거나 오래된 종목을 DB에 예약합니다. 가동 중인 worker는 현재 주기가 끝난 뒤 다음 poll에서 예약을 찾습니다. **유휴·정상 네트워크·due 대상이면 대기 발견은 최대 약 5분**입니다. 이미 처리 중인 종목, 10개 단위 대기열, 재시도/backoff와 공급자 응답에 따라 완료는 더 걸립니다. collector 차트는 예약/수집 대기 중 처음 2분은 15초, 이후 60초마다 저장 자료를 재조회합니다. direct·완료·인증/IP/DB 오류는 기본 5분 정책을 유지합니다. 수집기를 직접 호출하는 브라우저 명령이 아닙니다. “5분 안에 모든 수집·화면 표시 완료”를 보장하지 않습니다. Vercel은 계속 collector 모드이며 broker 자격증명이 필요하지 않습니다.
 
 새로 예약된 패널은 “키움 수집 예약됨 · 고정 IP 수집기 대기”를 표시합니다. 이는 대기열 등록 상태이며 수집기가 가동 중이라는 확인은 아닙니다. 누락값은 0으로 바꾸지 않습니다. 이전 유효 값은 기존 기준일·stale 상태와 함께 보존합니다.
 
@@ -179,7 +179,7 @@ PowerShell 7은 실행 프로그램을 pwsh.exe로 바꿀 수 있습니다. 여�
 
 ## 동적 예약·기존 scope 보존
 
-collector 웹은 검증된 국내 stock/ETF/ETN의 부족하거나 오래된 이력을 DB에 예약하고 반환합니다. broker를 호출하지 않습니다. 한 scope 모든 상태 합계 최대 100개, 범위 최대 1,830일·현재 한국 날짜, 한 실행 최대 10개, 순차 처리입니다. 정상 완료 후 최소 1시간, partial 후 15분, 반복 실패 후 1일 간격을 유지합니다. 익명 요청은 다음 실행 시각을 앞당기지 못하며 범위 확대·크래시·예산 종료도 재개 대상으로 기록합니다. 임의 URL/API ID/자격증명을 받지 않습니다.
+collector 웹은 검증된 국내 stock/ETF/ETN의 부족하거나 오래된 이력을 DB에 예약하고 반환합니다. broker를 호출하지 않습니다. 한 scope의 미완료 수집은 기본 최대 100개, 등록된 전체 구독은 기본 최대 6000개입니다. 완료·실패 대상은 미완료 상한을 차지하지 않습니다. 범위 최대 1,830일·현재 한국 날짜, 한 실행 최대 10개, 순차 처리는 유지합니다. 정상 완료 후 최소 1시간, partial 후 15분, 반복 실패 후 1일 간격을 유지합니다. 익명 요청은 다음 실행 시각을 앞당기지 못하며 범위 확대·크래시·예산 종료도 재개 대상으로 기록합니다. 임의 URL/API ID/자격증명을 받지 않습니다.
 
 공개 예약이 필요 없으면 KIWOOM_TARGET_AUTH_REQUIRED=true를 사용합니다. 저장 자료 읽기와 별개이며 새 예약에는 실제 owner 또는 운영자의 명시 종목 설정이 필요합니다. scope/environment/code/instrument/market_scope를 분리합니다.
 
@@ -191,7 +191,7 @@ collector 웹은 검증된 국내 stock/ETF/ETN의 부족하거나 오래된 이
 
 저장된 명시적 daily/cumulative/available-cumulative는 덮어쓰지 않습니다. 고정 기준일이 제공 이력보다 앞선 cumulative는 계속 null이므로 필요하면 사용자가 “가용한 연속 구간부터 누적”을 선택해야 합니다. 확대/축소가 고정 기준일을 바꾸지 않습니다. invtrt의 0·음수는 유효하며 누락일을 0으로 채우거나 누락을 넘어 확정 누적하지 않습니다. 이는 순매수 수량의 합계이며 보유잔고가 아닙니다. 원래 점/날짜, 일/주/월 집계·coverage 제한을 유지합니다.
 
-hover는 정확한 날짜만 사용합니다. 최신 가격일에 관측이 없으면 실제 마지막 실전 관측값·그 기준일을 요약에 표시하고 최신 자료 미확인 상태를 붙입니다. 모의 값 대체·빈 날짜 채우기를 하지 않습니다. 검증된 route 유형을 유지하며 모호한 입력은 bounded retry 후 PRODUCT_TYPE_UNKNOWN으로 표시합니다.
+hover는 정확한 날짜만 사용합니다. 비누적 지표의 최신 가격일에 관측이 없으면 실제 마지막 관측값·그 기준일을 요약에 표시하고 최신 자료 미확인 상태를 붙입니다. 고정/가용 누적의 최신 값이 결측이면 이전 정상 누적값으로 덮지 않고 미확인 상태를 유지합니다. 모의 값 대체·빈 날짜 채우기를 하지 않습니다. 검증된 route 유형을 유지하며 모호한 입력은 bounded retry 후 PRODUCT_TYPE_UNKNOWN으로 표시합니다.
 
 ## 소스 빌드·배포 재확인
 
@@ -204,3 +204,39 @@ hover는 정확한 날짜만 사용합니다. 최신 가격일에 관측이 없�
 신용은 ka10013.crd_trde_trend[].remn_rt (%), 외국인은 ka10008.stk_frgnr[].wght (%), 투신은 ka10059.stk_invsr_orgn[].invtrt (부호 있는 단주; amt_qty_tp=2, trde_tp=0, unit_tp=1)입니다. 연속조회·날짜 최소/최대·중복 커서 보호·KST token 만료를 유지합니다. ka10015는 diagnostic cross-check 전용이며 생산 값을 대체하지 않습니다. 확인되지 않은 공표일/매매일을 추정하지 않습니다.
 
 공식 참조: [키움 REST 가이드](https://openapi.kiwoom.com/guide/apiguide), [서비스 안내](https://openapi.kiwoom.com/intro/serviceInfo), [공식 예제 저장소](https://github.com/Kiwoom-Securities/Kiwoom-REST-API). 이번 작업은 이미 실수신 검증된 매핑을 변경하지 않습니다. 개별 상품·장기 이력·HTS 표 대조는 005930 검증만으로 보장하지 않습니다.
+
+
+## 이미 PC 자동 수집·Neon·Vercel을 사용하는 경우 (2026-10-10 갱신)
+
+새 Node 설치, 새 Neon DB 생성, 키 재발급은 필요하지 않습니다. 기존 비밀 파일·공유 DB·등록 IP·`collector` 웹 설정을 그대로 사용합니다. 새 migration도 없습니다. 아래 절차는 이미 등록한 작업 이름이 `KEquityDesk-KiwoomCollector`인 경우입니다. 다른 이름/시작 프로그램을 사용한다면 해당 기존 작업/PowerShell 프로세스만 중지·재시작합니다. 관련 없는 작업을 바꾸지 않습니다.
+
+1. 기존 PC의 PowerShell에서 **기존 저장소 폴더**로 이동합니다. `git status --short`가 비어 있는지, 브랜치가 `main`인지 확인합니다. 변경 파일이 있으면 덮어쓰거나 reset하지 말고 먼저 보존합니다.
+2. 기존 수집 작업을 중지한 뒤 최신 main을 받습니다. `git pull`이 충돌/브랜치 오류로 실패하면 이후 실행을 중지합니다. 이번 변경은 의존성을 추가하지 않아 정상 설치된 Node/npm을 다시 설치할 필요가 없습니다.
+
+~~~powershell
+Set-Location -LiteralPath '<EXISTING_REPOSITORY_DIRECTORY>'
+git status --short
+git branch --show-current
+Stop-ScheduledTask -TaskName 'KEquityDesk-KiwoomCollector'
+git pull --ff-only origin main
+if ($LASTEXITCODE -ne 0) { throw 'Code update failed; preserve local changes.' }
+Start-ScheduledTask -TaskName 'KEquityDesk-KiwoomCollector'
+.\scripts\Get-KiwoomCollectorStatus.ps1
+~~~
+
+3. Vercel GitHub 연동의 **최신 수정 커밋** 배포가 Production/Ready인지 확인합니다. 기존 실패/옛 커밋의 Redeploy로 최신 소스가 적용되었다고 판단하지 않습니다. Vercel은 `KIWOOM_FLOW_MODE=collector`, 기존 공유 `DATABASE_URL`과 같은 `KIWOOM_DATA_SCOPE_ID`를 유지합니다. 일반 Hobby 서버에서 키움 직접 호출을 켜지 않습니다.
+4. 국내 개별주 페이지를 엽니다. 모든 코스피·코스닥 종목은 같은 경로를 사용하며 샘플 코드의 전용 처리가 없습니다. 처음 조회하거나 더 긴 기간이 필요한 종목은 검증된 상품 유형으로 예약됩니다. PC 수집기가 대기열을 처리하면 열린 차트도 자동 재조회합니다. **수급 자료 새로고침**은 저장 자료를 즉시 다시 읽습니다.
+5. `해당 종목 코드 수급 상태 확인`은 `/status/kiwoom?code=<SIX_CHARACTER_CODE>`로 이동합니다. 소유자 운영 진단은 기존 실제 인증을 유지합니다. 공개 차트의 조회 권한과 소유자 heartbeat 조회 권한을 혼동하지 않습니다. 수집기 프로세스 Running만으로 데이터 저장 성공이라고 판단하지 않습니다.
+
+기존 자동 실행이 한 번의 `sync:kiwoom-flow --code ...`만 실행한다면 웹의 다른 종목 대기열을 소비하지 못합니다. 그 경우 위 설치 절차의 **기존 `Run-KiwoomCollector.ps1` 래퍼**를 실행 대상으로 사용해야 합니다. 래퍼는 기본 300초 반복이며 명시적인 `-RepeatEverySeconds 0`만 일회 실행입니다. 파일 경로·IP는 기존 로컬 비공개 설정을 재사용합니다. 정상적인 종료는 기존 작업 중지 또는 해당 PowerShell에서 Ctrl+C이며 자식 환경 비밀값은 종료 시 제거합니다.
+
+### 모든 종목과 재개 상태의 의미
+
+- 새 미완료 수집은 최대 100개, 완료·실패 포함 등록 구독은 최대 6000개입니다. 완료된 100종목이 이후 코스피·코스닥 종목을 영구 차단하지 않습니다. 상한 도달은 `TARGET_LIMIT_REACHED`이며 `NO_HISTORY`와 구분합니다. 상한이 풀리면 열린 차트가 60초 간격으로 재예약을 시도합니다.
+- 신규 공개 예약은 고정 URL의 한국 종목 메타데이터로 코드/상품 유형을 확인합니다. 이 메타데이터는 지표값을 제공하거나 키움 실패를 대체하지 않습니다. 유형 확인이 실패해도 이미 저장된 키움 자료는 계속 읽습니다. 브라우저가 arbitrary 코드로 무제한 개인 API 사용을 만들 수 없습니다.
+- 수집기 전체는 기존 전역 2회/초 제한과 한 번 최대 10종목을 유지합니다. 종목이 많거나 긴 최초 이력은 순차로 확보되며 모든 상장사의 데이터를 즉시 내려받는다는 의미가 아닙니다.
+- 수집 대상의 종료일은 KST 현재일로 갱신합니다. 최근 완료된 전체 백필을 확인한 뒤 14일 겹침 증분으로 정정을 반영합니다. 더 이른 시작일 요청과 미완료 커서는 전체 백필/동일 조건 재개가 우선입니다.
+- CLI 종료 `0`은 해당 범위 완료, `2`는 부분 수집·종목별 일시 오류·재개 필요, `1`은 설정/인증/IP/DB/lease 등의 중단입니다. 지속 worker는 `2`여도 다른 대상 처리를 계속합니다. 잘못된 키나 IP에 대한 인증 반복을 허용하지 않습니다. 선택적 heartbeat 스키마 미적용의 `3`은 상태 관측 불가이며 broker 성공을 뜻하지 않습니다.
+- 차트 읽기는 최장 100년의 원래 가격 범위를 허용하여 월/연봉 `max` 요청이 20년 제한으로 전체 실패하지 않게 합니다. 자동 대상 수집은 여전히 최근 1830일로 제한됩니다. 그 이전 이력·공급자 제공 끝·결측은 부분 확보로 표시하며 고정 투신 누적 기준일을 자동 변경하거나 결측을 0으로 채우지 않습니다.
+
+이번 수정의 원인·자동검사·운영 재검증 구분은 [복구 보고서](KIWOOM_FLOW_RECOVERY_2026-10-10.md)에 기록합니다.

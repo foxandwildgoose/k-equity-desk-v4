@@ -1,6 +1,6 @@
 # 키움 실전 경로·코드 변경 검증 기록
 
-기록일: 2026-10-05 (한국시간). 이번 자동 수집 개선의 시작 remote main: 8f570097d03c277a6f3fcd0b5c5015953dc75d6d. 아래 3~6절은 이전 hardening 변경의 시작 c563c646fcaa849ca6a7edb106815a0e24287427과 최종 8f570097 기준 기록입니다. 이번 자동화 변경은 7절에 분리합니다.
+최신 갱신: **2026-10-10**, 전체 국내 종목 수집 복구 기록은 **8절**입니다. 아래 1~7절은 기존 검증 이력이며 2026-10-05의 운영자 실수신 증거를 보존합니다. 과거 자동 수집 개선의 시작 remote main은 8f570097d03c277a6f3fcd0b5c5015953dc75d6d, 3~6절의 hardening 기준은 c563c646fcaa849ca6a7edb106815a0e24287427~8f570097입니다.
 
 **실전 경로는 운영자가 확인했습니다.** 이 기록은 운영자가 제공한 production logs/browser 검증과 Codex의 코드·로컬 검증을 구분합니다. Codex가 직접 live broker 호출을 실행했다고 주장하지 않습니다. 이번 변경을 반영한 배포와 Windows 자동 작업 설치는 **DEPLOYMENT_RECHECK_REQUIRED**, 최종 운영 상태는 **CODE_UPDATED_PRODUCTION_RECHECK_REQUIRED**입니다. 과거 674개 PASS는 이번 자동화 수정의 재실행 결과가 아닙니다.
 
@@ -204,3 +204,77 @@ node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/qa
 캡처·판정: `/workspace/screenshots/kiwoom-collector-automation/verdict.json`, `collector-running-desktop.png`, `collector-offline-mobile.png`, `collector-public-mobile.png`, `queue-public-desktop.png`, `queue-owner-mobile.png`. 모든 캡처에 QA SYNTHETIC 표기가 있습니다. 실제 키움/운영 DB/IP 요청은 0이며 소유자 fixture는 실제 authorization guard를 통과하는 합성 identity입니다. 실제 Better Auth 소유자 로그인 검증, Windows 로그인/재부팅, 새 Neon heartbeat 및 운영 Vercel 확인을 대신하지 않습니다. 위 5~6절의 이전 검사·캡처는 역사적 기록으로 보존합니다.
 
 현재 자동 작업 실설치·고정 IP 연속 가동·Neon heartbeat 실저장·이번 Vercel revision 화면은 **검증 대기**입니다. 이전 세 API의 실수신 경로는 계속 **REAL_DATA_VERIFIED — operator-verified**입니다. 이번 최종 운영 상태는 **CODE_UPDATED_PRODUCTION_RECHECK_REQUIRED**입니다.
+
+## 8. 모든 국내 종목 수집·복구 — 2026-10-10
+
+이번 시작 main은 `94405aa74ef36ce94cc329f4d0201f21528074b6`입니다. 사용자는 기존 PC의 PowerShell 수집기가 PC를 켤 때 자동 실행된다고 확인했습니다. 기존 PC·Neon·Vercel을 재사용하며 새 Node 설치, 키 재발급, 새 DB나 운영 migration을 실행하지 않았습니다. 자세한 원인/해결/변경 파일은 [전체 종목 복구 보고서](KIWOOM_FLOW_RECOVERY_2026-10-10.md), PC 코드 갱신·기존 작업 재시작은 [설정 문서](KIWOOM_FLOW_SETUP.md)에 기록했습니다.
+
+### 설정·공식 API·운영 접근의 실제 확인 범위
+
+`npm run verify:kiwoom -- --check-config`는 PASS입니다. 현재 프로세스의 `appKeyConfigured=false`, `appSecretConfigured=false`, `databaseConfigured=false`, `flowEnabled=false`, `mode=collector`를 확인했습니다. 상태는 `CREDENTIALS_NOT_CONFIGURED`/`DISABLED`/`DATABASE_MISSING`입니다. 이 명령은 DB·IP·broker 요청을 하지 않습니다. 사용자가 키를 받지 않았다는 의미나 기존 PC/Vercel 설정 검사 결과가 아닙니다. collector 웹의 token/egress는 `NOT_REQUIRED`; 실호출 IP는 `NOT_CHECKED`입니다.
+
+공식 Kiwoom-Securities/Kiwoom-REST-API `953e5dbff123f437ab4d11a78a95191a685eb51f`의 JSON 명세와 인증 예제를 대조했습니다. `ka10013/remn_rt`, `ka10008/wght/poss_stkcnt`, `ka10059/invtrt`, `secretkey` OAuth 필드를 유지했습니다. 주문·계좌·키 변경·등록 IP 변경은 실행하지 않았습니다.
+
+실제 `https://k-equity-desk-v4.vercel.app/` 읽기 접근은 환경 프록시에서 `CONNECT tunnel failed, response 403`, HTTP `000`으로 차단됐습니다. Vercel 앱이 반환한 403이라고 해석하지 않습니다. 이번 Vercel 배포 상태/운영 로그/PC의 작업 인수/새 Neon 저장 상태는 확인하지 못했습니다. Neon의 필수 네 테이블 준비는 위 2026-10-05 운영자 기록이며 이번 실행에서 다시 조회하지 않았습니다.
+
+### 최종 자동 검사
+
+| 실제 명령 | 결과 |
+| --- | --- |
+| `npm run typecheck` | PASS |
+| `npm test` | PASS — script 257 + TypeScript 758 = **1015**, 실패/skip 0 |
+| `npm run test:kiwoom` | PASS — **105**, 실패/skip 0; 위 전체 suite와 중복 포함 |
+| `npm run lint` | PASS — 오류 0, 기존 경고 57 |
+| `npm run build` | PASS — 최신 Linux production bundle, DB migration 없음 |
+| `npm run check:deploy` | PASS — issues=[] |
+| `npm run check:auth` | PASS — dev/build sign-in 설정 일치; production 로그인 검증을 뜻하지 않음 |
+| `npm run verify:kiwoom -- --check-config` | PASS — 설정 진단만, 실수신 미검사 |
+| `git diff --check` | PASS |
+| 비밀 파일 세 패턴과 `.vercel/output/` 추적 점검 | 추적 0, 세 패턴 ignore 동작 확인 |
+
+스크립트 검사에는 worker/session/scheduler/CLI/heartbeat/증분 회귀 48개가 포함됩니다. 그 중 PowerShell 분기는 실제 Linux PowerShell 7.4.14에서 실행했고 나머지는 Node 테스트입니다. mocked npm.cmd·작업 스케줄러·격리 DB만 사용합니다. Windows 부팅/로그온 작업을 실제로 등록하거나 PC 수집 성공을 새로 확인한 결과가 아닙니다.
+
+핵심 회귀는 완료 100개 이후 새 종목, 미완료 상한, 범위 확장·backoff·KST 날짜 전진, 전체 완료 백필과 좁은 증분·제공 끝 보존, 부분 종료 후 지속 queue, 선택 heartbeat UNKNOWN, 0·음수·정정/null upsert, 페이지 순서/continuation, 공개 DB 읽기와 소유자/direct 권한, API 오류와 예약 상태 분리, 새 코드/상품·시장·환경·scope 분리, 장기 월봉 요청, 실제 누적 결측을 포함합니다. 신규 공통 서비스 fixture는 9개이며 기존 parser/client/store로 018260 및 비편입 KOSDAQ 종목 131970을 검증합니다. 메모리 PGlite fixture는 영속 Neon 검증이 아닙니다.
+
+### 브라우저 검사 방법과 최초 실패 처리
+
+새 `npm run qa:kiwoom-recovery`는 합성 공식 API 응답 → 실제 adapter/parser → 격리된 공유 PGlite 저장 → collector 서버 응답 → 실제 React Query polling → 실제 chart canvas를 검사합니다. source와 캡처에 **QA SYNTHETIC/실데이터 아님**을 표시합니다. 웹 fixture에는 Kiwoom 키가 없고 operationalDatabaseTouched=false, brokerNetworkCalls=0입니다. exact allowlist의 기존 font CSS/extension JS만 정적 fixture로 처리하며 예상하지 않은 broker/운영 RPC/외부 API는 차단·검사합니다.
+
+최초 production 네 조합에서는 자동 복구·signed daily·PNG 세 검사가 각각 통과했으나 **누적 결측을 이전 정상 caption으로 대체하는 실제 앱 결함**으로 실패했습니다. assertion을 완화하지 않고 공통 `htsFlowSummaryPoint`를 수정하여 고정/가용 누적의 정확한 최신 null을 유지했습니다. regression 3개를 추가하고 전체 검사·production build를 다시 실행했습니다. 최초 실패 증거는 `/workspace/screenshots/kiwoom-recovery/final-production/verification.json`에 보존했습니다.
+
+추가 QA에서 코스닥 가격 상장시장 `KOSDAQ`와 수급의 명시 `KRX` descriptor를 같다고 가정한 하니스 오류를 발견했습니다. 기존 `useChartSecurity`의 validated stock 선언과 Kiwoom KRX 시장 계약을 확인한 뒤, descriptor/flowScope=KRX, 실제 가격 RPC=KOSDAQ, 실제 metadata RPC 및 별도 target=131970을 각각 검사하도록 바로잡았습니다. 앱 시장 경로와 격리 assertion은 변경하지 않았습니다.
+
+후속 canvas 검사에서는 합성 과거 비중 45~48%와 최신 비중 15.6%의 급격한 차이로 정상 곡선 대부분이 검사 ROI 밖에 놓였습니다. 전체 plot에는 105개 곡선 pixel이 존재했으며 2 frame/3초 대기 후에도 ROI 0으로 남아 렌더링 지연과 구분했습니다. 최종 fixture는 각 종목 자체 비중 주변의 결정적 변동을 사용하되 최신값·부호·0·결측과 기존 ROI/8 pixel 초과 assertion을 그대로 유지합니다. 이 하니스 교정으로 실제 앱 값을 바꾸거나 판정 기준을 완화하지 않았습니다.
+
+### 최종 브라우저 결과
+
+~~~sh
+npm run qa:kiwoom-recovery -- --base http://127.0.0.1:8081 --server-entry /workspace/.onboarding/builds/k-equity-desk-v4/functions/__server.func/index.mjs --out /workspace/screenshots/kiwoom-recovery/final-production-complete
+npm run qa:kiwoom-recovery -- --base http://127.0.0.1:8080 --theme light --viewport desktop --out /workspace/screenshots/kiwoom-recovery/dev-desktop-complete
+npm run qa:kiwoom-recovery -- --base http://127.0.0.1:8080 --theme dark --viewport mobile --out /workspace/screenshots/kiwoom-recovery/dev-mobile-complete
+~~~
+
+| 실행 | 성공 |
+| --- | --- |
+| production Light desktop 1440×900 DPR 1 | 6/6 |
+| production Light mobile 390×844 DPR 2 | 6/6 |
+| production Dark desktop 1440×900 DPR 1 | 6/6 |
+| production Dark mobile 390×844 DPR 2 | 6/6 |
+| dev Light desktop / Dark mobile | 12/12 합계 |
+
+production 합계 **24/24 PASS**, dev **12/12 PASS**, 모든 명령 exit 0입니다. 각 production 조합에서 실제 브라우저 오류/예상하지 않은 RPC/웹 broker client 생성/IP 조회/실제 broker 요청은 모두 0입니다. 새로운 앱 production build와 dev 모두에서 각 종목의 빈 예약 상태(곡선 0) → 별도 코드의 fixture DB 저장 → 페이지 재로드 없이 약 15초 polling → 세 실제 곡선과 해당 종목 값 표시를 확인했습니다. KOSDAQ은 기존 seed 목록의 삼성전자 전용 처리가 아닙니다.
+
+각 여섯 검사는 018260 자동 복구, daily 0·음수, 실제 PNG의 세 caption, fixed 결측 null/available 실제 시작일, SPA로 비편입 KOSDAQ 131970 전환과 독립 예약·값, 명시 재조회 및 환경/시장/data scope 격리입니다. 원본 캡처 68개와 JSON을 `/workspace/screenshots/kiwoom-recovery/final-production-complete/`에 보존했습니다. Light/Dark desktop/mobile의 실제 세 native canvas와 PNG 출력도 눈으로 확인했습니다. 모바일 screenshot에는 날짜가 명시된 crosshair 값이 포함될 수 있습니다.
+
+GitHub에 포함한 [비밀값 없는 요약과 원본 pane 캡처](../../artifacts/kiwoom-recovery-2026-10-10/README.md)는 합성 데이터임을 명시합니다. 실제 운영 정보로 대체한 배포 artifact나 raw 키움 응답을 넣지 않았습니다.
+
+### 이번 수정본의 완료 구분
+
+| 항목 | 상태 | 근거/남은 조건 |
+| --- | --- | --- |
+| A. 코드 구현·자동 테스트 | **완료** | 1015 테스트, 타입/lint/build, production 24/24·dev 12/12 |
+| B. 허용 IP에서 키움 실데이터 수신 | **검증 대기** | 이번 실행의 두 자격증명 미설정, 허용 IP의 기존 PC에서 최신 코드 실행 필요 |
+| C. 영속 DB 저장·재시작 후 보존 | **검증 대기** | 이번 환경의 DATABASE_URL 미설정, 기존 공유 Neon의 최신 관측 및 별도 프로세스 재조회 필요 |
+| D. 실제 배포 사이트 세 차트 연결 | **검증 대기** | 최신 Vercel Ready 및 운영 차트 확인 필요; 현재 환경의 사이트 접근은 프록시 차단 |
+
+두 자격증명 수령과 기존 PC 자동 실행은 확인된 사용자 사실입니다. B/C/D의 2026-10-05 운영자 성공은 2절에 보존하며 이번 모든 종목 수정본의 성공으로 확대하지 않습니다. PC 재설치가 아니라 **기존 코드 갱신 → 기존 수집 작업 재시작 → 최신 Vercel/동일 Neon 확인**이 다음 단계입니다. 신규 조회 종목은 순차 예약·수집되며, 공급자가 실제 제공하지 않는 이력은 결측/부분으로 남깁니다.

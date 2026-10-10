@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
+import { Link } from "@tanstack/react-router";
 import {
   AreaSeries,
   BarSeries,
@@ -23,6 +24,7 @@ import {
   ListTree,
   Magnet,
   MousePointer2,
+  RefreshCw,
   Pause,
   Play,
   Redo2,
@@ -113,8 +115,9 @@ import { useHtsPanes, ensureHtsPanes } from "./useHtsPanes";
 import { HtsSettingsPanel } from "./HtsSettingsPanel";
 import { ProfileDetails } from "./ProfileDetails";
 import { applyChartReadabilityPreset, defaultHtsSettings, hasSavedHtsSettings, loadHtsSettings, saveHtsSettings, htsSettingsKey, HTS_PANEL_ORDER, profileToCsv, type HtsProfileSettings, type ProfileMetadata } from "@/lib/charts/hts-settings";
-import { pricePanePoint, periodEndDay, profileRangeBars } from "@/lib/charts/hts-layout";
-import { alignChartFlow, availableFlowStart, emptyChartFlow, FLOW_METRICS, type FlowRequest } from "@/lib/charts/hts-flow";
+import { htsFlowPointDetails, htsFlowSummaryPoint, pricePanePoint, periodEndDay, profileRangeBars } from "@/lib/charts/hts-layout";
+import { alignChartFlow, availableFlowStart, emptyChartFlow, FLOW_METRICS, KIWOOM_HEALTH_LABELS } from "@/lib/charts/hts-flow";
+import { koreaMarketDay, makeChartFlowRequest } from "@/lib/charts/flow-query-policy";
 import { chartReplayInstant, flowToCsv } from "@/lib/charts/hts-flow-export";
 import { useChartFlow } from "@/lib/use-chart-flow";
 import { alignSmaValues, latestSmaPoint, migrateStandardSmas, prepareSmaHistory, resolveSmaStyle, STANDARD_SMA_PERIODS, toggleStandardSma } from "@/lib/charts/standard-sma";
@@ -795,13 +798,17 @@ export function ProChart(props: ProChartProps) {
       backgroundColor: theme.background, currentPrice: bars.at(-1)?.close ?? null,
       labelReservedTop: htsEnabled ? 38 : 0, labelReservedBottom: htsEnabled ? 38 : 0 });
   }, [vpProfile, vp, quantityUnit, currency, theme, themeMode, htsEnabled, bars, mainEpoch]);
-  const flowRequest = useMemo<FlowRequest>(() => ({ code, market, instrument, exchange: props.exchange ?? (market === "KR" ? "KRX" : "US"),
-    currency, quantityUnit, from: hts.trustStartDate && hts.trustStartDate < (rawBars[0]?.date.slice(0, 10) ?? "") ? hts.trustStartDate : rawBars[0]?.date.slice(0, 10) ?? "",
-    to: rawBars.at(-1) ? periodEndDay(rawBars.at(-1)!.date, interval).slice(0, 10) : "", interval,
-    expectedDailyDates: (props.profileBars ?? (interval === "day" ? props.indicatorBars ?? rawBars : [])).map((b) => b.date.slice(0, 10)) }),
-  [code, market, instrument, props.exchange, currency, quantityUnit, hts.trustStartDate, rawBars, interval, props.profileBars, props.indicatorBars]);
-  const flowQuery = useChartFlow(flowRequest, !analysisOnly && htsEnabled && Boolean(props.instrument) && htsLoaded === scopeKey && Boolean(hts.trustStartDate));
+  const flowCurrentDay = koreaMarketDay(Date.now());
+  const flowRequest = useMemo(() => makeChartFlowRequest({ code, market, instrument, exchange: props.exchange ?? (market === "KR" ? "KRX" : "US"), currency, quantityUnit, interval }, {
+    priceDates: rawBars.map(bar => bar.date),
+    dailyPriceDates: (props.profileBars?.length ? props.profileBars : interval === "day" ? props.indicatorBars?.length ? props.indicatorBars : rawBars : []).map(bar => bar.date),
+    trustStartDate: hts.trustStartDate, currentDay: flowCurrentDay,
+  }), [code, market, instrument, props.exchange, currency, quantityUnit, hts.trustStartDate, rawBars, interval, props.profileBars, props.indicatorBars, flowCurrentDay]);
+  const flowReadEnabled = !analysisOnly && htsEnabled && Boolean(props.instrument) && htsLoaded === scopeKey && Boolean(flowRequest.from && flowRequest.to);
+  const flowQuery = useChartFlow(flowRequest, flowReadEnabled);
   const flow = useMemo(() => (!analysisOnly ? flowQuery.data : undefined) ?? emptyChartFlow(flowRequest, analysisOnly ? "저장 가격 분석 · 수급 별도 조회하지 않음" : flowQuery.isError ? "데이터 요청 실패 · 재시도 필요" : props.instrument ? "데이터 확인 중" : "PRODUCT_TYPE_UNKNOWN · 상품 유형 미확인 · 메타데이터 재조회 필요"), [analysisOnly, flowQuery.data, flowQuery.isError, flowRequest, props.instrument]);
+  const flowAwaitingCollection = FLOW_METRICS.some(id => flow[id].health === "COLLECTION_QUEUED" || flow[id].health === "COLLECTING" || flow[id].diagnostics?.collectionState === "COLLECTION_QUEUED" || flow[id].diagnostics?.collectionState === "COLLECTING");
+  const flowHealthSummary = [...new Set(FLOW_METRICS.map(id => flow[id].health ? KIWOOM_HEALTH_LABELS[flow[id].health!] : flow[id].reason))].join(" · ");
   const effectiveTrustStart = useMemo(() => hts.trustMode === "available-cumulative"
     ? availableFlowStart(flow, (props.profileBars ?? (interval === "day" ? props.indicatorBars ?? rawBars : [])).map((b) => b.date.slice(0, 10)), hts.trustStartDate) ?? hts.trustStartDate
     : hts.trustStartDate, [flow, hts.trustMode, hts.trustStartDate, props.profileBars, props.indicatorBars, interval, rawBars]);
@@ -1592,10 +1599,24 @@ export function ProChart(props: ProChartProps) {
             </button>)}</div>
           </details>}
           <ProfileDetails profile={vpProfile} metadata={profileMetadata} onExport={() => downloadCsv((vpProfile ? profileToCsv(vpProfile, profileMetadata) : "profile,status\r\n,disabled"), `${code}-profile.csv`)} />
+          {htsEnabled && market === "KR" && !analysisOnly && <div className="flex flex-wrap items-center gap-2 border-t border-border px-3 py-2 text-xs" data-testid="hts-flow-controls" aria-busy={flowQuery.isFetching}>
+            <button type="button" className={btn(false)} disabled={!flowReadEnabled || flowQuery.isFetching} onClick={() => void flowQuery.refetch()} data-testid="hts-flow-refresh" aria-label="수급 자료 새로고침">
+              <RefreshCw className={cn("size-3.5", flowQuery.isFetching && "animate-spin motion-reduce:animate-none")} /> 수급 자료 새로고침
+            </button>
+            <Link to="/status/kiwoom" search={{ code }} className="inline-flex min-h-11 items-center rounded border border-border px-2 hover:bg-muted" data-testid="hts-flow-diagnostics">{code} 수급 상태 확인</Link>
+            <span role="status" aria-live="polite" data-testid="hts-flow-read-status">
+              {flowQuery.isFetching ? "수급 저장 자료 확인 중" : flowQuery.isError ? "수급 조회 실패 · 새로고침으로 재시도하세요" : !flowReadEnabled ? "가격·상품 정보를 확인한 뒤 수급을 조회합니다" : `${flowHealthSummary}${flowAwaitingCollection ? " · 수집 대기 · 자료가 저장되면 자동으로 다시 확인합니다" : ""}`}
+            </span>
+          </div>}
           {htsEnabled && <details className="border-t border-border p-3 text-xs" data-testid="hts-data-details">
             <summary className="min-h-11 cursor-pointer">6단 지표 값·출처·제공 상태 · {hts.trustMode === "daily" ? "투신 일별 순매수" : `${hts.trustMode === "available-cumulative" ? "가용 시작 " : ""}${effectiveTrustStart || "확인 중"}부터 누적`}</summary>
             <div className="overflow-x-auto"><table className="w-full text-left"><caption className="text-left text-muted-foreground">같은 날짜의 실제 값과 결측 사유 · 투신은 범위를 이동해도 누적 시작일 유지</caption><thead><tr><th>패널</th><th>값</th><th>상태</th><th>기준일</th><th>출처</th></tr></thead><tbody>
-              {htsPanes.summaries.map((item) => <tr key={item.id}><th className="p-2">{item.title}</th><td>{item.value} {item.unit}</td><td>{item.status}</td><td>{item.asOf}</td><td>{item.source}</td></tr>)}
+              {htsPanes.summaries.map((item) => {
+                const metricId = item.id === "credit" || item.id === "foreign" || item.id === "investmentTrust" ? item.id : null;
+                const point = metricId ? htsFlowSummaryPoint(flow[metricId], alignedFlow[metricId], (bars[hoverIdx ?? bars.length - 1]?.date ?? "").slice(0, 10), hoverIdx !== null, metricId !== "investmentTrust" || hts.trustMode === "daily") : undefined;
+                const fullStatus = metricId ? htsFlowPointDetails(flow[metricId], alignedFlow[metricId], point, flow.fetchedAt, flow.stale).detailStatus : item.status;
+                return <tr key={item.id}><th className="p-2">{item.title}</th><td>{item.value} {item.unit}</td><td>{fullStatus}</td><td>{item.asOf}</td><td>{item.source}</td></tr>;
+              })}
             </tbody></table></div>
           </details>}
         </>}

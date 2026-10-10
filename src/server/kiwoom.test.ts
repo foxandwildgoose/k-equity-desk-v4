@@ -24,7 +24,7 @@ import {
 import { diagnoseKiwoom } from "./kiwoom-diagnostics.ts";
 import { crossCheckKiwoom } from "./kiwoom-cross-check.ts";
 import { htsFlowPointDetails } from "../lib/charts/hts-layout.ts";
-import { createChartFlowService } from "./chart-flow.ts";
+import { createChartFlowService, validateFlowRequest } from "./chart-flow.ts";
 import {
   alignChartFlow,
   emptyChartFlow,
@@ -257,7 +257,7 @@ test("schema inspection reports missing/applied tables without creating them or 
     const before = await empty.query(
       "select count(*)::int as n from pg_tables where schemaname='public'",
     );
-    const response = await createChartFlowService({
+    const response = await createChartFlowService({ authorizeTarget: async () => true,
       config: () => config,
       store: async () => emptyStore,
     })(request, undefined, config.ownerUserId);
@@ -284,7 +284,7 @@ test("safe panel health preserves disabled/database/IP/auth/parser/API distincti
     [{ ...config, appSecret: undefined }, config.ownerUserId, "CREDENTIALS_MISSING"],
     [config, null, "OWNER_AUTH_FAILED"],
   ] as const) {
-    const response = await createChartFlowService({ config: () => cfg, store: async () => store })(
+    const response = await createChartFlowService({ authorizeTarget: async () => true, config: () => cfg, store: async () => store })(
       request,
       undefined,
       userId,
@@ -374,7 +374,7 @@ test("005930 mocked OAuth/API/persistence/collector response reaches all fronten
   const owner = "integration-owner-" + ++serial;
   const cfg = { ...config, ownerUserId: owner, dataScopeId: "integration-market-" + serial, appKey: "integration-key-" + ++serial };
   let apiCalls = 0;
-  const service = createChartFlowService({
+  const service = createChartFlowService({ authorizeTarget: async () => true,
     config: () => cfg,
     store: async () => store,
     checkEgress: async () => ({ status: "IP_MATCH", observedIp: "192.0.2.1" }),
@@ -409,7 +409,7 @@ test("005930 mocked OAuth/API/persistence/collector response reaches all fronten
     [120000, -85000, 0],
   );
   for (const metric of FLOW_METRICS) assert.equal(response[metric].health, "READY");
-  const collector = createChartFlowService({
+  const collector = createChartFlowService({ authorizeTarget: async () => true,
     config: () => ({ ...cfg, mode: "collector", appKey: undefined, appSecret: undefined }),
     store: async () => store,
     client: () => {
@@ -435,7 +435,7 @@ test("direct mode revalidates egress before every operation despite a previous m
   let checks = 0;
   let clients = 0;
   const cfg = { ...config, ownerUserId: "repeat-ip-" + ++serial, dataScopeId: "repeat-market-" + serial };
-  const service = createChartFlowService({
+  const service = createChartFlowService({ authorizeTarget: async () => true,
     config: () => cfg,
     store: async () => store,
     checkEgress: async () => ({
@@ -1044,7 +1044,7 @@ test("private collector reads existing history without keys or broker/IP calls; 
       .observations,
   );
   let clients = 0;
-  const service = createChartFlowService({
+  const service = createChartFlowService({ authorizeTarget: async () => true,
     config: () => ({ ...config, mode: "collector", readAuthRequired: true, appKey: undefined, appSecret: undefined }),
     store: async () => store,
     client: () => {
@@ -1066,7 +1066,7 @@ test("private collector reads existing history without keys or broker/IP calls; 
 });
 test("direct access blocks API when IP mismatches; failed metric preserves other successes and price is independent", async () => {
   let calls = 0;
-  const blocked = createChartFlowService({
+  const blocked = createChartFlowService({ authorizeTarget: async () => true,
     config: () => config,
     store: async () => store,
     checkEgress: async () => ({ status: "IP_MISMATCH", observedIp: "192.0.2.2" }),
@@ -1078,7 +1078,7 @@ test("direct access blocks API when IP mismatches; failed metric preserves other
   const response = await blocked(request, undefined, config.ownerUserId);
   assert.equal(response.credit.status, "ip-check");
   assert.equal(calls, 0);
-  const enabled = createChartFlowService({
+  const enabled = createChartFlowService({ authorizeTarget: async () => true,
     config: () => ({ ...config, appKey: "direct-" + ++serial }),
     store: async () => store,
     checkEgress: async () => ({ status: "IP_MATCH", observedIp: "192.0.2.1" }),
@@ -1129,7 +1129,7 @@ test("a wider requested history collects immediately and an IP change creates a 
   const cfg = { ...config, ownerUserId: id.scopeId, dataScopeId: id.scopeId, appKey: "wider-history-" + ++serial };
   const clientIps: Array<string | undefined> = [];
   let pages = 0;
-  const service = createChartFlowService({
+  const service = createChartFlowService({ authorizeTarget: async () => true,
     config: () => ({ ...cfg }),
     store: async () => store,
     checkEgress: async (expected) => ({ status: "IP_MATCH", observedIp: expected ?? null }),
@@ -1231,7 +1231,7 @@ test("empty ETF responses and malformed grouping remain unknown/partial, never u
       null,
     );
   const cfg = { ...config, appKey: "empty-etf-" + ++serial };
-  const service = createChartFlowService({
+  const service = createChartFlowService({ authorizeTarget: async () => true,
     config: () => cfg,
     store: async () => store,
     checkEgress: async () => ({ status: "IP_MATCH", observedIp: "192.0.2.1" }),
@@ -1269,7 +1269,7 @@ test("public collector read survives auth off and differing user IDs, with zero 
   const id = { scopeId: dataScopeId, environment: "real" as const, request: { ...request, code: "005931" } };
   for (const metric of FLOW_METRICS)
     await store.upsert(id, metric, parseKiwoomRows(fixtureRows(metric, "20260903", metric === "investmentTrust" ? "-85000" : "52.61"), metric, new Date().toISOString(), "real", "KRX").observations);
-  const service = createChartFlowService({ config: () => cfg, store: async () => store,
+  const service = createChartFlowService({ authorizeTarget: async () => true, config: () => cfg, store: async () => store,
     client: () => { throw Error("collector constructed a broker client"); },
     checkEgress: async () => { throw Error("collector probed external IP"); } });
   const [visitor, differentLogin] = await Promise.all([service(id.request, undefined, null), service(id.request, undefined, "different-user")]);
@@ -1285,7 +1285,7 @@ test("public collector read survives auth off and differing user IDs, with zero 
 });
 
 test("direct web access with auth disabled cannot reach DB, OAuth, IP or API even with owner ID", async () => {
-  const service = createChartFlowService({ config: () => ({ ...config, authEnabled: false }),
+  const service = createChartFlowService({ authorizeTarget: async () => true, config: () => ({ ...config, authEnabled: false }),
     store: async () => { throw Error("auth-off direct accessed DB"); },
     client: () => { throw Error("auth-off direct created client"); },
     checkEgress: async () => { throw Error("auth-off direct probed IP"); } });
@@ -1298,9 +1298,9 @@ test("different market scope is explicit; additive legacy copy preserves rows an
   const dataScopeId = "destination-" + ++serial;
   const req = id.request;
   const cfg = { ...config, mode: "collector" as const, dataScopeId, authEnabled: false };
-  const service = createChartFlowService({ config: () => cfg, store: async () => store });
+  const service = createChartFlowService({ authorizeTarget: async () => true, config: () => cfg, store: async () => store });
   assert.equal((await service(req)).foreign.health, "DATA_SCOPE_MISMATCH");
-  const compatible = createChartFlowService({ config: () => ({ ...cfg, legacyDataScopeId: id.scopeId }), store: async () => store });
+  const compatible = createChartFlowService({ authorizeTarget: async () => true, config: () => ({ ...cfg, legacyDataScopeId: id.scopeId }), store: async () => store });
   assert.equal((await compatible(req)).foreign.observations.length, 1);
   await store.copyLegacyScope(id.scopeId, dataScopeId, "real");
   await store.copyLegacyScope(id.scopeId, dataScopeId, "real");
@@ -1331,11 +1331,11 @@ test("target range clamps to five years/current Seoul day and rejects US/invalid
   assert.throws(() => boundKiwoomTarget({ ...request, market: "US", code: "AAPL" }));
 });
 
-test("target cap includes completed records so arbitrary public requests cannot create unlimited work", async () => {
+test("active target cap bounds unfinished public work independently of completed subscriptions", async () => {
   const id = identity();
   await pg.query(`insert into kiwoom_collection_targets(scope_id,environment,code,instrument,market_scope,requested_from,requested_to,state)
-    select $1,'real',lpad(n::text,6,'0'),'stock','KRX','2026-09-01','2026-09-03','ready' from generate_series(1,$2) n`, [id.scopeId, KIWOOM_TARGET_LIMIT]);
-  assert.equal(await store.targets.enqueue(id), "NO_HISTORY");
+    select $1,'real',lpad(n::text,6,'0'),'stock','KRX','2026-09-01','2026-09-03','queued' from generate_series(1,$2) n`, [id.scopeId, KIWOOM_TARGET_LIMIT]);
+  assert.equal(await store.targets.enqueue(id), "TARGET_LIMIT_REACHED");
 });
 
 test("latest summary shows real dated provider values while hovered missing day and chart remain empty", () => {
@@ -1411,7 +1411,7 @@ test("owner-only target enqueue never prevents public stored reads", async () =>
   const id = { ...identity(), request: { ...request, code: "908002" } };
   const cfg = { ...config, mode: "collector" as const, dataScopeId: id.scopeId, targetAuthRequired: true,
     authEnabled: false, authenticationReady: false };
-  const service = createChartFlowService({ config: () => cfg, store: async () => store,
+  const service = createChartFlowService({ authorizeTarget: async () => true, config: () => cfg, store: async () => store,
     client: () => { throw Error("collector called broker"); } });
   const result = await service(id.request);
   assert.equal(result.credit.health, "NO_HISTORY");
@@ -1432,7 +1432,7 @@ test("queued public charts never read collector telemetry; verified owner can se
       lastHeartbeatAt: "2026-09-01T00:00:00Z", lastSuccessAt: null,
       lastErrorCode: "QUEUE_CYCLE_FAILED", pendingTargets: 1, lastQueueCount: 1 };
   } } };
-  const service = createChartFlowService({ config: () => cfg, store: async () => offlineStore,
+  const service = createChartFlowService({ authorizeTarget: async () => true, config: () => cfg, store: async () => offlineStore,
     client: () => { throw Error("collector constructed broker"); },
     checkEgress: async () => { throw Error("collector probed IP"); } });
   const visitor = await service(id.request, undefined, null);
@@ -1449,4 +1449,14 @@ test("queued public charts never read collector telemetry; verified owner can se
   assert.match(owner.credit.reason, /수집기 OFFLINE/);
   assert.equal(owner.credit.health, "COLLECTION_QUEUED", "offline worker must not be described as actively collecting");
   assert.equal(owner.credit.observations.length, 0);
+});
+
+
+test("monthly max price history retains its original dates while collector work remains bounded", () => {
+  const historical = { ...request, interval: "month" as const, from: "1980-01-02", to: "2026-09-03" };
+  assert.equal(validateFlowRequest(historical).from, "1980-01-02");
+  const target = boundKiwoomTarget(historical, Date.parse("2026-09-04T00:00:00Z"));
+  assert.ok(target.from > historical.from);
+  assert.equal(target.to, historical.to);
+  assert.throws(() => validateFlowRequest({ ...historical, from: "1900-01-01" }), /조회 기간/);
 });

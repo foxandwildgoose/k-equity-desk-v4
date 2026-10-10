@@ -1,0 +1,309 @@
+{
+  "date": "2026-10-10",
+  "baselineCommit": "94405aa74ef36ce94cc329f4d0201f21528074b6",
+  "source": "Codex local code/tests and isolated synthetic browser verification",
+  "synthetic": true,
+  "codexExecutedLiveBrokerCalls": false,
+  "operationalDatabaseTouched": false,
+  "currentProcessConfiguration": {
+    "appKeyConfigured": false,
+    "appSecretConfigured": false,
+    "databaseConfigured": false,
+    "flowEnabled": false,
+    "mode": "collector",
+    "egressStatus": "NOT_CHECKED",
+    "databaseSchema": "NOT_CHECKED"
+  },
+  "userConfirmedExistingSetup": {
+    "credentialsReceived": true,
+    "pcCollectorAutoStartsAtPowerOn": true,
+    "priorOperatorLiveEvidenceDate": "2026-10-05"
+  },
+  "tests": {
+    "scriptPassed": 257,
+    "typescriptPassed": 758,
+    "totalPassed": 1015,
+    "failed": 0,
+    "skipped": 0,
+    "kiwoomSuitePassed": 105,
+    "kiwoomSuiteIsSubset": true,
+    "typecheck": "PASS",
+    "lintErrors": 0,
+    "lintWarnings": 57,
+    "productionBuild": "PASS",
+    "databaseMigrationDuringBuild": false,
+    "deployCheck": "PASS",
+    "authInvariant": "PASS"
+  },
+  "productionBrowser": {
+    "base": "http://127.0.0.1:8081",
+    "passedChecks": 24,
+    "results": [
+      {
+        "theme": "light",
+        "viewport": "desktop",
+        "dpr": 1,
+        "success": true,
+        "checks": [
+          {
+            "name": "018260 automatically recovers queued collector data without keys, broker call or document reload",
+            "success": true
+          },
+          {
+            "name": "Daily net selling and genuine zero survive provider parsing, storage and displayed quantity",
+            "success": true
+          },
+          {
+            "name": "PNG export includes all actual flow captions and signed quantity",
+            "success": true
+          },
+          {
+            "name": "Fixed cumulative leaves post-gap quantities null and available cumulative exposes its true origin",
+            "success": true
+          },
+          {
+            "name": "SPA selection of a non-seed KOSDAQ stock has an independent queued target and its own recovered percentages",
+            "success": true
+          },
+          {
+            "name": "Bounded explicit flow refresh re-reads the existing collector database without broker access",
+            "success": true
+          }
+        ],
+        "counters": {
+          "webBrokerConstructions": 0,
+          "webEgressChecks": 0,
+          "syntheticBrokerPages": 12,
+          "brokerNetworkCalls": 0
+        },
+        "runtimeErrors": [],
+        "unexpectedRequests": []
+      },
+      {
+        "theme": "light",
+        "viewport": "mobile",
+        "dpr": 2,
+        "success": true,
+        "checks": [
+          {
+            "name": "018260 automatically recovers queued collector data without keys, broker call or document reload",
+            "success": true
+          },
+          {
+            "name": "Daily net selling and genuine zero survive provider parsing, storage and displayed quantity",
+            "success": true
+          },
+          {
+            "name": "PNG export includes all actual flow captions and signed quantity",
+            "success": true
+          },
+          {
+            "name": "Fixed cumulative leaves post-gap quantities null and available cumulative exposes its true origin",
+            "success": true
+          },
+          {
+            "name": "SPA selection of a non-seed KOSDAQ stock has an independent queued target and its own recovered percentages",
+            "success": true
+          },
+          {
+            "name": "Bounded explicit flow refresh re-reads the existing collector database without broker access",
+            "success": true
+          }
+        ],
+        "counters": {
+          "webBrokerConstructions": 0,
+          "webEgressChecks": 0,
+          "syntheticBrokerPages": 12,
+          "brokerNetworkCalls": 0
+        },
+        "runtimeErrors": [],
+        "unexpectedRequests": []
+      },
+      {
+        "theme": "dark",
+        "viewport": "desktop",
+        "dpr": 1,
+        "success": true,
+        "checks": [
+          {
+            "name": "018260 automatically recovers queued collector data without keys, broker call or document reload",
+            "success": true
+          },
+          {
+            "name": "Daily net selling and genuine zero survive provider parsing, storage and displayed quantity",
+            "success": true
+          },
+          {
+            "name": "PNG export includes all actual flow captions and signed quantity",
+            "success": true
+          },
+          {
+            "name": "Fixed cumulative leaves post-gap quantities null and available cumulative exposes its true origin",
+            "success": true
+          },
+          {
+            "name": "SPA selection of a non-seed KOSDAQ stock has an independent queued target and its own recovered percentages",
+            "success": true
+          },
+          {
+            "name": "Bounded explicit flow refresh re-reads the existing collector database without broker access",
+            "success": true
+          }
+        ],
+        "counters": {
+          "webBrokerConstructions": 0,
+          "webEgressChecks": 0,
+          "syntheticBrokerPages": 12,
+          "brokerNetworkCalls": 0
+        },
+        "runtimeErrors": [],
+        "unexpectedRequests": []
+      },
+      {
+        "theme": "dark",
+        "viewport": "mobile",
+        "dpr": 2,
+        "success": true,
+        "checks": [
+          {
+            "name": "018260 automatically recovers queued collector data without keys, broker call or document reload",
+            "success": true
+          },
+          {
+            "name": "Daily net selling and genuine zero survive provider parsing, storage and displayed quantity",
+            "success": true
+          },
+          {
+            "name": "PNG export includes all actual flow captions and signed quantity",
+            "success": true
+          },
+          {
+            "name": "Fixed cumulative leaves post-gap quantities null and available cumulative exposes its true origin",
+            "success": true
+          },
+          {
+            "name": "SPA selection of a non-seed KOSDAQ stock has an independent queued target and its own recovered percentages",
+            "success": true
+          },
+          {
+            "name": "Bounded explicit flow refresh re-reads the existing collector database without broker access",
+            "success": true
+          }
+        ],
+        "counters": {
+          "webBrokerConstructions": 0,
+          "webEgressChecks": 0,
+          "syntheticBrokerPages": 12,
+          "brokerNetworkCalls": 0
+        },
+        "runtimeErrors": [],
+        "unexpectedRequests": []
+      }
+    ]
+  },
+  "devBrowser": {
+    "base": "http://127.0.0.1:8080",
+    "passedChecks": 12,
+    "results": [
+      {
+        "theme": "light",
+        "viewport": "desktop",
+        "dpr": 1,
+        "success": true,
+        "checks": [
+          {
+            "name": "018260 automatically recovers queued collector data without keys, broker call or document reload",
+            "success": true
+          },
+          {
+            "name": "Daily net selling and genuine zero survive provider parsing, storage and displayed quantity",
+            "success": true
+          },
+          {
+            "name": "PNG export includes all actual flow captions and signed quantity",
+            "success": true
+          },
+          {
+            "name": "Fixed cumulative leaves post-gap quantities null and available cumulative exposes its true origin",
+            "success": true
+          },
+          {
+            "name": "SPA selection of a non-seed KOSDAQ stock has an independent queued target and its own recovered percentages",
+            "success": true
+          },
+          {
+            "name": "Bounded explicit flow refresh re-reads the existing collector database without broker access",
+            "success": true
+          }
+        ],
+        "counters": {
+          "webBrokerConstructions": 0,
+          "webEgressChecks": 0,
+          "syntheticBrokerPages": 12,
+          "brokerNetworkCalls": 0
+        },
+        "runtimeErrors": [],
+        "unexpectedRequests": []
+      },
+      {
+        "theme": "dark",
+        "viewport": "mobile",
+        "dpr": 2,
+        "success": true,
+        "checks": [
+          {
+            "name": "018260 automatically recovers queued collector data without keys, broker call or document reload",
+            "success": true
+          },
+          {
+            "name": "Daily net selling and genuine zero survive provider parsing, storage and displayed quantity",
+            "success": true
+          },
+          {
+            "name": "PNG export includes all actual flow captions and signed quantity",
+            "success": true
+          },
+          {
+            "name": "Fixed cumulative leaves post-gap quantities null and available cumulative exposes its true origin",
+            "success": true
+          },
+          {
+            "name": "SPA selection of a non-seed KOSDAQ stock has an independent queued target and its own recovered percentages",
+            "success": true
+          },
+          {
+            "name": "Bounded explicit flow refresh re-reads the existing collector database without broker access",
+            "success": true
+          }
+        ],
+        "counters": {
+          "webBrokerConstructions": 0,
+          "webEgressChecks": 0,
+          "syntheticBrokerPages": 12,
+          "brokerNetworkCalls": 0
+        },
+        "runtimeErrors": [],
+        "unexpectedRequests": []
+      }
+    ]
+  },
+  "screenshots": [
+    "018260-recovered-credit-light-desktop.png",
+    "018260-recovered-foreign-light-desktop.png",
+    "018260-recovered-investmentTrust-light-desktop.png",
+    "131970-recovered-credit-dark-mobile.png",
+    "131970-recovered-foreign-dark-mobile.png",
+    "131970-recovered-investmentTrust-dark-mobile.png"
+  ],
+  "screenshotNotes": "QA SYNTHETIC, not market data. Mobile captures may show a dated crosshair point; latest stored values are separately asserted by the QA.",
+  "actualDeploymentAccess": {
+    "status": "UNAVAILABLE",
+    "reason": "Environment proxy CONNECT 403; not an application HTTP response"
+  },
+  "completion": {
+    "A_codeAndAutomatedTests": "COMPLETE",
+    "B_newLiveDataAtAllowedIp": "VERIFICATION_PENDING",
+    "C_newPersistentNeonRestart": "VERIFICATION_PENDING",
+    "D_latestDeployedThreePanels": "VERIFICATION_PENDING"
+  }
+}

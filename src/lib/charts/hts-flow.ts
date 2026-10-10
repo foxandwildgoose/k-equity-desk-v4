@@ -9,7 +9,7 @@ export type FlowCapability =
   | "unknown";
 export type FlowStatus = "disabled" | "configuration" | "authentication" | "access" | "ip-check" | "rate-limit" | "timeout" | "network" | "parsing" | "history" | "collecting" | "ready" | "unsupported" | "storage";
 /** Safe operational state; independent from value availability and partial coverage. */
-export type KiwoomHealthStatus = "DISABLED" | "CREDENTIALS_MISSING" | "OWNER_AUTH_FAILED" | "DATABASE_MISSING" | "DATABASE_SCHEMA_MISSING" | "DATABASE_FAILED" | "EXPECTED_IP_MISSING" | "IP_MISMATCH" | "IP_UNVERIFIED" | "TOKEN_FAILED" | "API_FAILED" | "PARSING_FAILED" | "NO_HISTORY" | "READY" | "PARTIAL" | "COLLECTING" | "RATE_LIMIT" | "CONFIGURATION_FAILED" | "DATA_SCOPE_MISMATCH" | "COLLECTION_QUEUED" | "DEPLOYMENT_REVISION_MISMATCH" | "PRODUCT_TYPE_UNKNOWN";
+export type KiwoomHealthStatus = "DISABLED" | "CREDENTIALS_MISSING" | "OWNER_AUTH_FAILED" | "DATABASE_MISSING" | "DATABASE_SCHEMA_MISSING" | "DATABASE_FAILED" | "EXPECTED_IP_MISSING" | "IP_MISMATCH" | "IP_UNVERIFIED" | "TOKEN_FAILED" | "API_FAILED" | "PARSING_FAILED" | "NO_HISTORY" | "READY" | "PARTIAL" | "COLLECTING" | "RATE_LIMIT" | "CONFIGURATION_FAILED" | "DATA_SCOPE_MISMATCH" | "COLLECTION_QUEUED" | "DEPLOYMENT_REVISION_MISMATCH" | "PRODUCT_TYPE_UNKNOWN" | "TARGET_LIMIT_REACHED";
 export const KIWOOM_HEALTH_LABELS: Record<KiwoomHealthStatus, string> = {
   DISABLED: "키움 수집 비활성", CREDENTIALS_MISSING: "키움 인증정보 미설정",
   OWNER_AUTH_FAILED: "소유자 인증 필요", DATABASE_MISSING: "DB 미설정",
@@ -21,7 +21,7 @@ export const KIWOOM_HEALTH_LABELS: Record<KiwoomHealthStatus, string> = {
   PARTIAL: "키움 이력 일부 확보", COLLECTING: "키움 수집 중/대기",
   RATE_LIMIT: "키움 호출 제한", CONFIGURATION_FAILED: "키움 서버 설정 확인 필요",
   DATA_SCOPE_MISMATCH: "다른 저장 범위에 이력 존재", COLLECTION_QUEUED: "키움 수집 예약됨",
-  DEPLOYMENT_REVISION_MISMATCH: "배포 버전 불일치", PRODUCT_TYPE_UNKNOWN: "상품 유형 미확인",
+  DEPLOYMENT_REVISION_MISMATCH: "배포 버전 불일치", PRODUCT_TYPE_UNKNOWN: "상품 유형 미확인", TARGET_LIMIT_REACHED: "키움 수집 대기열이 가득 참",
 };
 export const KIWOOM_NEXT_STEPS: Record<KiwoomHealthStatus, string> = {
   DISABLED: "실행 서버에 KIWOOM_FLOW_ENABLED=true를 설정하세요.",
@@ -46,6 +46,7 @@ export const KIWOOM_NEXT_STEPS: Record<KiwoomHealthStatus, string> = {
   CONFIGURATION_FAILED: "서버의 환경·모드·범위 설정을 확인하세요.",
   DEPLOYMENT_REVISION_MISMATCH: "현재 main 버전을 배포하고 표시된 짧은 SHA를 대조하세요.",
   PRODUCT_TYPE_UNKNOWN: "상품 메타데이터를 재조회하거나 검증된 종목/ETF 경로에서 여세요.",
+  TARGET_LIMIT_REACHED: "진행 중인 종목 수집이 끝나면 자동으로 다시 예약합니다. 계속 지연되면 운영자가 대기열을 확인하세요.",
 };
 export function kiwoomHealthFor(status: FlowStatus, validValues = 0): KiwoomHealthStatus {
   const states: Partial<Record<FlowStatus, KiwoomHealthStatus>> = {
@@ -120,6 +121,7 @@ export interface FlowMetric {
     stopReason: string; missingDates: string[] | null; calendarBasis: string;
     stored: boolean; errorCode: number | null; environment: "real" | "mock";
     mode: "direct" | "collector"; marketScope: string;
+    collectionState?: "COLLECTION_QUEUED" | "COLLECTING" | "TARGET_LIMIT_REACHED";
   };
 }
 export interface FlowResponse {

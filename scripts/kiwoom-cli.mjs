@@ -8,21 +8,27 @@ import { openKiwoomDatabase } from "../src/server/kiwoom-db.ts";
 import { createKiwoomClient, KIWOOM_APIS, kiwoomCredentialKey } from "../src/server/kiwoom-client.ts";
 import { collectKiwoomMetric, kiwoomConditions, parseKiwoomRows } from "../src/server/kiwoom-flow.ts";
 import { FLOW_METRICS, isFlowDate } from "../src/lib/charts/hts-flow.ts";
-import { boundKiwoomTarget } from "../src/server/kiwoom-targets.ts";
+import { boundKiwoomTarget, KIWOOM_TARGET_LIMIT } from "../src/server/kiwoom-targets.ts";
 import { crossCheckKiwoom } from "../src/server/kiwoom-cross-check.ts";
 import { validateFlowRequest } from "../src/server/chart-flow-request.ts";
 import { isKiwoomCollectorErrorCode, validateKiwoomCollectorInstance, runKiwoomTargetCycle } from "../src/server/kiwoom-collector-runtime.ts";
+import { selectKiwoomCollection, completeKiwoomIncrementalJob } from "./kiwoom-collection.mjs";
 
 const emit = value => process.stdout.write(JSON.stringify(value, null, 2) + "\n");
 const argv = process.argv.slice(2);
 const command = argv.shift();
-const switches = new Set(["--check-config", "--live", "--single-process", "--resume", "--incremental", "--read-stored", "--check-database", "--cross-check", "--targets", "--show-ip"]);
+const switches = new Set(["--check-config", "--live", "--single-process", "--resume", "--incremental", "--read-stored", "--check-database", "--cross-check", "--targets", "--enqueue", "--show-ip"]);
 const values = new Set(["--code", "--from", "--to", "--instrument", "--scope", "--max-pages", "--budget-ms", "--calendar", "--limit", "--event", "--instance-id", "--error-code", "--collector-instance-id"]);
 const args = new Map();
 let database;
 let heartbeatDeadline;
 let collector;
 let collectorErrorCode;
+// 2 is bounded/incomplete work that the continuous worker can revisit. 1 is a
+// failed runtime/security/storage gate and must stop the worker.
+const PARTIAL_EXIT = 2;
+const OPTIONAL_HEARTBEAT_EXIT = 3;
+const STOP_STATUSES = new Set(["disabled", "configuration", "authentication", "ip-check", "storage"]);
 const publishCollector = async (event, errorCode) => {
   if (!collector) return;
   const updated = await collector.runtime.update(collector.identity, collector.instanceId, { event, ...(errorCode ? { errorCode } : {}) });
@@ -45,6 +51,8 @@ try {
     throw new KiwoomError("configuration", "Heartbeat options require heartbeat command");
   if (args.has("--collector-instance-id") && (command !== "sync" || args.has("--read-stored") || args.has("--check-config") || args.has("--check-database")))
     throw new KiwoomError("configuration", "Collector instance requires sync command");
+  if (args.has("--enqueue") && (command !== "sync" || ["--targets", "--read-stored", "--check-config", "--check-database"].some(option => args.has(option))))
+    throw new KiwoomError("configuration", "Explicit enqueue requires a single live sync");
   // Identical precedence even when CLI is invoked directly rather than via npm.
   const config = readKiwoomConfig(mergeAppEnv(readAppEnv(projectRoot()), process.env));
   if (args.has("--cross-check") && (command !== "verify" || !args.has("--live") || args.has("--read-stored") || args.has("--check-config") || args.has("--check-database")))
@@ -73,13 +81,19 @@ try {
     // Bound even a shutdown/connect stall. This branch is DB-only and cannot issue a broker request.
     heartbeatDeadline = setTimeout(() => { emit({ status: "DATABASE_FAILED", reason: "Collector heartbeat timeout" }); process.exit(1); }, 15_000);
     const store = await getStore();
-    if (!(await store.schema()).ready || !store.collectorRuntime)
+    if (!(await store.schema()).ready)
       throw new KiwoomError("storage", "Collector schema migration required", null, 0, "DATABASE_SCHEMA_MISSING");
     const identity = { scopeId: kiwoomDataScope(config), environment: config.environment };
-    if (event === "start") await store.collectorRuntime.start(identity, instanceId);
+    if (!store.collectorRuntime || !await store.collectorRuntime.schema()) {
+      // Market collection needs 0002/0003. Missing optional 0004 must leave
+      // diagnostics UNKNOWN without blocking the existing collector.
+      emit({ status: "COLLECTOR_TELEMETRY_UNAVAILABLE", reason: "Optional collector heartbeat migration required" });
+      process.exitCode = OPTIONAL_HEARTBEAT_EXIT;
+    } else if (event === "start") await store.collectorRuntime.start(identity, instanceId);
     else if (!await store.collectorRuntime.update(identity, instanceId, { event: "error", errorCode }))
       throw new KiwoomError("configuration", "Collector instance was replaced", null, 0, "CONFIGURATION_FAILED");
-    emit({ status: event === "start" ? "COLLECTOR_STARTED" : "COLLECTOR_ERROR_RECORDED", ...(event === "error" ? { errorCode } : {}) });
+    if (process.exitCode !== OPTIONAL_HEARTBEAT_EXIT)
+      emit({ status: event === "start" ? "COLLECTOR_STARTED" : "COLLECTOR_ERROR_RECORDED", ...(event === "error" ? { errorCode } : {}) });
   } else if (command === "egress") {
     // Only this explicit local flag may show an address; never used in web payloads.
     const ip = await checkKiwoomEgress(config.expectedEgressIp);
@@ -176,11 +190,12 @@ try {
                 if (metric !== "investmentTrust") primary[metric] = parsed.observations;
                 emit({ apiId: KIWOOM_APIS[metric].id, httpSuccess: true, businessSuccess: true,
                   rows: rows.length, validValues: valid.length, firstDate: valid[0]?.date ?? null, lastDate: valid.at(-1)?.date ?? null });
-                if (!valid.length) process.exitCode = 1;
+                if (!valid.length) process.exitCode = PARTIAL_EXIT;
               } catch (error) {
                 const safe = safeKiwoomError(error);
                 emit({ apiId: KIWOOM_APIS[metric].id, status: safe.health, errorCode: safe.code });
-                process.exitCode = 1;
+                if (STOP_STATUSES.has(safe.status)) throw safe;
+                process.exitCode = PARTIAL_EXIT;
               }
             }
             if (args.has("--cross-check")) emit(await crossCheckKiwoom(client, request, primary));
@@ -192,16 +207,9 @@ try {
               let complete = true, hasValues = true;
               for (const metric of FLOW_METRICS) {
                 activeSignal.throwIfAborted();
-                const previous = await store.job(id, metric, true);
-                let collectionIdentity = id;
-                if (args.has("--incremental") && previous?.complete) {
-                  const existing = await store.read(id, metric);
-                  const last = existing.filter(row => row.value !== null).at(-1)?.date;
-                  if (last) {
-                    const from = new Date(Date.parse(last) - 14 * 86400000).toISOString().slice(0, 10);
-                    collectionIdentity = { ...id, request: { ...id.request, from: from > id.request.from ? from : id.request.from } };
-                  }
-                }
+                const { identity: collectionIdentity, coverage } = await selectKiwoomCollection(store, id, metric, {
+                  incremental: args.has("--incremental"), resume: target || args.has("--resume"),
+                });
                 const job = await collectKiwoomMetric(store, client, collectionIdentity, metric, { maxPages, budgetMs, resume: target || args.has("--resume"), signal: activeSignal });
                 activeSignal.throwIfAborted();
                 if (!["ready", "history", "collecting"].includes(job.status)) {
@@ -211,12 +219,24 @@ try {
                 await publishCollector("heartbeat");
                 const rows = await store.read(id, metric);
                 const valid = rows.filter(row => row.value !== null);
-                complete &&= job.complete && ["ready", "history"].includes(job.status) && valid.length > 0;
+                const validDates = new Set(valid.map(row => row.date));
+                const missingDates = id.request.expectedDailyDates?.filter(date => !validDates.has(date)) ?? job.missingDates ?? null;
+                const narrowed = collectionIdentity.request.from !== id.request.from;
+                const merged = narrowed ? completeKiwoomIncrementalJob(id, collectionIdentity, coverage, job, rows) : null;
+                if (merged) await store.saveJob(id, metric, merged);
+                const metricComplete = job.complete && ["ready", "history"].includes(job.status) && job.invalidRows === 0 &&
+                  valid.length > 0 && !missingDates?.length && (!narrowed || Boolean(merged));
+                complete &&= metricComplete;
                 hasValues &&= valid.length > 0;
                 emit({ metric, apiId: KIWOOM_APIS[metric].id, code: id.request.code, rows: rows.length, validValues: valid.length,
                   firstDate: valid[0]?.date ?? null, lastDate: valid.at(-1)?.date ?? null,
-                  status: job.status, complete: job.complete, pages: job.pages, errorCode: job.errorCode,
+                  status: merged?.status ?? job.status, complete: metricComplete, pages: job.pages, errorCode: job.errorCode,
                   providerReal: valid.length > 0 && valid.every(row => row.provider === "kiwoom" && row.environment === "real" && !row.derived) });
+                // Business/API rejections can be specific to one product and
+                // must not strand the rest of the queue. Global failures stop
+                // before another metric or target can issue a broker request.
+                if (STOP_STATUSES.has(job.status))
+                  throw new KiwoomError(job.status, "Collector runtime gate failed", job.errorCode);
               }
               return { complete, hasValues };
             };
@@ -224,8 +244,7 @@ try {
               ? await runKiwoomTargetCycle(id, store.targets, workSignal, collectIdentity)
               : await collectIdentity(workSignal);
             if (!complete) {
-              process.exitCode = 1;
-              collectorErrorCode ??= "COLLECTOR_FAILED";
+              process.exitCode = PARTIAL_EXIT;
             }
           };
           if (args.has("--targets")) {
@@ -241,10 +260,28 @@ try {
               }
               workSignal.throwIfAborted();
             }, signal);
-          } else await processIdentity({ ...identity, request: boundKiwoomTarget(request) });
+          } else {
+            const bounded = boundKiwoomTarget(request);
+            if (request.expectedDailyDates) bounded.expectedDailyDates = request.expectedDailyDates.filter(date => date >= bounded.from && date <= bounded.to);
+            const seedIdentity = { ...identity, request: bounded };
+            if (args.has("--enqueue")) {
+              await store.exclusive("collector-targets:" + identity.scopeId, async targetSignal => {
+                const workSignal = AbortSignal.any([signal, targetSignal]);
+                workSignal.throwIfAborted();
+                const queued = await store.targets.enqueue(seedIdentity);
+                if (queued === "TARGET_LIMIT_REACHED") {
+                  emit({ status: "TARGET_LIMIT_REACHED", maxTargets: KIWOOM_TARGET_LIMIT });
+                  process.exitCode = PARTIAL_EXIT;
+                  return;
+                }
+                await processIdentity(seedIdentity, true, workSignal);
+              }, signal);
+            } else await processIdentity(seedIdentity);
+          }
           if (telemetry) clearInterval(telemetry);
           await telemetryInFlight;
           if (collectorErrorCode) await publishCollector("error", collectorErrorCode);
+          else if (process.exitCode === PARTIAL_EXIT) await publishCollector("heartbeat");
           else await publishCollector("success");
         } finally {
           if (telemetry) clearInterval(telemetry);

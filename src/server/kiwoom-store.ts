@@ -43,6 +43,8 @@ export interface KiwoomFlowStore extends KiwoomCoordination {
     observations: FlowObservation[],
   ): Promise<void>;
   job(identity: FlowIdentity, metric: FlowMetricId, exact?: boolean): Promise<KiwoomJob | null>;
+  /** Prior completed backfill covering the requested start; a narrow refresh alone cannot prove that coverage. */
+  completedCoverage?(identity: FlowIdentity, metric: FlowMetricId): Promise<KiwoomJob | null>;
   saveJob(identity: FlowIdentity, metric: FlowMetricId, job: KiwoomJob): Promise<void>;
   targets: ReturnType<typeof createKiwoomTargets>;
   /** Optional telemetry migration never changes the four-table market-data readiness contract. */
@@ -183,6 +185,24 @@ export function createKiwoomStore(sql: Sql): KiwoomFlowStore {
             requestedTo: row.requested_to,
           }
         : null;
+    },
+    async completedCoverage(identity, metric) {
+      const [row] = await sql.query<{
+        state: KiwoomJob;
+        requested_from: string;
+        requested_to: string;
+      }>(
+        `select state,to_char(requested_from,'YYYY-MM-DD') as requested_from,
+          to_char(requested_to,'YYYY-MM-DD') as requested_to from kiwoom_flow_jobs
+          where scope_id=$1 and environment=$2 and code=$3 and instrument=$4 and market_scope=$5 and metric=$6
+          and state->>'complete'='true' and state->>'status' in ('ready','history')
+          and state->'invalidRows'='0'::jsonb
+          and coalesce(state->'missingDates','null'::jsonb) in ('null'::jsonb,'[]'::jsonb)
+          and requested_from <= $7::date and requested_to >= $7::date
+          order by updated_at desc limit 1`,
+        [...params(identity, metric), identity.request.from],
+      );
+      return row ? { ...row.state, requestedFrom: row.requested_from, requestedTo: row.requested_to } : null;
     },
     async saveJob(identity, metric, job) {
       await sql.query(

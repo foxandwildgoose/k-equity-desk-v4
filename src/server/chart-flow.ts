@@ -23,6 +23,7 @@ import { createKiwoomClient, detachedWait, KIWOOM_APIS } from "./kiwoom-client.t
 import { collectKiwoomMetric, type KiwoomClient } from "./kiwoom-flow.ts";
 import { type FlowIdentity, type KiwoomFlowStore } from "./kiwoom-store.ts";
 import { getKiwoomStore } from "./kiwoom-db.ts";
+import { verifyKiwoomTargetIdentity } from "./kiwoom-target-identity.ts";
 
 export { validateFlowRequest } from "./chart-flow-request.ts";
 export function unavailableKiwoomFlow(request: FlowRequest, error: KiwoomError): FlowResponse {
@@ -49,6 +50,8 @@ export function createChartFlowService(
     client?: (config: KiwoomConfig, store: KiwoomFlowStore) => KiwoomClient;
     checkEgress?: typeof checkKiwoomEgress;
     now?: () => number;
+    /** Server-verified public listing identity; never accept a browser owner ID. */
+    authorizeTarget?: (request: FlowRequest) => Promise<boolean>;
   } = {},
 ) {
   const now = options.now ?? Date.now;
@@ -110,6 +113,7 @@ export function createChartFlowService(
       }
     }
     const response = { ...emptyChartFlow(request), fetchedAt: new Date(now()).toISOString() };
+    const needsCollection = new Set<FlowMetricId>();
     await Promise.all(
       FLOW_METRICS.map(async (metric: FlowMetricId) => {
         try {
@@ -143,6 +147,14 @@ export function createChartFlowService(
             request.expectedDailyDates?.filter(
               (date) => date >= request.from && date <= request.to && !validDates.has(date),
             ) ?? null;
+          // The latest incremental job can cover a shorter range than the chart.
+          // A completed historical job certifies the older backfill separately.
+          const coverage = job?.complete &&
+            (job.requestedFrom ?? request.from) <= request.from &&
+            (job.requestedTo ?? request.to) >= request.to
+            ? job : await store.completedCoverage?.(identity, metric);
+          const rangeMissing = !coverage ||
+            (coverage.requestedTo ?? request.to) < request.to || Boolean(missingDates?.length);
           const stale = Boolean(
             error ||
             job?.invalidRows ||
@@ -151,6 +163,7 @@ export function createChartFlowService(
             now() - Date.parse(job.lastSuccessAt) > 86_400_000 ||
             (job.status !== "ready" && job.status !== "history"),
           );
+          if (stale || !valid.length || rangeMissing) needsCollection.add(metric);
           const api = KIWOOM_APIS[metric];
           const stopLabels: Record<string, string> = {
             "requested-start-reached": "요청 시작일까지 확보",
@@ -181,7 +194,7 @@ export function createChartFlowService(
             health:
               error?.health ?? (scopeMismatch ? "DATA_SCOPE_MISMATCH" :
               (valid.length && job && ["ready", "history"].includes(job.status)
-                ? stale ||
+                ? stale || rangeMissing ||
                   !job.complete ||
                   job.stopReason !== "requested-start-reached" ||
                   missingDates?.length
@@ -191,7 +204,7 @@ export function createChartFlowService(
             stale,
             lastSuccessAt: job?.lastSuccessAt ?? null,
             capability: valid.length
-              ? stale ||
+              ? stale || rangeMissing ||
                 !job?.complete ||
                 job.stopReason !== "requested-start-reached" ||
                 job.invalidRows > 0 ||
@@ -225,24 +238,41 @@ export function createChartFlowService(
         }
       }),
     );
-    if (config.mode === "collector" && FLOW_METRICS.some(id => response[id].stale || !response[id].observations.length)) {
+    if (config.mode === "collector" && needsCollection.size) {
       let enqueueAllowed = !config.targetAuthRequired;
       if (!enqueueAllowed) {
         try { assertKiwoomOwner(config, userId); enqueueAllowed = true; } catch { /* Read remains public. */ }
       }
       if (enqueueAllowed && !FLOW_METRICS.some(id => response[id].health === "DATA_SCOPE_MISMATCH")) {
         try {
-          const queued = await store.targets.enqueue(identity);
-          let collectorOffline = false;
-          try {
-            assertKiwoomOwner(config, userId);
-            collectorOffline = (await store.collectorRuntime?.read({ scopeId: identity.scopeId, environment: identity.environment }))?.state === "OFFLINE";
-          } catch { /* Public chart readers never inspect operational heartbeat. */ }
-          for (const id of FLOW_METRICS) {
-            if (!response[id].observations.length) response[id].health = collectorOffline && queued !== "NO_HISTORY" ? "COLLECTION_QUEUED" : queued;
-            response[id].reason += queued === "NO_HISTORY" ? " · 수집 대상 상한 도달 · 운영자 확인 필요"
-              : collectorOffline ? " · 키움 수집 예약됨 · 수집기 OFFLINE · 자동 실행 상태 확인 필요"
-              : " · 키움 수집 예약됨 · 고정 IP 수집기 대기";
+          // Existing subscriptions are already server-accepted. A new public
+          // target must be a confirmed listed product, not just a six-character code.
+          const targetState = await store.targets.state(identity);
+          const targetVerified = targetState !== null ||
+            await (options.authorizeTarget ?? verifyKiwoomTargetIdentity)(request);
+          if (!targetVerified) {
+            for (const id of needsCollection) {
+              if (["NO_HISTORY", "COLLECTING"].includes(response[id].health ?? ""))
+                response[id].health = "PRODUCT_TYPE_UNKNOWN";
+              response[id].reason += " · 종목/상품 유형 확인 실패 · 수집 예약 보류";
+            }
+          } else {
+            const queued = await store.targets.enqueue(identity);
+            let collectorOffline = false;
+            try {
+              assertKiwoomOwner(config, userId);
+              collectorOffline = (await store.collectorRuntime?.read({ scopeId: identity.scopeId, environment: identity.environment }))?.state === "OFFLINE";
+            } catch { /* Public chart readers never inspect operational heartbeat. */ }
+            for (const id of needsCollection) {
+              // Scheduling is independent from the last broker error: never mask
+              // TOKEN_FAILED/API_FAILED/PARSING_FAILED with a queue status.
+              if (["NO_HISTORY", "COLLECTING", "COLLECTION_QUEUED"].includes(response[id].health ?? ""))
+                response[id].health = collectorOffline && queued !== "TARGET_LIMIT_REACHED" ? "COLLECTION_QUEUED" : queued;
+              if (response[id].diagnostics) response[id].diagnostics.collectionState = queued;
+              response[id].reason += queued === "TARGET_LIMIT_REACHED" ? " · 수집 대기열 상한 도달 · 완료 후 재예약"
+                : collectorOffline ? " · 키움 수집 예약됨 · 수집기 OFFLINE · 자동 실행 상태 확인 필요"
+                : " · 키움 수집 예약됨 · 고정 IP 수집기 대기";
+            }
           }
         } catch {
           // A queue failure must not erase already persisted market observations.

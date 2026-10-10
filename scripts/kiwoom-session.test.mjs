@@ -28,7 +28,7 @@ function run(key, secret, { missing = false, directory = false } = {}) {
     testScript,
     `$env:KIWOOM_APP_KEY='fixture-old-key'\n$env:KIWOOM_APP_SECRET='fixture-old-secret'\ntry { . ${q(script)} -AppKeyPath ${q(keyPath)} -AppSecretPath ${q(secretPath)}; & ${q(process.execPath)} ${q(child)} } catch { 'VALIDATION_FAILED'; if ($env:KIWOOM_APP_KEY -ceq 'fixture-old-key' -and $env:KIWOOM_APP_SECRET -ceq 'fixture-old-secret') { 'UNCHANGED' } }`,
   );
-  const result = spawnSync(pwsh, ["-NoProfile", "-File", testScript], { encoding: "utf8" });
+  const result = spawnSync(pwsh, ["-NoProfile", "-File", testScript], { encoding: "utf8", timeout: 30000 });
   rmSync(dir, { recursive: true, force: true });
   assert.equal(result.status, 0, result.stderr);
   for (const secretValue of [
@@ -83,9 +83,9 @@ test(
     const testScript = join(dir, "run.ps1");
     writeFileSync(
       testScript,
-      `function global:npm { ('CALL:' + $args[1]); if ($env:KIWOOM_APP_KEY -ceq 'FixtureKey-Case' -and $env:KIWOOM_APP_SECRET -ceq 'FixtureSecret-Case' -and $env:DATABASE_URL -ceq 'postgresql://fixture.test/isolated' -and $env:KIWOOM_FLOW_MODE -ceq 'direct' -and $env:KIWOOM_DATA_SCOPE_ID -ceq 'fixture-market') { 'CHILD_CONFIG_OK' }; $global:LASTEXITCODE=0 }\nfunction global:npm.cmd { npm @args }\n& ${q(collector)} -AppKeyPath ${q(key)} -AppSecretPath ${q(secret)} -DatabaseUrlPath ${q(db)} -DataScopeId 'fixture-market' -ExpectedEgressIp '192.0.2.1' -FromDate '2026-09-01' -Symbols 'stock:005930','etf:069500'\nif (-not $env:KIWOOM_APP_KEY -and -not $env:KIWOOM_APP_SECRET -and -not $env:DATABASE_URL) { 'CLEARED' }`,
+      `function global:npm { ('CALL:' + $args[1]); if ($env:KIWOOM_APP_KEY -ceq 'FixtureKey-Case' -and $env:KIWOOM_APP_SECRET -ceq 'FixtureSecret-Case' -and $env:DATABASE_URL -ceq 'postgresql://fixture.test/isolated' -and $env:KIWOOM_FLOW_MODE -ceq 'direct' -and $env:KIWOOM_DATA_SCOPE_ID -ceq 'fixture-market') { 'CHILD_CONFIG_OK' }; $global:LASTEXITCODE=0 }\nfunction global:npm.cmd { npm @args }\n& ${q(collector)} -AppKeyPath ${q(key)} -AppSecretPath ${q(secret)} -DatabaseUrlPath ${q(db)} -DataScopeId 'fixture-market' -ExpectedEgressIp '192.0.2.1' -FromDate '2026-09-01' -Symbols 'stock:005930','etf:069500' -RepeatEverySeconds '0'\nif (-not $env:KIWOOM_APP_KEY -and -not $env:KIWOOM_APP_SECRET -and -not $env:DATABASE_URL) { 'CLEARED' }`,
     );
-    const result = spawnSync(pwsh, ["-NoProfile", "-File", testScript], { encoding: "utf8" });
+    const result = spawnSync(pwsh, ["-NoProfile", "-File", testScript], { encoding: "utf8", timeout: 30000 });
     rmSync(dir, { recursive: true, force: true });
     assert.equal(result.status, 0, result.stderr);
     // DB heartbeat + doctor + one-time real-page gate + sync/read + bounded targets.
@@ -130,9 +130,9 @@ test(
         const testScript = join(dir, "run.ps1");
         writeFileSync(
           testScript,
-          `$env:OS='Windows_NT'\nfunction global:npm { throw 'Wrong npm script shim selected' }\nfunction global:npm.cmd { ('CMD:' + ($args -join ' ')); $global:LASTEXITCODE=0; ${failure ? "if ($args[1] -eq 'kiwoom:doctor') { $global:LASTEXITCODE=1 }" : ""} }\n& ${q(collector)} -AppKeyPath ${q(key)} -AppSecretPath ${q(secret)} -DatabaseUrlPath ${q(db)} -DataScopeId 'fixture-market' -ExpectedEgressIp '192.0.2.1' -FromDate '2026-09-01' -Symbols 'stock:005930'\n$workerExit=$LASTEXITCODE\nif (-not $env:KIWOOM_APP_KEY -and -not $env:KIWOOM_APP_SECRET -and -not $env:DATABASE_URL) { 'CLEARED' }\nexit $workerExit`,
+          `$env:OS='Windows_NT'\nfunction global:npm { throw 'Wrong npm script shim selected' }\nfunction global:npm.cmd { ('CMD:' + ($args -join ' ')); $global:LASTEXITCODE=0; ${failure ? "if ($args[1] -eq 'kiwoom:doctor') { $global:LASTEXITCODE=1 }" : ""} }\n& ${q(collector)} -AppKeyPath ${q(key)} -AppSecretPath ${q(secret)} -DatabaseUrlPath ${q(db)} -DataScopeId 'fixture-market' -ExpectedEgressIp '192.0.2.1' -FromDate '2026-09-01' -Symbols 'stock:005930' -RepeatEverySeconds '0'\n$workerExit=$LASTEXITCODE\nif (-not $env:KIWOOM_APP_KEY -and -not $env:KIWOOM_APP_SECRET -and -not $env:DATABASE_URL) { 'CLEARED' }\nexit $workerExit`,
         );
-        const result = spawnSync(pwsh, ["-NoProfile", "-File", testScript], { encoding: "utf8" });
+        const result = spawnSync(pwsh, ["-NoProfile", "-File", testScript], { encoding: "utf8", timeout: 30000 });
         const output = result.stdout + result.stderr;
         for (const value of [
           "FixtureKey-Case",
@@ -158,7 +158,7 @@ test(
           // real npm.cmd is a native command; live/resume flags are still checked.
           assert.match(calls[2], /^run verify:kiwoom --live --code 005930/);
           assert.match(calls[3], /^run sync:kiwoom-flow --live --code 005930 --instrument stock/);
-          assert.match(calls[3], /--incremental --resume --collector-instance-id [a-f0-9-]{36}$/);
+          assert.match(calls[3], /--incremental --resume --enqueue --collector-instance-id [a-f0-9-]{36}$/);
           assert.equal(
             calls[3].match(/--collector-instance-id ([a-f0-9-]{36})$/)?.[1],
             calls[0].match(/--instance-id ([a-f0-9-]{36})$/)?.[1],
