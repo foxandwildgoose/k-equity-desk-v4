@@ -1,0 +1,1096 @@
+{
+  "verifiedAt": "2026-10-10T05:39:20.618Z",
+  "transport": "Inherited HTTPS proxy via curl; real public provider responses, no credentials; same production parsers and search engine",
+  "elapsedMs": 8559,
+  "samsung": {
+    "q": "삼성",
+    "hits": [
+      {
+        "code": "006660",
+        "nameKo": "삼성공조",
+        "nameEn": "삼성공조",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "electronics",
+        "isEtf": false,
+        "source": "naver-listing"
+      },
+      {
+        "code": "028260",
+        "nameKo": "삼성물산",
+        "nameEn": "삼성물산",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "electronics",
+        "isEtf": false,
+        "source": "naver-listing"
+      },
+      {
+        "code": "02826K",
+        "nameKo": "삼성물산우B",
+        "nameEn": "삼성물산우B",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "electronics",
+        "isEtf": false,
+        "source": "naver-listing"
+      },
+      {
+        "code": "207940",
+        "nameKo": "삼성바이오로직스",
+        "nameEn": "삼성바이오로직스",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "bio",
+        "isEtf": false,
+        "source": "naver-listing"
+      },
+      {
+        "code": "032830",
+        "nameKo": "삼성생명",
+        "nameEn": "삼성생명",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "electronics",
+        "isEtf": false,
+        "source": "naver-listing"
+      },
+      {
+        "code": "0044K0",
+        "nameKo": "삼성스팩10호",
+        "nameEn": "삼성스팩10호",
+        "market": "KOSDAQ",
+        "region": "KR",
+        "sectorId": "electronics",
+        "isEtf": false,
+        "source": "naver-listing"
+      },
+      {
+        "code": "0071M0",
+        "nameKo": "삼성스팩11호",
+        "nameEn": "삼성스팩11호",
+        "market": "KOSDAQ",
+        "region": "KR",
+        "sectorId": "electronics",
+        "isEtf": false,
+        "source": "naver-listing"
+      },
+      {
+        "code": "0096B0",
+        "nameKo": "삼성스팩12호",
+        "nameEn": "삼성스팩12호",
+        "market": "KOSDAQ",
+        "region": "KR",
+        "sectorId": "electronics",
+        "isEtf": false,
+        "source": "naver-listing"
+      },
+      {
+        "code": "0115H0",
+        "nameKo": "삼성스팩13호",
+        "nameEn": "삼성스팩13호",
+        "market": "KOSDAQ",
+        "region": "KR",
+        "sectorId": "electronics",
+        "isEtf": false,
+        "source": "naver-listing"
+      },
+      {
+        "code": "018260",
+        "nameKo": "삼성에스디에스",
+        "nameEn": "삼성에스디에스",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "electronics",
+        "isEtf": false,
+        "source": "naver-listing"
+      },
+      {
+        "code": "0126Z0",
+        "nameKo": "삼성에피스홀딩스",
+        "nameEn": "삼성에피스홀딩스",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "electronics",
+        "isEtf": false,
+        "source": "naver-listing"
+      },
+      {
+        "code": "009150",
+        "nameKo": "삼성전기",
+        "nameEn": "삼성전기",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "electronics",
+        "isEtf": false,
+        "source": "naver-listing"
+      },
+      {
+        "code": "009155",
+        "nameKo": "삼성전기우",
+        "nameEn": "삼성전기우",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "electronics",
+        "isEtf": false,
+        "source": "naver-listing"
+      },
+      {
+        "code": "005930",
+        "nameKo": "삼성전자",
+        "nameEn": "삼성전자",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "semiconductors",
+        "isEtf": false,
+        "source": "naver-listing"
+      },
+      {
+        "code": "005935",
+        "nameKo": "삼성전자우",
+        "nameEn": "삼성전자우",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "semiconductors",
+        "isEtf": false,
+        "source": "naver-listing"
+      },
+      {
+        "code": "001360",
+        "nameKo": "삼성제약",
+        "nameEn": "삼성제약",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "bio",
+        "isEtf": false,
+        "source": "naver-listing"
+      },
+      {
+        "code": "010140",
+        "nameKo": "삼성중공업",
+        "nameEn": "삼성중공업",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "electronics",
+        "isEtf": false,
+        "source": "naver-listing"
+      },
+      {
+        "code": "016360",
+        "nameKo": "삼성증권",
+        "nameEn": "삼성증권",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "finance",
+        "isEtf": false,
+        "source": "naver-listing"
+      },
+      {
+        "code": "068290",
+        "nameKo": "삼성출판사",
+        "nameEn": "삼성출판사",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "electronics",
+        "isEtf": false,
+        "source": "naver-listing"
+      },
+      {
+        "code": "029780",
+        "nameKo": "삼성카드",
+        "nameEn": "삼성카드",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "finance",
+        "isEtf": false,
+        "source": "naver-listing"
+      },
+      {
+        "code": "000810",
+        "nameKo": "삼성화재",
+        "nameEn": "삼성화재",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "electronics",
+        "isEtf": false,
+        "source": "naver-listing"
+      },
+      {
+        "code": "000815",
+        "nameKo": "삼성화재우",
+        "nameEn": "삼성화재우",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "electronics",
+        "isEtf": false,
+        "source": "naver-listing"
+      },
+      {
+        "code": "028050",
+        "nameKo": "삼성E&A",
+        "nameEn": "삼성E&A",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "electronics",
+        "isEtf": false,
+        "source": "naver-listing"
+      },
+      {
+        "code": "448730",
+        "nameKo": "삼성FN리츠",
+        "nameEn": "삼성FN리츠",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "electronics",
+        "isEtf": false,
+        "source": "naver-listing"
+      },
+      {
+        "code": "006400",
+        "nameKo": "삼성SDI",
+        "nameEn": "삼성SDI",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "battery",
+        "isEtf": false,
+        "source": "naver-listing"
+      },
+      {
+        "code": "006405",
+        "nameKo": "삼성SDI우",
+        "nameEn": "삼성SDI우",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "battery",
+        "isEtf": false,
+        "source": "naver-listing"
+      },
+      {
+        "code": "0198B0",
+        "nameKo": "1Q 삼성전자선물단일종목레버리지",
+        "nameEn": "1Q 삼성전자선물단일종목레버리지",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "semiconductors",
+        "isEtf": true,
+        "source": "naver-etf"
+      },
+      {
+        "code": "131890",
+        "nameKo": "ACE 삼성그룹동일가중",
+        "nameEn": "ACE 삼성그룹동일가중",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "electronics",
+        "isEtf": true,
+        "source": "naver-etf"
+      },
+      {
+        "code": "108450",
+        "nameKo": "ACE 삼성그룹섹터가중",
+        "nameEn": "ACE 삼성그룹섹터가중",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "electronics",
+        "isEtf": true,
+        "source": "naver-etf"
+      },
+      {
+        "code": "0194M0",
+        "nameKo": "ACE 삼성전자단일종목레버리지",
+        "nameEn": "ACE 삼성전자단일종목레버리지",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "semiconductors",
+        "isEtf": true,
+        "source": "naver-etf"
+      },
+      {
+        "code": "0233A0",
+        "nameKo": "ACE 삼성전자SK하이닉스플러스채권혼합50",
+        "nameEn": "ACE 삼성전자SK하이닉스플러스채권혼합50",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "semiconductors",
+        "isEtf": true,
+        "source": "naver-etf"
+      },
+      {
+        "code": "0183V0",
+        "nameKo": "KIWOOM 삼성전자&SK하이닉스채권혼합50",
+        "nameEn": "KIWOOM 삼성전자&SK하이닉스채권혼합50",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "semiconductors",
+        "isEtf": true,
+        "source": "naver-etf"
+      },
+      {
+        "code": "0194N0",
+        "nameKo": "KIWOOM 삼성전자선물단일종목레버리지",
+        "nameEn": "KIWOOM 삼성전자선물단일종목레버리지",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "semiconductors",
+        "isEtf": true,
+        "source": "naver-etf"
+      },
+      {
+        "code": "0234N0",
+        "nameKo": "KIWOOM 삼성SK그룹TOP4+",
+        "nameEn": "KIWOOM 삼성SK그룹TOP4+",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "electronics",
+        "isEtf": true,
+        "source": "naver-etf"
+      },
+      {
+        "code": "102780",
+        "nameKo": "KODEX 삼성그룹",
+        "nameEn": "KODEX 삼성그룹",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "electronics",
+        "isEtf": true,
+        "source": "naver-etf"
+      },
+      {
+        "code": "213610",
+        "nameKo": "KODEX 삼성그룹밸류",
+        "nameEn": "KODEX 삼성그룹밸류",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "electronics",
+        "isEtf": true,
+        "source": "naver-etf"
+      },
+      {
+        "code": "0193W0",
+        "nameKo": "KODEX 삼성전자단일종목레버리지",
+        "nameEn": "KODEX 삼성전자단일종목레버리지",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "semiconductors",
+        "isEtf": true,
+        "source": "naver-etf"
+      },
+      {
+        "code": "448330",
+        "nameKo": "KODEX 삼성전자채권혼합",
+        "nameEn": "KODEX 삼성전자채권혼합",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "semiconductors",
+        "isEtf": true,
+        "source": "naver-etf"
+      },
+      {
+        "code": "0177N0",
+        "nameKo": "KODEX 삼성전자SK하이닉스채권혼합50",
+        "nameEn": "KODEX 삼성전자SK하이닉스채권혼합50",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "semiconductors",
+        "isEtf": true,
+        "source": "naver-etf"
+      },
+      {
+        "code": "0193K0",
+        "nameKo": "PLUS 삼성전자단일종목레버리지",
+        "nameEn": "PLUS 삼성전자단일종목레버리지",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "semiconductors",
+        "isEtf": true,
+        "source": "naver-etf"
+      },
+      {
+        "code": "0193L0",
+        "nameKo": "PLUS 삼성전자선물단일종목인버스2X",
+        "nameEn": "PLUS 삼성전자선물단일종목인버스2X",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "semiconductors",
+        "isEtf": true,
+        "source": "naver-etf"
+      },
+      {
+        "code": "448630",
+        "nameKo": "RISE 삼성그룹Top3채권혼합",
+        "nameEn": "RISE 삼성그룹Top3채권혼합",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "electronics",
+        "isEtf": true,
+        "source": "naver-etf"
+      },
+      {
+        "code": "0192M0",
+        "nameKo": "RISE 삼성전자단일종목레버리지",
+        "nameEn": "RISE 삼성전자단일종목레버리지",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "semiconductors",
+        "isEtf": true,
+        "source": "naver-etf"
+      },
+      {
+        "code": "0162Z0",
+        "nameKo": "RISE 삼성전자SK하이닉스채권혼합50",
+        "nameEn": "RISE 삼성전자SK하이닉스채권혼합50",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "semiconductors",
+        "isEtf": true,
+        "source": "naver-etf"
+      },
+      {
+        "code": "0240J0",
+        "nameKo": "RISE 삼성SK그룹",
+        "nameEn": "RISE 삼성SK그룹",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "electronics",
+        "isEtf": true,
+        "source": "naver-etf"
+      },
+      {
+        "code": "138520",
+        "nameKo": "TIGER 삼성그룹",
+        "nameEn": "TIGER 삼성그룹",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "electronics",
+        "isEtf": true,
+        "source": "naver-etf"
+      },
+      {
+        "code": "0195R0",
+        "nameKo": "TIGER 삼성전자단일종목레버리지",
+        "nameEn": "TIGER 삼성전자단일종목레버리지",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "semiconductors",
+        "isEtf": true,
+        "source": "naver-etf"
+      },
+      {
+        "code": "0233J0",
+        "nameKo": "TIGER 삼성전자SK하이닉스미국채혼합50",
+        "nameEn": "TIGER 삼성전자SK하이닉스미국채혼합50",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "semiconductors",
+        "isEtf": true,
+        "source": "naver-etf"
+      },
+      {
+        "code": "0203S0",
+        "nameKo": "WON 삼성전자현대차채권혼합50",
+        "nameEn": "WON 삼성전자현대차채권혼합50",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "semiconductors",
+        "isEtf": true,
+        "source": "naver-etf"
+      }
+    ],
+    "total": 49,
+    "offset": 0,
+    "limit": 100,
+    "nextOffset": null,
+    "hasMore": false,
+    "status": "partial",
+    "providers": [
+      {
+        "id": "naver-autocomplete",
+        "count": 10,
+        "status": "ready"
+      },
+      {
+        "id": "naver-search",
+        "count": 0,
+        "status": "unavailable"
+      },
+      {
+        "id": "us-search",
+        "count": 0,
+        "status": "unavailable"
+      },
+      {
+        "id": "kr-listing-kospi",
+        "count": 2116,
+        "status": "ready"
+      },
+      {
+        "id": "kr-listing-kosdaq",
+        "count": 1823,
+        "status": "ready"
+      },
+      {
+        "id": "etf-listing",
+        "count": 1172,
+        "status": "ready"
+      },
+      {
+        "id": "us-listing-nasdaq",
+        "count": 0,
+        "status": "unavailable"
+      },
+      {
+        "id": "us-listing-other",
+        "count": 0,
+        "status": "unavailable"
+      }
+    ],
+    "fetchedAt": "2026-10-10T05:39:19.442Z",
+    "source": "Naver KOSPI/KOSDAQ/ETF listings and search · Nasdaq Trader symbol directories · Yahoo US search · saved desk coverage"
+  },
+  "apple": {
+    "q": "Apple",
+    "hits": [
+      {
+        "code": "AAPL",
+        "nameKo": "애플",
+        "nameEn": "애플",
+        "market": "NASDAQ",
+        "region": "US",
+        "sectorId": "electronics",
+        "isEtf": false,
+        "source": "naver-autocomplete",
+        "matchedQuery": "Apple",
+        "providerRank": 0
+      },
+      {
+        "code": "APLE",
+        "nameKo": "Apple Hospitality REIT Inc",
+        "nameEn": "Apple Hospitality REIT Inc",
+        "market": "NYSE",
+        "region": "US",
+        "sectorId": "electronics",
+        "isEtf": false,
+        "source": "naver-autocomplete",
+        "matchedQuery": "Apple",
+        "providerRank": 1
+      }
+    ],
+    "total": 2,
+    "offset": 0,
+    "limit": 100,
+    "nextOffset": null,
+    "hasMore": false,
+    "status": "partial",
+    "providers": [
+      {
+        "id": "naver-autocomplete",
+        "count": 2,
+        "status": "ready"
+      },
+      {
+        "id": "naver-search",
+        "count": 0,
+        "status": "unavailable"
+      },
+      {
+        "id": "us-search",
+        "count": 0,
+        "status": "unavailable"
+      },
+      {
+        "id": "kr-listing-kospi",
+        "count": 2116,
+        "status": "ready"
+      },
+      {
+        "id": "kr-listing-kosdaq",
+        "count": 1823,
+        "status": "ready"
+      },
+      {
+        "id": "etf-listing",
+        "count": 1172,
+        "status": "ready"
+      },
+      {
+        "id": "us-listing-nasdaq",
+        "count": 0,
+        "status": "unavailable"
+      },
+      {
+        "id": "us-listing-other",
+        "count": 0,
+        "status": "unavailable"
+      }
+    ],
+    "fetchedAt": "2026-10-10T05:39:19.868Z",
+    "source": "Naver KOSPI/KOSDAQ/ETF listings and search · Nasdaq Trader symbol directories · Yahoo US search · saved desk coverage"
+  },
+  "etf": {
+    "q": "0226A0",
+    "hits": [
+      {
+        "code": "0226A0",
+        "nameKo": "PLUS SK하이닉스샌디스크채권혼합50",
+        "nameEn": "PLUS SK하이닉스샌디스크채권혼합50",
+        "market": "KOSPI",
+        "region": "KR",
+        "sectorId": "semiconductors",
+        "isEtf": true,
+        "source": "naver-etf"
+      }
+    ],
+    "total": 1,
+    "offset": 0,
+    "limit": 100,
+    "nextOffset": null,
+    "hasMore": false,
+    "status": "partial",
+    "providers": [
+      {
+        "id": "naver-autocomplete",
+        "count": 1,
+        "status": "ready"
+      },
+      {
+        "id": "naver-search",
+        "count": 0,
+        "status": "unavailable"
+      },
+      {
+        "id": "us-search",
+        "count": 0,
+        "status": "unavailable"
+      },
+      {
+        "id": "kr-listing-kospi",
+        "count": 2116,
+        "status": "ready"
+      },
+      {
+        "id": "kr-listing-kosdaq",
+        "count": 1823,
+        "status": "ready"
+      },
+      {
+        "id": "etf-listing",
+        "count": 1172,
+        "status": "ready"
+      },
+      {
+        "id": "us-listing-nasdaq",
+        "count": 0,
+        "status": "unavailable"
+      },
+      {
+        "id": "us-listing-other",
+        "count": 0,
+        "status": "unavailable"
+      }
+    ],
+    "fetchedAt": "2026-10-10T05:39:20.618Z",
+    "source": "Naver KOSPI/KOSDAQ/ETF listings and search · Nasdaq Trader symbol directories · Yahoo US search · saved desk coverage"
+  },
+  "providerCalls": [
+    {
+      "host": "ac.stock.naver.com",
+      "path": "/ac",
+      "page": null,
+      "ok": false,
+      "status": "403",
+      "ms": 119
+    },
+    {
+      "host": "www.nasdaqtrader.com",
+      "path": "/dynamic/SymDir/nasdaqlisted.txt",
+      "page": null,
+      "ok": false,
+      "status": "403",
+      "ms": 44
+    },
+    {
+      "host": "www.nasdaqtrader.com",
+      "path": "/dynamic/SymDir/otherlisted.txt",
+      "page": null,
+      "ok": false,
+      "status": "403",
+      "ms": 108
+    },
+    {
+      "host": "query1.finance.yahoo.com",
+      "path": "/v1/finance/search",
+      "page": null,
+      "ok": false,
+      "status": "429",
+      "ms": 316
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/front-api/search/autoComplete",
+      "page": null,
+      "ok": true,
+      "ms": 1447
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSPI",
+      "page": "1",
+      "ok": true,
+      "ms": 1789
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSDAQ",
+      "page": "1",
+      "ok": true,
+      "ms": 1951
+    },
+    {
+      "host": "finance.naver.com",
+      "path": "/api/sise/etfItemList.nhn",
+      "page": null,
+      "ok": true,
+      "ms": 2060
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSPI",
+      "page": "4",
+      "ok": true,
+      "ms": 1319
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSPI",
+      "page": "2",
+      "ok": true,
+      "ms": 1460
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSPI",
+      "page": "5",
+      "ok": true,
+      "ms": 1394
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSDAQ",
+      "page": "7",
+      "ok": true,
+      "ms": 1259
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSPI",
+      "page": "7",
+      "ok": true,
+      "ms": 1403
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSPI",
+      "page": "3",
+      "ok": true,
+      "ms": 1554
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSDAQ",
+      "page": "2",
+      "ok": true,
+      "ms": 1426
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSDAQ",
+      "page": "4",
+      "ok": true,
+      "ms": 1389
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSDAQ",
+      "page": "3",
+      "ok": true,
+      "ms": 1460
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSPI",
+      "page": "6",
+      "ok": true,
+      "ms": 1598
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSDAQ",
+      "page": "6",
+      "ok": true,
+      "ms": 1640
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSDAQ",
+      "page": "5",
+      "ok": true,
+      "ms": 1787
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSPI",
+      "page": "8",
+      "ok": true,
+      "ms": 1077
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSPI",
+      "page": "11",
+      "ok": true,
+      "ms": 1131
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSPI",
+      "page": "12",
+      "ok": true,
+      "ms": 1148
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSPI",
+      "page": "13",
+      "ok": true,
+      "ms": 1144
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSPI",
+      "page": "10",
+      "ok": true,
+      "ms": 1224
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSPI",
+      "page": "9",
+      "ok": true,
+      "ms": 1256
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSDAQ",
+      "page": "8",
+      "ok": true,
+      "ms": 1133
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSDAQ",
+      "page": "13",
+      "ok": true,
+      "ms": 1182
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSDAQ",
+      "page": "9",
+      "ok": true,
+      "ms": 1254
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSDAQ",
+      "page": "10",
+      "ok": true,
+      "ms": 1280
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSDAQ",
+      "page": "11",
+      "ok": true,
+      "ms": 1281
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSPI",
+      "page": "17",
+      "ok": true,
+      "ms": 363
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSDAQ",
+      "page": "12",
+      "ok": true,
+      "ms": 1380
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSDAQ",
+      "page": "15",
+      "ok": true,
+      "ms": 359
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSPI",
+      "page": "16",
+      "ok": true,
+      "ms": 1077
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSPI",
+      "page": "14",
+      "ok": true,
+      "ms": 1132
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSPI",
+      "page": "15",
+      "ok": true,
+      "ms": 1158
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSPI",
+      "page": "18",
+      "ok": true,
+      "ms": 1141
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSPI",
+      "page": "19",
+      "ok": true,
+      "ms": 1120
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSDAQ",
+      "page": "14",
+      "ok": true,
+      "ms": 1105
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSDAQ",
+      "page": "16",
+      "ok": true,
+      "ms": 1111
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSDAQ",
+      "page": "17",
+      "ok": true,
+      "ms": 1106
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSPI",
+      "page": "20",
+      "ok": true,
+      "ms": 444
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSPI",
+      "page": "22",
+      "ok": true,
+      "ms": 467
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSDAQ",
+      "page": "19",
+      "ok": true,
+      "ms": 1270
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSDAQ",
+      "page": "18",
+      "ok": true,
+      "ms": 1351
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSPI",
+      "page": "23",
+      "ok": true,
+      "ms": 758
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSPI",
+      "page": "25",
+      "ok": true,
+      "ms": 831
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSPI",
+      "page": "21",
+      "ok": true,
+      "ms": 1209
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/api/stocks/marketValue/KOSPI",
+      "page": "24",
+      "ok": true,
+      "ms": 1187
+    },
+    {
+      "host": "ac.stock.naver.com",
+      "path": "/ac",
+      "page": null,
+      "ok": false,
+      "status": "403",
+      "ms": 30
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/front-api/search/autoComplete",
+      "page": null,
+      "ok": true,
+      "ms": 273
+    },
+    {
+      "host": "query1.finance.yahoo.com",
+      "path": "/v1/finance/search",
+      "page": null,
+      "ok": false,
+      "status": "429",
+      "ms": 296
+    },
+    {
+      "host": "ac.stock.naver.com",
+      "path": "/ac",
+      "page": null,
+      "ok": false,
+      "status": "403",
+      "ms": 55
+    },
+    {
+      "host": "query1.finance.yahoo.com",
+      "path": "/v1/finance/search",
+      "page": null,
+      "ok": false,
+      "status": "429",
+      "ms": 275
+    },
+    {
+      "host": "m.stock.naver.com",
+      "path": "/front-api/search/autoComplete",
+      "page": null,
+      "ok": true,
+      "ms": 658
+    }
+  ]
+}

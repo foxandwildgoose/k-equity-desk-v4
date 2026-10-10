@@ -1,0 +1,1918 @@
+{
+  "scope": "synthetic RPC fixtures + existing production chart stack; no live provider or operational DB",
+  "base": "http://127.0.0.1:8198",
+  "results": [
+    {
+      "theme": "light",
+      "viewport": "desktop",
+      "synthetic": true,
+      "baseline": false,
+      "success": true,
+      "checks": [
+        {
+          "name": "Multiple Korean results are visible above the page and scroll to ETF",
+          "success": true,
+          "detail": {
+            "left": 502,
+            "right": 1078,
+            "top": 33,
+            "bottom": 417,
+            "inputBottom": 29,
+            "parentHeader": false,
+            "width": 1440,
+            "height": 900
+          }
+        },
+        {
+          "name": "Load more appends real distinct result identities",
+          "success": true,
+          "detail": {
+            "total": 48,
+            "unique": 48,
+            "nextOffsetRequested": 40
+          }
+        },
+        {
+          "name": "Keyboard selection and Enter open Korean stock with a rendered native chart",
+          "success": true,
+          "detail": {
+            "path": "/stock/005930",
+            "market": "KOSPI",
+            "nativeCanvas": true,
+            "count": 35
+          }
+        },
+        {
+          "name": "Non-seed Korean result navigates correctly",
+          "success": true,
+          "detail": {
+            "path": "/stock/032830",
+            "market": "KOSPI",
+            "nativeCanvas": true,
+            "count": 35
+          }
+        },
+        {
+          "name": "KOSDAQ result preserves its exchange and opens its stock chart",
+          "success": true,
+          "detail": {
+            "path": "/stock/131970",
+            "market": "KOSDAQ",
+            "nativeCanvas": true,
+            "count": 35
+          }
+        },
+        {
+          "name": "Alphanumeric ETF code stays unchanged and opens ETF chart",
+          "success": true,
+          "detail": {
+            "path": "/etfs/0226A0",
+            "market": "KOSPI",
+            "nativeCanvas": true,
+            "count": 35
+          }
+        },
+        {
+          "name": "An explicit alphanumeric Korean stock remains a stock",
+          "success": true,
+          "detail": {
+            "path": "/stock/1032A0",
+            "market": "KOSPI",
+            "nativeCanvas": true,
+            "count": 35
+          }
+        },
+        {
+          "name": "Apple name and ticker open US chart",
+          "success": true,
+          "detail": {
+            "path": "/us/AAPL",
+            "market": "US",
+            "nativeCanvas": true,
+            "count": 27
+          }
+        },
+        {
+          "name": "US class share and single-letter ticker keep US identity",
+          "success": true,
+          "detail": {
+            "classShare": {
+              "path": "/us/BRK-B",
+              "market": "US",
+              "nativeCanvas": true,
+              "count": 27
+            },
+            "oneLetter": {
+              "path": "/us/F",
+              "market": "US",
+              "nativeCanvas": true,
+              "count": 27
+            }
+          }
+        },
+        {
+          "name": "A slow old-query result cannot overwrite the new query",
+          "success": true,
+          "detail": {
+            "oldResponseActuallyCompleted": true,
+            "currentKeys": [
+              "US:AAPL"
+            ]
+          }
+        },
+        {
+          "name": "Korean IME composition never selects a result or searches unfinished text",
+          "success": true,
+          "detail": {
+            "unfinishedQueryBlocked": true,
+            "EnterDidNotNavigate": true
+          }
+        },
+        {
+          "name": "Provider failure, partial coverage and a valid empty response remain distinct",
+          "success": true,
+          "detail": {
+            "failed": true,
+            "partial": true,
+            "genuineEmpty": true
+          }
+        },
+        {
+          "name": "Blocked browser storage does not prevent result navigation",
+          "success": true,
+          "detail": {
+            "path": "/us/AAPL",
+            "market": "US",
+            "nativeCanvas": true,
+            "count": 27
+          }
+        },
+        {
+          "name": "Shortcut, clear and outside click close the same search state",
+          "success": true,
+          "detail": {
+            "shortcutFocus": true,
+            "cleared": true,
+            "outsideClosed": true
+          }
+        },
+        {
+          "name": "Workspace security selection binds a US result to the US chart",
+          "success": true,
+          "detail": {
+            "region": "US",
+            "code": "AAPL",
+            "nativeCanvas": true,
+            "count": 27
+          }
+        }
+      ],
+      "calls": [
+        {
+          "name": "getMarketQuotes"
+        },
+        {
+          "name": "getMarketIndices"
+        },
+        {
+          "name": "getMarketSnapshot"
+        },
+        {
+          "name": "getStockBundle",
+          "code": "005930"
+        },
+        {
+          "name": "getChartData",
+          "code": "005930",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartData",
+          "code": "005930",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "005930",
+          "market": "KR"
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "삼성",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "삼성",
+          "offset": 40,
+          "limit": 40
+        },
+        {
+          "name": "getStockBundle",
+          "code": "032830"
+        },
+        {
+          "name": "getChartData",
+          "code": "032830",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartData",
+          "code": "032830",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "032830",
+          "market": "KR"
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "131970",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getChartSecurity",
+          "code": "131970"
+        },
+        {
+          "name": "getStockBundle",
+          "code": "131970"
+        },
+        {
+          "name": "getChartData",
+          "code": "131970",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartData",
+          "code": "131970",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartData",
+          "code": "131970",
+          "market": "KOSDAQ"
+        },
+        {
+          "name": "getChartData",
+          "code": "131970",
+          "market": "KOSDAQ"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "131970",
+          "market": "KR"
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "0226A0",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getChartSecurity",
+          "code": "0226A0"
+        },
+        {
+          "name": "getEtfBundle",
+          "code": "0226A0"
+        },
+        {
+          "name": "getChartData",
+          "code": "0226A0",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartData",
+          "code": "0226A0",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "0226A0",
+          "market": "KR"
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "1032A0",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getChartSecurity",
+          "code": "1032A0"
+        },
+        {
+          "name": "getStockBundle",
+          "code": "1032A0"
+        },
+        {
+          "name": "getChartData",
+          "code": "1032A0",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartData",
+          "code": "1032A0",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "1032A0",
+          "market": "KR"
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "Apple",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getUsOfficialPolicy"
+        },
+        {
+          "name": "getUsChartSecurity",
+          "code": "AAPL"
+        },
+        {
+          "name": "getUsOfficialCompany"
+        },
+        {
+          "name": "getUsStreet"
+        },
+        {
+          "name": "getChartData",
+          "code": "AAPL",
+          "market": "US"
+        },
+        {
+          "name": "getChartData",
+          "code": "AAPL",
+          "market": "US"
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "AAPL",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "BRK.B",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getUsChartSecurity",
+          "code": "BRK-B"
+        },
+        {
+          "name": "getUsOfficialCompany"
+        },
+        {
+          "name": "getUsStreet"
+        },
+        {
+          "name": "getChartData",
+          "code": "BRK-B",
+          "market": "US"
+        },
+        {
+          "name": "getChartData",
+          "code": "BRK-B",
+          "market": "US"
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "F",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getUsChartSecurity",
+          "code": "F"
+        },
+        {
+          "name": "getUsOfficialCompany"
+        },
+        {
+          "name": "getUsStreet"
+        },
+        {
+          "name": "getChartData",
+          "code": "F",
+          "market": "US"
+        },
+        {
+          "name": "getChartData",
+          "code": "F",
+          "market": "US"
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "삼",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "QA_OUTAGE",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "QA_OUTAGE",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "apple",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getMarketQuotes"
+        },
+        {
+          "name": "getMarketIndices"
+        },
+        {
+          "name": "getMarketSnapshot"
+        },
+        {
+          "name": "getChartData",
+          "code": "005930",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartData",
+          "code": "005930",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "005930",
+          "market": "KR"
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "Apple"
+        },
+        {
+          "name": "getUsChartSecurity",
+          "code": "AAPL"
+        },
+        {
+          "name": "getChartData",
+          "code": "AAPL",
+          "market": "US"
+        },
+        {
+          "name": "getChartData",
+          "code": "AAPL",
+          "market": "US"
+        }
+      ],
+      "errors": []
+    },
+    {
+      "theme": "light",
+      "viewport": "mobile",
+      "synthetic": true,
+      "baseline": false,
+      "success": true,
+      "checks": [
+        {
+          "name": "Multiple Korean results are visible above the page and scroll to ETF",
+          "success": true,
+          "detail": {
+            "left": 30,
+            "right": 382,
+            "top": 33,
+            "bottom": 417,
+            "inputBottom": 29,
+            "parentHeader": false,
+            "width": 390,
+            "height": 844
+          }
+        },
+        {
+          "name": "Load more appends real distinct result identities",
+          "success": true,
+          "detail": {
+            "total": 48,
+            "unique": 48,
+            "nextOffsetRequested": 40
+          }
+        },
+        {
+          "name": "Keyboard selection and Enter open Korean stock with a rendered native chart",
+          "success": true,
+          "detail": {
+            "path": "/stock/005930",
+            "market": "KOSPI",
+            "nativeCanvas": true,
+            "count": 27
+          }
+        },
+        {
+          "name": "Non-seed Korean result navigates correctly",
+          "success": true,
+          "detail": {
+            "path": "/stock/032830",
+            "market": "KOSPI",
+            "nativeCanvas": true,
+            "count": 27
+          }
+        },
+        {
+          "name": "KOSDAQ result preserves its exchange and opens its stock chart",
+          "success": true,
+          "detail": {
+            "path": "/stock/131970",
+            "market": "KOSDAQ",
+            "nativeCanvas": true,
+            "count": 27
+          }
+        },
+        {
+          "name": "Alphanumeric ETF code stays unchanged and opens ETF chart",
+          "success": true,
+          "detail": {
+            "path": "/etfs/0226A0",
+            "market": "KOSPI",
+            "nativeCanvas": true,
+            "count": 27
+          }
+        },
+        {
+          "name": "An explicit alphanumeric Korean stock remains a stock",
+          "success": true,
+          "detail": {
+            "path": "/stock/1032A0",
+            "market": "KOSPI",
+            "nativeCanvas": true,
+            "count": 27
+          }
+        },
+        {
+          "name": "Apple name and ticker open US chart",
+          "success": true,
+          "detail": {
+            "path": "/us/AAPL",
+            "market": "US",
+            "nativeCanvas": true,
+            "count": 19
+          }
+        },
+        {
+          "name": "US class share and single-letter ticker keep US identity",
+          "success": true,
+          "detail": {
+            "classShare": {
+              "path": "/us/BRK-B",
+              "market": "US",
+              "nativeCanvas": true,
+              "count": 19
+            },
+            "oneLetter": {
+              "path": "/us/F",
+              "market": "US",
+              "nativeCanvas": true,
+              "count": 19
+            }
+          }
+        },
+        {
+          "name": "A slow old-query result cannot overwrite the new query",
+          "success": true,
+          "detail": {
+            "oldResponseActuallyCompleted": true,
+            "currentKeys": [
+              "US:AAPL"
+            ]
+          }
+        },
+        {
+          "name": "Korean IME composition never selects a result or searches unfinished text",
+          "success": true,
+          "detail": {
+            "unfinishedQueryBlocked": true,
+            "EnterDidNotNavigate": true
+          }
+        },
+        {
+          "name": "Provider failure, partial coverage and a valid empty response remain distinct",
+          "success": true,
+          "detail": {
+            "failed": true,
+            "partial": true,
+            "genuineEmpty": true
+          }
+        },
+        {
+          "name": "Blocked browser storage does not prevent result navigation",
+          "success": true,
+          "detail": {
+            "path": "/us/AAPL",
+            "market": "US",
+            "nativeCanvas": true,
+            "count": 19
+          }
+        },
+        {
+          "name": "Shortcut, clear and outside click close the same search state",
+          "success": true,
+          "detail": {
+            "shortcutFocus": true,
+            "cleared": true,
+            "outsideClosed": true
+          }
+        },
+        {
+          "name": "Workspace security selection binds a US result to the US chart",
+          "success": true,
+          "detail": {
+            "region": "US",
+            "code": "AAPL",
+            "nativeCanvas": true,
+            "count": 19
+          }
+        }
+      ],
+      "calls": [
+        {
+          "name": "getMarketQuotes"
+        },
+        {
+          "name": "getMarketIndices"
+        },
+        {
+          "name": "getMarketSnapshot"
+        },
+        {
+          "name": "getStockBundle",
+          "code": "005930"
+        },
+        {
+          "name": "getChartData",
+          "code": "005930",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartData",
+          "code": "005930",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "005930",
+          "market": "KR"
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "삼성",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "삼성",
+          "offset": 40,
+          "limit": 40
+        },
+        {
+          "name": "getStockBundle",
+          "code": "032830"
+        },
+        {
+          "name": "getChartData",
+          "code": "032830",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartData",
+          "code": "032830",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "032830",
+          "market": "KR"
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "131970",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getChartSecurity",
+          "code": "131970"
+        },
+        {
+          "name": "getStockBundle",
+          "code": "131970"
+        },
+        {
+          "name": "getChartData",
+          "code": "131970",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartData",
+          "code": "131970",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartData",
+          "code": "131970",
+          "market": "KOSDAQ"
+        },
+        {
+          "name": "getChartData",
+          "code": "131970",
+          "market": "KOSDAQ"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "131970",
+          "market": "KR"
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "0226A0",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getChartSecurity",
+          "code": "0226A0"
+        },
+        {
+          "name": "getEtfBundle",
+          "code": "0226A0"
+        },
+        {
+          "name": "getChartData",
+          "code": "0226A0",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartData",
+          "code": "0226A0",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "0226A0",
+          "market": "KR"
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "1032A0",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getChartSecurity",
+          "code": "1032A0"
+        },
+        {
+          "name": "getStockBundle",
+          "code": "1032A0"
+        },
+        {
+          "name": "getChartData",
+          "code": "1032A0",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartData",
+          "code": "1032A0",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "1032A0",
+          "market": "KR"
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "Apple",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getUsOfficialPolicy"
+        },
+        {
+          "name": "getUsChartSecurity",
+          "code": "AAPL"
+        },
+        {
+          "name": "getUsOfficialCompany"
+        },
+        {
+          "name": "getUsStreet"
+        },
+        {
+          "name": "getChartData",
+          "code": "AAPL",
+          "market": "US"
+        },
+        {
+          "name": "getChartData",
+          "code": "AAPL",
+          "market": "US"
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "AAPL",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "BRK.B",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getUsChartSecurity",
+          "code": "BRK-B"
+        },
+        {
+          "name": "getUsOfficialCompany"
+        },
+        {
+          "name": "getUsStreet"
+        },
+        {
+          "name": "getChartData",
+          "code": "BRK-B",
+          "market": "US"
+        },
+        {
+          "name": "getChartData",
+          "code": "BRK-B",
+          "market": "US"
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "F",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getUsChartSecurity",
+          "code": "F"
+        },
+        {
+          "name": "getUsOfficialCompany"
+        },
+        {
+          "name": "getUsStreet"
+        },
+        {
+          "name": "getChartData",
+          "code": "F",
+          "market": "US"
+        },
+        {
+          "name": "getChartData",
+          "code": "F",
+          "market": "US"
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "삼",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "QA_OUTAGE",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "QA_OUTAGE",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "apple",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getMarketQuotes"
+        },
+        {
+          "name": "getMarketIndices"
+        },
+        {
+          "name": "getMarketSnapshot"
+        },
+        {
+          "name": "getChartData",
+          "code": "005930",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartData",
+          "code": "005930",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "005930",
+          "market": "KR"
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "Apple"
+        },
+        {
+          "name": "getUsChartSecurity",
+          "code": "AAPL"
+        },
+        {
+          "name": "getChartData",
+          "code": "AAPL",
+          "market": "US"
+        },
+        {
+          "name": "getChartData",
+          "code": "AAPL",
+          "market": "US"
+        }
+      ],
+      "errors": []
+    },
+    {
+      "theme": "dark",
+      "viewport": "desktop",
+      "synthetic": true,
+      "baseline": false,
+      "success": true,
+      "checks": [
+        {
+          "name": "Multiple Korean results are visible above the page and scroll to ETF",
+          "success": true,
+          "detail": {
+            "left": 502,
+            "right": 1078,
+            "top": 33,
+            "bottom": 417,
+            "inputBottom": 29,
+            "parentHeader": false,
+            "width": 1440,
+            "height": 900
+          }
+        },
+        {
+          "name": "Load more appends real distinct result identities",
+          "success": true,
+          "detail": {
+            "total": 48,
+            "unique": 48,
+            "nextOffsetRequested": 40
+          }
+        },
+        {
+          "name": "Keyboard selection and Enter open Korean stock with a rendered native chart",
+          "success": true,
+          "detail": {
+            "path": "/stock/005930",
+            "market": "KOSPI",
+            "nativeCanvas": true,
+            "count": 35
+          }
+        },
+        {
+          "name": "Non-seed Korean result navigates correctly",
+          "success": true,
+          "detail": {
+            "path": "/stock/032830",
+            "market": "KOSPI",
+            "nativeCanvas": true,
+            "count": 35
+          }
+        },
+        {
+          "name": "KOSDAQ result preserves its exchange and opens its stock chart",
+          "success": true,
+          "detail": {
+            "path": "/stock/131970",
+            "market": "KOSDAQ",
+            "nativeCanvas": true,
+            "count": 35
+          }
+        },
+        {
+          "name": "Alphanumeric ETF code stays unchanged and opens ETF chart",
+          "success": true,
+          "detail": {
+            "path": "/etfs/0226A0",
+            "market": "KOSPI",
+            "nativeCanvas": true,
+            "count": 35
+          }
+        },
+        {
+          "name": "An explicit alphanumeric Korean stock remains a stock",
+          "success": true,
+          "detail": {
+            "path": "/stock/1032A0",
+            "market": "KOSPI",
+            "nativeCanvas": true,
+            "count": 35
+          }
+        },
+        {
+          "name": "Apple name and ticker open US chart",
+          "success": true,
+          "detail": {
+            "path": "/us/AAPL",
+            "market": "US",
+            "nativeCanvas": true,
+            "count": 27
+          }
+        },
+        {
+          "name": "US class share and single-letter ticker keep US identity",
+          "success": true,
+          "detail": {
+            "classShare": {
+              "path": "/us/BRK-B",
+              "market": "US",
+              "nativeCanvas": true,
+              "count": 27
+            },
+            "oneLetter": {
+              "path": "/us/F",
+              "market": "US",
+              "nativeCanvas": true,
+              "count": 27
+            }
+          }
+        },
+        {
+          "name": "A slow old-query result cannot overwrite the new query",
+          "success": true,
+          "detail": {
+            "oldResponseActuallyCompleted": true,
+            "currentKeys": [
+              "US:AAPL"
+            ]
+          }
+        },
+        {
+          "name": "Korean IME composition never selects a result or searches unfinished text",
+          "success": true,
+          "detail": {
+            "unfinishedQueryBlocked": true,
+            "EnterDidNotNavigate": true
+          }
+        },
+        {
+          "name": "Provider failure, partial coverage and a valid empty response remain distinct",
+          "success": true,
+          "detail": {
+            "failed": true,
+            "partial": true,
+            "genuineEmpty": true
+          }
+        },
+        {
+          "name": "Blocked browser storage does not prevent result navigation",
+          "success": true,
+          "detail": {
+            "path": "/us/AAPL",
+            "market": "US",
+            "nativeCanvas": true,
+            "count": 27
+          }
+        },
+        {
+          "name": "Shortcut, clear and outside click close the same search state",
+          "success": true,
+          "detail": {
+            "shortcutFocus": true,
+            "cleared": true,
+            "outsideClosed": true
+          }
+        },
+        {
+          "name": "Workspace security selection binds a US result to the US chart",
+          "success": true,
+          "detail": {
+            "region": "US",
+            "code": "AAPL",
+            "nativeCanvas": true,
+            "count": 27
+          }
+        }
+      ],
+      "calls": [
+        {
+          "name": "getMarketQuotes"
+        },
+        {
+          "name": "getMarketIndices"
+        },
+        {
+          "name": "getMarketSnapshot"
+        },
+        {
+          "name": "getStockBundle",
+          "code": "005930"
+        },
+        {
+          "name": "getChartData",
+          "code": "005930",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartData",
+          "code": "005930",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "005930",
+          "market": "KR"
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "삼성",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "삼성",
+          "offset": 40,
+          "limit": 40
+        },
+        {
+          "name": "getStockBundle",
+          "code": "032830"
+        },
+        {
+          "name": "getChartData",
+          "code": "032830",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartData",
+          "code": "032830",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "032830",
+          "market": "KR"
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "131970",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getChartSecurity",
+          "code": "131970"
+        },
+        {
+          "name": "getStockBundle",
+          "code": "131970"
+        },
+        {
+          "name": "getChartData",
+          "code": "131970",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartData",
+          "code": "131970",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartData",
+          "code": "131970",
+          "market": "KOSDAQ"
+        },
+        {
+          "name": "getChartData",
+          "code": "131970",
+          "market": "KOSDAQ"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "131970",
+          "market": "KR"
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "0226A0",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getChartSecurity",
+          "code": "0226A0"
+        },
+        {
+          "name": "getEtfBundle",
+          "code": "0226A0"
+        },
+        {
+          "name": "getChartData",
+          "code": "0226A0",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartData",
+          "code": "0226A0",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "0226A0",
+          "market": "KR"
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "1032A0",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getChartSecurity",
+          "code": "1032A0"
+        },
+        {
+          "name": "getStockBundle",
+          "code": "1032A0"
+        },
+        {
+          "name": "getChartData",
+          "code": "1032A0",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartData",
+          "code": "1032A0",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "1032A0",
+          "market": "KR"
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "Apple",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getUsOfficialPolicy"
+        },
+        {
+          "name": "getUsChartSecurity",
+          "code": "AAPL"
+        },
+        {
+          "name": "getUsOfficialCompany"
+        },
+        {
+          "name": "getUsStreet"
+        },
+        {
+          "name": "getChartData",
+          "code": "AAPL",
+          "market": "US"
+        },
+        {
+          "name": "getChartData",
+          "code": "AAPL",
+          "market": "US"
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "AAPL",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "BRK.B",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getUsChartSecurity",
+          "code": "BRK-B"
+        },
+        {
+          "name": "getUsOfficialCompany"
+        },
+        {
+          "name": "getUsStreet"
+        },
+        {
+          "name": "getChartData",
+          "code": "BRK-B",
+          "market": "US"
+        },
+        {
+          "name": "getChartData",
+          "code": "BRK-B",
+          "market": "US"
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "F",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getUsChartSecurity",
+          "code": "F"
+        },
+        {
+          "name": "getUsOfficialCompany"
+        },
+        {
+          "name": "getUsStreet"
+        },
+        {
+          "name": "getChartData",
+          "code": "F",
+          "market": "US"
+        },
+        {
+          "name": "getChartData",
+          "code": "F",
+          "market": "US"
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "삼",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "QA_OUTAGE",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "QA_OUTAGE",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "apple",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getMarketQuotes"
+        },
+        {
+          "name": "getMarketIndices"
+        },
+        {
+          "name": "getMarketSnapshot"
+        },
+        {
+          "name": "getChartData",
+          "code": "005930",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartData",
+          "code": "005930",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "005930",
+          "market": "KR"
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "Apple"
+        },
+        {
+          "name": "getUsChartSecurity",
+          "code": "AAPL"
+        },
+        {
+          "name": "getChartData",
+          "code": "AAPL",
+          "market": "US"
+        },
+        {
+          "name": "getChartData",
+          "code": "AAPL",
+          "market": "US"
+        }
+      ],
+      "errors": []
+    },
+    {
+      "theme": "dark",
+      "viewport": "mobile",
+      "synthetic": true,
+      "baseline": false,
+      "success": true,
+      "checks": [
+        {
+          "name": "Multiple Korean results are visible above the page and scroll to ETF",
+          "success": true,
+          "detail": {
+            "left": 30,
+            "right": 382,
+            "top": 33,
+            "bottom": 417,
+            "inputBottom": 29,
+            "parentHeader": false,
+            "width": 390,
+            "height": 844
+          }
+        },
+        {
+          "name": "Load more appends real distinct result identities",
+          "success": true,
+          "detail": {
+            "total": 48,
+            "unique": 48,
+            "nextOffsetRequested": 40
+          }
+        },
+        {
+          "name": "Keyboard selection and Enter open Korean stock with a rendered native chart",
+          "success": true,
+          "detail": {
+            "path": "/stock/005930",
+            "market": "KOSPI",
+            "nativeCanvas": true,
+            "count": 27
+          }
+        },
+        {
+          "name": "Non-seed Korean result navigates correctly",
+          "success": true,
+          "detail": {
+            "path": "/stock/032830",
+            "market": "KOSPI",
+            "nativeCanvas": true,
+            "count": 27
+          }
+        },
+        {
+          "name": "KOSDAQ result preserves its exchange and opens its stock chart",
+          "success": true,
+          "detail": {
+            "path": "/stock/131970",
+            "market": "KOSDAQ",
+            "nativeCanvas": true,
+            "count": 27
+          }
+        },
+        {
+          "name": "Alphanumeric ETF code stays unchanged and opens ETF chart",
+          "success": true,
+          "detail": {
+            "path": "/etfs/0226A0",
+            "market": "KOSPI",
+            "nativeCanvas": true,
+            "count": 27
+          }
+        },
+        {
+          "name": "An explicit alphanumeric Korean stock remains a stock",
+          "success": true,
+          "detail": {
+            "path": "/stock/1032A0",
+            "market": "KOSPI",
+            "nativeCanvas": true,
+            "count": 27
+          }
+        },
+        {
+          "name": "Apple name and ticker open US chart",
+          "success": true,
+          "detail": {
+            "path": "/us/AAPL",
+            "market": "US",
+            "nativeCanvas": true,
+            "count": 19
+          }
+        },
+        {
+          "name": "US class share and single-letter ticker keep US identity",
+          "success": true,
+          "detail": {
+            "classShare": {
+              "path": "/us/BRK-B",
+              "market": "US",
+              "nativeCanvas": true,
+              "count": 19
+            },
+            "oneLetter": {
+              "path": "/us/F",
+              "market": "US",
+              "nativeCanvas": true,
+              "count": 19
+            }
+          }
+        },
+        {
+          "name": "A slow old-query result cannot overwrite the new query",
+          "success": true,
+          "detail": {
+            "oldResponseActuallyCompleted": true,
+            "currentKeys": [
+              "US:AAPL"
+            ]
+          }
+        },
+        {
+          "name": "Korean IME composition never selects a result or searches unfinished text",
+          "success": true,
+          "detail": {
+            "unfinishedQueryBlocked": true,
+            "EnterDidNotNavigate": true
+          }
+        },
+        {
+          "name": "Provider failure, partial coverage and a valid empty response remain distinct",
+          "success": true,
+          "detail": {
+            "failed": true,
+            "partial": true,
+            "genuineEmpty": true
+          }
+        },
+        {
+          "name": "Blocked browser storage does not prevent result navigation",
+          "success": true,
+          "detail": {
+            "path": "/us/AAPL",
+            "market": "US",
+            "nativeCanvas": true,
+            "count": 19
+          }
+        },
+        {
+          "name": "Shortcut, clear and outside click close the same search state",
+          "success": true,
+          "detail": {
+            "shortcutFocus": true,
+            "cleared": true,
+            "outsideClosed": true
+          }
+        },
+        {
+          "name": "Workspace security selection binds a US result to the US chart",
+          "success": true,
+          "detail": {
+            "region": "US",
+            "code": "AAPL",
+            "nativeCanvas": true,
+            "count": 19
+          }
+        }
+      ],
+      "calls": [
+        {
+          "name": "getMarketQuotes"
+        },
+        {
+          "name": "getMarketIndices"
+        },
+        {
+          "name": "getMarketSnapshot"
+        },
+        {
+          "name": "getStockBundle",
+          "code": "005930"
+        },
+        {
+          "name": "getChartData",
+          "code": "005930",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartData",
+          "code": "005930",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "005930",
+          "market": "KR"
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "삼성",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "삼성",
+          "offset": 40,
+          "limit": 40
+        },
+        {
+          "name": "getStockBundle",
+          "code": "032830"
+        },
+        {
+          "name": "getChartData",
+          "code": "032830",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartData",
+          "code": "032830",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "032830",
+          "market": "KR"
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "131970",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getChartSecurity",
+          "code": "131970"
+        },
+        {
+          "name": "getStockBundle",
+          "code": "131970"
+        },
+        {
+          "name": "getChartData",
+          "code": "131970",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartData",
+          "code": "131970",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartData",
+          "code": "131970",
+          "market": "KOSDAQ"
+        },
+        {
+          "name": "getChartData",
+          "code": "131970",
+          "market": "KOSDAQ"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "131970",
+          "market": "KR"
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "0226A0",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getChartSecurity",
+          "code": "0226A0"
+        },
+        {
+          "name": "getEtfBundle",
+          "code": "0226A0"
+        },
+        {
+          "name": "getChartData",
+          "code": "0226A0",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartData",
+          "code": "0226A0",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "0226A0",
+          "market": "KR"
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "1032A0",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getChartSecurity",
+          "code": "1032A0"
+        },
+        {
+          "name": "getStockBundle",
+          "code": "1032A0"
+        },
+        {
+          "name": "getChartData",
+          "code": "1032A0",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartData",
+          "code": "1032A0",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "1032A0",
+          "market": "KR"
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "Apple",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getUsOfficialPolicy"
+        },
+        {
+          "name": "getUsChartSecurity",
+          "code": "AAPL"
+        },
+        {
+          "name": "getUsOfficialCompany"
+        },
+        {
+          "name": "getUsStreet"
+        },
+        {
+          "name": "getChartData",
+          "code": "AAPL",
+          "market": "US"
+        },
+        {
+          "name": "getChartData",
+          "code": "AAPL",
+          "market": "US"
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "AAPL",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "BRK.B",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getUsChartSecurity",
+          "code": "BRK-B"
+        },
+        {
+          "name": "getUsOfficialCompany"
+        },
+        {
+          "name": "getUsStreet"
+        },
+        {
+          "name": "getChartData",
+          "code": "BRK-B",
+          "market": "US"
+        },
+        {
+          "name": "getChartData",
+          "code": "BRK-B",
+          "market": "US"
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "F",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getUsChartSecurity",
+          "code": "F"
+        },
+        {
+          "name": "getUsOfficialCompany"
+        },
+        {
+          "name": "getUsStreet"
+        },
+        {
+          "name": "getChartData",
+          "code": "F",
+          "market": "US"
+        },
+        {
+          "name": "getChartData",
+          "code": "F",
+          "market": "US"
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "삼",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "QA_OUTAGE",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "QA_OUTAGE",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "apple",
+          "offset": 0,
+          "limit": 40
+        },
+        {
+          "name": "getMarketQuotes"
+        },
+        {
+          "name": "getMarketIndices"
+        },
+        {
+          "name": "getMarketSnapshot"
+        },
+        {
+          "name": "getChartData",
+          "code": "005930",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartData",
+          "code": "005930",
+          "market": "KOSPI"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "005930",
+          "market": "KR"
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "Apple"
+        },
+        {
+          "name": "getUsChartSecurity",
+          "code": "AAPL"
+        },
+        {
+          "name": "getChartData",
+          "code": "AAPL",
+          "market": "US"
+        },
+        {
+          "name": "getChartData",
+          "code": "AAPL",
+          "market": "US"
+        }
+      ],
+      "errors": []
+    }
+  ]
+}

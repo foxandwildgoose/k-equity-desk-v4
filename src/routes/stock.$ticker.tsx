@@ -19,7 +19,7 @@ import {
 } from "@/lib/format";
 import { useStockBundle, useChartData } from "@/lib/use-market";
 import { useMarketStream } from "@/lib/use-market-stream";
-import { inferSectorId, detectKrMarket, normalizeKrTicker, isDigitTicker } from "@/lib/infer-sector";
+import { inferSectorId, detectKrMarket, normalizeKrTicker, isKrTicker } from "@/lib/infer-sector";
 import { useChartSecurity } from "@/lib/charts/use-chart-security";
 import { DATA_LABEL } from "@/data/market";
 import { ChevronRight, Loader2 } from "lucide-react";
@@ -46,7 +46,7 @@ export const Route = createFileRoute("/stock/$ticker")({
 function StockPage() {
   const { ticker } = Route.useParams();
   const code = normalizeKrTicker(ticker);
-  const validStock = isDigitTicker(code);
+  const validStock = isKrTicker(code);
   const uni = getUniverseItem(code);
   const security = useChartSecurity(code, "KR");
   const [lastHit, setLastHit] = useState<{

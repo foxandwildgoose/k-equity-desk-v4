@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useAppStore } from "@/lib/store";
 import { US_STREET_SYMBOLS } from "@/lib/us-street";
 import { ROBOTICS_US_SYMBOLS } from "@/data/robotics";
@@ -26,7 +26,7 @@ import {
 } from "@/lib/market-fns";
 import type { ChartInterval, MinuteSize, LiveQuote } from "@/server/naver-market";
 import type { SectorId } from "@/data/types";
-import { normalizeKrTicker, isKrTicker, isDigitTicker } from "@/lib/infer-sector";
+import { normalizeKrTicker, isKrTicker } from "@/lib/infer-sector";
 import { yahooUsSymbol } from "@/lib/valuation-series";
 import type { EtfMarketBucket } from "@/server/etf-market";
 import { UNIVERSE } from "@/data/universe";
@@ -85,7 +85,7 @@ export function useStockBundle(code: string) {
     staleTime: 25_000,
     refetchInterval: 45_000,
     refetchOnWindowFocus: false,
-    enabled: isDigitTicker(padded),
+    enabled: isKrTicker(padded),
   });
 }
 
@@ -300,14 +300,19 @@ export function useUsLinkDesk() {
   });
 }
 
-export function useSecuritySearch(q: string) {
+export function useSecuritySearch(q: string, enabled = true) {
   const needle = q.trim();
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: ["security-search", needle],
-    queryFn: () => getSecuritySearch({ data: { q: needle } }),
-    enabled: needle.length >= 1,
+    initialPageParam: 0,
+    queryFn: ({ pageParam, signal }) => getSecuritySearch({
+      data: { q: needle, offset: pageParam, limit: 40 }, signal,
+    }),
+    getNextPageParam: (lastPage) => lastPage.nextOffset ?? undefined,
+    enabled: enabled && needle.length >= 1,
     staleTime: 60_000,
-    placeholderData: (prev) => prev,
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
 }
 

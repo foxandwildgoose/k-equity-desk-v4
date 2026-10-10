@@ -93,7 +93,7 @@ export const getUsChartSecurity = createServerFn({ method: "GET" })
         .string()
         .trim()
         .toUpperCase()
-        .regex(/^[A-Z][A-Z0-9.-]{0,11}$/),
+        .regex(/^[A-Z][A-Z0-9.-]{0,14}$/),
     }),
   )
   .handler(async ({ data }) => fetchUsChartSecurity(data.code));

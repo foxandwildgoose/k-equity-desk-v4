@@ -1,0 +1,8 @@
+{
+  "command": "npm run qa:smoke -- --routes / --base http://127.0.0.1:8198",
+  "build": "production",
+  "result": {
+    "checked": 2,
+    "failures": []
+  }
+}

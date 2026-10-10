@@ -1,0 +1,173 @@
+{
+  "scope": "synthetic RPC fixtures + existing production chart stack; no live provider or operational DB",
+  "base": "http://127.0.0.1:8194",
+  "results": [
+    {
+      "theme": "dark",
+      "viewport": "desktop",
+      "synthetic": true,
+      "baseline": true,
+      "success": true,
+      "checks": [],
+      "baselineClip": [
+        {
+          "text": "코스피삼성전자005930",
+          "clipped": false,
+          "height": 51,
+          "top": 38
+        },
+        {
+          "text": "코스피삼성전기009150",
+          "clipped": true,
+          "height": 51,
+          "top": 89
+        },
+        {
+          "text": "코스피삼성에스디에스018260",
+          "clipped": true,
+          "height": 51,
+          "top": 140
+        },
+        {
+          "text": "코스피삼성SDI006400",
+          "clipped": true,
+          "height": 51,
+          "top": 191
+        },
+        {
+          "text": "코스피삼성바이오로직스207940",
+          "clipped": true,
+          "height": 51,
+          "top": 242
+        },
+        {
+          "text": "코스피삼성생명032830",
+          "clipped": true,
+          "height": 51,
+          "top": 293
+        },
+        {
+          "text": "코스피삼성화재000810",
+          "clipped": true,
+          "height": 51,
+          "top": 344
+        },
+        {
+          "text": "코스피삼성중공업010140",
+          "clipped": true,
+          "height": 51,
+          "top": 395
+        },
+        {
+          "text": "코스피삼성물산028260",
+          "clipped": true,
+          "height": 51,
+          "top": 446
+        },
+        {
+          "text": "코스닥삼성 QA SYNTHETIC 코스닥131970",
+          "clipped": true,
+          "height": 51,
+          "top": 497
+        },
+        {
+          "text": "코스피QA SYNTHETIC 삼성 검색 1790000",
+          "clipped": true,
+          "height": 51,
+          "top": 548
+        },
+        {
+          "text": "코스피QA SYNTHETIC 삼성 검색 2790001",
+          "clipped": true,
+          "height": 51,
+          "top": 599
+        },
+        {
+          "text": "코스피QA SYNTHETIC 삼성 검색 3790002",
+          "clipped": true,
+          "height": 51,
+          "top": 650
+        },
+        {
+          "text": "코스피QA SYNTHETIC 삼성 검색 4790003",
+          "clipped": true,
+          "height": 51,
+          "top": 701
+        },
+        {
+          "text": "코스피QA SYNTHETIC 삼성 검색 5790004",
+          "clipped": true,
+          "height": 51,
+          "top": 752
+        },
+        {
+          "text": "코스피QA SYNTHETIC 삼성 검색 6790005",
+          "clipped": true,
+          "height": 51,
+          "top": 803
+        },
+        {
+          "text": "코스피QA SYNTHETIC 삼성 검색 7790006",
+          "clipped": true,
+          "height": 51,
+          "top": 854
+        },
+        {
+          "text": "코스피QA SYNTHETIC 삼성 검색 8790007",
+          "clipped": true,
+          "height": 51,
+          "top": 905
+        },
+        {
+          "text": "코스피QA SYNTHETIC 삼성 검색 9790008",
+          "clipped": true,
+          "height": 51,
+          "top": 956
+        },
+        {
+          "text": "코스피QA SYNTHETIC 삼성 검색 10790009",
+          "clipped": true,
+          "height": 51,
+          "top": 1007
+        }
+      ],
+      "calls": [
+        {
+          "name": "getMarketQuotes"
+        },
+        {
+          "name": "getMarketIndices"
+        },
+        {
+          "name": "getMarketSnapshot"
+        },
+        {
+          "name": "getStockBundle",
+          "code": "005930"
+        },
+        {
+          "name": "getChartData",
+          "code": "005930"
+        },
+        {
+          "name": "getChartData",
+          "code": "005930"
+        },
+        {
+          "name": "getChartFlow",
+          "code": "005930"
+        },
+        {
+          "name": "getSecuritySearch",
+          "q": "삼성"
+        },
+        {
+          "name": "getEtfMarket",
+          "q": "삼성",
+          "limit": 20
+        }
+      ],
+      "errors": []
+    }
+  ]
+}

@@ -239,7 +239,13 @@ test("band chart prices ignore null future points and do not invent EPS", () => 
 
 test("US ticker parsing, Yahoo closes, and SEC TTM including synthesized Q4", () => {
   assert.equal(yahooUsSymbol("nvda.o"), "NVDA");
-  assert.equal(yahooUsSymbol("BRK.B"), "BRK.B");
+  assert.equal(yahooUsSymbol("BRK.B"), "BRK-B");
+  assert.equal(yahooUsSymbol("BRK.A"), "BRK-A");
+  assert.equal(yahooUsSymbol("BRK-B"), "BRK-B");
+  assert.equal(yahooUsSymbol("ABCDEF"), "ABCDEF");
+  assert.equal(yahooUsSymbol("F"), "F");
+  assert.equal(yahooUsSymbol("ABC-"), null);
+  assert.equal(yahooUsSymbol("https://example.com"), null);
   assert.equal(yahooUsSymbol("005930"), null);
   assert.equal(yahooUsSymbol("0238C0"), null);
 

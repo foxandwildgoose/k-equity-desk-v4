@@ -38,6 +38,13 @@ test("valid alphabetic ETF codes survive direct entry and metadata parsing", () 
   );
 });
 
+test("US class shares and long symbols stay in the US workspace namespace", () => {
+  assert.deepEqual(parseChartSymbols("US:BRK-B,US:ABCDEF,US:F,KR:1032A0"), [
+    "US:BRK-B", "US:ABCDEF", "US:F", "KR:1032A0",
+  ]);
+  assert.deepEqual(parseChartSymbols("US:../AAPL,US:https://example.test,KR:AAPL"), []);
+});
+
 test("identity requires provider fields, not product names or code patterns", () => {
   assert.equal(
     parseNaverChartSecurity("005930", listing("005930", "stock", "ETF named company"))?.instrument,

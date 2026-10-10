@@ -42,7 +42,7 @@ function number(value: string): number | null {
 }
 
 function date(value: string): string | null {
-  const match = /^(\d{4})[-.\/](\d{1,2})[-.\/](\d{1,2})$/.exec(value.trim()) ?? /^(\d{4})(\d{2})(\d{2})$/.exec(value.trim());
+  const match = /^(\d{4})[-./](\d{1,2})[-./](\d{1,2})$/.exec(value.trim()) ?? /^(\d{4})(\d{2})(\d{2})$/.exec(value.trim());
   if (!match) return null;
   const year = Number(match[1]), month = Number(match[2]), day = Number(match[3]);
   const parsed = new Date(Date.UTC(year, month - 1, day));
@@ -56,7 +56,7 @@ function attribute(tag: string, name: string): string | null {
 
 function portfolioDate(scope: string): string | null {
   const dates = new Set<string>();
-  for (const match of textOnly(scope).matchAll(/(?:기준\s*일(?:자)?|기준\s*날짜|as\s+of|holdings\s+date)\s*[:：]?\s*(\d{4}[-.\/]\d{1,2}[-.\/]\d{1,2}|\d{8})/gi)) {
+  for (const match of textOnly(scope).matchAll(/(?:기준\s*일(?:자)?|기준\s*날짜|as\s+of|holdings\s+date)\s*[:：]?\s*(\d{4}[-./]\d{1,2}[-./]\d{1,2}|\d{8})/gi)) {
     const parsed = date(match[1]!);
     if (!parsed) return null;
     dates.add(parsed);

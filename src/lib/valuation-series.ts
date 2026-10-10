@@ -8,6 +8,8 @@
  * label on realized future earnings.
  */
 
+import { normalizeSearchUsSymbol } from "./security-search.ts";
+
 export type AnnualFundamental = {
   year: number;
   /** Fiscal period end YYYY-MM-DD. */
@@ -425,11 +427,10 @@ export function parseBandMonthPrices(json: unknown): MonthPrice[] {
 /** Yahoo symbol for a Naver Reuters code (NVDA.O) or a bare US ticker. KR codes return null. */
 export function yahooUsSymbol(raw: string): string | null {
   const t = raw.trim().toUpperCase().replace(/\s+/g, "");
-  if (!t || /^[0-9A-Z]{6}$/.test(t)) return null;
-  const stripped = t.replace(/\.(O|N|A|K|Q)$/, "");
-  if (!/^[A-Z][A-Z0-9.]{0,9}$/.test(stripped)) return null;
-  if (stripped.endsWith(".") || stripped.startsWith(".")) return null;
-  return stripped;
+  // .A/.B are share classes, not exchange suffixes. Yahoo uses BRK-A/BRK-B.
+  // Six-letter US symbols must not be mistaken for a six-character KRX code.
+  const stripped = t.replace(/\.(O|N|K|Q)$/, "");
+  return normalizeSearchUsSymbol(stripped);
 }
 
 function fiscalYearOf(v: unknown): number | null {

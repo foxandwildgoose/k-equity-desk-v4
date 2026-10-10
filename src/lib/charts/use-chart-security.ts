@@ -37,7 +37,7 @@ export function useChartSecurity(code: string, market: "KR" | "US", validatedPro
     },
     enabled:
       market === "US"
-        ? /^[A-Z][A-Z0-9.-]{0,11}$/.test(normalized)
+        ? /^[A-Z][A-Z0-9.-]{0,14}$/.test(normalized)
         : !declared && /^[0-9A-Z]{6}$/.test(normalized),
     staleTime: (query) => (query.state.data ? 60 * 60_000 : 30_000),
     refetchOnWindowFocus: false,

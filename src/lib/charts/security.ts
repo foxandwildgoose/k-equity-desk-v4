@@ -16,7 +16,7 @@ export function parseChartSymbols(raw: string | undefined): string[] {
   return (raw ?? "")
     .split(",")
     .map((v) => v.trim().toUpperCase())
-    .filter((v) => /^(KR:[0-9A-Z]{6}|US:[A-Z][A-Z0-9.]{0,9})$/.test(v))
+    .filter((v) => /^(KR:[0-9A-Z]{6}|US:[A-Z][A-Z0-9.-]{0,14})$/.test(v))
     .slice(0, 4);
 }
 

@@ -138,13 +138,14 @@ export function Dashboard() {
   ]);
   const extra = useQuotesByCodes(watchlist);
   const quotes = useMemo(() => {
+    if (!mounted) return [];
     const map = new Map<string, LiveQuote>();
     for (const q of data?.quotes ?? []) map.set(q.code, q);
     for (const q of extra.data?.quotes ?? []) {
       if (!map.has(q.code)) map.set(q.code, q);
     }
     return [...map.values()];
-  }, [data?.quotes, extra.data?.quotes]);
+  }, [mounted, data?.quotes, extra.data?.quotes]);
   const { gainers, losers } = marketMoversFromQuotes(quotes, 6);
 
   const watched = watchlist

@@ -143,7 +143,7 @@ export const getMarketQuotes = createServerFn({ method: "GET" }).handler(
 );
 
 export const getStockBundle = createServerFn({ method: "GET" })
-  .validator(z.object({ code: z.string().regex(/^\d{6}$/) }))
+  .validator(z.object({ code: z.string().trim().toUpperCase().regex(/^[0-9A-Z]{6}$/) }))
   .handler(async ({ data }) => {
     const code = normalizeKrTicker(data.code);
     const now = Date.now();
@@ -272,7 +272,7 @@ export const getStockBundle = createServerFn({ method: "GET" })
 export const getChartData = createServerFn({ method: "GET" })
   .validator(
     z.object({
-      code: z.string().trim().min(1).max(12),
+      code: z.string().trim().min(1).max(15),
       market: z.enum(["KOSPI", "KOSDAQ", "US"]),
       interval: z.enum(["minute", "day", "week", "month", "year"]),
       minuteSize: z

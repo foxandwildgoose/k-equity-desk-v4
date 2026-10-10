@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { getDiscoveryChartContext } from "@/lib/bollinger-discovery-fns";
@@ -12,6 +12,7 @@ import { useChartSecurity } from "@/lib/charts/use-chart-security";
 import { chartLayoutScope, parseChartSymbols } from "@/lib/charts/security";
 import { useAppStore } from "@/lib/store";
 import { getSecuritySearch } from "@/lib/market-fns";
+import { normalizeSearchUsSymbol, searchSecurityKey, type ListedSearchHit } from "@/lib/security-search";
 import type { ChartInterval, MinuteSize } from "@/server/naver-market";
 import { cn } from "@/lib/utils";
 
@@ -44,22 +45,27 @@ const INTERVALS: { id: ChartInterval; label: string; range: string }[] = [
 
 function SymbolPicker({ value, onPick }: { value: string; onPick: (sym: string) => void }) {
   const [q, setQ] = useState("");
-  const [hits, setHits] = useState<{ code: string; nameKo: string }[]>([]);
+  const [hits, setHits] = useState<ListedSearchHit[]>([]);
   const [busy, setBusy] = useState(false);
+  const sequence = useRef(0);
   const submit = async () => {
     const raw = q.trim().toUpperCase();
     if (!raw) return;
+    const ticket = ++sequence.current;
     if (/^KR:[0-9A-Z]{6}$/.test(raw)) return void (onPick(raw), setQ(""), setHits([]));
+    if (raw.startsWith("US:")) {
+      const symbol = normalizeSearchUsSymbol(raw.slice(3));
+      if (symbol) return void (onPick(`US:${symbol}`), setQ(""), setHits([]));
+    }
     if (/^[0-9A-Z]{6}$/.test(raw) && /[0-9]/.test(raw)) return void (onPick(`KR:${raw}`), setQ(""), setHits([]));
-    if (/^[A-Z][A-Z0-9.]{0,9}$/.test(raw)) return void (onPick(`US:${raw}`), setQ(""), setHits([]));
     setBusy(true);
     try {
       const r = await getSecuritySearch({ data: { q: q.trim() } });
-      setHits(r.hits.slice(0, 6));
+      if (ticket === sequence.current) setHits(r.hits.slice(0, 6));
     } catch {
-      setHits([]);
+      if (ticket === sequence.current) setHits([]);
     } finally {
-      setBusy(false);
+      if (ticket === sequence.current) setBusy(false);
     }
   };
   return (
@@ -72,18 +78,19 @@ function SymbolPicker({ value, onPick }: { value: string; onPick: (sym: string) 
         }}
       >
         <Search className="size-3.5 text-muted-foreground" />
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={value.split(":")[1] ?? "종목"} className="h-8 w-28 text-[11px]" aria-label="종목 검색 (코드·심볼·이름)" />
+        <Input value={q} onChange={(e) => { sequence.current++; setQ(e.target.value); setHits([]); setBusy(false); }} placeholder={value.split(":")[1] ?? "종목"} className="h-8 w-28 text-[11px]" aria-label="종목 검색 (코드·심볼·이름)" />
       </form>
       {(hits.length > 0 || busy) && (
         <ul className="absolute left-0 top-9 z-30 w-56 rounded-md border border-border bg-card p-1 text-[11px] shadow-lg">
           {busy && <li className="px-2 py-1 text-muted-foreground">검색 중…</li>}
           {hits.map((h) => (
-            <li key={h.code}>
+            <li key={searchSecurityKey(h)}>
               <button
                 type="button"
                 className="flex min-h-9 w-full items-center justify-between rounded px-2 hover:bg-muted"
                 onClick={() => {
-                  onPick(`KR:${h.code}`);
+                  sequence.current++;
+                  onPick(`${h.region}:${h.code}`);
                   setHits([]);
                   setQ("");
                 }}
