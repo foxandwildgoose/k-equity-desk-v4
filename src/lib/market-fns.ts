@@ -36,6 +36,7 @@ import {
   type EtfAssetClass,
 } from "@/server/etf-market";
 import { UNIVERSE } from "@/data/universe";
+import { officialHoldingsDestination } from "@/server/etf-issuer";
 import { sortDisclosuresNewestFirst, sortTimedNewestFirst } from "@/lib/feed/mappers";
 import { inferSectorId, detectKrMarket, normalizeKrTicker, isKrTicker } from "@/lib/infer-sector";
 import { US_LINKED_CODES, US_POLICY_BRIEFS } from "@/data/us-link";
@@ -727,6 +728,11 @@ export const getEtfBundle = createServerFn({ method: "GET" })
         : `출처: ${holdingPack.source}. 운용사 공식 비중을 확인하지 못해 비중은 — 입니다. 시세와 수량으로 비중을 추정하지 않습니다.`
       : "공식 편입내역을 받지 못해 테마 매핑으로 대체합니다. 비중은 표시하지 않습니다.";
 
+    const issuerHoldingsUrl = officialHoldingsDestination(
+      code, detail.etf.nameKo, detail.issuer ?? detail.etf.issuer,
+      holdingPack.issuerProductUrl, holdingPack.issuerUrl,
+    );
+
     return {
       etf: detail.etf,
       issuer: detail.issuer,
@@ -743,7 +749,8 @@ export const getEtfBundle = createServerFn({ method: "GET" })
       holdingsSourceKind: holdingPack.sourceKind,
       holdingsIssuerUrl: holdingPack.issuerUrl ?? null,
       issuerProductUrl: holdingPack.issuerProductUrl,
-      issuerLinkStatus: holdingPack.issuerProductUrl ? "resolved" as const : "unavailable" as const,
+      issuerHoldingsUrl,
+      issuerLinkStatus: issuerHoldingsUrl ? "resolved" as const : "unavailable" as const,
       holdingsCount: holdings.length,
       officialCount,
       weightBasis,

@@ -51,6 +51,75 @@ export function isOfficialIssuerUrl(value: string, family: EtfIssuerFamily): boo
   } catch { return false; }
 }
 
+type OfficialProductReference = { url: URL; id: string };
+// Explicit user-provided destination, independently verified against the issuer
+// product HTML on 2026-10-10: exact code 0246X0 and SOL 글로벌DRAM반도체플러스.
+// Keeps the official action available if a cold catalog lookup exceeds its deadline.
+const VERIFIED_PRODUCT_DESTINATIONS: Partial<Record<EtfIssuerFamily, Record<string, string>>> = {
+  sol: { "0246X0": "https://www.soletf.com/ko/fund/etf/211124" },
+};
+function officialProductReference(value: string | null | undefined, family: EtfIssuerFamily, ticker: string): OfficialProductReference | null {
+  if (!value || !isOfficialIssuerUrl(value, family)) return null;
+  const url = new URL(value);
+  const path = url.pathname.replace(/\/$/, "");
+  const parameter = (key: string): string | null => {
+    const values = url.searchParams.getAll(key);
+    return values.length === 1 && /^[A-Za-z0-9_-]{1,80}$/.test(values[0]!) ? values[0]! : null;
+  };
+  let id: string | null = null;
+  if (family === "kodex") id = path === "/etf/product/view.do" ? parameter("id") : null;
+  else if (family === "koact") id = path === "/etf/view.do" ? parameter("id") : null;
+  else if (family === "sol") id = /^\/ko\/fund\/etf\/(\d+)$/.exec(path)?.[1] ?? null;
+  else if (family === "plus") id = path === "/product/detail" ? parameter("n") : null;
+  else if (family === "ace" || family === "hanaro") id = /^\/fund\/([A-Za-z0-9_-]{1,80})$/.exec(path)?.[1] ?? null;
+  else if (family === "ibk") id = /^\/etf\/detail\/(\d+)$/.exec(path)?.[1] ?? null;
+  else if (family === "rise") {
+    id = ["kbam.co.kr", "www.kbam.co.kr"].includes(url.hostname)
+      ? /^\/products\/([A-Za-z0-9_-]{1,80})$/.exec(path)?.[1] ?? null
+      : /^\/prod\/finderDetail\/([A-Za-z0-9_-]{1,80})$/.exec(path)?.[1] ?? null;
+  } else if (family === "tiger") {
+    id = path === "/tigeretf/ko/product/search/detail/index.do" ? parameter("ksdFund") : null;
+    if (id !== krxEtfIsin(ticker)) return null;
+  } else if (family === "kiwoom") {
+    id = path === "/service/etf/KO02010200M" ? parameter("gcode") : null;
+    if (id?.toUpperCase() !== ticker) return null;
+  } else {
+    // The generic resolver already verifies the ticker on the official detail page.
+    // Its route must still identify a product rather than an API, search or download.
+    if (/\/(?:api|search|download)(?:\/|$)|\.(?:pdf|xlsx?|csv)$/i.test(path) || !detailUrl(value, value, family)) return null;
+    id = ["id", "n", "idx", "fundCd", "fundCode"].map(parameter).find(Boolean) ?? null;
+    if (!id) {
+      const segment = path.split("/").at(-1);
+      id = segment && /^[A-Za-z0-9_-]{1,80}$/.test(segment) && !/^(?:detail|view|overview|index)$/i.test(segment) ? segment : null;
+    }
+  }
+  if (!id) return null;
+  // Fragments from upstream URLs are not evidence that a holdings section exists.
+  url.hash = "";
+  return { url, id };
+}
+
+/**
+ * Select one holdings action from URLs verified by the official issuer adapters.
+ * This does not discover or certify arbitrary caller-supplied URLs: the ticker-to-
+ * product pairing must already come from resolveEtfIssuer or an issuer basket.
+ */
+export function officialHoldingsDestination(code: string, name: string, issuer = "", productUrl?: string | null, holdingsUrl?: string | null): string | null {
+  const ticker = code.trim().toUpperCase();
+  if (!/^[0-9A-Z]{6}$/.test(ticker)) return null;
+  const { family } = etfIssuerIdentity(name, issuer);
+  if (family === "unknown") return null;
+  const product = officialProductReference(productUrl, family, ticker);
+  const holdings = officialProductReference(holdingsUrl, family, ticker);
+  const destination = (holdings && (!product || holdings.id === product.id) ? holdings : product)
+    ?? officialProductReference(VERIFIED_PRODUCT_DESTINATIONS[family]?.[ticker], family, ticker);
+  if (!destination) return null;
+  // Verified 2026-10-10 on official HANARO product HTML: the investment PDF link
+  // points to #etfPDF and the same page contains <div id="etfPDF">.
+  if (family === "hanaro") destination.url.hash = "etfPDF";
+  return destination.url.href;
+}
+
 export async function fetchOfficialIssuerBytes(url: string, family: EtfIssuerFamily, options: IssuerRequestOptions = {}, init: RequestInit = {}): Promise<Uint8Array> {
   if (!isOfficialIssuerUrl(url, family)) throw new Error("Unsupported official issuer destination");
   if (options.signal?.aborted) throw new Error("Issuer lookup deadline exceeded");
@@ -148,59 +217,91 @@ export function krxEtfIsin(code: string): string | null {
 }
 
 type Catalog = Map<string, string>;
-const catalogCache = new Map<EtfIssuerFamily, { at: number; promise: Promise<Catalog> }>();
-async function officialCatalog(family: EtfIssuerFamily, options: IssuerRequestOptions): Promise<Catalog> {
-  const previous = !options.fetcher ? catalogCache.get(family) : null;
-  if (previous && Date.now() - previous.at < 6 * 60 * 60_000) return previous.promise;
-  const promise = (async () => {
-    const map: Catalog = new Map();
+type CatalogState = { at: number; map: Catalog; nextPage: number; complete: boolean; pending?: Promise<void> };
+const catalogCache = new Map<EtfIssuerFamily, CatalogState>();
+async function readCatalogPage(family: EtfIssuerFamily, state: CatalogState, options: IssuerRequestOptions): Promise<void> {
+    const map = state.map;
+    const page = state.nextPage;
     if (family === "kodex") {
-      for (let page = 1; page <= 30; page++) {
         const rows = JSON.parse(await fetchOfficialIssuerText(`https://www.samsungfund.com/api/v1/kodex/product.do?ordrColm=NAV&ordrSort=DESC&pageNo=${page}&pageRows=20&srchTerm=w`, family, options)) as { stkTicker?: string; fId?: string; totalCnt?: string }[];
         for (const row of rows) if (row.stkTicker && row.fId) map.set(row.stkTicker.toUpperCase(), `https://www.samsungfund.com/etf/product/view.do?id=${encodeURIComponent(row.fId)}`);
-        if (!rows.length || page * 20 >= Number(rows[0]?.totalCnt ?? rows.length)) break;
-      }
+        state.complete = !rows.length || page * 20 >= Number(rows[0]?.totalCnt ?? rows.length) || page >= 30;
     } else if (family === "hanaro") {
-      for (let page = 1; page <= 25; page++) {
         const chunk = parseHanaroFundCatalog(await fetchOfficialIssuerText(`https://www.hanaroetf.com/api/v1/fund/get-fund-search-list?pageNo=${page}`, family, options));
         for (const [code, id] of chunk) map.set(code, `https://www.hanaroetf.com/fund/${encodeURIComponent(id)}`);
-        if (chunk.size < 10) break;
-      }
+        state.complete = chunk.size < 10 || page >= 25;
     } else if (family === "rise") {
-      for (let page = 1; page <= 50; page++) {
         const pack = JSON.parse(await fetchOfficialIssuerText(`https://kbam.co.kr/api/products/etfs?page=${page}`, family, options)) as { page_items?: { krx_cd?: string; fund_cd?: string }[]; page_info?: { next_page?: number; total_page?: number } };
         for (const row of pack.page_items ?? []) if (row.krx_cd && row.fund_cd) map.set(row.krx_cd.toUpperCase(), `https://kbam.co.kr/products/${encodeURIComponent(row.fund_cd)}`);
-        if (!pack.page_info?.next_page || page >= Number(pack.page_info?.total_page ?? 1)) break;
-      }
-    } else if (family === "ace" || family === "koact") {
-      const endpoint = family === "ace" ? "https://papi.aceetf.co.kr/api/funds?page=1&size=1000" : "https://www.samsungactive.co.kr/api/v1/product/etf.do";
+        state.complete = !pack.page_info?.next_page || page >= Number(pack.page_info?.total_page ?? 1) || page >= 50;
+    } else if (family === "koact") {
+      // The live endpoint returns { totalCnt, etfs }, and defaults to only 20 rows.
+        const pack = JSON.parse(await fetchOfficialIssuerText(`https://www.samsungactive.co.kr/api/v1/product/etf.do?pageNo=${page}&pageRows=100`, family, options)) as { totalCnt?: string; etfs?: unknown[] };
+        const rows = catalogRecords(pack);
+        for (const row of rows) {
+          const code = String(row.stkTicker ?? "").trim().toUpperCase();
+          const id = String(row.fId ?? "").trim();
+          if (/^[0-9A-Z]{6}$/.test(code) && /^[A-Za-z0-9_-]{1,80}$/.test(id)) map.set(code, `https://www.samsungactive.co.kr/etf/view.do?id=${encodeURIComponent(id)}`);
+        }
+        state.complete = !rows.length || page * 100 >= Number(pack.totalCnt ?? rows.length) || page >= 30;
+    } else if (family === "ace") {
+      const endpoint = "https://papi.aceetf.co.kr/api/funds?page=1&size=1000";
       const pack = JSON.parse(await fetchOfficialIssuerText(endpoint, family, options)) as unknown;
       for (const row of catalogRecords(pack)) {
         const rawCode = String(row.stockCd ?? row.isin ?? row.stkTicker ?? row.stk_ticker ?? row.ticker ?? "").trim().toUpperCase();
         const code = /^KR7[0-9A-Z]{6}00\d$/.test(rawCode) ? rawCode.slice(3, 9) : rawCode;
         const id = String(row.fundCd ?? row.fund_cd ?? row.fId ?? "").trim();
         if (!/^[0-9A-Z]{6}$/.test(code) || !id) continue;
-        map.set(code, family === "ace" ? `https://www.aceetf.co.kr/fund/${encodeURIComponent(id)}` : `https://www.samsungactive.co.kr/etf/view.do?id=${encodeURIComponent(id)}`);
+        map.set(code, `https://www.aceetf.co.kr/fund/${encodeURIComponent(id)}`);
       }
+      state.complete = true;
+    } else {
+      state.complete = true;
     }
-    return map;
-  })();
-  if (!options.fetcher) {
-    catalogCache.set(family, { at: Date.now(), promise });
-    void promise.then((map) => { if (!map.size) catalogCache.delete(family); }, () => catalogCache.delete(family));
+    // Advance only after a successful page; interrupted lookups retry this page.
+    state.nextPage = page + 1;
+}
+async function officialCatalog(family: EtfIssuerFamily, wantedCode: string, options: IssuerRequestOptions): Promise<Catalog> {
+  const previous = !options.fetcher ? catalogCache.get(family) : null;
+  const state = previous && Date.now() - previous.at < 6 * 60 * 60_000
+    ? previous
+    : { at: Date.now(), map: new Map<string, string>(), nextPage: 1, complete: false } as CatalogState;
+  if (!options.fetcher) catalogCache.set(family, state);
+  // A partial catalog is reusable for known tickers, and continues for a missing
+  // ticker. Requests share one page fetch rather than replacing in-flight state.
+  while (!state.map.has(wantedCode) && !state.complete) {
+    if (options.signal?.aborted) throw new Error("Issuer lookup deadline exceeded");
+    if (!state.pending) {
+      const pending = readCatalogPage(family, state, options).finally(() => {
+        if (state.pending === pending) state.pending = undefined;
+      });
+      state.pending = pending;
+    }
+    await waitForCatalogPage(state.pending, options.signal);
   }
-  return promise;
+  return state.map;
+}
+async function waitForCatalogPage(pending: Promise<void>, signal?: AbortSignal): Promise<void> {
+  if (!signal) return pending;
+  if (signal.aborted) throw new Error("Issuer lookup deadline exceeded");
+  let stopWaiting = () => {};
+  const interrupted = new Promise<never>((_resolve, reject) => {
+    stopWaiting = () => reject(new Error("Issuer lookup deadline exceeded"));
+    signal.addEventListener("abort", stopWaiting, { once: true });
+  });
+  try { await Promise.race([pending, interrupted]); }
+  finally { signal.removeEventListener("abort", stopWaiting); }
 }
 function catalogRecords(value: unknown, depth = 0): Record<string, unknown>[] {
   if (depth > 6 || value == null || typeof value !== "object") return [];
   if (Array.isArray(value)) return value.flatMap((x) => catalogRecords(x, depth + 1));
   const record = value as Record<string, unknown>;
   if (["stockCd", "isin", "stkTicker", "stk_ticker", "ticker"].some((x) => x in record)) return [record];
-  return ["data", "funds", "content", "list", "items"].flatMap((key) => catalogRecords(record[key], depth + 1));
+  return ["data", "funds", "etfs", "content", "list", "items"].flatMap((key) => catalogRecords(record[key], depth + 1));
 }
 
 async function resolveStructured(code: string, name: string, family: EtfIssuerFamily, options: IssuerRequestOptions): Promise<string | null> {
-  if (["kodex", "hanaro", "rise", "ace", "koact"].includes(family)) return (await officialCatalog(family, options)).get(code) ?? null;
+  if (["kodex", "hanaro", "rise", "ace", "koact"].includes(family)) return (await officialCatalog(family, code, options)).get(code) ?? null;
   if (family === "plus") {
     const data = JSON.parse(await fetchOfficialIssuerText("https://www.plusetf.co.kr/api/v1/product/find/list", family, options, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ searchSortTy: "", searchSort: "DESC", page: 0, searchAnnuityOptionTy: null, searchWord: code }) })) as { content?: { id?: string; nameCode?: string }[] };
     const row = data.content?.find((x) => x.nameCode?.toUpperCase() === code);

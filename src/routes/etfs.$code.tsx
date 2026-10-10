@@ -128,15 +128,10 @@ function EtfDetailPage() {
     ...holdings.map((h) => h.weightSource === "official" ? h.weight ?? 0 : 0),
   );
   const naverItemUrl = `https://finance.naver.com/item/main.naver?code=${(etf?.code ?? code).toUpperCase()}`;
-  const issuerProductUrl =
-    data && "issuerProductUrl" in data && typeof data.issuerProductUrl === "string"
-      ? data.issuerProductUrl
+  const issuerHoldingsUrl =
+    data && "issuerHoldingsUrl" in data && typeof data.issuerHoldingsUrl === "string"
+      ? data.issuerHoldingsUrl
       : null;
-  const issuerUrl =
-    data && "holdingsIssuerUrl" in data && typeof data.holdingsIssuerUrl === "string"
-      ? data.holdingsIssuerUrl
-      : null;
-  const officialSourceUrl = issuerUrl ?? issuerProductUrl;
 
   return (
     <div className="flex flex-col gap-6">
@@ -204,27 +199,6 @@ function EtfDetailPage() {
                 ? ` · 시총 ${data.marketValue}`
                 : ""}
             </p>
-            <div className="flex flex-wrap items-center gap-2 pt-1">
-              {issuerProductUrl ? (
-                <Button asChild size="lg" className="gap-2">
-                  <a href={issuerProductUrl} target="_blank" rel="noopener noreferrer">
-                    <Landmark className="size-4" />
-                    운용사 상품 페이지
-                    <ExternalLink className="size-4" />
-                  </a>
-                </Button>
-              ) : (
-                <>
-                  <Button size="lg" variant="outline" disabled>
-                    <Landmark className="size-4" />
-                    운용사 상품 페이지
-                  </Button>
-                  <span className="text-sm text-muted-foreground" role="status">
-                    {isLoading ? "상품 상세 링크 확인 중" : "상품 상세 링크 확인 불가"}
-                  </span>
-                </>
-              )}
-            </div>
           </div>
           <div className="shrink-0 rounded-xl border border-border bg-card/70 px-5 py-4 lg:min-w-[200px] lg:text-right">
             {isLoading && !etf ? (
@@ -435,18 +409,43 @@ function EtfDetailPage() {
               첨부 자료의 {asOf ?? "미확인 기준일"} 공시 비중입니다. 운용사의 최신 구성내역을 실시간으로 확인하지 못해 과거 자료를 표시합니다.
             </p>
           )}
-          <SourceLinks
-            className="mt-2"
-            size="sm"
-            primaryUrl={officialSourceUrl}
-            primaryLabel={issuerUrl ? "운용사 공식 구성내역" : "운용사 상품 페이지"}
-            more={[
-              ...(issuerProductUrl && issuerUrl && issuerProductUrl !== issuerUrl
-                ? [{ label: "운용사 상품 페이지", url: issuerProductUrl }]
-                : []),
-              { label: "네이버 구성종목 참고", url: naverItemUrl },
-            ]}
-          />
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            {issuerHoldingsUrl ? (
+              <Button asChild size="lg" className="w-full gap-2 sm:w-auto">
+                <a
+                  href={issuerHoldingsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="새 탭에서 운용사 공식 구성내역 열기"
+                >
+                  <Landmark aria-hidden="true" />
+                  운용사 공식 구성내역
+                  <ExternalLink aria-hidden="true" />
+                </a>
+              </Button>
+            ) : (
+              <div className="flex w-full flex-col gap-2 sm:w-auto">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  disabled
+                  aria-describedby="issuer-holdings-link-status"
+                >
+                  <Landmark aria-hidden="true" />
+                  운용사 공식 구성내역
+                </Button>
+                <p id="issuer-holdings-link-status" className="text-sm text-muted-foreground" role="status">
+                  {isLoading
+                    ? "운용사 공식 구성내역 링크를 확인하고 있습니다."
+                    : "이 ETF의 운용사 공식 구성내역 링크를 확인하지 못했습니다."}
+                </p>
+              </div>
+            )}
+            <SourceLinks
+              size="sm"
+              more={[{ label: "네이버 구성종목 참고", url: naverItemUrl }]}
+            />
+          </div>
         </div>
 
         {isLoading && holdings.length === 0 ? (

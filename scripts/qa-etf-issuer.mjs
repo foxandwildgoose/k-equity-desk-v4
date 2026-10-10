@@ -56,8 +56,9 @@ assert.equal(Math.round(snapshot.rows.reduce((sum, row) => sum + row.weight, 0) 
 const cases = [
   { id: 'official-resolved', code: snapshot.code, resolved: true, official: true, quoteAvailable: true },
   { id: 'official-unavailable', code: snapshot.code, resolved: false, official: true, quoteAvailable: false },
+  { id: 'product-only', code: '999998', resolved: true, official: false, quoteAvailable: true },
   { id: 'unsupported', code: '999999', resolved: false, official: false, quoteAvailable: true },
-].filter(item => list('--cases', 'official-resolved,official-unavailable,unsupported').includes(item.id));
+].filter(item => list('--cases', 'official-resolved,official-unavailable,product-only,unsupported').includes(item.id));
 const viewports = [
   { id: 'desktop', width: 1440, height: 900 },
   { id: 'mobile', width: 390, height: 844, isMobile: true, hasTouch: true },
@@ -114,6 +115,7 @@ function bundleFor(item) {
     holdingsSourceKind: item.official ? 'issuer-file' : 'naver-table',
     holdingsIssuerUrl: item.resolved ? `${fixtureProductUrl}#portfolio` : null,
     issuerProductUrl: item.resolved ? fixtureProductUrl : null,
+    issuerHoldingsUrl: item.resolved ? `${fixtureProductUrl}${item.official ? '#portfolio' : ''}` : null,
     issuerLinkStatus: item.resolved ? 'resolved' : 'unavailable',
     holdingsCount: holdings.length, officialCount: item.official ? holdings.length : 0,
     weightBasis: item.official ? 'official' : 'none', officialWeightSum: item.official ? 100 : 0,
@@ -240,21 +242,29 @@ async function acceptance(page, context, item, result) {
     assert(!(await header.innerText()).includes('0.00%'), 'Unavailable quote shown as unchanged market');
   }
   if (item.resolved) {
-    const direct = header.getByRole('link', { name: '운용사 상품 페이지' });
-    assert.equal(await direct.getAttribute('href'), fixtureProductUrl);
+    const destination = `${fixtureProductUrl}${item.official ? '#portfolio' : ''}`;
+    const direct = section.getByRole('link', { name: '운용사 공식 구성내역', exact: true });
+    assert.equal(await page.getByRole('link', { name: '운용사 공식 구성내역', exact: true }).count(), 1, 'Duplicate issuer action');
+    assert.equal(await page.getByRole('link', { name: '운용사 상품 페이지', exact: true }).count(), 0, 'Old issuer action remains');
+    assert.equal(await direct.getAttribute('href'), destination);
     assert.equal(await direct.getAttribute('target'), '_blank');
+    assert.equal(await direct.getAttribute('rel'), 'noopener noreferrer');
+    assert((await direct.boundingBox()).height >= 44, 'Holdings button touch target too small');
     const popupPromise = context.waitForEvent('page');
     await direct.click();
     const popup = await popupPromise;
     await popup.waitForLoadState('domcontentloaded');
-    assert.equal(popup.url(), fixtureProductUrl);
+    assert.equal(popup.url(), destination);
     assert.equal(await popup.title(), 'QA issuer product navigation fixture');
     await popup.close();
-    result.checks.push('Direct issuer product button opens exact test-only fixture URL');
+    result.checks.push('One holdings button opens exact test-only destination in a separate tab');
   } else {
-    assert(await header.getByRole('button', { name: '운용사 상품 페이지' }).isDisabled(), 'Unavailable direct link enabled');
-    assert((await header.innerText()).includes('상품 상세 링크 확인 불가'));
-    assert.equal(await header.getByRole('link', { name: '운용사 상품 페이지' }).count(), 0);
+    const disabled = section.getByRole('button', { name: '운용사 공식 구성내역', exact: true });
+    assert(await disabled.isDisabled(), 'Unavailable direct link enabled');
+    assert.equal(await disabled.getAttribute('aria-describedby'), 'issuer-holdings-link-status');
+    assert((await section.innerText()).includes('이 ETF의 운용사 공식 구성내역 링크를 확인하지 못했습니다.'));
+    assert.equal(await page.getByRole('link', { name: '운용사 공식 구성내역', exact: true }).count(), 0);
+    assert.equal(await page.getByRole('button', { name: '운용사 공식 구성내역', exact: true }).count(), 1);
   }
   assert.equal(result.unhandledRpcs.length, 0, `Unknown RPCs: ${result.unhandledRpcs.join(', ')}`);
   assert(result.fixtureCalls.some(call => call.name === 'getEtfBundle'), 'ETF RPC not intercepted');
