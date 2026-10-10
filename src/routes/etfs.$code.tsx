@@ -15,6 +15,7 @@ import {
 import { usePriceColors } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ReadableProse } from "@/components/ui/ReadableProse";
 import { SourceLinks } from "@/components/ui/SourceLinks";
 import {
@@ -28,6 +29,7 @@ import {
   Globe2,
   Link2,
   Landmark,
+  ExternalLink,
 } from "lucide-react";
 
 export const Route = createFileRoute("/etfs/$code")({
@@ -73,10 +75,11 @@ function EtfDetailPage() {
   if (data && "error" in data) throw notFound();
 
   const etf = data && "etf" in data ? data.etf : null;
+  const quoteAvailable = etf?.quoteAvailable !== false;
   const holdingsRaw = data && "holdings" in data ? data.holdings : [];
   const holdings = [...holdingsRaw].sort((a, b) => {
-    const aw = a.weight;
-    const bw = b.weight;
+    const aw = a.weightSource === "official" ? a.weight : null;
+    const bw = b.weightSource === "official" ? b.weight : null;
     if (aw == null && bw == null) return Math.abs(b.quantity ?? 0) - Math.abs(a.quantity ?? 0);
     if (aw == null) return 1;
     if (bw == null) return -1;
@@ -95,6 +98,11 @@ function EtfDetailPage() {
     data && "officialCount" in data ? data.officialCount : 0;
   const weightBasis =
     data && "weightBasis" in data ? data.weightBasis : officialCount > 0 ? "official" : "none";
+  const hasOfficialWeights = weightBasis === "official" && officialCount > 0;
+  const holdingsSource =
+    data && "holdingsSource" in data ? data.holdingsSource : null;
+  const isUploadedSnapshot =
+    data && "holdingsSourceKind" in data && data.holdingsSourceKind === "issuer-file";
   const quotedCount =
     data && "quotedCount" in data ? data.quotedCount : 0;
   const fmt =
@@ -115,16 +123,20 @@ function EtfDetailPage() {
   const barBase = allocation
     .filter((s) => s.weight > 0)
     .reduce((s, a) => s + a.weight, 0);
+  const maxOfficialWeight = Math.max(
+    1,
+    ...holdings.map((h) => h.weightSource === "official" ? h.weight ?? 0 : 0),
+  );
   const naverItemUrl = `https://finance.naver.com/item/main.naver?code=${(etf?.code ?? code).toUpperCase()}`;
-  const plusSearchUrl = `https://www.plusetf.co.kr/product/overview?searchWord=${encodeURIComponent((etf?.code ?? code).toUpperCase())}`;
-  const issuerName = `${etf?.nameKo ?? ""} ${data && "issuer" in data ? data.issuer : ""}`;
-  const isPlus = /PLUS|한화/.test(issuerName);
-  const isRise = /RISE|KBSTAR|KB자산/.test(issuerName);
+  const issuerProductUrl =
+    data && "issuerProductUrl" in data && typeof data.issuerProductUrl === "string"
+      ? data.issuerProductUrl
+      : null;
   const issuerUrl =
     data && "holdingsIssuerUrl" in data && typeof data.holdingsIssuerUrl === "string"
       ? data.holdingsIssuerUrl
       : null;
-  const riseSearchUrl = `https://riseetf.co.kr/prod/finder?searchText=${encodeURIComponent((etf?.code ?? code).toUpperCase())}`;
+  const officialSourceUrl = issuerUrl ?? issuerProductUrl;
 
   return (
     <div className="flex flex-col gap-6">
@@ -192,12 +204,39 @@ function EtfDetailPage() {
                 ? ` · 시총 ${data.marketValue}`
                 : ""}
             </p>
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              {issuerProductUrl ? (
+                <Button asChild size="lg" className="gap-2">
+                  <a href={issuerProductUrl} target="_blank" rel="noopener noreferrer">
+                    <Landmark className="size-4" />
+                    운용사 상품 페이지
+                    <ExternalLink className="size-4" />
+                  </a>
+                </Button>
+              ) : (
+                <>
+                  <Button size="lg" variant="outline" disabled>
+                    <Landmark className="size-4" />
+                    운용사 상품 페이지
+                  </Button>
+                  <span className="text-sm text-muted-foreground" role="status">
+                    {isLoading ? "상품 상세 링크 확인 중" : "상품 상세 링크 확인 불가"}
+                  </span>
+                </>
+              )}
+            </div>
           </div>
           <div className="shrink-0 rounded-xl border border-border bg-card/70 px-5 py-4 lg:min-w-[200px] lg:text-right">
             {isLoading && !etf ? (
               <span className="inline-flex items-center gap-1.5 text-base text-muted-foreground">
                 <Loader2 className="size-4 animate-spin" /> 시세
               </span>
+            ) : etf && !quoteAvailable ? (
+              <>
+                <div className="text-3xl font-semibold tabular tracking-tight">—</div>
+                <div className="mt-1 text-base text-muted-foreground">시세 확인 불가</div>
+                <div className="mt-2 text-sm text-muted-foreground">시장가 · 등락률 · 거래량 미확인</div>
+              </>
             ) : etf ? (
               <>
                 <div className="text-3xl font-semibold tabular tracking-tight">
@@ -232,7 +271,7 @@ function EtfDetailPage() {
 
       {isKrTicker(etf?.code ?? code) ? (
         <section className="flex flex-col gap-2">
-          {etf && etf.nav > 0 ? (
+          {etf && quoteAvailable && etf.nav > 0 ? (
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
               <span>
                 시장가{" "}
@@ -310,25 +349,19 @@ function EtfDetailPage() {
         </div>
         <div className="desk-card desk-card-gold p-4">
           <div className="text-sm text-muted-foreground">
-            {weightBasis === "official"
-              ? "공식 비중 합계"
-              : weightBasis === "live"
-                ? "실시간 시가 비중 합계"
-                : "편입 비중 합계"}
+            운용사 공식 비중 합계
           </div>
           <div className="mt-1 text-xl font-semibold tabular">
-            {officialWeightSum != null && weightBasis !== "none"
+            {officialWeightSum != null && hasOfficialWeights
               ? formatWeight(officialWeightSum)
               : "—"}
           </div>
           <div className="text-sm text-muted-foreground">
             {!data
               ? "비중 확인 중"
-              : weightBasis === "official"
-                ? `공식 NAV 비중 ${officialCount}/${holdings.length || 0} · 높은 비중 순`
-                : weightBasis === "live"
-                  ? "수량 × 조회된 현재가 · 공식 NAV가 아닐 때 · 높은 비중 순"
-                  : "공식 NAV 비중 없음 · 전 종목 시세가 없으면 비중을 만들지 않음"}
+              : hasOfficialWeights
+                ? `공식 NAV 비중 ${officialCount}/${holdings.length || 0}종 · 공시 비중 순`
+                : "운용사 공식 비중 확인 불가 · 비중 미표시"}
           </div>
         </div>
         <div className="desk-card desk-card-indigo p-4">
@@ -342,12 +375,12 @@ function EtfDetailPage() {
         </div>
       </div>
 
-      {allocation.length > 0 && (
+      {hasOfficialWeights && allocation.length > 0 && (
         <section className="desk-card desk-card-navy p-4 md:p-5">
           <div className="flex flex-wrap items-end justify-between gap-2 mb-3">
             <h2 className="text-base font-semibold">자산군 공식 비중</h2>
             <p className="text-xs text-muted-foreground">
-              NAV 대비 운용사 공시 · 파생·현금으로 합계 100%
+              NAV 대비 운용사 공시 비중을 자산군별로 합산
             </p>
           </div>
           <div className="flex h-3 w-full overflow-hidden rounded-full bg-muted">
@@ -384,33 +417,34 @@ function EtfDetailPage() {
 
       <section className="desk-card desk-card-teal overflow-hidden">
         <div className="border-b border-border px-4 py-3.5">
-          <h2 className="text-lg font-semibold">편입 종목 · 실시간 시세</h2>
+          <h2 className="text-lg font-semibold">편입 종목 · 운용사 공식 비중</h2>
           <p className="text-sm text-muted-foreground flex items-start gap-1.5 mt-1">
             <Info className="size-4 shrink-0 mt-0.5" />
-            {data && "themeNote" in data
-              ? data.themeNote
-              : "비중은 운용사 공식 공시만 사용합니다. 국내 주식·ETF 클릭 시 차트 화면으로 이동합니다."}
+            {hasOfficialWeights
+              ? "비중은 운용사가 공시한 기준일의 NAV 대비 비중입니다. 현재가는 별도 시세이며 비중 계산에 사용하지 않습니다."
+              : isLoading
+                ? "운용사 공식 구성내역과 비중을 확인하고 있습니다."
+                : "운용사 공식 비중을 확인하지 못했습니다. 비중은 — 로 표시하며 현재가나 편입 수량으로 추정하지 않습니다."}
           </p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            편입내역 출처: {holdingsSource ?? (isLoading ? "확인 중" : "확인 불가")}
+            {" · "}공시 기준일: {asOf ?? (isLoading ? "확인 중" : "미확인")}
+          </p>
+          {isUploadedSnapshot && (
+            <p className="mt-2 text-sm text-desk-gold">
+              첨부 자료의 {asOf ?? "미확인 기준일"} 공시 비중입니다. 운용사의 최신 구성내역을 실시간으로 확인하지 못해 과거 자료를 표시합니다.
+            </p>
+          )}
           <SourceLinks
             className="mt-2"
             size="sm"
-            primaryUrl={naverItemUrl}
-            primaryLabel="네이버 구성종목"
+            primaryUrl={officialSourceUrl}
+            primaryLabel={issuerUrl ? "운용사 공식 구성내역" : "운용사 상품 페이지"}
             more={[
-              ...(isPlus
-                ? [{ label: "PLUS 운용사 페이지", url: plusSearchUrl }]
+              ...(issuerProductUrl && issuerUrl && issuerProductUrl !== issuerUrl
+                ? [{ label: "운용사 상품 페이지", url: issuerProductUrl }]
                 : []),
-              ...(isRise
-                ? [
-                    {
-                      label: "RISE 운용사 PDF",
-                      url: issuerUrl || riseSearchUrl,
-                    },
-                  ]
-                : []),
-              ...(issuerUrl && !isPlus && !isRise
-                ? [{ label: "운용사 구성종목", url: issuerUrl }]
-                : []),
+              { label: "네이버 구성종목 참고", url: naverItemUrl },
             ]}
           />
         </div>
@@ -422,16 +456,14 @@ function EtfDetailPage() {
           </div>
         ) : holdings.length === 0 && themeStocks.length === 0 ? (
           <div className="px-4 py-12 text-center text-base text-muted-foreground">
-            편입 내역을 불러오지 못했습니다.
+            운용사 공식 편입 내역을 확인하지 못했습니다.
           </div>
         ) : holdings.length > 0 ? (
           <div className="overflow-x-auto scroll-thin">
             <table className="w-full min-w-[820px] text-base">
               <thead className="bg-muted/40 text-sm text-muted-foreground">
                 <tr className="text-left">
-                  <th className="px-4 py-3 font-medium">
-                    {weightBasis === "live" ? "시가 비중" : "비중"}
-                  </th>
+                  <th className="px-4 py-3 font-medium">공식 NAV 비중</th>
                   <th className="px-4 py-3 font-medium">구분</th>
                   <th className="px-4 py-3 font-medium">종목</th>
                   <th className="px-4 py-3 font-medium text-right">현재가</th>
@@ -477,7 +509,7 @@ function EtfDetailPage() {
                                 : cls === "cash"
                                   ? "현금"
                                   : "기타";
-                  const w = row.weight;
+                  const w = hasOfficialWeights && row.weightSource === "official" ? row.weight : null;
                   return (
                     <tr
                       key={`${row.nameKo}-${idx}`}
@@ -494,22 +526,19 @@ function EtfDetailPage() {
                             >
                               {formatWeight(w)}
                             </div>
-                            {row.weightSource === "live" ? (
-                              <div className="text-[10px] text-muted-foreground">시가 · 수량×현재가</div>
-                            ) : null}
                             {w > 0 && barBase > 0 && (
                               <div className="mt-1 h-1 w-full rounded bg-muted">
                                 <div
                                   className="h-1 rounded bg-desk-teal/80"
                                   style={{
-                                    width: `${Math.min(100, (w / Math.max(...holdings.map((h) => h.weight ?? 0), 1)) * 100)}%`,
+                                    width: `${Math.min(100, (w / maxOfficialWeight) * 100)}%`,
                                   }}
                                 />
                               </div>
                             )}
                           </div>
                         ) : (
-                          <span className="text-muted-foreground" title="공식 비중 없음 · 시세 부족으로 시가 비중도 계산하지 않음">
+                          <span className="text-muted-foreground" title="운용사 공식 비중 미확인">
                             —
                           </span>
                         )}

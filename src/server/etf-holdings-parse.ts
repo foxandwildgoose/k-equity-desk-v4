@@ -72,73 +72,9 @@ export function parseHanaroHoldingsHtml(html: string, asOf: string | null): Pars
   return rows;
 }
 
-export type LiveWeightRow = {
-  nameKo: string;
-  weight: number | null;
-  weightSource: "official" | "live" | null;
-  quantity: number | null;
-  isCash: boolean;
-  isBond: boolean;
-  isFuture: boolean;
-  quote: { price: number; currency: "KRW" | "USD" } | null;
-};
-
-/**
- * Quantity × retrieved price, only when every holding can be valued.
- * Does not run if any official NAV weight is already present.
- * A bond, future, or unquoted name blocks the whole basket so an equity
- * sleeve is never stretched to 100% (IBK 0238C0).
- */
-export function fillLiveMarketWeights<T extends LiveWeightRow>(
-  rows: T[],
-  usdKrw: number,
-): { rows: T[]; published: boolean } {
-  if (rows.some((row) => row.weightSource === "official" && row.weight != null)) {
-    return { rows, published: false };
-  }
-  if (!rows.length) return { rows, published: false };
-
-  const values: number[] = [];
-  for (const row of rows) {
-    const value = liveHoldingValueKrw(row, usdKrw);
-    if (value == null) return { rows, published: false };
-    values.push(value);
-  }
-  const total = values.reduce((sum, value) => sum + value, 0);
-  if (!(Math.abs(total) > 0)) return { rows, published: false };
-  return {
-    published: true,
-    rows: rows.map((row, i) => ({
-      ...row,
-      weight: (values[i]! / total) * 100,
-      weightSource: "live" as const,
-    })),
-  };
-}
-
-function liveHoldingValueKrw(row: LiveWeightRow, usdKrw: number): number | null {
-  if (isCuNotionalName(row.nameKo)) return null;
-  if (row.isCash) {
-    if (row.quantity == null || !Number.isFinite(row.quantity)) return null;
-    if (/달러|USD|외화/i.test(row.nameKo)) {
-      if (!(usdKrw > 0)) return null;
-      return row.quantity * usdKrw;
-    }
-    return row.quantity;
-  }
-  if (row.isBond || row.isFuture) return null;
-  const price = row.quote?.price;
-  if (price == null || !(price > 0) || row.quantity == null || !Number.isFinite(row.quantity)) {
-    return null;
-  }
-  const fx = row.quote?.currency === "USD" ? usdKrw : 1;
-  if (!(fx > 0)) return null;
-  return row.quantity * price * fx;
-}
-
 /** CU notional / NAV header row — not a portfolio holding. */
 export function isCuNotionalName(name: string): boolean {
-  return /설정현금액|설정단위/.test(name);
+  return /설정현금액|현금설정액|설정단위/.test(name);
 }
 
 function stripHtml(raw: string): string {
@@ -230,8 +166,8 @@ export function applyCuValueWeights<T>(rows: T[], _usdKrw?: number, _cuNavKrw?: 
 }
 
 /** NAV weights are publishable only when they cover the whole fund. */
-export const OFFICIAL_WEIGHT_SUM_MIN = 90;
-export const OFFICIAL_WEIGHT_SUM_MAX = 110;
+export const OFFICIAL_WEIGHT_SUM_MIN = 99;
+export const OFFICIAL_WEIGHT_SUM_MAX = 101;
 
 export function sumNavWeights(
   rows: { nameKo: string; weight: number | null }[],
@@ -267,6 +203,7 @@ export function prepareOfficialRows<
 
 export type HoldingsSourceKind =
   | "issuer-pdf"
+  | "issuer-file"
   | "wisereport-cu"
   | "naver-table"
   | "none";
@@ -297,25 +234,47 @@ export type OfficialBasketChoice<
 
 /**
  * Publish one basket. A candidate is usable only when its official weights
- * sum to about 100% of NAV. Otherwise keep the names and drop every weight
+ * sum to about 100% of NAV and originate from the issuer. Otherwise keep
+ * reference names and drop every weight
  * so a priced subset cannot be mistaken for the fund.
  */
 export function chooseOfficialBasket<
   T extends { nameKo: string; weight: number | null; quantity?: number | null },
 >(candidates: BasketCandidate<T>[]): OfficialBasketChoice<T> {
   const ranked = [...candidates].sort(
-    (a, b) => b.priority - a.priority || b.rows.length - a.rows.length,
+    (a, b) => {
+      const issuerA = a.sourceKind === "issuer-pdf" || a.sourceKind === "issuer-file";
+      const issuerB = b.sourceKind === "issuer-pdf" || b.sourceKind === "issuer-file";
+      if (issuerA !== issuerB) return issuerA ? -1 : 1;
+      if (issuerA && a.asOf && b.asOf && a.asOf !== b.asOf) return b.asOf.localeCompare(a.asOf);
+      return b.priority - a.priority || b.rows.length - a.rows.length;
+    },
   );
   for (const candidate of ranked) {
     const rows = prepareOfficialRows(candidate.rows);
     if (!rows.length) continue;
+    // Third-party tables are reference names only; a total near 100 is not proof.
+    if (candidate.sourceKind !== "issuer-pdf" && candidate.sourceKind !== "issuer-file") continue;
     if (!isCompleteOfficialWeightSum(sumNavWeights(rows))) continue;
+    if (rows.some((row) => row.weight == null || !Number.isFinite(row.weight) || Math.abs(row.weight) > 100)) continue;
+    const identities = rows.map((row) => {
+      const isin = "isin" in row && typeof row.isin === "string" ? row.isin : null;
+      const code = "code" in row && typeof row.code === "string" ? row.code : null;
+      return isin || code || row.nameKo;
+    });
+    if (new Set(identities).size !== identities.length) continue;
+    const rowDates = new Set(rows.flatMap((row) => "asOf" in row && typeof row.asOf === "string" ? [row.asOf] : []));
+    if (rowDates.size > 1 || (candidate.asOf && rowDates.size && !rowDates.has(candidate.asOf))) continue;
+    const asOf = candidate.asOf ?? [...rowDates][0] ?? null;
+    if (!asOf || !/^\d{4}-\d{2}-\d{2}$/.test(asOf)) continue;
+    const parsedDate = new Date(`${asOf}T00:00:00Z`);
+    if (!Number.isFinite(parsedDate.getTime()) || parsedDate.toISOString().slice(0, 10) !== asOf) continue;
     return {
       rows,
       source: candidate.source,
       sourceKind: candidate.sourceKind,
       issuerUrl: candidate.issuerUrl ?? null,
-      asOf: candidate.asOf ?? null,
+      asOf,
       weightsPublished: true,
     };
   }
@@ -343,7 +302,7 @@ export function chooseOfficialBasket<
   };
 }
 
-export type IssuerHoldingsFamily = "kodex" | "ibk" | "plus" | "hanaro" | "other";
+export type IssuerHoldingsFamily = "kodex" | "ibk" | "plus" | "hanaro" | "sol" | "other";
 
 /** Which issuer PDF to request. Never guesses a family from a holding name. */
 export function issuerHoldingsFamily(
@@ -360,6 +319,7 @@ export function issuerHoldingsFamily(
   if (/^HANARO\b/i.test(name) || /NH-?\s*Amundi|NH아문디|엔에이치아문디/i.test(house)) {
     return "hanaro";
   }
+  if (/^SOL\b/i.test(name) || /신한자산운용/.test(house)) return "sol";
   return "other";
 }
 

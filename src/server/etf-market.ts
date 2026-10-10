@@ -1,8 +1,15 @@
+import { withEtfDeadline } from "@/server/etf-request";
+import { etfIssuerIdentity } from "@/server/etf-issuer";
+import { resolveEtfIssuer } from "@/server/etf-issuer";
+import { fetchIssuerPageHoldings } from "@/server/etf-issuer-holdings";
+import { findUploadedIssuerHoldingsSnapshot } from "@/data/etf-official-snapshots";
+import { fetchSolOfficialHoldings } from "@/server/etf-sol";
 /**
  * Live Korea ETF market (Naver Finance full list).
  * Retirement filter: exclude leverage / inverse / 2X products (DC·IRP common rule).
  * New listings: estimated from price history + alphanumeric KRX codes.
  */
+import { holdingQuoteCurrency } from "@/server/etf-currency";
 import { UNIVERSE } from "@/data/universe";
 import { toReadableDoc } from "@/lib/readable-text";
 import { matchesSearchQuery, rankByQuery } from "@/lib/search-match";
@@ -18,6 +25,7 @@ import {
   parseHanaroPdfDate,
   parseIbkPdfRows,
   parseKodexPdfRows,
+  normalizeIssuerFundName,
   type IbkPdfItem,
   type KodexPdfItem,
 } from "@/server/etf-holdings-parse";
@@ -35,11 +43,11 @@ function headers(): HeadersInit {
   };
 }
 
-async function getText(url: string): Promise<string> {
+async function getText(url: string, signal?: AbortSignal): Promise<string> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 25_000);
   try {
-    const res = await fetch(url, { headers: headers(), signal: ctrl.signal });
+    const res = await fetch(url, { headers: headers(), signal: signal ? AbortSignal.any([ctrl.signal, signal]) : ctrl.signal });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const buf = Buffer.from(await res.arrayBuffer());
     try {
@@ -52,7 +60,7 @@ async function getText(url: string): Promise<string> {
   }
 }
 
-async function getJsonUtf8<T>(url: string): Promise<T> {
+async function getJsonUtf8<T>(url: string, signal?: AbortSignal): Promise<T> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 20_000);
   try {
@@ -61,7 +69,7 @@ async function getJsonUtf8<T>(url: string): Promise<T> {
         ...headers(),
         Referer: "https://m.stock.naver.com/",
       },
-      signal: ctrl.signal,
+      signal: signal ? AbortSignal.any([ctrl.signal, signal]) : ctrl.signal,
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return JSON.parse(await res.text()) as T;
@@ -113,6 +121,7 @@ export interface LiveEtfRow {
   /** 시가총액 (억) as provided by Naver */
   marketSum: number;
   issuer?: string;
+  quoteAvailable?: boolean;
   /** DC/IRP common exclusion: leverage / inverse */
   /** Heuristic only — NOT a DC/IRP whitelist */
     retirementEligible: boolean;
@@ -121,7 +130,7 @@ export interface LiveEtfRow {
   isNewCandidate: boolean;
   listedAt?: string;
   daysListed?: number;
-  source: "naver-etf-list";
+  source: "naver-etf-list" | "issuer-file";
 }
 
 const LEV_NAME_RE =
@@ -154,14 +163,14 @@ type NaverEtfItem = {
 let listCache: { at: number; rows: LiveEtfRow[] } | null = null;
 const LIST_TTL = 60_000;
 
-export async function fetchAllEtfs(force = false): Promise<LiveEtfRow[]> {
+export async function fetchAllEtfs(force = false, signal?: AbortSignal): Promise<LiveEtfRow[]> {
   const now = Date.now();
   if (!force && listCache && now - listCache.at < LIST_TTL) {
     return listCache.rows;
   }
 
   const text = await getText(
-    "https://finance.naver.com/api/sise/etfItemList.nhn",
+    "https://finance.naver.com/api/sise/etfItemList.nhn", signal,
   );
   const parsed = JSON.parse(text) as {
     result?: { etfItemList?: NaverEtfItem[] };
@@ -560,32 +569,35 @@ export async function fetchEtfDetail(code: string): Promise<{
   relatedFromCompare: RelatedEtfPeer[];
 }> {
   const c = normalizeEtfCode(code);
-  const all = await fetchAllEtfs();
-  const etf = all.find((e) => e.code === c) ?? null;
+  const snapshot = findUploadedIssuerHoldingsSnapshot(c);
+  const integrationP = withEtfDeadline((signal) => getJsonUtf8<{
+    description?: string;
+    etfKeyIndicator?: { issuerName?: string; totalFee?: number; nav?: string | number; marketValue?: string };
+  }>(`https://m.stock.naver.com/api/stock/${c}/integration`, signal), null);
+  const [all, integ] = await Promise.all([
+    withEtfDeadline((signal) => fetchAllEtfs(false, signal), [] as LiveEtfRow[]),
+    integrationP,
+  ]);
+  const etf = all.find((e) => e.code === c) ?? (snapshot ? {
+    code: c, nameKo: "SOL 글로벌DRAM반도체플러스", issuer: snapshot.issuerName,
+    tabCode: 4, tabLabel: "해외 주식", price: 0, change: 0, changePct: 0,
+    nav: 0, threeMonthEarnRate: null, volume: 0, amount: 0, marketSum: 0,
+    retirementEligible: true, isLeverageOrInverse: false, isNewCandidate: false,
+    source: "issuer-file", quoteAvailable: false,
+  } : null);
 
-  let issuer: string | undefined;
+  let issuer: string | undefined = snapshot?.issuerName;
   let description: string | undefined;
   let fee: number | undefined;
   let nav: number | undefined;
   let marketValue: string | undefined;
 
-  try {
-    const integ = await getJsonUtf8<{
-      description?: string;
-      etfKeyIndicator?: {
-        issuerName?: string;
-        totalFee?: number;
-        nav?: string | number;
-        marketValue?: string;
-      };
-    }>(`https://m.stock.naver.com/api/stock/${c}/integration`);
+  if (integ) {
     description = integ.description;
-    issuer = integ.etfKeyIndicator?.issuerName;
+    issuer = integ.etfKeyIndicator?.issuerName ?? issuer;
     fee = integ.etfKeyIndicator?.totalFee;
     nav = num(String(integ.etfKeyIndicator?.nav ?? "").replace(/,/g, ""));
     marketValue = integ.etfKeyIndicator?.marketValue;
-  } catch {
-    /* optional */
   }
 
   if (etf && issuer) etf.issuer = issuer;
@@ -733,8 +745,8 @@ export type { Market };
 // ── Official NAV weights only. Never qty × price rescaled to 100%. ─────────
 // A priced subset (equities) used to be stretched to 100% after bonds/cash
 // with no quote dropped out. That is not a NAV weight.
-// Waterfall: matching issuer PDF → WiseReport ETF_WEIGHT (only if sum ≈ 100)
-// → Naver table (only if sum ≈ 100). Incomplete baskets keep names and "—".
+// Source selection: issuer publications only. Third-party tables may provide
+// reference names, but their weights are never promoted to issuer percentages.
 
 export type EtfAssetClass =
   | "kr-equity"
@@ -761,14 +773,14 @@ export interface EtfHoldingRow {
   nameKo: string;
   /** Official NAV weight only. Never estimated. */
   weight: number | null;
-  weightSource: "official" | "live" | null;
+  weightSource: "official" | null;
   quantity: number | null;
   asOf: string | null;
   code: string | null;
   market: "KOSPI" | "KOSDAQ" | null;
   reutersCode: string | null;
   nation: string | null;
-  currency: "KRW" | "USD" | null;
+  currency: string | null;
   isin: string | null;
   isCash: boolean;
   isBond: boolean;
@@ -784,7 +796,7 @@ export interface HoldingLiveQuote {
   change: number;
   changePct: number;
   volume: number;
-  currency: "KRW" | "USD";
+  currency: string | null;
 }
 
 const nameCodeCache = new Map<
@@ -889,7 +901,7 @@ type NameHit = {
 };
 
 /** Map holding name → KR ticker or US reuters code via Naver autocomplete */
-export async function resolveHoldingName(nameKo: string): Promise<NameHit | null> {
+export async function resolveHoldingName(nameKo: string, signal?: AbortSignal): Promise<NameHit | null> {
   const key = nameKo.trim();
   if (!key || isCashLike(key) || isBondLike(key) || isFutureLike(key)) return null;
   if (nameCodeCache.has(key)) return nameCodeCache.get(key) ?? null;
@@ -913,6 +925,7 @@ export async function resolveHoldingName(nameKo: string): Promise<NameHit | null
   }
 
   for (const q of searchQueriesForName(key)) {
+    if (signal?.aborted) return null;
     try {
       const url = `https://m.stock.naver.com/front-api/search/autoComplete?query=${encodeURIComponent(q)}&target=stock`;
       const j = await getJsonUtf8<{
@@ -927,7 +940,7 @@ export async function resolveHoldingName(nameKo: string): Promise<NameHit | null
             reutersCode?: string;
           }[];
         };
-      }>(url);
+      }>(url, signal);
       const items = j.result?.items ?? [];
       const korStock =
         items.find(
@@ -1001,7 +1014,7 @@ export async function resolveHoldingName(nameKo: string): Promise<NameHit | null
     }
   }
 
-  nameCodeCache.set(key, null);
+  if (!signal?.aborted) nameCodeCache.set(key, null);
   return null;
 }
 
@@ -1040,10 +1053,12 @@ export async function fetchUsdKrw(): Promise<number> {
 
 export async function fetchWorldQuotes(
   reutersCodes: string[],
+  signal?: AbortSignal,
 ): Promise<Record<string, HoldingLiveQuote & { name?: string }>> {
   const unique = [...new Set(reutersCodes.filter(Boolean))];
   const out: Record<string, HoldingLiveQuote & { name?: string }> = {};
   for (let i = 0; i < unique.length; i += 6) {
+    if (signal?.aborted) break;
     const batch = unique.slice(i, i + 6);
     const parts = await Promise.all(
       batch.map(async (rc) => {
@@ -1053,10 +1068,10 @@ export async function fetchWorldQuotes(
             closePrice?: string | number;
             compareToPreviousClosePrice?: string | number;
             fluctuationsRatio?: string | number;
-            currencyType?: { name?: string };
+            currencyType?: { name?: string; code?: string };
             stockItemTotalInfos?: { code?: string; value?: string }[];
             stockName?: string;
-          }>(`https://api.stock.naver.com/stock/${encodeURIComponent(rc)}/basic`);
+          }>(`https://api.stock.naver.com/stock/${encodeURIComponent(rc)}/basic`, signal);
           const infos = Object.fromEntries(
             (j.stockItemTotalInfos ?? []).map((t) => [t.code ?? "", t.value ?? ""]),
           );
@@ -1064,7 +1079,7 @@ export async function fetchWorldQuotes(
           const change = num(j.compareToPreviousClosePrice);
           const changePct = num(j.fluctuationsRatio);
           const volume = num(infos.accumulatedTradingVolume);
-          const cur = (j.currencyType?.name ?? "USD").toUpperCase() === "KRW" ? "KRW" : "USD";
+          const cur = holdingQuoteCurrency(j.currencyType?.code ?? j.currencyType?.name, rc);
           if (!(price > 0)) return null;
           return {
             rc,
@@ -1073,7 +1088,7 @@ export async function fetchWorldQuotes(
               change,
               changePct,
               volume,
-              currency: cur as "KRW" | "USD",
+              currency: cur,
               name: j.stockName,
             },
           };
@@ -1137,7 +1152,7 @@ function classifyRow(input: {
       !hasKrCode &&
       (input.nation && input.nation !== "KOR"
         ? true
-        : looksOverseas(name) || (isin != null && /^(US|XS|LU|IE)/i.test(isin))),
+        : looksOverseas(name) || (isin != null && /^(US|JP|HK|GB|CA|DE|FR|XS|LU|IE)/i.test(isin))),
   );
   const krEtf = Boolean(brandEtf && (input.code || !overseas));
   const krEq = Boolean(input.code && !krEtf && !cash && !bond && !fut && !overseas);
@@ -1154,7 +1169,8 @@ function classifyRow(input: {
         : "overseas-equity";
   const nation =
     input.nation ??
-    (cash || bond || fut ? "KOR" : overseas ? "USA" : input.code ? "KOR" : null);
+    (isin && /^JP/i.test(isin) ? "JPN" : null) ??
+    (cash || bond || fut || input.code ? "KOR" : null);
   return {
     isCash: cash,
     isBond: bond,
@@ -1163,17 +1179,17 @@ function classifyRow(input: {
     isKoreanEquity: krEq,
     isKoreanEtf: krEtf,
     assetClass,
-    currency: overseas ? "USD" : "KRW",
+    currency: overseas ? (nation === "USA" ? "USD" : nation === "JPN" ? "JPY" : null) : "KRW",
     nation,
   };
 }
 
-async function fetchWiseReportCu(code: string): Promise<{
+async function fetchWiseReportCu(code: string, signal?: AbortSignal): Promise<{
   rows: CuRow[];
   asOf: string | null;
 }> {
   const url = `https://navercomp.wisereport.co.kr/v2/ETF/index.aspx?cmp_cd=${encodeURIComponent(code)}`;
-  const text = await getJsonUtf8AsText(url);
+  const text = await getJsonUtf8AsText(url, signal);
   const m = text.match(/var CU_data = (\{[\s\S]*?\});\s*var chartDraw/);
   if (!m) return { rows: [], asOf: null };
   let parsed: {
@@ -1208,7 +1224,7 @@ async function fetchWiseReportCu(code: string): Promise<{
   return { rows, asOf };
 }
 
-async function fetchNaverEtfAssetTable(code: string): Promise<CuRow[]> {
+async function fetchNaverEtfAssetTable(code: string, signal?: AbortSignal): Promise<CuRow[]> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 12_000);
   let html = "";
@@ -1217,7 +1233,7 @@ async function fetchNaverEtfAssetTable(code: string): Promise<CuRow[]> {
       `https://finance.naver.com/item/main.naver?code=${encodeURIComponent(code)}`,
       {
         headers: { ...headers(), Accept: "text/html,*/*" },
-        signal: ctrl.signal,
+        signal: signal ? AbortSignal.any([ctrl.signal, signal]) : ctrl.signal,
       },
     );
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -1273,13 +1289,14 @@ type PlusPdfRow = {
 async function fetchPlusJson<T>(
   url: string,
   init?: RequestInit,
+  signal?: AbortSignal,
 ): Promise<T> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 12_000);
   try {
     const res = await fetch(url, {
       ...init,
-      signal: ctrl.signal,
+      signal: signal ? AbortSignal.any([ctrl.signal, signal]) : ctrl.signal,
       headers: {
         "User-Agent": UA,
         Accept: "application/json,text/plain,*/*",
@@ -1296,7 +1313,7 @@ async function fetchPlusJson<T>(
   }
 }
 
-async function fetchPlusOfficialHoldings(ticker: string): Promise<{
+async function fetchPlusOfficialHoldings(ticker: string, signal?: AbortSignal): Promise<{
   rows: CuRow[];
   asOf: string | null;
   productId: string;
@@ -1319,7 +1336,7 @@ async function fetchPlusOfficialHoldings(ticker: string): Promise<{
       searchAnnuityOptionTy: null,
       searchWord: ticker,
     }),
-  });
+  }, signal);
   const hit = (catalog.content ?? []).find(
     (p) => String(p.nameCode ?? "").toUpperCase() === ticker,
   );
@@ -1330,6 +1347,7 @@ async function fetchPlusOfficialHoldings(ticker: string): Promise<{
   const rows: CuRow[] = [];
   let page = 0;
   let asOf = formatYmd(wkdate);
+  let completePagination = false;
   for (let guard = 0; guard < 8; guard++) {
     const pack = await fetchPlusJson<{
       content?: PlusPdfRow[];
@@ -1342,6 +1360,7 @@ async function fetchPlusOfficialHoldings(ticker: string): Promise<{
           Referer: `https://www.plusetf.co.kr/product/detail?n=${hit.id}`,
         },
       },
+      signal,
     );
     const chunk = pack.content ?? [];
     for (const r of chunk) {
@@ -1358,10 +1377,15 @@ async function fetchPlusOfficialHoldings(ticker: string): Promise<{
       });
       if (!asOf) asOf = formatYmd(r.wkdate);
     }
-    if (pack.last || page + 1 >= (pack.totalPages ?? 1) || !chunk.length) break;
+    const totalPages = pack.totalPages;
+    if (pack.last === true || (totalPages != null && totalPages > 0 && page + 1 >= totalPages)) {
+      completePagination = true;
+      break;
+    }
+    if (!chunk.length) { completePagination = totalPages == null; break; }
     page += 1;
   }
-  if (!rows.length) return null;
+  if (!rows.length || !completePagination) return null;
   return {
     rows,
     asOf,
@@ -1415,7 +1439,7 @@ function finalizeHolding(
   };
 }
 
-async function getJsonReferer<T>(url: string, referer: string): Promise<T> {
+async function getJsonReferer<T>(url: string, referer: string, signal?: AbortSignal): Promise<T> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 20_000);
   try {
@@ -1426,7 +1450,7 @@ async function getJsonReferer<T>(url: string, referer: string): Promise<T> {
         "Accept-Language": "ko-KR,ko;q=0.9",
         Referer: referer,
       },
-      signal: ctrl.signal,
+      signal: signal ? AbortSignal.any([ctrl.signal, signal]) : ctrl.signal,
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return JSON.parse(await res.text()) as T;
@@ -1435,34 +1459,40 @@ async function getJsonReferer<T>(url: string, referer: string): Promise<T> {
   }
 }
 
-async function fetchEtfIdentity(code: string): Promise<{ name: string; issuer: string }> {
+async function fetchEtfIdentity(code: string, signal?: AbortSignal): Promise<{ name: string; issuer: string }> {
   try {
+    const snapshot = findUploadedIssuerHoldingsSnapshot(code);
     const integ = await getJsonUtf8<{
       stockName?: string;
       etfKeyIndicator?: { issuerName?: string };
-    }>(`https://m.stock.naver.com/api/stock/${encodeURIComponent(code)}/integration`);
+    }>(`https://m.stock.naver.com/api/stock/${encodeURIComponent(code)}/integration`, signal);
     return {
-      name: String(integ.stockName ?? "").trim(),
-      issuer: String(integ.etfKeyIndicator?.issuerName ?? "").trim(),
+      name: String(integ.stockName ?? snapshot?.fundName ?? "").trim(),
+      issuer: String(integ.etfKeyIndicator?.issuerName ?? snapshot?.issuerName ?? "").trim(),
     };
   } catch {
-    return { name: "", issuer: "" };
+    const snapshot = findUploadedIssuerHoldingsSnapshot(code);
+    return { name: snapshot?.fundName ?? "", issuer: snapshot?.issuerName ?? "" };
   }
 }
 
-async function fetchIbkOfficialHoldings(etfName: string): Promise<{
+async function fetchIbkOfficialHoldings(etfName: string, signal?: AbortSignal): Promise<{
   rows: CuRow[];
   asOf: string | null;
   issuerUrl: string;
 } | null> {
   const catalog = await getJsonUtf8<{
     data?: { content?: { id: number; name: string }[]; baseDate?: string };
-  }>("https://www.ibkasset.com/api/etf");
+  }>("https://www.ibkasset.com/api/etf", signal);
   const id = matchIbkProductId(etfName, catalog.data?.content ?? []);
   if (id == null) return null;
+  const matched = catalog.data?.content?.find((item) => item.id === id);
+  if (!matched || normalizeIssuerFundName(matched.name) !== normalizeIssuerFundName(etfName)) return null;
   const pdf = await getJsonUtf8<{
-    data?: { baseDate?: string; content?: IbkPdfItem[] };
-  }>(`https://www.ibkasset.com/api/etf/${id}/pdf?page=0&size=200`);
+    data?: { baseDate?: string; content?: IbkPdfItem[]; totalElements?: number; totalPages?: number; last?: boolean };
+  }>(`https://www.ibkasset.com/api/etf/${id}/pdf?page=0&size=200`, signal);
+  const content = pdf.data?.content ?? [];
+  if (pdf.data?.last === false || (pdf.data?.totalPages ?? 1) > 1 || (pdf.data?.totalElements ?? content.length) > content.length) return null;
   const asOf = pdf.data?.baseDate ?? catalog.data?.baseDate ?? null;
   const rows = parseIbkPdfRows(pdf.data?.content ?? [], asOf);
   if (!rows.length) return null;
@@ -1479,7 +1509,7 @@ const hanaroCatalogCache: { at: number; map: Map<string, string> } = {
 };
 const HANARO_CATALOG_TTL_MS = 6 * 60 * 60_000;
 
-async function fetchHanaroText(url: string, referer: string): Promise<string> {
+async function fetchHanaroText(url: string, referer: string, signal?: AbortSignal): Promise<string> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 12_000);
   try {
@@ -1489,7 +1519,7 @@ async function fetchHanaroText(url: string, referer: string): Promise<string> {
         Accept: "text/html,*/*",
         Referer: referer,
       },
-      signal: ctrl.signal,
+      signal: signal ? AbortSignal.any([ctrl.signal, signal]) : ctrl.signal,
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.text();
@@ -1498,7 +1528,7 @@ async function fetchHanaroText(url: string, referer: string): Promise<string> {
   }
 }
 
-async function hanaroFundUid(ticker: string): Promise<string | null> {
+async function hanaroFundUid(ticker: string, signal?: AbortSignal): Promise<string | null> {
   const now = Date.now();
   if (hanaroCatalogCache.map.size > 0 && now - hanaroCatalogCache.at < HANARO_CATALOG_TTL_MS) {
     return hanaroCatalogCache.map.get(ticker) ?? null;
@@ -1507,7 +1537,7 @@ async function hanaroFundUid(ticker: string): Promise<string | null> {
   for (let page = 1; page <= 12; page++) {
     const html = await fetchHanaroText(
       `https://www.hanaroetf.com/api/v1/fund/get-fund-search-list?pageNo=${page}`,
-      "https://www.hanaroetf.com/fund/fund-list",
+      "https://www.hanaroetf.com/fund/fund-list", signal,
     );
     const chunk = parseHanaroFundCatalog(html);
     if (chunk.size === 0) break;
@@ -1520,20 +1550,20 @@ async function hanaroFundUid(ticker: string): Promise<string | null> {
   return map.get(ticker) ?? null;
 }
 
-async function fetchHanaroOfficialHoldings(ticker: string): Promise<{
+async function fetchHanaroOfficialHoldings(ticker: string, signal?: AbortSignal): Promise<{
   rows: CuRow[];
   asOf: string | null;
   issuerUrl: string;
 } | null> {
-  const uid = await hanaroFundUid(ticker);
+  const uid = await hanaroFundUid(ticker, signal);
   if (!uid) return null;
   const pageUrl = `https://www.hanaroetf.com/fund/${encodeURIComponent(uid)}`;
   const [listHtml, pageHtml] = await Promise.all([
     fetchHanaroText(
       `https://www.hanaroetf.com/api/v1/fund/${encodeURIComponent(uid)}/get-fund-holdings-list?baseDate=`,
-      pageUrl,
+      pageUrl, signal,
     ),
-    fetchHanaroText(pageUrl, "https://www.hanaroetf.com/fund/fund-list").catch(() => ""),
+    fetchHanaroText(pageUrl, "https://www.hanaroetf.com/fund/fund-list", signal).catch(() => ""),
   ]);
   const asOf = parseHanaroPdfDate(pageHtml);
   const rows = parseHanaroHoldingsHtml(listHtml, asOf);
@@ -1547,7 +1577,7 @@ const kodexCatalogCache: { at: number; map: Map<string, string> } = {
 };
 const KODEX_CATALOG_TTL_MS = 6 * 60 * 60_000;
 
-async function kodexFundId(ticker: string): Promise<string | null> {
+async function kodexFundId(ticker: string, signal?: AbortSignal): Promise<string | null> {
   const now = Date.now();
   if (kodexCatalogCache.map.size > 0 && now - kodexCatalogCache.at < KODEX_CATALOG_TTL_MS) {
     return kodexCatalogCache.map.get(ticker) ?? null;
@@ -1556,13 +1586,13 @@ async function kodexFundId(ticker: string): Promise<string | null> {
     `https://www.samsungfund.com/api/v1/kodex/product.do?ordrColm=NAV&ordrSort=DESC&pageNo=${page}&pageRows=20&srchTerm=w`;
   const first = await getJsonReferer<KodexListItem[]>(
     pageUrl(1),
-    "https://www.samsungfund.com/etf/main.do",
+    "https://www.samsungfund.com/etf/main.do", signal,
   );
   const total = Number(first[0]?.totalCnt ?? first.length) || first.length;
   const pages = Math.min(20, Math.max(1, Math.ceil(total / 20)));
   const rest = await Promise.all(
     Array.from({ length: pages - 1 }, (_, i) =>
-      getJsonReferer<KodexListItem[]>(pageUrl(i + 2), "https://www.samsungfund.com/etf/main.do").catch(
+      getJsonReferer<KodexListItem[]>(pageUrl(i + 2), "https://www.samsungfund.com/etf/main.do", signal).catch(
         () => [] as KodexListItem[],
       ),
     ),
@@ -1580,18 +1610,18 @@ async function kodexFundId(ticker: string): Promise<string | null> {
 
 type KodexListItem = { stkTicker?: string; fId?: string; totalCnt?: string };
 
-async function fetchKodexOfficialHoldings(ticker: string): Promise<{
+async function fetchKodexOfficialHoldings(ticker: string, signal?: AbortSignal): Promise<{
   rows: CuRow[];
   asOf: string | null;
   issuerUrl: string;
 } | null> {
-  const fid = await kodexFundId(ticker);
+  const fid = await kodexFundId(ticker, signal);
   if (!fid) return null;
   const pack = await getJsonReferer<{
     pdf?: { gijunYMD?: string; list?: KodexPdfItem[] };
   }>(
     `https://www.samsungfund.com/api/v1/kodex/product/${encodeURIComponent(fid)}.do`,
-    `https://www.samsungfund.com/etf/product/view.do?id=${encodeURIComponent(fid)}`,
+    `https://www.samsungfund.com/etf/product/view.do?id=${encodeURIComponent(fid)}`, signal,
   );
   const asOf = formatYmd(pack.pdf?.gijunYMD ?? null);
   const rows = parseKodexPdfRows(pack.pdf?.list ?? [], asOf);
@@ -1607,27 +1637,45 @@ type HoldingsBundle = {
   holdings: EtfHoldingRow[];
   asOf: string | null;
   source: string;
-  sourceKind: "issuer-pdf" | "wisereport-cu" | "naver-table" | "none";
+  sourceKind: "issuer-pdf" | "issuer-file" | "wisereport-cu" | "naver-table" | "none";
   officialCount: number;
   issuerUrl: string | null;
+  issuerProductUrl: string | null;
 };
 
 async function buildEtfHoldings(code: string): Promise<HoldingsBundle> {
   const c = normalizeEtfCode(code);
-  const [wisePack, identity] = await Promise.all([
-    fetchWiseReportCu(c).catch(() => ({ rows: [] as CuRow[], asOf: null as string | null })),
-    fetchEtfIdentity(c),
-  ]);
+  const snapshot = findUploadedIssuerHoldingsSnapshot(c);
+  const wiseP = withEtfDeadline((signal) => fetchWiseReportCu(c, signal), { rows: [] as CuRow[], asOf: null as string | null });
+  const naverP = withEtfDeadline((signal) => fetchNaverEtfAssetTable(c, signal), [] as CuRow[]);
+  const identity = snapshot ? { name: snapshot.fundName, issuer: snapshot.issuerName }
+    : await withEtfDeadline((signal) => fetchEtfIdentity(c, signal), { name: "", issuer: "" });
   const family = issuerHoldingsFamily(identity.name, identity.issuer);
-  const [naverRows, plusPack, ibkPack, kodexPack, hanaroPack] = await Promise.all([
-    fetchNaverEtfAssetTable(c).catch(() => [] as CuRow[]),
-    family === "plus" ? fetchPlusOfficialHoldings(c).catch(() => null) : Promise.resolve(null),
-    family === "ibk" ? fetchIbkOfficialHoldings(identity.name).catch(() => null) : Promise.resolve(null),
-    family === "kodex" ? fetchKodexOfficialHoldings(c).catch(() => null) : Promise.resolve(null),
-    family === "hanaro" ? fetchHanaroOfficialHoldings(c).catch(() => null) : Promise.resolve(null),
+  const fallbackProduct = { ...etfIssuerIdentity(identity.name, identity.issuer), issuerUrl: null,
+    status: "unresolved" as const, reason: "Official issuer lookup unavailable" };
+  const [wisePack, naverRows, plusPack, ibkPack, kodexPack, hanaroPack, solPack, issuerProduct] = await Promise.all([
+    wiseP, naverP,
+    family === "plus" ? withEtfDeadline((signal) => fetchPlusOfficialHoldings(c, signal), null, 10_000) : null,
+    family === "ibk" ? withEtfDeadline((signal) => fetchIbkOfficialHoldings(identity.name, signal), null, 10_000) : null,
+    family === "kodex" ? withEtfDeadline((signal) => fetchKodexOfficialHoldings(c, signal), null, 10_000) : null,
+    family === "hanaro" ? withEtfDeadline((signal) => fetchHanaroOfficialHoldings(c, signal), null, 10_000) : null,
+    family === "sol" ? withEtfDeadline((signal) => fetchSolOfficialHoldings(c, { signal }), null, 10_000) : null,
+    withEtfDeadline((signal) => resolveEtfIssuer(c, identity.name, identity.issuer, { signal }), fallbackProduct, 10_000),
   ]);
 
+  const pagePack = family === "other" && issuerProduct.issuerUrl
+    ? await withEtfDeadline((signal) => fetchIssuerPageHoldings(c, identity.name, issuerProduct, { signal }), null, 10_000) : null;
   const chosen = chooseOfficialBasket([
+    ...(pagePack ? [{ rows: pagePack.rows,
+      source: `${issuerProduct.issuerName} 공식 구성종목 (${pagePack.asOf})`,
+      sourceKind: "issuer-pdf" as const, priority: 100,
+      issuerUrl: pagePack.issuerUrl, asOf: pagePack.asOf }] : []),
+    ...(solPack ? [{ rows: solPack.rows, source: solPack.source,
+      sourceKind: "issuer-pdf" as const, priority: 100,
+      issuerUrl: solPack.issuerUrl, asOf: solPack.asOf }] : []),
+    ...(snapshot ? [{ rows: snapshot.rows, source: snapshot.source,
+      sourceKind: "issuer-file" as const, priority: 80,
+      issuerUrl: snapshot.issuerUrl, asOf: snapshot.asOf }] : []),
     ...(kodexPack
       ? [
           {
@@ -1692,7 +1740,7 @@ async function buildEtfHoldings(code: string): Promise<HoldingsBundle> {
     },
   ]);
 
-  const asOf = chosen.asOf ?? wisePack.asOf;
+  const asOf = chosen.asOf;
   const rankedIdx = chosen.rows
     .map((row, idx) => ({
       idx,
@@ -1710,14 +1758,15 @@ async function buildEtfHoldings(code: string): Promise<HoldingsBundle> {
   );
 
   const holdings: EtfHoldingRow[] = [];
+  const resolutionDeadline = Date.now() + 1_500;
   for (let i = 0; i < chosen.rows.length; i += 8) {
     const batch = chosen.rows.slice(i, i + 8);
     const resolved = await Promise.all(
       batch.map(async (row, j) => {
         const idx = i + j;
         let hit: NameHit | null = null;
-        if (resolveIdx.has(idx)) {
-          hit = await resolveHoldingName(row.nameKo);
+        if (resolveIdx.has(idx) && Date.now() < resolutionDeadline) {
+          hit = await withEtfDeadline((signal) => resolveHoldingName(row.nameKo, signal), null, Math.max(1, resolutionDeadline - Date.now()));
         } else if (row.code && looksKoreanEtfName(row.nameKo)) {
           hit = {
             code: row.code,
@@ -1750,6 +1799,7 @@ async function buildEtfHoldings(code: string): Promise<HoldingsBundle> {
     sourceKind: chosen.sourceKind,
     officialCount: holdings.filter((h) => h.weightSource === "official").length,
     issuerUrl: chosen.issuerUrl,
+    issuerProductUrl: chosen.issuerUrl ?? issuerProduct.issuerUrl,
   };
 }
 
@@ -1763,7 +1813,7 @@ export async function fetchEtfHoldings(code: string): Promise<HoldingsBundle> {
   return data;
 }
 
-async function getJsonUtf8AsText(url: string): Promise<string> {
+async function getJsonUtf8AsText(url: string, signal?: AbortSignal): Promise<string> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 12_000);
   try {
@@ -1773,7 +1823,7 @@ async function getJsonUtf8AsText(url: string): Promise<string> {
         Referer: "https://finance.naver.com/",
         Accept: "text/html,*/*",
       },
-      signal: ctrl.signal,
+      signal: signal ? AbortSignal.any([ctrl.signal, signal]) : ctrl.signal,
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.text();

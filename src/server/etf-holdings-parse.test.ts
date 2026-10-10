@@ -11,7 +11,6 @@ import {
   parseHanaroFundCatalog,
   parseHanaroHoldingsHtml,
   parseHanaroPdfDate,
-  fillLiveMarketWeights,
   parseIbkPdfRows,
   parseKodexPdfRows,
   parseRiseFundCdFromFinder,
@@ -84,6 +83,17 @@ test("krCodeFromIsin extracts KRX ticker and ignores cash ISIN", () => {
   assert.equal(krCodeFromIsin("KR7000660001"), "000660");
   assert.equal(krCodeFromIsin("KRD010010001"), null);
   assert.equal(krCodeFromIsin("US80004C2008"), null);
+});
+
+test("duplicate securities and oversized percentages cannot establish an official basket", () => {
+  for (const rows of [
+    [{ nameKo: "삼성전자", weight: 50 }, { nameKo: "삼성전자", weight: 50 }],
+    [{ nameKo: "삼성전자", weight: 101 }, { nameKo: "현금", weight: -1 }],
+  ]) {
+    const choice = chooseOfficialBasket([{ rows, source: "issuer", sourceKind: "issuer-pdf", priority: 100, asOf: "2026-10-08" }]);
+    assert.equal(choice.weightsPublished, false);
+    assert.ok(choice.rows.every((row) => row.weight == null));
+  }
 });
 
 test("설정현금액 is a CU notional row, 원화예금 is not", () => {
@@ -292,39 +302,38 @@ test("HANARO catalog and PDF date", () => {
   assert.equal(parseHanaroPdfDate(html), "2026-09-23");
 });
 
-test("live market weights need a fully priced basket and never replace official NAV", () => {
-  const base = {
-    isBond: false,
-    isFuture: false,
-    quote: { price: 100, currency: "USD" as const },
-  };
-  const live = fillLiveMarketWeights(
-    [
-      { ...base, nameKo: "Microsoft Corp", weight: null, weightSource: null, quantity: 2, isCash: false },
-      { ...base, nameKo: "원화예금", weight: null, weightSource: null, quantity: 1000, isCash: true, quote: null },
-    ],
-    1400,
-  );
-  assert.equal(live.published, true);
-  assert.equal(live.rows[0]!.weightSource, "live");
-  const msft = (2 * 100 * 1400) / (2 * 100 * 1400 + 1000) * 100;
-  assert.ok(Math.abs(live.rows[0]!.weight! - msft) < 1e-9);
-
-  const blocked = fillLiveMarketWeights(
-    [
-      { ...base, nameKo: "삼성전자", weight: null, weightSource: null, quantity: 10, isCash: false, quote: { price: 70000, currency: "KRW" } },
-      { ...base, nameKo: "국고채", weight: null, weightSource: null, quantity: 5, isCash: false, isBond: true, quote: null },
-    ],
-    1400,
-  );
-  assert.equal(blocked.published, false);
-  assert.equal(blocked.rows.every((r) => r.weight == null), true);
-
-  const official = fillLiveMarketWeights(
-    [{ ...base, nameKo: "Microsoft Corp", weight: 23.02, weightSource: "official" as const, quantity: 2, isCash: false }],
-    1400,
-  );
-  assert.equal(official.published, false);
-  assert.equal(official.rows[0]!.weight, 23.02);
+test("third-party 100% weights are never published as issuer weights", () => {
+  const chosen = chooseOfficialBasket([{rows:[{nameKo:"Kioxia",weight:86.12},{nameKo:"삼성전자",weight:13.88}],source:"third-party",sourceKind:"wisereport-cu",priority:1000}]);
+  assert.equal(chosen.weightsPublished,false);
+  assert.ok(chosen.rows.every(row=>row.weight===null));
 });
 
+test("issuer cash notional is excluded but actual cash stays", () => {
+  assert.equal(isCuNotionalName("100%현금설정액"),true);
+  assert.equal(isCuNotionalName("현금성자산"),false);
+});
+
+test("partially missing issuer weights do not publish a partial basket", () => {
+  const chosen=chooseOfficialBasket([{rows:[{nameKo:"삼성전자",weight:100},{nameKo:"채권",weight:null}],source:"issuer",sourceKind:"issuer-pdf",priority:100}]);
+  assert.equal(chosen.weightsPublished,false);
+});
+
+test("SOL routes to Shinhan official source",()=>{
+  assert.equal(issuerHoldingsFamily("SOL 글로벌DRAM반도체플러스","신한자산운용"),"sol");
+});
+
+test("newer dated issuer publication wins and quoted data cannot change weights", () => {
+  const chosen = chooseOfficialBasket([
+    { rows: [{ nameKo: "Kioxia", weight: 3.89 }, { nameKo: "other", weight: 96.11 }], source: "uploaded issuer XLS", sourceKind: "issuer-file", priority: 80, asOf: "2026-10-08" },
+    { rows: [{ nameKo: "Kioxia", weight: 4 }, { nameKo: "other", weight: 96 }], source: "older live issuer", sourceKind: "issuer-pdf", priority: 100, asOf: "2026-10-07" },
+    { rows: [{ nameKo: "Kioxia", weight: 86.12 }, { nameKo: "other", weight: 13.88 }], source: "secondary quote table", sourceKind: "wisereport-cu", priority: 1000, asOf: "2026-10-09" },
+  ]);
+  assert.equal(chosen.source, "uploaded issuer XLS");
+  assert.equal(chosen.rows.find(row => row.nameKo === "Kioxia")!.weight, 3.89);
+});
+
+test("a 90% issuer subset is not expanded or published as the full fund", () => {
+  const chosen = chooseOfficialBasket([{ rows: [{ nameKo: "stock", weight: 90 }], source: "partial", sourceKind: "issuer-pdf", priority: 100 }]);
+  assert.equal(chosen.weightsPublished, false);
+  assert.equal(chosen.rows[0]!.weight, null);
+});

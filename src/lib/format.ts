@@ -39,9 +39,15 @@ export function formatUsd(value: number): string {
   }).format(value);
 }
 
-export function formatHoldingPrice(value: number, currency?: "KRW" | "USD" | null): string {
+export function formatHoldingPrice(value: number, currency?: string | null): string {
   if (currency === "USD") return formatUsd(value);
-  return formatPrice(value);
+  if (currency === "KRW") return formatPrice(value);
+  if (!currency) return `${formatPrice(value)} (통화 미확인)`;
+  try {
+    return new Intl.NumberFormat("ko-KR", { style: "currency", currency }).format(value);
+  } catch {
+    return `${formatPrice(value)} ${currency}`;
+  }
 }
 
 export function formatWeight(value: number | null | undefined): string {

@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { withEtfDeadline } from "@/server/etf-request";
 import { z } from "zod";
 import {
   fetchAllUniverseQuotes,
@@ -25,7 +26,6 @@ import {
   fetchEtfDetail,
   fetchEtfHoldings,
   fetchWorldQuotes,
-  fetchUsdKrw,
   filterEtfBucket,
   searchEtfsInList,
   normalizeEtfCode,
@@ -36,7 +36,6 @@ import {
   type EtfAssetClass,
 } from "@/server/etf-market";
 import { UNIVERSE } from "@/data/universe";
-import { fillLiveMarketWeights } from "@/server/etf-holdings-parse";
 import { sortDisclosuresNewestFirst, sortTimedNewestFirst } from "@/lib/feed/mappers";
 import { inferSectorId, detectKrMarket, normalizeKrTicker, isKrTicker } from "@/lib/infer-sector";
 import { US_LINKED_CODES, US_POLICY_BRIEFS } from "@/data/us-link";
@@ -583,6 +582,7 @@ export const getEtfBundle = createServerFn({ method: "GET" })
         sourceKind: "none" as const,
         officialCount: 0,
         issuerUrl: null as string | null,
+        issuerProductUrl: null as string | null,
       })),
     ]);
     if (!detail.etf) return { error: "not_found" as const };
@@ -616,14 +616,13 @@ export const getEtfBundle = createServerFn({ method: "GET" })
         ]),
     );
 
-    const [stockQuotes, worldQuotes, usdKrw] = await Promise.all([
+    const [stockQuotes, worldQuotes] = await Promise.all([
       krCodes.length > 0
-        ? fetchRealtimeQuotes(krCodes, metaByCode).catch(() => [])
+        ? withEtfDeadline(() => fetchRealtimeQuotes(krCodes, metaByCode), [], 2_000)
         : Promise.resolve([]),
       usCodes.length > 0
-        ? fetchWorldQuotes(usCodes).catch(() => ({}))
+        ? withEtfDeadline((signal) => fetchWorldQuotes(usCodes, signal), {}, 2_000)
         : Promise.resolve({} as Awaited<ReturnType<typeof fetchWorldQuotes>>),
-      usCodes.length > 0 ? fetchUsdKrw().catch(() => 0) : Promise.resolve(0),
     ]);
     const qmap: Record<
       string,
@@ -632,7 +631,7 @@ export const getEtfBundle = createServerFn({ method: "GET" })
         change: number;
         changePct: number;
         volume: number;
-        currency: "KRW" | "USD";
+        currency: string | null;
       }
     > = {};
     for (const q of stockQuotes) {
@@ -682,13 +681,13 @@ export const getEtfBundle = createServerFn({ method: "GET" })
           : null,
       };
     });
-    const live = fillLiveMarketWeights(holdingsWithQuotes, usdKrw);
-    const holdings = live.rows;
+    // Official percentages are independent of quotes, FX and quantity units.
+    const holdings = holdingsWithQuotes;
 
     const sleeveMap = new Map<EtfAssetClass, number>();
     for (const h of holdings) {
       if (h.weight == null) continue;
-      if (h.weightSource !== "official" && h.weightSource !== "live") continue;
+      if (h.weightSource !== "official") continue;
       sleeveMap.set(h.assetClass, (sleeveMap.get(h.assetClass) ?? 0) + h.weight);
     }
     const allocation = [...sleeveMap.entries()]
@@ -700,9 +699,7 @@ export const getEtfBundle = createServerFn({ method: "GET" })
       .sort((a, b) => Math.abs(b.weight) - Math.abs(a.weight));
     const officialWeightSum = allocation.reduce((s, a) => s + a.weight, 0);
     const officialCount = holdings.filter((h) => h.weightSource === "official").length;
-    const liveCount = holdings.filter((h) => h.weightSource === "live").length;
-    const weightBasis: "official" | "live" | "none" =
-      officialCount > 0 ? "official" : liveCount > 0 ? "live" : "none";
+    const weightBasis: "official" | "none" = officialCount > 0 ? "official" : "none";
     const quotedCount = holdings.filter((h) => h.quote && h.quote.price > 0).length;
 
     const hasOfficialBasket = holdings.length > 0;
@@ -722,14 +719,12 @@ export const getEtfBundle = createServerFn({ method: "GET" })
     const missingOfficial = holdings.filter((h) => h.weight == null).length;
     const themeNote = hasOfficialBasket
       ? weightBasis === "official"
-        ? `비중은 운용사·KRX 공식 공시만 사용합니다(추정 없음). 출처: ${holdingPack.source}. 국내 시세는 KRX(네이버 중계), 해외 시세는 네이버 해외주식입니다. 채권·선물·현금은 지분 시세가 없어 ISIN·수량을 표시합니다.${
+        ? `비중은 운용사 공시의 NAV 비중만 사용합니다(시세로 재계산하지 않음). 출처: ${holdingPack.source}. 국내 시세는 KRX(네이버 중계), 해외 시세는 네이버 해외주식입니다. 채권·선물·현금은 지분 시세가 없어 ISIN·수량을 표시합니다.${
             missingOfficial
               ? ` 공식 비중이 없는 ${missingOfficial}개 종목은 — 로 둡니다.`
               : ""
           }`
-        : weightBasis === "live"
-          ? `공식 NAV 비중이 없어, 편입 수량 × 조회된 실시간 시세(달러는 원/달러)로 시가 비중을 냈습니다. 가격이 비거나 채권·선물이 있으면 일부만 100%로 늘리지 않습니다. 출처: ${holdingPack.source}.`
-          : `출처: ${holdingPack.source}. 공식 NAV 비중도, 전 종목을 시세로 나눌 수도 없어 비중은 — 입니다. 국내 시세는 KRX(네이버 중계), 해외 시세는 네이버 해외주식입니다.`
+        : `출처: ${holdingPack.source}. 운용사 공식 비중을 확인하지 못해 비중은 — 입니다. 시세와 수량으로 비중을 추정하지 않습니다.`
       : "공식 편입내역을 받지 못해 테마 매핑으로 대체합니다. 비중은 표시하지 않습니다.";
 
     return {
@@ -747,9 +742,10 @@ export const getEtfBundle = createServerFn({ method: "GET" })
       holdingsSource: holdingPack.source,
       holdingsSourceKind: holdingPack.sourceKind,
       holdingsIssuerUrl: holdingPack.issuerUrl ?? null,
+      issuerProductUrl: holdingPack.issuerProductUrl,
+      issuerLinkStatus: holdingPack.issuerProductUrl ? "resolved" as const : "unavailable" as const,
       holdingsCount: holdings.length,
       officialCount,
-      liveCount,
       weightBasis,
       officialWeightSum,
       quotedCount,
@@ -760,7 +756,6 @@ export const getEtfBundle = createServerFn({ method: "GET" })
       peerNote:
         "동일 테마·밸류체인 ETF입니다. (지수 메가캡 비교 목록이 아닙니다.)",
       themeNote,
-      usdKrw,
       fetchedAt: new Date().toISOString(),
     };
   });
