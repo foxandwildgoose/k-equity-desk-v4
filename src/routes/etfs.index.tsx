@@ -292,8 +292,9 @@ function EtfIndexPage() {
                     </tr>
                   ) : null}
                   {etfs.map((e) => {
-                    const up = e.changePct > 0;
-                    const down = e.changePct < 0;
+                    const validChange = e.quoteAvailable !== false && e.changeValid !== false && Number.isFinite(e.changePct);
+                    const up = validChange && e.changePct > 0;
+                    const down = validChange && e.changePct < 0;
                     return (
                       <tr key={e.code} className="hover:bg-muted/25">
                         <td className="px-3 py-2.5">
@@ -332,7 +333,7 @@ function EtfIndexPage() {
                           </td>
                         )}
                         <td className="px-3 py-2.5 text-right tabular font-semibold">
-                          {e.price ? formatPrice(e.price) : "—"}
+                          {e.quoteAvailable !== false && e.price > 0 ? formatPrice(e.price) : "—"}
                         </td>
                         <td
                           className={cn(
@@ -340,7 +341,7 @@ function EtfIndexPage() {
                             up ? colors.up : down ? colors.down : "text-muted-foreground",
                           )}
                         >
-                          {formatPct(e.changePct)}
+                          {validChange ? formatPct(e.changePct) : "—"}
                         </td>
                         {!isNew && (
                           <td className="px-3 py-2.5 text-right tabular text-xs text-muted-foreground">
@@ -350,10 +351,10 @@ function EtfIndexPage() {
                           </td>
                         )}
                         <td className="px-3 py-2.5 text-right tabular text-xs text-muted-foreground">
-                          {e.volume ? e.volume.toLocaleString("ko-KR") : "—"}
+                          {e.volumeValid !== false && e.volume >= 0 ? e.volume.toLocaleString("ko-KR") : "—"}
                         </td>
                         <td className="px-3 py-2.5 text-right tabular text-xs text-muted-foreground">
-                          {e.marketSum ? e.marketSum.toLocaleString("ko-KR") : "—"}
+                          {e.marketCapValid !== false && e.marketSum > 0 ? e.marketSum.toLocaleString("ko-KR") : "—"}
                         </td>
                         <td className="px-3 py-2.5 text-right">
                           <Link

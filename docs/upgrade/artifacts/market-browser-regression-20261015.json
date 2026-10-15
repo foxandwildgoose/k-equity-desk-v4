@@ -1,0 +1,703 @@
+{
+  "mode": "QA fixtures; not a verification of live exchange prices",
+  "liveApisVerified": false,
+  "applicationErrorsFiltered": false,
+  "result": "passed",
+  "counts": {
+    "dev": 10,
+    "built": 10,
+    "total": 20
+  },
+  "dev": [
+    {
+      "id": "declining-desktop",
+      "mode": "QA 픽스처 · 실제 거래소 시세 검증 아님",
+      "status": "passed",
+      "fixtureCalls": [
+        "getMarketQuotes",
+        "getMarketIndices",
+        "getMarketSnapshot",
+        "getQuotesByCodes",
+        "getResearchBriefing",
+        "getResearchDesk",
+        "getEtfMarket",
+        "getRoboticsUniverse",
+        "getMarketQuotes",
+        "getMarketIndices",
+        "getMarketSnapshot"
+      ],
+      "unhandledRpcs": [],
+      "externalFixtureCount": 6,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "httpFailures": [],
+      "checks": [
+        "Semiconductor mean -1.30%",
+        "Every sidebar sector remains negative",
+        "Sidebar and dashboard agree",
+        "Rankings preserve signs and unavailable observations",
+        "Industry detail renders the same aggregate"
+      ],
+      "overflow": 0,
+      "evidence": "/workspace/screenshots/market-integrity/dev-declining-retry/verdict.json"
+    },
+    {
+      "id": "declining-mobile",
+      "mode": "QA 픽스처 · 실제 거래소 시세 검증 아님",
+      "status": "passed",
+      "fixtureCalls": [
+        "getMarketQuotes",
+        "getMarketIndices",
+        "getMarketSnapshot",
+        "getQuotesByCodes",
+        "getResearchBriefing",
+        "getResearchDesk",
+        "getEtfMarket",
+        "getRoboticsUniverse",
+        "getMarketQuotes",
+        "getMarketIndices",
+        "getMarketSnapshot"
+      ],
+      "unhandledRpcs": [],
+      "externalFixtureCount": 6,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "httpFailures": [],
+      "checks": [
+        "Semiconductor mean -1.30%",
+        "Rankings preserve signs and unavailable observations",
+        "Industry detail renders the same aggregate"
+      ],
+      "overflow": 0,
+      "evidence": "/workspace/screenshots/market-integrity/dev-verified/verdict.json"
+    },
+    {
+      "id": "mixed-desktop",
+      "mode": "QA 픽스처 · 실제 거래소 시세 검증 아님",
+      "status": "passed",
+      "fixtureCalls": [
+        "getMarketQuotes",
+        "getMarketIndices",
+        "getMarketSnapshot",
+        "getQuotesByCodes",
+        "getResearchBriefing",
+        "getResearchDesk",
+        "getEtfMarket",
+        "getRoboticsUniverse",
+        "getMarketQuotes",
+        "getMarketIndices",
+        "getMarketSnapshot"
+      ],
+      "unhandledRpcs": [],
+      "externalFixtureCount": 6,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "httpFailures": [],
+      "checks": [
+        "Semiconductor mean -0.67%",
+        "Sidebar and dashboard agree",
+        "Rankings preserve signs and unavailable observations",
+        "Industry detail renders the same aggregate"
+      ],
+      "overflow": 0,
+      "evidence": "/workspace/screenshots/market-integrity/dev-verified/verdict.json"
+    },
+    {
+      "id": "mixed-mobile",
+      "mode": "QA 픽스처 · 실제 거래소 시세 검증 아님",
+      "status": "passed",
+      "fixtureCalls": [
+        "getMarketQuotes",
+        "getMarketIndices",
+        "getMarketSnapshot",
+        "getQuotesByCodes",
+        "getResearchBriefing",
+        "getResearchDesk",
+        "getEtfMarket",
+        "getRoboticsUniverse",
+        "getMarketQuotes",
+        "getMarketIndices",
+        "getMarketSnapshot"
+      ],
+      "unhandledRpcs": [],
+      "externalFixtureCount": 9,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "httpFailures": [],
+      "checks": [
+        "Semiconductor mean -0.67%",
+        "Rankings preserve signs and unavailable observations",
+        "Industry detail renders the same aggregate"
+      ],
+      "overflow": 0,
+      "evidence": "/workspace/screenshots/market-integrity/dev-verified/verdict.json"
+    },
+    {
+      "id": "empty-desktop",
+      "mode": "QA 픽스처 · 실제 거래소 시세 검증 아님",
+      "status": "passed",
+      "fixtureCalls": [
+        "getMarketQuotes",
+        "getMarketIndices",
+        "getMarketSnapshot",
+        "getQuotesByCodes",
+        "getResearchBriefing",
+        "getResearchDesk",
+        "getEtfMarket",
+        "getRoboticsUniverse"
+      ],
+      "unhandledRpcs": [],
+      "externalFixtureCount": 6,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "httpFailures": [],
+      "checks": [
+        "Semiconductor mean unavailable",
+        "Sidebar and dashboard agree",
+        "Rankings preserve signs and unavailable observations",
+        "Industry detail renders the same aggregate"
+      ],
+      "overflow": 0,
+      "evidence": "/workspace/screenshots/market-integrity/dev-verified/verdict.json"
+    },
+    {
+      "id": "empty-mobile",
+      "mode": "QA 픽스처 · 실제 거래소 시세 검증 아님",
+      "status": "passed",
+      "fixtureCalls": [
+        "getMarketQuotes",
+        "getMarketIndices",
+        "getMarketSnapshot",
+        "getQuotesByCodes",
+        "getResearchBriefing",
+        "getResearchDesk",
+        "getEtfMarket",
+        "getRoboticsUniverse"
+      ],
+      "unhandledRpcs": [],
+      "externalFixtureCount": 6,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "httpFailures": [],
+      "checks": [
+        "Semiconductor mean unavailable",
+        "Rankings preserve signs and unavailable observations",
+        "Industry detail renders the same aggregate"
+      ],
+      "overflow": 0,
+      "evidence": "/workspace/screenshots/market-integrity/dev-verified/verdict.json"
+    },
+    {
+      "id": "partial-desktop",
+      "mode": "QA 픽스처 · 실제 거래소 시세 검증 아님",
+      "status": "passed",
+      "fixtureCalls": [
+        "getMarketQuotes",
+        "getMarketIndices",
+        "getMarketSnapshot",
+        "getQuotesByCodes",
+        "getResearchBriefing",
+        "getResearchDesk",
+        "getEtfMarket",
+        "getRoboticsUniverse",
+        "getMarketQuotes",
+        "getMarketIndices",
+        "getMarketSnapshot"
+      ],
+      "unhandledRpcs": [],
+      "externalFixtureCount": 6,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "httpFailures": [],
+      "checks": [
+        "Semiconductor mean -5.00%",
+        "Sidebar and dashboard agree",
+        "Rankings preserve signs and unavailable observations",
+        "Industry detail renders the same aggregate"
+      ],
+      "overflow": 0,
+      "evidence": "/workspace/screenshots/market-integrity/dev-verified/verdict.json"
+    },
+    {
+      "id": "partial-mobile",
+      "mode": "QA 픽스처 · 실제 거래소 시세 검증 아님",
+      "status": "passed",
+      "fixtureCalls": [
+        "getMarketQuotes",
+        "getMarketIndices",
+        "getMarketSnapshot",
+        "getQuotesByCodes",
+        "getResearchBriefing",
+        "getResearchDesk",
+        "getEtfMarket",
+        "getRoboticsUniverse",
+        "getMarketQuotes",
+        "getMarketIndices",
+        "getMarketSnapshot"
+      ],
+      "unhandledRpcs": [],
+      "externalFixtureCount": 6,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "httpFailures": [],
+      "checks": [
+        "Semiconductor mean -5.00%",
+        "Rankings preserve signs and unavailable observations",
+        "Industry detail renders the same aggregate"
+      ],
+      "overflow": 0,
+      "evidence": "/workspace/screenshots/market-integrity/dev-verified/verdict.json"
+    },
+    {
+      "id": "stale-desktop",
+      "mode": "QA 픽스처 · 실제 거래소 시세 검증 아님",
+      "status": "passed",
+      "fixtureCalls": [
+        "getMarketQuotes",
+        "getMarketIndices",
+        "getMarketSnapshot",
+        "getQuotesByCodes",
+        "getResearchBriefing",
+        "getResearchDesk",
+        "getEtfMarket",
+        "getRoboticsUniverse",
+        "getMarketQuotes",
+        "getMarketIndices",
+        "getMarketSnapshot"
+      ],
+      "unhandledRpcs": [],
+      "externalFixtureCount": 12,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "consoleErrorStacks": [],
+      "httpFailures": [],
+      "checks": [
+        "Semiconductor mean unavailable",
+        "Sidebar and dashboard agree",
+        "Rankings preserve signs and unavailable observations",
+        "Industry detail renders the same aggregate"
+      ],
+      "overflow": 0,
+      "evidence": "/workspace/screenshots/market-integrity/dev-source-frozen/verdict.json"
+    },
+    {
+      "id": "stale-mobile",
+      "mode": "QA 픽스처 · 실제 거래소 시세 검증 아님",
+      "status": "passed",
+      "fixtureCalls": [
+        "getMarketQuotes",
+        "getMarketIndices",
+        "getMarketSnapshot",
+        "getQuotesByCodes",
+        "getResearchBriefing",
+        "getResearchDesk",
+        "getEtfMarket",
+        "getRoboticsUniverse"
+      ],
+      "unhandledRpcs": [],
+      "externalFixtureCount": 6,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "httpFailures": [],
+      "checks": [
+        "Semiconductor mean unavailable",
+        "Rankings preserve signs and unavailable observations",
+        "Industry detail renders the same aggregate"
+      ],
+      "overflow": 0,
+      "evidence": "/workspace/screenshots/market-integrity/dev-stale-final/verdict.json"
+    }
+  ],
+  "built": [
+    {
+      "id": "declining-desktop",
+      "mode": "QA 픽스처 · 실제 거래소 시세 검증 아님",
+      "status": "passed",
+      "fixtureCalls": [
+        "getMarketQuotes",
+        "getMarketIndices",
+        "getMarketSnapshot",
+        "getQuotesByCodes",
+        "getResearchBriefing",
+        "getResearchDesk",
+        "getEtfMarket",
+        "getRoboticsUniverse",
+        "getMarketQuotes",
+        "getMarketIndices",
+        "getMarketSnapshot"
+      ],
+      "unhandledRpcs": [],
+      "externalFixtureCount": 6,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "httpFailures": [],
+      "checks": [
+        "Semiconductor mean -1.30%",
+        "Every sidebar sector remains negative",
+        "Sidebar and dashboard agree",
+        "Rankings preserve signs and unavailable observations",
+        "Industry detail renders the same aggregate"
+      ],
+      "overflow": 0,
+      "evidence": "/workspace/screenshots/market-integrity/built-verified/verdict.json"
+    },
+    {
+      "id": "declining-mobile",
+      "mode": "QA 픽스처 · 실제 거래소 시세 검증 아님",
+      "status": "passed",
+      "fixtureCalls": [
+        "getMarketQuotes",
+        "getMarketIndices",
+        "getMarketSnapshot",
+        "getQuotesByCodes",
+        "getResearchBriefing",
+        "getResearchDesk",
+        "getEtfMarket",
+        "getRoboticsUniverse",
+        "getMarketQuotes",
+        "getMarketIndices",
+        "getMarketSnapshot"
+      ],
+      "unhandledRpcs": [],
+      "externalFixtureCount": 6,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "httpFailures": [],
+      "checks": [
+        "Semiconductor mean -1.30%",
+        "Rankings preserve signs and unavailable observations",
+        "Industry detail renders the same aggregate"
+      ],
+      "overflow": 0,
+      "evidence": "/workspace/screenshots/market-integrity/built-verified/verdict.json"
+    },
+    {
+      "id": "mixed-desktop",
+      "mode": "QA 픽스처 · 실제 거래소 시세 검증 아님",
+      "status": "passed",
+      "fixtureCalls": [
+        "getMarketQuotes",
+        "getMarketIndices",
+        "getMarketSnapshot",
+        "getQuotesByCodes",
+        "getResearchBriefing",
+        "getResearchDesk",
+        "getEtfMarket",
+        "getRoboticsUniverse",
+        "getMarketQuotes",
+        "getMarketIndices",
+        "getMarketSnapshot"
+      ],
+      "unhandledRpcs": [],
+      "externalFixtureCount": 6,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "httpFailures": [],
+      "checks": [
+        "Semiconductor mean -0.67%",
+        "Sidebar and dashboard agree",
+        "Rankings preserve signs and unavailable observations",
+        "Industry detail renders the same aggregate"
+      ],
+      "overflow": 0,
+      "evidence": "/workspace/screenshots/market-integrity/built-verified/verdict.json"
+    },
+    {
+      "id": "mixed-mobile",
+      "mode": "QA 픽스처 · 실제 거래소 시세 검증 아님",
+      "status": "passed",
+      "fixtureCalls": [
+        "getMarketQuotes",
+        "getMarketIndices",
+        "getMarketSnapshot",
+        "getQuotesByCodes",
+        "getResearchBriefing",
+        "getResearchDesk",
+        "getEtfMarket",
+        "getRoboticsUniverse",
+        "getMarketQuotes",
+        "getMarketIndices",
+        "getMarketSnapshot"
+      ],
+      "unhandledRpcs": [],
+      "externalFixtureCount": 6,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "httpFailures": [],
+      "checks": [
+        "Semiconductor mean -0.67%",
+        "Rankings preserve signs and unavailable observations",
+        "Industry detail renders the same aggregate"
+      ],
+      "overflow": 0,
+      "evidence": "/workspace/screenshots/market-integrity/built-verified/verdict.json"
+    },
+    {
+      "id": "empty-desktop",
+      "mode": "QA 픽스처 · 실제 거래소 시세 검증 아님",
+      "status": "passed",
+      "fixtureCalls": [
+        "getMarketQuotes",
+        "getMarketIndices",
+        "getMarketSnapshot",
+        "getQuotesByCodes",
+        "getResearchBriefing",
+        "getResearchDesk",
+        "getEtfMarket",
+        "getRoboticsUniverse"
+      ],
+      "unhandledRpcs": [],
+      "externalFixtureCount": 6,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "httpFailures": [],
+      "checks": [
+        "Semiconductor mean unavailable",
+        "Sidebar and dashboard agree",
+        "Rankings preserve signs and unavailable observations",
+        "Industry detail renders the same aggregate"
+      ],
+      "overflow": 0,
+      "evidence": "/workspace/screenshots/market-integrity/built-verified/verdict.json"
+    },
+    {
+      "id": "empty-mobile",
+      "mode": "QA 픽스처 · 실제 거래소 시세 검증 아님",
+      "status": "passed",
+      "fixtureCalls": [
+        "getMarketQuotes",
+        "getMarketIndices",
+        "getMarketSnapshot",
+        "getQuotesByCodes",
+        "getResearchBriefing",
+        "getResearchDesk",
+        "getEtfMarket",
+        "getRoboticsUniverse"
+      ],
+      "unhandledRpcs": [],
+      "externalFixtureCount": 6,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "httpFailures": [],
+      "checks": [
+        "Semiconductor mean unavailable",
+        "Rankings preserve signs and unavailable observations",
+        "Industry detail renders the same aggregate"
+      ],
+      "overflow": 0,
+      "evidence": "/workspace/screenshots/market-integrity/built-verified/verdict.json"
+    },
+    {
+      "id": "partial-desktop",
+      "mode": "QA 픽스처 · 실제 거래소 시세 검증 아님",
+      "status": "passed",
+      "fixtureCalls": [
+        "getMarketQuotes",
+        "getMarketIndices",
+        "getMarketSnapshot",
+        "getQuotesByCodes",
+        "getResearchBriefing",
+        "getResearchDesk",
+        "getEtfMarket",
+        "getRoboticsUniverse",
+        "getMarketQuotes",
+        "getMarketIndices",
+        "getMarketSnapshot"
+      ],
+      "unhandledRpcs": [],
+      "externalFixtureCount": 6,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "httpFailures": [],
+      "checks": [
+        "Semiconductor mean -5.00%",
+        "Sidebar and dashboard agree",
+        "Rankings preserve signs and unavailable observations",
+        "Industry detail renders the same aggregate"
+      ],
+      "overflow": 0,
+      "evidence": "/workspace/screenshots/market-integrity/built-verified/verdict.json"
+    },
+    {
+      "id": "partial-mobile",
+      "mode": "QA 픽스처 · 실제 거래소 시세 검증 아님",
+      "status": "passed",
+      "fixtureCalls": [
+        "getMarketQuotes",
+        "getMarketIndices",
+        "getMarketSnapshot",
+        "getQuotesByCodes",
+        "getResearchBriefing",
+        "getResearchDesk",
+        "getEtfMarket",
+        "getRoboticsUniverse",
+        "getMarketQuotes",
+        "getMarketIndices",
+        "getMarketSnapshot"
+      ],
+      "unhandledRpcs": [],
+      "externalFixtureCount": 6,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "httpFailures": [],
+      "checks": [
+        "Semiconductor mean -5.00%",
+        "Rankings preserve signs and unavailable observations",
+        "Industry detail renders the same aggregate"
+      ],
+      "overflow": 0,
+      "evidence": "/workspace/screenshots/market-integrity/built-verified/verdict.json"
+    },
+    {
+      "id": "stale-desktop",
+      "mode": "QA 픽스처 · 실제 거래소 시세 검증 아님",
+      "status": "passed",
+      "fixtureCalls": [
+        "getMarketQuotes",
+        "getMarketIndices",
+        "getMarketSnapshot",
+        "getQuotesByCodes",
+        "getResearchBriefing",
+        "getResearchDesk",
+        "getEtfMarket",
+        "getRoboticsUniverse"
+      ],
+      "unhandledRpcs": [],
+      "externalFixtureCount": 6,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "httpFailures": [],
+      "checks": [
+        "Semiconductor mean unavailable",
+        "Sidebar and dashboard agree",
+        "Rankings preserve signs and unavailable observations",
+        "Industry detail renders the same aggregate"
+      ],
+      "overflow": 0,
+      "evidence": "/workspace/screenshots/market-integrity/built-stale-final/verdict.json"
+    },
+    {
+      "id": "stale-mobile",
+      "mode": "QA 픽스처 · 실제 거래소 시세 검증 아님",
+      "status": "passed",
+      "fixtureCalls": [
+        "getMarketQuotes",
+        "getMarketIndices",
+        "getMarketSnapshot",
+        "getQuotesByCodes",
+        "getResearchBriefing",
+        "getResearchDesk",
+        "getEtfMarket",
+        "getRoboticsUniverse"
+      ],
+      "unhandledRpcs": [],
+      "externalFixtureCount": 6,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "httpFailures": [],
+      "checks": [
+        "Semiconductor mean unavailable",
+        "Rankings preserve signs and unavailable observations",
+        "Industry detail renders the same aggregate"
+      ],
+      "overflow": 0,
+      "evidence": "/workspace/screenshots/market-integrity/built-stale-final/verdict.json"
+    }
+  ],
+  "retainedEarlierFailures": [
+    {
+      "id": "declining-desktop",
+      "mode": "QA 픽스처 · 실제 거래소 시세 검증 아님",
+      "status": "failed",
+      "fixtureCalls": [],
+      "unhandledRpcs": [],
+      "externalFixtureCount": 6,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "httpFailures": [],
+      "checks": [],
+      "error": "page.waitForResponse: Timeout 90000ms exceeded while waiting for event \"response\"",
+      "pendingModules": [
+        "/node_modules/@tanstack/start-client-core/dist/esm/getStartOptions.js",
+        "/node_modules/@tanstack/start-client-core/dist/esm/client-rpc/serverFnFetcher.js",
+        "/src/routes/__root.tsx",
+        "/src/routes/index.tsx",
+        "/src/routes/bollinger.tsx",
+        "/src/routes/chart.tsx",
+        "/src/routes/disclosures.tsx",
+        "/src/routes/etfs.tsx",
+        "/src/routes/export-desk.tsx",
+        "/src/routes/login.tsx",
+        "/src/routes/research.tsx",
+        "/src/routes/robotics.tsx",
+        "/src/routes/us-link.tsx",
+        "/src/routes/us-research.tsx",
+        "/src/routes/watchlist.tsx",
+        "/src/routes/etfs.index.tsx",
+        "/src/routes/etfs.$code.tsx",
+        "/src/routes/industry.$sectorId.tsx",
+        "/src/routes/news.index.tsx",
+        "/src/routes/news.etf.tsx",
+        "/src/routes/news.kr.tsx",
+        "/src/routes/news.us.tsx",
+        "/src/routes/settings.alerts.tsx",
+        "/src/routes/status.kiwoom.tsx",
+        "/src/routes/status.sources.tsx",
+        "/src/routes/stock.$ticker.tsx",
+        "/src/routes/us-research.index.tsx",
+        "/src/routes/us-research.$reportId.tsx",
+        "/src/routes/us.$symbol.tsx"
+      ],
+      "bodyText": "KXEquityCommand\n시세: KIS 체결(수신 종목만) · 네이버 금융 스냅샷 · 리포트: 네이버 금융 · 공시: DART\nKXKorea EquityCommand Center\n한국\n대시보드한국 뉴스리서치 데스크퇴직연금 ETFETF 뉴스주요 공시수출 × KOSPI\n미국\n미국 뉴스미국 리서치공식 원문미국 연계\n테마\n로봇\n도구\n관심종목Bollinger Screener알림 설정소스 상태키움 연결 상태\nFocus 모드\n\n미국 연계 · 반도체 · 전지 · 바이오 · 로봇\n\nSectors · 산업\n\n커버리지 종목 단순평균\n\n★미국 연계 산업확인 불가 · 기준 시각 미확인 · 유효 0/35종목—반도체확인 불가 · 기준 시각 미확인 · 유효 0/14종목—전자·IT확인 불가 · 기준 시각 미확인 · 유효 0/6종목—자동차·부품확인 불가 · 기준 시각 미확인 · 유효 0/9종목—2차전지·소재확인 불가 · 기준 시각 미확인 · 유효 0/9종목—바이오·제약확인 불가 · 기준 시각 미확인 · 유효 0/10종목—금융확인 불가 · 기준 시각 미확인 · 유효 0/8종목—조선·중공업확인 불가 · 기준 시각 미확인 · 유효 0/9종목—화학확인 불가 · 기준 시각 미확인 · 유효 0/10종목—에너지·유틸리티확인 불가 · 기준 시각 미확인 · 유효 0/13종목—통신·미디어확인 불가 · 기준 시각 미확인 · 유효 0/8종목—소비재·유통확인 불가 · 기준 시각 미확인 · 유효 0/14종목—건설·부동산확인 불가 · 기준 시각 미확인 · 유효 0/9종목—철강·금속확인 불가 · 기준 시각 미확인 · 유효 0/9종목—로봇·자동화·AI확인 불가 · 기준 시각 미확인 · 유효 0/6종목—방산·항공우주확인 불가 · 기준 시각 미확인 · 유효 0/8종목—\n\nInstitutional Equity Desk\n\nKorea Equity Command Center\n\n시세 → 시장 폭 → 산업 리서치 → 공시 순으로 판단하는 데스크\n\n세션 확인 중\n시세: KIS 체결(수신 종목만) · 네이버 금융 스냅샷 · 리포트: 네이버 금융 · 공시: DART\n\n체결 시각과 시세 출처를 구분해 표시합니다. 시장 폭·섹터 등락은 동일 거래일의 확인된 커버리지 종목 단순평균이며, 전체 시장 업종지수가 아닙니다. 기준 시각 미확인·오래된 값은 통계에서 제외합니다.\n\nMorning Brief\n\nDecision Snapshot\n\n가격 → 시장 폭 → 주도 산업 → 새 리서치 순으로 판단\n\n 스냅샷 모드\n 시장 폭 (커버리지 기준)\n—\n유효한 동일 거래일 시세 없음\n 주도 / 부진 산업\n—\n—\n 신규 산업 리서치\n0건\n최근 리포트 대기\n 데이터 상태\n45초 간격 스냅샷 조회\n확인 불가 · 기준 시각 미확인 · 유효 0종목\n\nRed Team: 시장 폭·주도 산업은 앱 커버리지 종목 샘플 기준이며 전체 코스피/코스닥 업종지수가 아닙니다. 시각 미확인·오래된 자료는 통계에서 제외합니다.\n\n산업 리서치 바로가기미국 연계 산업반도체2차전지·소재바이오·제약로봇·자동화·AI\nLive Wire 불러오는 중…\n오늘의 리서치 불러오는 중…\n미국 스냅샷 불러오는 중…\n로봇 스냅샷 불러오는 중…\n ETF · 퇴직연금\n\n시세 스냅샷 · 레버리지·인버스 제외\n\n전체 \n 미국 연계 산업\n\nAI·IRA·방산·원전 공급망\n\n열기 \n미국 연계 섹터 보드\n\nAI 메모리·배터리·방산·전력 밸류체인 종목 등락\n\n미·중 AI 패권\nHBM · CHIPS\n미국 정책\nIRA · 관세\n 리서치 데스크\n\n한국 리포트와 미국 월가 의견을 나눠 바로 선택\n\n전체 열기 \n산업 리포트\n—건 · 섹터 분석\n시황 · 전략\n—건 · 마켓레이더\n경제 · 매크로\n—건 · FX·정책\n미국 · 월가\n투자은행 등급 · 목표가 · 기사 원문\n공개된 의견만 요약하고, 카드를 누르면 원문 페이지로 갑니다.\n한국 주식미국 주식\n산업0시황·전략0경제0\n\n섹터별 리포트를 바로 골라 읽는 산업 리서치 터미널\n\n표시 0건\n현재 필터에 맞는 리포트가 없습니다.\n반도체 리포트2차전지 리포트바이오·제약 리포트에너지·유틸리티 리포트로봇·AI 리포트\n 관심종목\n전체 \n삼성전자\n005930\n—\nSK하이닉스\n000660\n—\nLG에너지솔루션\n373220\n—\n삼성바이오로직스\n207940\n—\n레인보우로보틱스\n277810\n—\n한화에어로스페이스\n012450\n—\n산업 커버리지\n확인된 동일 거래일 종목의 단순평균\n미국 연계 산업—\nUS-Linked Korea Supply Chain · 커버리지 단순평균확인 불가 · 기준 시각 미확인 · 유효 0/35종목\n반도체—\nSemiconductors & Memory · 커버리지 단순평균확인 불가 · 기준 시각 미확인 · 유효 0/14종목\n전자·IT—\nElectronics & IT Hardware · 커버리지 단순평균확인 불가 · 기준 시각 미확인 · 유효 0/6종목\n자동차·부품—\nAutomobiles & Auto Parts · 커버리지 단순평균확인 불가 · 기준 시각 미확인 · 유효 0/9종목\n2차전지·소재—\nBatteries & Materials · 커버리지 단순평균확인 불가 · 기준 시각 미확인 · 유효 0/9종목\n바이오·제약—\nBio / Pharma / Healthcare · 커버리지 단순평균확인 불가 · 기준 시각 미확인 · 유효 0/10종목\n금융—\nFinance & Insurance · 커버리지 단순평균확인 불가 · 기준 시각 미확인 · 유효 0/8종목\n조선·중공업—\nShipbuilding & Heavy Industry · 커버리지 단순평균확인 불가 · 기준 시각 미확인 · 유효 0/9종목\n화학—\nChemicals & Petrochemicals · 커버리지 단순평균확인 불가 · 기준 시각 미확인 · 유효 0/10종목\n에너지·유틸리티—\nEnergy & Utilities · 커버리지 단순평균확인 불가 · 기준 시각 미확인 · 유효 0/13종목\n통신·미디어—\nTelecom & Media · 커버리지 단순평균확인 불가 · 기준 시각 미확인 · 유효 0/8종목\n소비재·유통—\nConsumer / Retail / Food · 커버리지 단순평균확인 불가 · 기준 시각 미확인 · 유효 0/14종목\n건설·부동산—\nConstruction & Real Estate · 커버리지 단순평균확인 불가 · 기준 시각 미확인 · 유효 0/9종목\n철강·금속—\nSteel & Metals · 커버리지 단순평균확인 불가 · 기준 시각 미확인 · 유효 0/9종목\n로봇·자동화·AI—\nRobotics, Automation & AI · 커버리지 단순평균확인 불가 · 기준 시각 미확인 · 유효 0/6종목\n방산·항공우주—\nDefense & Aerospace · 커버리지 단순평균확인 불가 · 기준 시각 미확인 · 유효 0/8종목\n커버리지 상승 상위\n\n로딩 중…\n\n커버리지 하락 상위\n\n로딩 중…\n\n면책 · Korea Equity Command Center는 정보·리서치 워크플로 도구이며 투자 자문·매매 권유·주문 실행 서비스가 아닙니다. 시세·차트·수급·리포트는 제3자 경로(KIS/KRX·네이버·Yahoo·DART 등)에 의존하며 지연·누락·오류가 있을 수 있습니다. 투자 결정과 손실 책임은 이용자 본인에게 있습니다. 실주문 전 증권사 HTS/MTS에서 호가·잔량·VI·공시를 재확인하세요.\n\nCharts: TradingView Lightweight Charts™ · TradingView Lightweight Charts™ · Copyright (с) 2025 TradingView, Inc. https://www.tradingview.com/ · 소스 상태",
+      "evidence": "/workspace/screenshots/market-integrity/dev-verified/verdict.json"
+    },
+    {
+      "id": "stale-desktop",
+      "mode": "QA 픽스처 · 실제 거래소 시세 검증 아님",
+      "status": "failed",
+      "fixtureCalls": [
+        "getMarketQuotes",
+        "getMarketIndices",
+        "getMarketSnapshot",
+        "getMarketQuotes",
+        "getMarketIndices",
+        "getMarketSnapshot",
+        "getQuotesByCodes",
+        "getResearchBriefing",
+        "getResearchDesk",
+        "getEtfMarket",
+        "getRoboticsUniverse"
+      ],
+      "unhandledRpcs": [],
+      "externalFixtureCount": 12,
+      "pageErrors": [],
+      "consoleErrors": [
+        "Can't perform a React state update on a component that hasn't mounted yet. This indicates that you have a side-effect in your render function that asynchronously tries to update the component. Move this work to useEffect instead."
+      ],
+      "httpFailures": [],
+      "checks": [
+        "Semiconductor mean unavailable",
+        "Sidebar and dashboard agree",
+        "Rankings preserve signs and unavailable observations",
+        "Industry detail renders the same aggregate"
+      ],
+      "overflow": 0,
+      "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n+ [\n+   \"Can't perform a React state update on a component that hasn't mounted yet. This indicates that you have a side-effect in your render function that asynchronously tries to update the component. Move this work to useEffect instead.\"\n+ ]\n- []\n",
+      "pendingModules": [
+        "/node_modules/.vite/deps/react-dom_client.js",
+        "/node_modules/@tanstack/react-start/dist/esm/client.js",
+        "/node_modules/.vite/deps/react_jsx-dev-runtime.js",
+        "/node_modules/.vite/deps/rolldown-runtime-DC62tzP2.js",
+        "/src/components/layout/AppShell.tsx",
+        "/node_modules/vite/dist/client/env.mjs"
+      ],
+      "bodyText": "시세: KIS 체결(수신 종목만) · 네이버 금융 스냅샷 · 리포트: 네이버 금융 · 공시: DART\nKX\nKorea Equity\nCOMMAND CENTER\n한국\n대시보드\n한국 뉴스\n리서치 데스크\n퇴직연금 ETF\nETF 뉴스\n주요 공시\n수출 × KOSPI\n미국\n미국 뉴스\n미국 리서치\n공식 원문\n미국 연계\n테마\n로봇\n도구\n관심종목\nBollinger Screener\n알림 설정\n소스 상태\n키움 연결 상태\nFocus 모드\n\n미국 연계 · 반도체 · 전지 · 바이오 · 로봇\n\nSECTORS · 산업\n\n커버리지 종목 단순평균\n\n★미국 연계 산업\n확인 불가 · 기준 시각 미확인 · 유효 0/35종목\n—\n반도체\n확인 불가 · 기준 시각 미확인 · 유효 0/14종목\n—\n전자·IT\n확인 불가 · 기준 시각 미확인 · 유효 0/6종목\n—\n자동차·부품\n확인 불가 · 기준 시각 미확인 · 유효 0/9종목\n—\n2차전지·소재\n확인 불가 · 기준 시각 미확인 · 유효 0/9종목\n—\n바이오·제약\n확인 불가 · 기준 시각 미확인 · 유효 0/10종목\n—\n금융\n확인 불가 · 기준 시각 미확인 · 유효 0/8종목\n—\n조선·중공업\n확인 불가 · 기준 시각 미확인 · 유효 0/9종목\n—\n화학\n확인 불가 · 기준 시각 미확인 · 유효 0/10종목\n—\n에너지·유틸리티\n확인 불가 · 기준 시각 미확인 · 유효 0/13종목\n—\n통신·미디어\n확인 불가 · 기준 시각 미확인 · 유효 0/8종목\n—\n소비재·유통\n확인 불가 · 기준 시각 미확인 · 유효 0/14종목\n—\n건설·부동산\n확인 불가 · 기준 시각 미확인 · 유효 0/9종목\n—\n철강·금속\n확인 불가 · 기준 시각 미확인 · 유효 0/9종목\n—\n로봇·자동화·AI\n확인 불가 · 기준 시각 미확인 · 유효 0/6종목\n—\n방산·항공우주\n확인 불가 · 기준 시각 미확인 · 유효 0/8종목\n—\n대시보드\n반도체\n반도체 (Semiconductors & Memory)\n산업 핵심 관점\n\nHBM·DRAM 사이클과 글로벌 AI 서버 수요가 실적 방향을 좌우. 삼성전자·SK하이닉스 중심의 메모리 슈퍼사이클과 장비·소재 공급망이 핵심.\n\n원문 보기\n산업 리서치 (네이버)\n앱 리서치 데스크\n앱 내 산업 리포트 더 보기 →\n\n시세: KIS 체결(수신 종목만) · 네이버 금융 스냅샷 · 리포트: 네이버 금융 · 공시: DART\n\n시세 수신\n커버리지 종목 단순평균\n—\n\n확인 불가 · 기준 시각 미확인 · 유효 0/14종목\n\n상승 1위\n—\n하락 1위\n—\n\t종목\n\t관측가\n\t등락\n\t추이\t거래량\n\t시총\n\t시장\n\n\t\n삼성전자\n005930 · Samsung Electronics\n시세 미확인\n\t—\t—\t\n—\n\t—\t—\tKOSPI\n\n\t\nSK하이닉스\n000660 · SK Hynix\n시세 미확인\n\t—\t—\t\n—\n\t—\t—\tKOSPI\n\n\t\n한미반도체\n042700 · Hanmi Semiconductor\n시세 미확인\n\t—\t—\t\n—\n\t—\t—\tKOSPI\n\n\t\n원익IPS\n240810 · Wonik IPS\n시세 미확인\n\t—\t—\t\n—\n\t—\t—\tKOSDAQ\n\n\t\n리노공업\n058470 · Leeno Industrial\n시세 미확인\n\t—\t—\t\n—\n\t—\t—\tKOSDAQ\n\n\t\n이오테크닉스\n039030 · EO Technics\n시세 미확인\n\t—\t—\t\n—\n\t—\t—\tKOSDAQ\n\n\t\n티씨케이\n064760 · TCK\n시세 미확인\n\t—\t—\t\n—\n\t—\t—\tKOSDAQ\n\n\t\nISC\n095340 · ISC Co.\n시세 미확인\n\t—\t—\t\n—\n\t—\t—\tKOSDAQ\n\n\t\n솔브레인\n357780 · Soulbrain\n시세 미확인\n\t—\t—\t\n—\n\t—\t—\tKOSDAQ\n\n\t\nHPSP\n403870 · HPSP\n시세 미확인\n\t—\t—\t\n—\n\t—\t—\tKOSDAQ\n\n\t\nDB하이텍\n000990 · DB HiTek\n시세 미확인\n\t—\t—\t\n—\n\t—\t—\tKOSPI\n\n\t\nLX세미콘\n108320 · LX Semicon\n시세 미확인\n\t—\t—\t\n—\n\t—\t—\tKOSPI\n\n\t\n에스티아이\n039440 · STI\n시세 미확인\n\t—\t—\t\n—\n\t—\t—\tKOSDAQ\n\n\t\n하나마이크론\n067310 · Hana Micron\n시세 미확인\n\t—\t—\t\n—\n\t—\t—\tKOSDAQ\n\n면책 · Korea Equity Command Center는 정보·리서치 워크플로 도구이며 투자 자문·매매 권유·주문 실행 서비스가 아닙니다. 시세·차트·수급·리포트는 제3자 경로(KIS/KRX·네이버·Yahoo·DART 등)에 의존하며 지연·누락·오류가 있을 수 있습니다. 투자 결정과 손실 책임은 이용자 본인에게 있습니다. 실주문 전 증권사 HTS/MTS에서 호가·잔량·VI·공시를 재확인하세요.\n\nCharts: TradingView Lightweight Charts™ · TradingView Lightweight Charts™ · Copyright (с) 2025 TradingView, Inc. https://www.tradingview.com/ · 소스 상태",
+      "evidence": "/workspace/screenshots/market-integrity/dev-stale-final/verdict.json"
+    }
+  ],
+  "notes": [
+    "Initial dev cold import timeout and a dev React warning during source HMR are retained above. Both cases passed subsequent clean reruns.",
+    "The final harness explicitly waits for industry quote RPC completion; the frozen dev stale-desktop rerun used that stronger readiness check.",
+    "The stale fixture was corrected to keep historical positive price, amount and percentage internally consistent, then rerun on dev and built output."
+  ]
+}

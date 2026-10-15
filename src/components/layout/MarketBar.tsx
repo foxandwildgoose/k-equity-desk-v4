@@ -7,6 +7,7 @@ const US_LABEL: Record<string, string> = { spx: "SPX", ndx: "NDX", vix: "VIX", t
 import { usePriceColors } from "@/lib/store";
 import { formatPct } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { formatMarketAsOf } from "@/lib/market-presentation";
 
 function statusLabel(ms?: string): string | null {
   if (!ms) return null;
@@ -83,10 +84,11 @@ export function MarketBar() {
                 "market-tape-item flex shrink-0 items-baseline gap-2",
                 i > 0 && "border-l border-border",
               )}
-              title={`${idx.nameEn} · ${idx.source}`}
+              title={`${idx.nameEn} · ${idx.source} · ${formatMarketAsOf(idx.tradedAt)}`}
             >
               <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                 {idx.nameKo}
+                <span className="ml-1 font-normal normal-case">{formatMarketAsOf(idx.tradedAt)}</span>
               </span>
               <span className="text-xs font-semibold tabular text-foreground">
                 {idx.value.toLocaleString("en-US", {

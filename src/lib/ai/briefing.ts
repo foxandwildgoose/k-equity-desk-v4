@@ -26,7 +26,8 @@ export interface AiBullet {
   cites: number[];
 }
 
-const clamp = (s: string | undefined, n: number) => (s ?? "").replace(/\s+/g, " ").trim().slice(0, n);
+const clamp = (s: string | undefined, n: number) =>
+  (s ?? "").replace(/\s+/g, " ").trim().slice(0, n);
 
 /** ≤ 30 items, de-duplicated by id, fields clamped (titles 300, snippets 240); non-http(s) links dropped. */
 export function normalizeAiInput(items: readonly AiInputItem[]): AiInputItem[] {
@@ -36,7 +37,14 @@ export function normalizeAiInput(items: readonly AiInputItem[]): AiInputItem[] {
     if (!it.id || seen.has(it.id) || !it.title?.trim()) continue;
     seen.add(it.id);
     const url = clamp(it.url, 500);
-    out.push({ id: clamp(it.id, 200), title: clamp(it.title, 300), snippet: clamp(it.snippet, 240) || undefined, source: clamp(it.source, 80), time: clamp(it.time, 40), url: /^https?:\/\//i.test(url) ? url : "" });
+    out.push({
+      id: clamp(it.id, 200),
+      title: clamp(it.title, 300),
+      snippet: clamp(it.snippet, 240) || undefined,
+      source: clamp(it.source, 80),
+      time: clamp(it.time, 40),
+      url: /^https?:\/\//i.test(url) ? url : "",
+    });
     if (out.length >= AI_MAX_ITEMS) break;
   }
   return out;
@@ -53,28 +61,62 @@ export function aiInputHash(kind: string, items: readonly AiInputItem[], extra =
   return (h >>> 0).toString(16).padStart(8, "0");
 }
 
-export function buildBriefingPrompt(items: readonly AiInputItem[], context: string): { system: string; user: string } {
+export function buildBriefingPrompt(
+  items: readonly AiInputItem[],
+  context: string,
+): { system: string; user: string } {
   const system = [
     "당신은 금융 뉴스 데스크의 편집 보조입니다.",
     "입력으로 받은 기사 목록만 근거로 한국어 브리핑 글머리표를 작성합니다.",
     `규칙: 글머리표는 최대 ${AI_MAX_BULLETS}개, 각 줄은 "- "로 시작합니다.`,
     "각 글머리표 끝에 근거 기사 번호를 [3] 또는 [2][5]처럼 표기합니다. 번호 없는 문장은 쓰지 않습니다.",
     "입력에 없는 사실·수치·전망·투자 권유를 추가하지 않습니다. URL을 쓰지 않습니다.",
+    "숫자는 인용한 기사의 원문에 있는 값·단위·부호 그대로만 사용합니다. 환산·반올림·새로운 계산은 하지 않습니다.",
     "영문 제목은 뜻을 한국어로 요약하되 고유명사는 그대로 둡니다.",
   ].join("\n");
-  const lines = items.map((it, i) => `[${i + 1}] ${it.title}${it.snippet ? ` — ${it.snippet}` : ""} (출처: ${it.source}, 시각: ${it.time})`);
+  const lines = items.map(
+    (it, i) =>
+      `[${i + 1}] ${it.title}${it.snippet ? ` — ${it.snippet}` : ""} (출처: ${it.source}, 시각: ${it.time})`,
+  );
   const user = `주제: ${context}\n기사 ${items.length}건:\n${lines.join("\n")}\n\n위 기사만 근거로 브리핑을 작성하세요.`;
   return { system, user };
 }
 
 const URL_RE = /https?:\/\/[^\s)\]]+/g;
 
+/** Conservative evidence check, not a claim that citation indexes prove truth. */
+export function numericClaimsSupported(text: string, sources: readonly string[]): boolean {
+  const tokens = (raw: string) => {
+    const clean = raw
+      .normalize("NFKC")
+      .replace(URL_RE, "")
+      .replace(/\[\d+\]/g, "")
+      .replace(/−/g, "-");
+    const found =
+      clean.match(
+        /(?:[$₩€£¥]\s*)?[+-]?\d+(?:,\d{3})*(?:\.\d+)?(?:\s*(?:trillion|billion|million|thousand|percent|bps?|조\s*원|억\s*원|만\s*원|조\s*달러|억\s*달러|만\s*달러|%|조|억|만|천|원|달러|배|주|개|명|건|위|년|월|일|분기))?/gi,
+      ) ?? [];
+    return found.map((token) =>
+      token
+        .replace(/\s|,/g, "")
+        .replace(/^\+/, "")
+        .toLowerCase()
+        .replace(/\d+(?:\.\d+)?/, (value) => String(Number(value))),
+    );
+  };
+  const cited = new Set(sources.flatMap(tokens));
+  return tokens(text).every((token) => cited.has(token));
+}
+
 /**
  * Parse model output into cited bullets (AT-46): lines without at least one
  * valid `[n]` citation are rejected; out-of-range citations are removed;
  * URLs not present in the input are stripped.
  */
-export function parseAiBullets(raw: string, items: readonly AiInputItem[]): { bullets: AiBullet[]; rejected: number } {
+export function parseAiBullets(
+  raw: string,
+  items: readonly AiInputItem[],
+): { bullets: AiBullet[]; rejected: number } {
   const allowedUrls = new Set(items.map((i) => i.url).filter(Boolean));
   const bullets: AiBullet[] = [];
   let rejected = 0;
@@ -90,9 +132,18 @@ export function parseAiBullets(raw: string, items: readonly AiInputItem[]): { bu
       rejected += 1;
       continue;
     }
+    const citedSources = cites
+      .map((n) => items[n - 1]!)
+      .map((item) => `${item.title} ${item.snippet ?? ""} ${item.time}`);
+    if (!numericClaimsSupported(line, citedSources)) {
+      rejected += 1;
+      continue;
+    }
     const text = line
       .replace(URL_RE, (u) => (allowedUrls.has(u) ? u : ""))
-      .replace(/\[(\d{1,2})\]/g, (all, d: string) => (Number(d) >= 1 && Number(d) <= items.length ? all : ""))
+      .replace(/\[(\d{1,2})\]/g, (all, d: string) =>
+        Number(d) >= 1 && Number(d) <= items.length ? all : "",
+      )
       .replace(/\s{2,}/g, " ")
       .trim()
       .slice(0, 400);
@@ -102,22 +153,30 @@ export function parseAiBullets(raw: string, items: readonly AiInputItem[]): { bu
   return { bullets, rejected };
 }
 
-export function buildTranslatePrompt(items: readonly { id: string; title: string }[]): { system: string; user: string } {
+export function buildTranslatePrompt(items: readonly { id: string; title: string }[]): {
+  system: string;
+  user: string;
+} {
   return {
-    system: "영문 금융 기사 제목을 자연스러운 한국어로 번역합니다. 각 줄을 입력과 같은 번호 [n]으로 시작하고, 설명이나 추가 정보 없이 번역문만 씁니다. 고유명사·티커는 그대로 둡니다.",
+    system:
+      "영문 금융 기사 제목을 자연스러운 한국어로 번역합니다. 각 줄을 입력과 같은 번호 [n]으로 시작하고, 설명이나 추가 정보 없이 번역문만 씁니다. 고유명사·티커와 숫자·단위·부호는 그대로 둡니다.",
     user: items.map((it, i) => `[${i + 1}] ${it.title}`).join("\n"),
   };
 }
 
 /** `[n] 번역` lines → id → Korean title (unknown numbers ignored). */
-export function parseTranslations(raw: string, items: readonly { id: string }[]): Record<string, string> {
+export function parseTranslations(
+  raw: string,
+  items: readonly { id: string; title: string }[],
+): Record<string, string> {
   const out: Record<string, string> = {};
   for (const line of raw.split(/\r?\n/)) {
     const m = /^\s*\[(\d{1,2})\]\s*(.+)$/.exec(line);
     if (!m) continue;
     const n = Number(m[1]);
     const it = items[n - 1];
-    if (it && m[2]!.trim()) out[it.id] = m[2]!.replace(URL_RE, "").trim().slice(0, 300);
+    if (it && m[2]!.trim() && numericClaimsSupported(m[2]!, [it.title]))
+      out[it.id] = m[2]!.replace(URL_RE, "").trim().slice(0, 300);
   }
   return out;
 }

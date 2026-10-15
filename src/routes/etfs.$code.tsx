@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ReadableProse } from "@/components/ui/ReadableProse";
 import { SourceLinks } from "@/components/ui/SourceLinks";
+import { formatMarketAsOf } from "@/lib/market-presentation";
 import {
   ChevronRight,
   Loader2,
@@ -117,7 +118,7 @@ function EtfDetailPage() {
   const themeLabels =
     data && "themeLabels" in data ? data.themeLabels : [];
 
-  const quoted = holdings.filter((h) => h.quote && h.quote.price > 0);
+  const quoted = holdings.filter((h) => h.quote && h.quote.price > 0 && h.quote.changeValid !== false && Number.isFinite(h.quote.changePct));
   const adv = quoted.filter((h) => (h.quote?.changePct ?? 0) > 0).length;
   const dec = quoted.filter((h) => (h.quote?.changePct ?? 0) < 0).length;
   const barBase = allocation
@@ -230,9 +231,10 @@ function EtfDetailPage() {
                   {formatPrice(etf.change)} ({formatPct(etf.changePct)})
                 </div>
                 <div className="mt-2 text-sm text-muted-foreground tabular">
-                  거래량 {etf.volume.toLocaleString("ko-KR")}
-                  {etf.nav ? ` · NAV ${formatPrice(etf.nav)}` : ""}
+                  거래량 {etf.volumeValid !== false ? etf.volume.toLocaleString("ko-KR") : "—"}
+                  {etf.navAvailable !== false && etf.nav > 0 ? ` · NAV ${formatPrice(etf.nav)}` : ""}
                 </div>
+                <p className="mt-1 text-xs text-muted-foreground">스냅샷 · {formatMarketAsOf(etf.tradedAt)}</p>
               </>
             ) : isError ? (
               <span className="text-base text-price-down">시세 실패</span>
@@ -245,7 +247,7 @@ function EtfDetailPage() {
 
       {isKrTicker(etf?.code ?? code) ? (
         <section className="flex flex-col gap-2">
-          {etf && quoteAvailable && etf.nav > 0 ? (
+          {etf && quoteAvailable && etf.navAvailable !== false && etf.nav > 0 ? (
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
               <span>
                 시장가{" "}
@@ -339,12 +341,12 @@ function EtfDetailPage() {
           </div>
         </div>
         <div className="desk-card desk-card-indigo p-4">
-          <div className="text-sm text-muted-foreground">실시간 시세</div>
+          <div className="text-sm text-muted-foreground">편입 종목 조회 시세</div>
           <div className="mt-1 text-xl font-semibold tabular">
             {quotedCount ? `${adv}↑ / ${dec}↓` : "—"}
           </div>
           <div className="text-sm text-muted-foreground">
-            시세 반영 {quotedCount}종 · 테마 {themeLabels.length ? themeLabels.join(" · ") : "일반"}
+            시세 확인 {quoted.length}종 · 각 시장의 관측 시각이 다를 수 있습니다.
           </div>
         </div>
       </div>

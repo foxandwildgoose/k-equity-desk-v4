@@ -189,14 +189,9 @@ function sampleQuantile(xs: number[], q: number): number | null {
 
 export function statsOf(values: (number | null)[]): MultipleStats {
   const pos = values.filter((v): v is number => v != null && v > 0 && Number.isFinite(v));
-  let current: number | null = null;
-  for (let i = values.length - 1; i >= 0; i--) {
-    const v = values[i];
-    if (v != null && v > 0 && Number.isFinite(v)) {
-      current = v;
-      break;
-    }
-  }
+  // An undefined latest multiple must not become an older profitable value.
+  const latest = values.at(-1);
+  const current = latest != null && latest > 0 && Number.isFinite(latest) ? latest : null;
   const mean = sampleMean(pos);
   const sigma = sampleSigma(pos);
   return {
@@ -449,19 +444,19 @@ export function parseNasdaqEarningsForecast(json: unknown): ConsensusEps | null 
   if (!data) return null;
   const qWrap = asRecord(data.quarterlyForecast);
   const qRows = Array.isArray(qWrap?.rows) ? qWrap.rows : [];
-  const quarters: { year: number; eps: number }[] = [];
-  for (const row of qRows) {
+  // Select the actual next four rows before validation. Skipping a loss or a
+  // missing quarter would silently substitute a later quarter into NTM.
+  const quarters = qRows.slice(0, 4).map((row): { year: number; eps: number } | null => {
     const rec = asRecord(row);
-    if (!rec) continue;
-    const eps = num(rec.consensusEPSForecast);
+    if (!rec) return null;
+    const rawEps = rec.consensusEPSForecast;
+    const eps = typeof rawEps === "number" || typeof rawEps === "string" && rawEps.trim() ? num(rawEps) : null;
     const year = fiscalYearOf(rec.fiscalEnd);
-    if (eps == null || !(eps > 0) || year == null) continue;
-    quarters.push({ year, eps });
-  }
-  if (quarters.length >= 4) {
-    const ntm = quarters.slice(0, 4);
-    const eps = ntm.reduce((sum, row) => sum + row.eps, 0);
-    if (eps > 0) return { year: ntm[3]!.year, eps, per: null, horizon: "ntm" };
+    return eps == null || year == null ? null : { year, eps };
+  });
+  if (quarters.length === 4 && quarters.every((row): row is { year: number; eps: number } => row != null)) {
+    const eps = quarters.reduce((sum, row) => sum + row.eps, 0);
+    return eps > 0 ? { year: quarters[3]!.year, eps, per: null, horizon: "ntm" } : null;
   }
   const yWrap = asRecord(data.yearlyForecast);
   const yRows = Array.isArray(yWrap?.rows) ? yWrap.rows : [];

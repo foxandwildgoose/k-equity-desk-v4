@@ -22,6 +22,9 @@ import type { LiveQuote } from "@/server/naver-market";
 import { inferSectorId } from "@/lib/infer-sector";
 import { DATA_LABEL, DATA_DELAY_NOTE } from "@/data/market";
 import { cn } from "@/lib/utils";
+import { useMarketClock } from "@/lib/use-market-clock";
+import { selectMarketQuotes } from "@/lib/market-freshness";
+import { coverageLabel, formatMarketAsOf } from "@/lib/market-presentation";
 import {
   ArrowRight,
   Star,
@@ -39,17 +42,19 @@ function SectorTile({
   nameKo,
   nameEn,
   quotes,
+  now,
 }: {
   id: string;
   nameKo: string;
   nameEn: string;
   quotes: import("@/server/naver-market").LiveQuote[];
+  now: number;
 }) {
-  const stats = sectorStatsFromQuotes(id, quotes);
+  const stats = sectorStatsFromQuotes(id, quotes, now);
   const colors = usePriceColors();
-  const up = stats.avgChangePct > 0;
+  const up = (stats.avgChangePct ?? 0) > 0;
   const color =
-    stats.avgChangePct === 0
+    stats.avgChangePct == null || stats.avgChangePct === 0
       ? "text-muted-foreground"
       : up
         ? colors.up
@@ -66,12 +71,13 @@ function SectorTile({
           {nameKo}
         </span>
         <span className={cn("text-xs font-semibold tabular shrink-0", color)}>
-          {stats.count ? formatPct(stats.avgChangePct) : "—"}
+          {stats.avgChangePct != null ? formatPct(stats.avgChangePct) : "—"}
         </span>
       </div>
       <span className="text-[10px] text-muted-foreground line-clamp-1">
-        {nameEn}
+        {nameEn} · 커버리지 단순평균
       </span>
+      <span className="text-[10px] text-muted-foreground">{coverageLabel(stats)}</span>
       {(stats.topGainer || stats.topLoser) && (
         <div className="mt-1 flex flex-col gap-0.5 text-[11px]">
           {stats.topGainer && (
@@ -105,7 +111,8 @@ export function Dashboard() {
   const watchlist = useAppStore((s) => s.watchlist);
   const focusMode = useAppStore((s) => s.focusMode);
   const colors = usePriceColors();
-  const { data, isLoading, isError, dataUpdatedAt } = useMarketQuotes();
+  const { data, isLoading, isError } = useMarketQuotes();
+  const now = useMarketClock();
   // Secondary desks load after first paint so quote tape wins the race
   const [deferSecondary, setDeferSecondary] = useState(false);
   // The route chunk hydrates after the shell, whose queries may already have
@@ -146,7 +153,8 @@ export function Dashboard() {
     }
     return [...map.values()];
   }, [mounted, data?.quotes, extra.data?.quotes]);
-  const { gainers, losers } = marketMoversFromQuotes(quotes, 6);
+  const { gainers, losers } = marketMoversFromQuotes(quotes, 6, now);
+  const marketQuotes = selectMarketQuotes(quotes, now);
 
   const watched = watchlist
     .map((c) => {
@@ -178,14 +186,16 @@ export function Dashboard() {
   // Only evaluate session status after mount to avoid SSR/client quote race.
   const marketOpen =
     mounted &&
-    quotes.some(
+    marketQuotes.quotes.some(
       (q) => q.marketStatus === "OPEN" || q.marketStatus === "PREOPEN",
     );
   const sessionLabel = !mounted
     ? "세션 확인 중"
-    : marketOpen
+    : !marketQuotes.count
+      ? "현재 시세 확인 불가"
+      : marketOpen
       ? "정규장 개장"
-      : "장 마감 / 휴장";
+      : "최근 거래일 시세";
 
   return (
     <div className="dash-layout">
@@ -228,9 +238,9 @@ export function Dashboard() {
               시세 조회 실패 — 자동 재시도
             </span>
           )}
-          {mounted && dataUpdatedAt > 0 && (
+          {mounted && (
             <span className="text-[10px] text-muted-foreground tabular">
-              시세 갱신 {new Date(dataUpdatedAt).toLocaleTimeString("ko-KR")}
+              거래 기준 {formatMarketAsOf(marketQuotes.asOf)}
             </span>
           )}
           <Badge variant="outline" className="text-[10px] font-normal">
@@ -246,8 +256,9 @@ export function Dashboard() {
         research={researchQ.data?.industry ?? []}
         liveConnected={liveStatus.connected}
         liveReconnecting={Boolean(liveStatus.enabled && liveStatus.reconnecting)}
+        now={now}
         snapshotAgeMs={
-          mounted && dataUpdatedAt > 0 ? Date.now() - dataUpdatedAt : null
+          mounted && data?.fetchedAt ? now - Date.parse(data.fetchedAt) : null
         }
       />
       </div>
@@ -264,13 +275,13 @@ export function Dashboard() {
             <Layers className="size-4 text-desk-gold" /> ETF · 퇴직연금
           </>
         }
-        hint="실시간 목록 · 레버리지·인버스 제외"
+        hint="시세 스냅샷 · 레버리지·인버스 제외"
         href="/etfs"
       >
         <div className="grid gap-1.5">
-          {(etfQ.data?.etfs ?? []).slice(0, 6).map((e: { code: string; nameKo: string; changePct?: number; price?: number; isNewCandidate?: boolean }) => {
-            const pct = e.changePct ?? 0;
-            const price = e.price;
+          {(etfQ.data?.etfs ?? []).slice(0, 6).map((e: { code: string; nameKo: string; changePct?: number; price?: number; isNewCandidate?: boolean; quoteAvailable?: boolean; changeValid?: boolean }) => {
+            const pct = e.quoteAvailable !== false && e.changeValid !== false && Number.isFinite(e.changePct) ? e.changePct : null;
+            const price = e.quoteAvailable !== false && Number.isFinite(e.price) && (e.price ?? 0) > 0 ? e.price : null;
             return (
               <Link
                 key={e.code}
@@ -290,14 +301,14 @@ export function Dashboard() {
                   </div>
                   <div
                     className={
-                      pct > 0
+                      pct != null && pct > 0
                         ? colors.up + " text-xs tabular font-medium"
-                        : pct < 0
+                        : pct != null && pct < 0
                           ? colors.down + " text-xs tabular font-medium"
                           : "text-xs text-muted-foreground tabular"
                     }
                   >
-                    {formatPct(pct)}
+                    {pct != null ? formatPct(pct) : "—"}
                   </div>
                 </div>
               </Link>
@@ -514,7 +525,7 @@ export function Dashboard() {
       <section className="area-sectors">
         <div className="mb-2 flex items-center justify-between">
           <h2 className="desk-section-title">산업 커버리지</h2>
-          <span className="text-xs text-muted-foreground">유니버스 평균 등락</span>
+          <span className="text-xs text-muted-foreground">확인된 동일 거래일 종목의 단순평균</span>
         </div>
         <div className="desk-grid desk-grid-6">
           {sectorList.map((s) => (
@@ -524,6 +535,7 @@ export function Dashboard() {
               nameKo={s.nameKo}
               nameEn={s.nameEn}
               quotes={quotes}
+              now={now}
             />
           ))}
         </div>
@@ -531,11 +543,11 @@ export function Dashboard() {
 
       <section className="area-up desk-card p-4">
         <h2 className={cn("mb-2 text-sm font-semibold", colors.up)}>
-          상승 상위
+          커버리지 상승 상위
         </h2>
         <div className="flex flex-col gap-0.5">
           {gainers.length === 0 ? (
-            <p className="empty-state">{showLoading ? "로딩 중…" : "데이터 없음"}</p>
+            <p className="empty-state">{showLoading ? "로딩 중…" : "확인된 상승 종목 없음"}</p>
           ) : (
             gainers.map((st) => <StockMiniRow key={st.code} stock={st} />)
           )}
@@ -543,11 +555,11 @@ export function Dashboard() {
       </section>
       <section className="area-down desk-card p-4">
         <h2 className={cn("mb-2 text-sm font-semibold", colors.down)}>
-          하락 상위
+          커버리지 하락 상위
         </h2>
         <div className="flex flex-col gap-0.5">
           {losers.length === 0 ? (
-            <p className="empty-state">{showLoading ? "로딩 중…" : "데이터 없음"}</p>
+            <p className="empty-state">{showLoading ? "로딩 중…" : "확인된 하락 종목 없음"}</p>
           ) : (
             losers.map((st) => <StockMiniRow key={st.code} stock={st} />)
           )}

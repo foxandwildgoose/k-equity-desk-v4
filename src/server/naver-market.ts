@@ -11,6 +11,7 @@ import { classifyResearchSectors } from "@/data/research-taxonomy";
 import { buildResearchExecutiveSummary } from "@/lib/research-utils";
 import { sortReportsNewestFirst } from "@/lib/feed/mappers";
 import { chartVolume } from "@/lib/charts/volume-validity";
+import { formatQuoteSessionTime, normalizeNaverBasicQuote, normalizeNaverListingQuote, normalizeNaverPollingQuote, normalizeQuoteOhlc, parseQuoteTime, type NormalizedNaverSnapshot } from "@/lib/quote-normalization";
 
 const UA =
   "Mozilla/5.0 (compatible; KoreaEquityCommand/1.0; +https://x.ai) AppleWebKit/537.36";
@@ -76,7 +77,14 @@ export interface LiveQuote {
   change: number;
   changePct: number;
   volume: number;
+  /** False means the numeric zero is a JSON carrier, not an observed value. */
+  volumeValid?: boolean;
   marketCap: number;
+  marketCapValid?: boolean;
+  changeValid?: boolean;
+  previousCloseValid?: boolean;
+  /** Receipt time, distinct from the provider trading time. */
+  fetchedAt?: string;
   high52: number;
   low52: number;
   open: number;
@@ -87,6 +95,9 @@ export interface LiveQuote {
   afterHoursChange?: number;
   afterHoursChangePct?: number;
   marketStatus: string;
+  marketSessionType?: string;
+  isEtf?: boolean;
+  sourceUrl?: string;
   tradedAt?: string;
   source: "naver-finance-snapshot" | "kis-krx-websocket";
 }
@@ -199,6 +210,9 @@ export interface IndexQuote {
   change: number;
   changePct: number;
   marketStatus?: string;
+  tradedAt?: string;
+  fetchedAt?: string;
+  changeValid?: boolean;
   open?: number;
   high?: number;
   low?: number;
@@ -357,141 +371,160 @@ function extractTargetAndRating(text: string): {
 
 // ── Quotes (Naver snapshot/fallback; KIS WebSocket is the primary live layer) ──
 
+type QuoteMetaByCode = Record<string, { nameKo: string; nameEn: string; sectorId: UniverseItem["sectorId"]; market: UniverseItem["market"] }>;
+type DatedSnapshot = NormalizedNaverSnapshot & { fetchedAt: string; sourceUrl?: string; market?: UniverseItem["market"]; listingPage?: number; isEtf?: boolean };
+type ListingState = { at: number; rows: Map<string, DatedSnapshot>; nextPage: number; done: boolean; pending?: Promise<void> };
+const listingCache = new Map<UniverseItem["market"], ListingState>();
+
+async function datedListingRows(market: UniverseItem["market"], requested: Set<string> | null, maxPages: number): Promise<DatedSnapshot[]> {
+  const now = Date.now();
+  let state = listingCache.get(market);
+  if (!state || now - state.at >= 40_000) {
+    state = { at: now, rows: new Map(), nextPage: 1, done: false };
+    listingCache.set(market, state);
+  }
+  // A waiter may start a wider scan as another waiter wakes. Recheck the lock
+  // before assigning the next pending operation so page windows never overlap.
+  while (state.pending) await state.pending;
+  const complete = () => requested != null && [...requested].every(code => state!.rows.has(code));
+  if (!complete() && !state.done && state.nextPage <= maxPages) {
+    const current = state;
+    current.pending = (async () => {
+      while (!complete() && !current.done && current.nextPage <= maxPages) {
+        const pages = [current.nextPage, current.nextPage + 1].filter(page => page <= maxPages);
+        const packs = await Promise.all(pages.map(async page => {
+          const sourceUrl = `https://m.stock.naver.com/api/stocks/marketValue/${market}?page=${page}&pageSize=100`;
+          try {
+            const body = await getJson<{ stocks?: unknown[]; totalCount?: number; page?: number }>(sourceUrl);
+            if (!Array.isArray(body.stocks) || body.page != null && body.page !== page) return null;
+            return { ...body, stocks: body.stocks, fetchedAt: new Date().toISOString(), page, sourceUrl };
+          } catch { return null; }
+        }));
+        for (const pack of packs) {
+          if (!pack) { current.done = true; continue; }
+          for (const raw of pack.stocks) {
+            const quote = normalizeNaverListingQuote(raw);
+            if (!quote) continue;
+            const prior = current.rows.get(quote.code);
+            if (prior?.tradedAt && Date.parse(prior.tradedAt) > Date.parse(quote.tradedAt!)) continue;
+            current.rows.set(quote.code, { ...quote, market, fetchedAt: pack.fetchedAt, sourceUrl: pack.sourceUrl, listingPage: pack.page, isEtf: (raw as { stockEndType?: unknown }).stockEndType === "etf" });
+          }
+          if (pack.stocks.length < 100 || typeof pack.totalCount === "number" && pack.page * 100 >= pack.totalCount) current.done = true;
+        }
+        current.nextPage += pages.length;
+      }
+    })();
+    try { await current.pending; } finally { current.pending = undefined; }
+  }
+  return [...state.rows.values()].filter(row => (row.listingPage ?? 0) <= maxPages);
+}
+
+/** Dated, same-row domestic capitalisation/volume snapshots; no HTML time borrowing. */
+export async function fetchDatedNaverMarketListing(market: "KOSPI" | "KOSDAQ", maxPages = 2): Promise<LiveQuote[]> {
+  const bound = Math.max(1, Math.min(16, Math.floor(maxPages)));
+  return liveQuotesFromSnapshots(await datedListingRows(market, null, bound));
+}
+
 export async function fetchRealtimeQuotes(
   codes: string[],
-  metaByCode?: Record<
-    string,
-    {
-      nameKo: string;
-      nameEn: string;
-      sectorId: UniverseItem["sectorId"];
-      market: UniverseItem["market"];
-    }
-  >,
+  metaByCode?: QuoteMetaByCode,
 ): Promise<LiveQuote[]> {
   const unique = [
     ...new Set(
       codes.map((c) => normalizeKrTicker(c)).filter((c) => isKrTicker(c)),
     ),
   ];
-  const batches: string[][] = [];
-  for (let i = 0; i < unique.length; i += 40) {
-    batches.push(unique.slice(i, i + 40));
-  }
-
-  type Row = {
-    cd: string;
-    nm?: string;
-    nv: number | string;
-    cv: number | string;
-    cr: number | string;
-    aq: number | string;
-    ov?: number | string;
-    hv?: number | string;
-    lv?: number | string;
-    pcv?: number | string;
-    aa?: number | string;
-    countOfListedStock?: number | string;
-    highPriceOf52Weeks?: number | string;
-    lowPriceOf52Weeks?: number | string;
-    ms?: string;
-    nxtOverMarketPriceInfo?: {
-      overPrice?: string;
-      compareToPreviousClosePrice?: string;
-      fluctuationsRatio?: string | number;
-    };
-  };
-
-  const rows: Row[] = [];
-  // Parallel batches (4×40 for full universe) — sequential was ~3s cold
-  const batchResults = await Promise.all(
-    batches.map(async (batch) => {
-      const url = `https://polling.finance.naver.com/api/realtime?query=SERVICE_ITEM:${batch.join(",")}`;
-      try {
-        const data = await getJson<{
-          result?: { areas?: { datas?: Row[] }[] };
-        }>(url);
-        return data.result?.areas?.[0]?.datas ?? [];
-      } catch {
-        const fallback = await Promise.all(
-          batch.map(async (code) => {
-            try {
-              const basic = await getJson<{
-                stockName?: string;
-                closePrice?: string;
-                compareToPreviousClosePrice?: string;
-                fluctuationsRatio?: string | number;
-                accumulatedTradingVolume?: string;
-                marketStatus?: string;
-              }>(`https://m.stock.naver.com/api/stock/${code}/basic`);
-              return {
-                cd: code,
-                nm: String(basic.stockName ?? ""),
-                nv: num(String(basic.closePrice ?? "0").replace(/,/g, "")),
-                cv: num(
-                  String(basic.compareToPreviousClosePrice ?? "0").replace(
-                    /,/g,
-                    "",
-                  ),
-                ),
-                cr: num(basic.fluctuationsRatio),
-                aq: num(
-                  String(basic.accumulatedTradingVolume ?? "0").replace(/,/g, ""),
-                ),
-                ms: String(basic.marketStatus ?? ""),
-              } as Row;
-            } catch {
-              return null;
-            }
-          }),
-        );
-        return fallback.filter((x): x is Row => x != null);
+  const listed = new Map<string, DatedSnapshot>();
+  // Bulk pages restore volume/capitalisation with the SAME published row/date.
+  // A cold single-security lookup stays cheap and honest about auxiliary gaps.
+  if (unique.length >= 8) {
+    const markets = ["KOSPI", "KOSDAQ"] as const;
+    await Promise.all(markets.map(async market => {
+      const wanted = new Set(unique.filter(code => {
+        const knownMarket = metaByCode?.[code]?.market ?? UNIVERSE.find(item => item.code === code)?.market;
+        return knownMarket === market;
+      }));
+      if (!wanted.size) return;
+      for (const row of await datedListingRows(market, wanted, market === "KOSPI" ? 16 : 8)) {
+        // Published exchange membership outranks a stale curated routing hint.
+        if (unique.includes(row.code)) listed.set(row.code, row);
       }
-    }),
-  );
-  for (const part of batchResults) rows.push(...part);
+    }));
+  } else {
+    for (const state of listingCache.values()) {
+      if (Date.now() - state.at >= 40_000) continue;
+      for (const code of unique) { const row = state.rows.get(code); if (row) listed.set(code, row); }
+    }
+  }
+  const remaining = unique.filter(code => !listed.has(code));
+  const batches: string[][] = [];
+  for (let i = 0; i < remaining.length; i += 40) batches.push(remaining.slice(i, i + 40));
 
+  // Fallback also covers missing rows, malformed payloads and undated polling
+  // rows. Never attach a basic timestamp to a different polling price.
+  const batchResults = await Promise.all(batches.map(async (batch) => {
+    const byCode = new Map<string, DatedSnapshot>();
+    try {
+      const url = `https://polling.finance.naver.com/api/realtime?query=SERVICE_ITEM:${batch.join(",")}`;
+      const data = await getJson<{ result?: { areas?: { datas?: unknown[] }[] } }>(url);
+      const fetchedAt = new Date().toISOString();
+      for (const area of data.result?.areas ?? []) {
+        if (!Array.isArray(area.datas)) continue;
+        for (const raw of area.datas) {
+          const parsed = normalizeNaverPollingQuote(raw);
+          if (parsed && batch.includes(parsed.code)) byCode.set(parsed.code, { ...parsed, fetchedAt });
+        }
+      }
+    } catch { /* mobile basic is an independent provider endpoint */ }
+    await Promise.all(batch.filter(code => !byCode.get(code)?.tradedAt).map(async code => {
+      try {
+        const basic = await getJson<unknown>(`https://m.stock.naver.com/api/stock/${code}/basic`);
+        const parsed = normalizeNaverBasicQuote(basic, code);
+        if (parsed) byCode.set(code, { ...parsed, fetchedAt: new Date().toISOString(), sourceUrl: `https://m.stock.naver.com/api/stock/${code}/basic` });
+      } catch { /* retain a valid but explicitly undated polling row, if any */ }
+    }));
+    return [...byCode.values()];
+  }));
+
+  return liveQuotesFromSnapshots([...listed.values(), ...batchResults.flat()], metaByCode);
+}
+
+function liveQuotesFromSnapshots(rows: DatedSnapshot[], metaByCode?: QuoteMetaByCode): LiveQuote[] {
   const out: LiveQuote[] = [];
   for (const r of rows) {
-    const code = normalizeKrTicker(String(r.cd));
+    const code = normalizeKrTicker(r.code);
     const u = UNIVERSE.find((x) => x.code === code);
-    const meta = metaByCode?.[code] ?? metaByCode?.[String(r.cd)];
-    const price = num(r.nv);
-    const listed = num(r.countOfListedStock);
-    const marketCapEok =
-      listed > 0
-        ? Math.round((listed * price) / 1e8)
-        : r.aa
-          ? Math.round(num(r.aa) / 1e8)
-          : 0;
-    const ah = r.nxtOverMarketPriceInfo;
+    const meta = metaByCode?.[code];
     out.push({
       code,
-      nameKo: u?.nameKo ?? meta?.nameKo ?? r.nm ?? code,
+      nameKo: u?.nameKo ?? meta?.nameKo ?? r.name ?? code,
       nameEn: u?.nameEn ?? meta?.nameEn ?? code,
-      sectorId: u?.sectorId ?? meta?.sectorId ?? inferSectorId(u?.nameKo ?? meta?.nameKo ?? r.nm ?? code),
-      market: u?.market ?? meta?.market ?? "KOSPI",
-      price,
-      change: num(r.cv),
-      changePct: num(r.cr),
-      volume: num(r.aq),
-      marketCap: marketCapEok,
-      high52: num(r.highPriceOf52Weeks),
-      low52: num(r.lowPriceOf52Weeks),
-      open: num(r.ov),
-      high: num(r.hv),
-      low: num(r.lv),
-      prevClose: num(r.pcv),
-      afterHoursPrice: ah?.overPrice
-        ? num(ah.overPrice.replace(/,/g, ""))
-        : undefined,
-      afterHoursChange: ah?.compareToPreviousClosePrice
-        ? num(ah.compareToPreviousClosePrice.replace(/,/g, ""))
-        : undefined,
-      afterHoursChangePct: ah?.fluctuationsRatio
-        ? num(ah.fluctuationsRatio)
-        : undefined,
-      marketStatus: r.ms ?? "",
+      sectorId: u?.sectorId ?? meta?.sectorId ?? inferSectorId(u?.nameKo ?? meta?.nameKo ?? r.name ?? code),
+      market: r.market ?? u?.market ?? meta?.market ?? "KOSPI",
+      price: r.price,
+      change: r.change,
+      changePct: r.changePct,
+      changeValid: true,
+      volume: r.volume ?? 0,
+      volumeValid: r.volume != null,
+      marketCap: r.marketCap ?? 0,
+      marketCapValid: r.marketCap != null,
+      high52: r.high52 ?? 0,
+      low52: r.low52 ?? 0,
+      open: r.open ?? 0,
+      high: r.high ?? 0,
+      low: r.low ?? 0,
+      prevClose: r.prevClose,
+      previousCloseValid: true,
+      afterHoursPrice: r.afterHoursPrice,
+      afterHoursChange: r.afterHoursChange,
+      afterHoursChangePct: r.afterHoursChangePct,
+      marketStatus: r.marketStatus ?? "",
+      marketSessionType: r.marketSessionType,
+      isEtf: r.isEtf,
+      sourceUrl: r.sourceUrl,
+      tradedAt: r.tradedAt,
+      fetchedAt: r.fetchedAt,
       source: "naver-finance-snapshot",
     });
   }
@@ -628,26 +661,27 @@ function parseYahooMinuteResult(result: {
     const l = q.low[i];
     const c = q.close[i];
     const v = q.volume[i];
-    if (o == null || h == null || l == null || c == null) continue;
-    const kst = new Date(result.timestamp[i]! * 1000 + 9 * 3600 * 1000);
-    const hh = String(kst.getUTCHours()).padStart(2, "0");
-    const mm = String(kst.getUTCMinutes()).padStart(2, "0");
-    const ymd = `${kst.getUTCFullYear()}-${String(kst.getUTCMonth() + 1).padStart(2, "0")}-${String(kst.getUTCDate()).padStart(2, "0")}`;
+    const candle = normalizeQuoteOhlc({ open: o, high: h, low: l, close: c });
+    if (!candle) continue;
+    const stamp = result.timestamp[i];
+    if (typeof stamp !== "number" || !Number.isFinite(stamp) || stamp <= 0) continue;
+    const sessionTime = formatQuoteSessionTime(stamp, "Asia/Seoul", true);
+    if (!sessionTime) continue;
     raw.push({
-      date: `${ymd} ${hh}:${mm}`,
-      label: `${ymd.slice(5)} ${hh}:${mm}`,
-      open: Math.round(o),
-      high: Math.round(h),
-      low: Math.round(l),
-      close: Math.round(c),
+      date: sessionTime,
+      label: sessionTime.slice(5),
+      open: Math.round(candle.open),
+      high: Math.round(candle.high),
+      low: Math.round(candle.low),
+      close: Math.round(candle.close),
       ...chartVolume(v),
-      bullish: c >= o,
+      bullish: candle.close >= candle.open,
     });
   }
   return raw;
 }
 
-/** Naver fchart minute fallback (often close-only; reconstruct OHLC). */
+/** Naver fchart minute fallback. Close-only samples cannot form OHLC candles. */
 async function fetchNaverMinuteFchart(
   code: string,
 ): Promise<Omit<OhlcBar, "ma5" | "ma20" | "ma60" | "ma120">[]> {
@@ -659,20 +693,18 @@ async function fetchNaverMinuteFchart(
     const raw: Omit<OhlcBar, "ma5" | "ma20" | "ma60" | "ma120">[] = [];
     for (const row of items) {
       const [dt, o, h, l, c, v] = row.split("|");
-      if (!dt || dt.length < 12) continue;
+      if (!dt || !/^\d{12,14}$/.test(dt) || !parseQuoteTime(dt.length === 12 ? `${dt}00` : dt)) continue;
       const ymd = `${dt.slice(0, 4)}-${dt.slice(4, 6)}-${dt.slice(6, 8)}`;
       const hm = `${dt.slice(8, 10)}:${dt.slice(10, 12)}`;
-      const close = num(c);
-      if (!close) continue;
-      const open = o && o !== "null" ? num(o) : close;
-      const high = h && h !== "null" ? num(h) : close;
-      const low = l && l !== "null" ? num(l) : close;
+      const candle = normalizeQuoteOhlc({ open: o, high: h, low: l, close: c });
+      if (!candle) continue;
+      const { open, high, low, close } = candle;
       raw.push({
         date: `${ymd} ${hm}`,
         label: `${ymd.slice(5)} ${hm}`,
         open,
-        high: Math.max(high, open, close),
-        low: Math.min(low, open, close),
+        high,
+        low,
         close,
         ...chartVolume(v),
         bullish: close >= open,
@@ -766,6 +798,7 @@ async function fetchMinuteOhlc(
 }
 
 type YahooChartResult = {
+  meta?: { exchangeTimezoneName?: string };
   timestamp?: number[];
   events?: {
     dividends?: Record<string, { amount?: number; date?: number }>;
@@ -783,20 +816,8 @@ type YahooChartResult = {
   };
 };
 
-function wallClock(tsSec: number, withTime: boolean): string {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    hourCycle: "h23",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    ...(withTime ? { hour: "2-digit" as const, minute: "2-digit" as const } : {}),
-  }).formatToParts(new Date(tsSec * 1000));
-  const g = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
-  const ymd = `${g("year")}-${g("month")}-${g("day")}`;
-  if (!withTime) return ymd;
-  const hour = g("hour") === "24" ? "00" : g("hour");
-  return `${ymd} ${hour}:${g("minute")}`;
+function wallClock(tsSec: number, withTime: boolean, timeZone = "America/New_York"): string {
+  return formatQuoteSessionTime(tsSec, timeZone, withTime) ?? "";
 }
 
 function roundPx(n: number): number {
@@ -818,25 +839,25 @@ function parseUsYahooBars(
     const h = q.high?.[i];
     const l = q.low?.[i];
     const c = q.close?.[i];
-    if (o == null || h == null || l == null || c == null) continue;
-    if (!(c > 0)) continue;
+    const candle = normalizeQuoteOhlc({ open: o, high: h, low: l, close: c });
+    if (!candle) continue;
     const stamp = ts[i];
-    if (typeof stamp !== "number") continue;
-    const factor = adj[i] != null && adj[i]! > 0 ? adj[i]! / c : 1;
-    const open = roundPx(o * factor);
-    const high = roundPx(Math.max(h, o, c) * factor);
-    const low = roundPx(Math.min(l, o, c) * factor);
-    const close = roundPx(c * factor);
+    if (typeof stamp !== "number" || !Number.isFinite(stamp) || stamp <= 0) continue;
+    const factor = adj[i] != null && Number.isFinite(adj[i]) && adj[i]! > 0 ? adj[i]! / candle.close : 1;
+    const open = roundPx(candle.open * factor);
+    const high = roundPx(candle.high * factor);
+    const low = roundPx(candle.low * factor);
+    const close = roundPx(candle.close * factor);
     if (!(close > 0) || !(high > 0) || !(low > 0)) continue;
-    const date = wallClock(stamp, withTime);
+    const date = wallClock(stamp, withTime, result.meta?.exchangeTimezoneName ?? "America/New_York");
     if (!date || seen.has(date)) continue;
     seen.add(date);
     raw.push({
       date,
       label: withTime ? date.slice(5) : date.slice(5).replace("-", "/"),
       open,
-      high: Math.max(high, open, close),
-      low: Math.min(low, open, close),
+      high,
+      low,
       close,
       ...chartVolume(q.volume?.[i]),
       bullish: close >= open,
@@ -1032,21 +1053,21 @@ export async function fetchOhlc(opts: {
         const l = q.low[i];
         const c = q.close[i];
         const v = q.volume[i];
-        if (o == null || h == null || l == null || c == null) continue;
-        const kst = new Date(result.timestamp[i]! * 1000 + 9 * 3600 * 1000);
-        const date = `${kst.getUTCFullYear()}-${String(kst.getUTCMonth() + 1).padStart(2, "0")}-${String(kst.getUTCDate()).padStart(2, "0")}`;
+        const candle = normalizeQuoteOhlc({ open: o, high: h, low: l, close: c });
+        if (!candle) continue;
+        const stamp = result.timestamp[i];
+        if (typeof stamp !== "number" || !Number.isFinite(stamp) || stamp <= 0) continue;
+        const date = formatQuoteSessionTime(stamp, "Asia/Seoul");
+        if (!date) continue;
         parsed.push({
           date,
-          label:
-            interval === "year" || interval === "month"
-              ? `${kst.getUTCFullYear()}.${String(kst.getUTCMonth() + 1).padStart(2, "0")}`
-              : `${kst.getUTCMonth() + 1}/${kst.getUTCDate()}`,
-          open: Math.round(o),
-          high: Math.round(h),
-          low: Math.round(l),
-          close: Math.round(c),
+          label: interval === "year" || interval === "month" ? date.slice(0, 7).replace("-", ".") : date.slice(5).replace("-", "/"),
+          open: Math.round(candle.open),
+          high: Math.round(candle.high),
+          low: Math.round(candle.low),
+          close: Math.round(candle.close),
           ...chartVolume(v),
-          bullish: c >= o,
+          bullish: candle.close >= candle.open,
         });
       }
       if (parsed.length) {
@@ -1119,19 +1140,17 @@ async function fetchNaverFchart(
     const raw: Omit<OhlcBar, "ma5" | "ma20" | "ma60" | "ma120">[] = [];
     for (const row of items) {
       const [dt, o, h, l, c, v] = row.split("|");
-      if (!dt || dt.length < 8) continue;
+      if (!dt || !/^\d{8}$/.test(dt) || !parseQuoteTime(`${dt}000000`)) continue;
       const ymd = `${dt.slice(0, 4)}-${dt.slice(4, 6)}-${dt.slice(6, 8)}`;
-      const close = num(c);
-      if (!close) continue;
-      const open = num(o) || close;
-      const high = num(h) || close;
-      const low = num(l) || close;
+      const candle = normalizeQuoteOhlc({ open: o, high: h, low: l, close: c });
+      if (!candle) continue;
+      const { open, high, low, close } = candle;
       raw.push({
         date: ymd,
         label: `${Number(dt.slice(4, 6))}/${Number(dt.slice(6, 8))}`,
         open,
-        high: Math.max(high, open, close),
-        low: Math.min(low, open, close),
+        high,
+        low,
         close,
         ...chartVolume(v),
         bullish: close >= open,
@@ -1167,12 +1186,11 @@ async function fetchNaverDayOhlc(
   for (const row of rows) {
     if (!Array.isArray(row) || typeof row[0] !== "string") continue;
     const ymd = String(row[0]);
-    if (!/^\d{8}$/.test(ymd)) continue;
+    if (!/^\d{8}$/.test(ymd) || !parseQuoteTime(`${ymd}000000`)) continue;
     const date = `${ymd.slice(0, 4)}-${ymd.slice(4, 6)}-${ymd.slice(6, 8)}`;
-    const open = num(row[1]);
-    const high = num(row[2]);
-    const low = num(row[3]);
-    const close = num(row[4]);
+    const candle = normalizeQuoteOhlc({ open: row[1], high: row[2], low: row[3], close: row[4] });
+    if (!candle) continue;
+    const { open, high, low, close } = candle;
     const volume = chartVolume(row[5]);
     raw.push({
       date,
@@ -1722,90 +1740,44 @@ const INDEX_META: {
   { cd: "KPI200", id: "kpi200", nameKo: "코스피200", nameEn: "KOSPI 200" },
 ];
 
-/** Naver polling stores index levels ×100 (integer). */
-function scaleIndex(v: number): number {
-  return Math.round(v) / 100;
-}
-
 export async function fetchIndices(): Promise<IndexQuote[]> {
-  // Primary: KRX exchange feed via Naver realtime polling
+  const snapshots = new Map<string, NormalizedNaverSnapshot & { fetchedAt: string }>();
   try {
     const codes = INDEX_META.map((x) => x.cd).join(",");
-    const data = await getJson<{
-      result?: {
-        areas?: {
-          datas?: {
-            cd: string;
-            nv: number;
-            cv: number;
-            cr: number;
-            ov?: number;
-            hv?: number;
-            lv?: number;
-            ms?: string;
-          }[];
-        }[];
-      };
-    }>(
+    const data = await getJson<{ result?: { areas?: { datas?: unknown[] }[] } }>(
       `https://polling.finance.naver.com/api/realtime?query=SERVICE_INDEX:${codes}`,
     );
-    const datas = data.result?.areas?.[0]?.datas ?? [];
-    if (datas.length > 0) {
-      const out: IndexQuote[] = [];
-      for (const meta of INDEX_META) {
-        const row = datas.find((d) => d.cd === meta.cd);
-        if (!row) continue;
-        out.push({
-          id: meta.id,
-          nameKo: meta.nameKo,
-          nameEn: meta.nameEn,
-          value: scaleIndex(num(row.nv)),
-          change: scaleIndex(num(row.cv)),
-          changePct: num(row.cr),
-          marketStatus: row.ms,
-          open: row.ov != null ? scaleIndex(num(row.ov)) : undefined,
-          high: row.hv != null ? scaleIndex(num(row.hv)) : undefined,
-          low: row.lv != null ? scaleIndex(num(row.lv)) : undefined,
-          source: "naver-finance-snapshot",
-        });
+    const fetchedAt = new Date().toISOString();
+    for (const area of data.result?.areas ?? []) {
+      if (!Array.isArray(area.datas)) continue;
+      for (const raw of area.datas) {
+        const parsed = normalizeNaverPollingQuote(raw, true);
+        if (parsed && INDEX_META.some(meta => meta.cd === parsed.code)) snapshots.set(parsed.code, { ...parsed, fetchedAt });
       }
-      if (out.length) return out;
     }
-  } catch {
-    /* fall through */
-  }
+  } catch { /* mobile basic below */ }
 
-  // Fallback: mobile basic endpoints
-  const out: IndexQuote[] = [];
-  for (const meta of INDEX_META) {
+  await Promise.all(INDEX_META.filter(meta => !snapshots.get(meta.cd)?.tradedAt).map(async meta => {
     try {
-      const basic = await getJson<{
-        closePrice?: string;
-        compareToPreviousClosePrice?: string;
-        fluctuationsRatio?: string | number;
-        marketStatus?: string;
-        openPrice?: string;
-        highPrice?: string;
-        lowPrice?: string;
-      }>(`https://m.stock.naver.com/api/index/${meta.cd}/basic`);
-      out.push({
-        id: meta.id,
-        nameKo: meta.nameKo,
-        nameEn: meta.nameEn,
-        value: num(basic.closePrice),
-        change: num(basic.compareToPreviousClosePrice),
-        changePct: num(basic.fluctuationsRatio),
-        marketStatus: basic.marketStatus,
-        open: basic.openPrice ? num(basic.openPrice) : undefined,
-        high: basic.highPrice ? num(basic.highPrice) : undefined,
-        low: basic.lowPrice ? num(basic.lowPrice) : undefined,
-        source: "naver-finance-snapshot",
-      });
-    } catch {
-      /* skip */
-    }
-  }
-  return out;
+      const basic = await getJson<unknown>(`https://m.stock.naver.com/api/index/${meta.cd}/basic`);
+      const parsed = normalizeNaverBasicQuote(basic, meta.cd);
+      if (parsed) snapshots.set(meta.cd, { ...parsed, fetchedAt: new Date().toISOString() });
+    } catch { /* no invented index value on provider failure */ }
+  }));
+
+  return INDEX_META.flatMap(meta => {
+    const row = snapshots.get(meta.cd);
+    return row ? [{
+      id: meta.id, nameKo: meta.nameKo, nameEn: meta.nameEn,
+      value: row.price, change: row.change, changePct: row.changePct,
+      changeValid: true,
+      marketStatus: row.marketStatus,
+      tradedAt: row.tradedAt,
+      fetchedAt: row.fetchedAt,
+      open: row.open ?? undefined, high: row.high ?? undefined, low: row.low ?? undefined,
+      source: "naver-finance-snapshot",
+    }] : [];
+  });
 }
 
 export type StockValuation = {

@@ -1,7 +1,8 @@
 /** Official issuer product discovery. A homepage/search result is never a product link. */
 import { matchIbkProductId, normalizeIssuerFundName, parseHanaroFundCatalog, parseRiseFundCdFromFinder } from "./etf-holdings-parse.ts";
+import { VERIFIED_ISSUER_PRODUCTS } from "../data/etf-issuer-products.ts";
 
-export type EtfIssuerFamily = "kodex" | "tiger" | "rise" | "ace" | "sol" | "plus" | "hanaro" | "ibk" | "timefolio" | "kiwoom" | "won" | "oneq" | "koact" | "focus" | "bnk" | "hk" | "mighty" | "trex" | "truston" | "unknown";
+export type EtfIssuerFamily = "kodex" | "tiger" | "rise" | "ace" | "sol" | "plus" | "hanaro" | "ibk" | "timefolio" | "kiwoom" | "won" | "oneq" | "koact" | "focus" | "bnk" | "hk" | "mighty" | "trex" | "truston" | "assetplus" | "midas" | "power" | "unicorn" | "daishin" | "ds" | "imasset" | "kcgi" | "thej" | "unknown";
 export interface EtfIssuerProduct {
   family: EtfIssuerFamily;
   issuerName: string;
@@ -28,19 +29,32 @@ const ISSUERS: IssuerConfig[] = [
   { family: "timefolio", name: "타임폴리오자산운용", website: "https://timeetf.co.kr/", hosts: ["timeetf.co.kr", "www.timeetf.co.kr"], brand: /^(TIMEFOLIO|TIME)\b/i, house: /타임폴리오/, catalogs: ["https://timeetf.co.kr/m11.php"] },
   { family: "kiwoom", name: "키움투자자산운용", website: "https://www.kiwoometf.com/", hosts: ["www.kiwoometf.com", "kiwoometf.com"], brand: /^(KIWOOM|KOSEF)\b/i, house: /키움/ },
   { family: "won", name: "우리자산운용", website: "https://www.wooriam.kr/", hosts: ["www.wooriam.kr", "wooriam.kr"], brand: /^(WON|WOORI)\b/i, house: /우리자산/ },
-  { family: "oneq", name: "하나자산운용", website: "https://www.1qetf.com/", hosts: ["www.1qetf.com", "1qetf.com"], brand: /^1Q\b/i, house: /하나자산/ },
+  { family: "oneq", name: "하나자산운용", website: "https://www.hanaam.com/qetf/main", hosts: ["www.1qetf.com", "1qetf.com", "www.hanaam.com", "hanaam.com"], brand: /^1Q\b/i, house: /하나자산/ },
   { family: "focus", name: "브이아이자산운용", website: "https://www.viamc.kr/", hosts: ["www.viamc.kr", "viamc.kr"], brand: /^FOCUS\b/i, house: /브이아이|VI자산/i },
   { family: "bnk", name: "BNK자산운용", website: "https://www.bnkasset.co.kr/", hosts: ["www.bnkasset.co.kr", "bnkasset.co.kr"], brand: /^BNK\b/i, house: /BNK자산|비엔케이/i },
   { family: "hk", name: "흥국자산운용", website: "https://www.hkfund.co.kr/", hosts: ["www.hkfund.co.kr", "hkfund.co.kr"], brand: /^HK\b/i, house: /흥국자산/ },
-  { family: "mighty", name: "DB자산운용", website: "https://www.dbasset.co.kr/", hosts: ["www.dbasset.co.kr", "dbasset.co.kr"], brand: /^마이티/, house: /DB자산|디비자산/ },
+  { family: "mighty", name: "DB자산운용", website: "https://www.db-asset.co.kr/", hosts: ["www.db-asset.co.kr", "db-asset.co.kr", "www.dbasset.co.kr", "dbasset.co.kr"], brand: /^마이티/, house: /DB자산|디비자산/ },
   { family: "trex", name: "유리자산운용", website: "https://www.yurieasset.co.kr/", hosts: ["www.yurieasset.co.kr", "yurieasset.co.kr"], brand: /^TREX\b/i, house: /유리자산/ },
   { family: "truston", name: "트러스톤자산운용", website: "https://www.trustonasset.com/", hosts: ["www.trustonasset.com", "trustonasset.com"], brand: /^TRUSTON\b/i, house: /트러스톤/ },
+  // Root-domain associations corroborated by the commit-pinned public issuer
+  // manifest archived with the 2026-10-15 research. They enable issuer discovery,
+  // not an unverified homepage fallback for the holdings action.
+  { family: "assetplus", name: "에셋플러스자산운용", website: "https://www.assetplus.co.kr/", hosts: ["www.assetplus.co.kr", "assetplus.co.kr"], brand: /^에셋플러스(?:\s|$)/, house: /에셋플러스/ },
+  { family: "midas", name: "마이다스에셋자산운용", website: "https://www.midasasset.com/", hosts: ["www.midasasset.com", "midasasset.com"], brand: /^MIDAS\b/i, house: /마이다스/ },
+  { family: "power", name: "교보악사자산운용", website: "https://www.kyoboaxa-im.co.kr/", hosts: ["www.kyoboaxa-im.co.kr", "kyoboaxa-im.co.kr"], brand: /^파워(?:\s|$)/, house: /교보악사|교보AXA/i },
+  { family: "unicorn", name: "현대자산운용", website: "https://www.hyundaiam.com/", hosts: ["www.hyundaiam.com", "hyundaiam.com"], brand: /^UNICORN\b/i, house: /현대자산/ },
+  { family: "daishin", name: "대신자산운용", website: "https://asset.daishin.com/", hosts: ["asset.daishin.com"], brand: /^DAISHIN\b/i, house: /대신자산/ },
+  { family: "imasset", name: "아이엠에셋자산운용", website: "https://www.im-fund.com/", hosts: ["www.im-fund.com", "im-fund.com"], brand: /^아이엠에셋(?:\s|$)/, house: /아이엠에셋|iM에셋|하이자산/i },
+  { family: "kcgi", name: "KCGI자산운용", website: "https://kcgiam.com/", hosts: ["kcgiam.com", "www.kcgiam.com"], brand: /^KCGI\b/i, house: /KCGI|케이씨지아이|메리츠자산/i },
+  { family: "thej", name: "더제이자산운용", website: "https://www.thejasset.com/", hosts: ["www.thejasset.com", "thejasset.com"], brand: /^더제이(?:\s|$)/, house: /더제이/ },
+  // DS is recognized by published brand/issuer metadata; no domain was verified.
+  { family: "ds", name: "DS자산운용", website: "", hosts: [], brand: /^DS\b/i, house: /DS자산|디에스자산/i },
 ];
 
 function configFor(family: EtfIssuerFamily): IssuerConfig | undefined { return ISSUERS.find((x) => x.family === family); }
 export function etfIssuerIdentity(name: string, issuer = ""): Omit<EtfIssuerProduct, "issuerUrl" | "status" | "reason"> {
   const config = ISSUERS.find((x) => x.brand.test(name.trim())) ?? ISSUERS.find((x) => x.house.test(issuer.trim()));
-  return { family: config?.family ?? "unknown", issuerName: config?.name ?? issuer.trim(), websiteUrl: config?.website ?? null };
+  return { family: config?.family ?? "unknown", issuerName: config?.name ?? issuer.trim(), websiteUrl: config?.website || null };
 }
 
 /** No caller-supplied destinations: discovery, redirects, and holdings share the same allowlist. */
@@ -52,11 +66,16 @@ export function isOfficialIssuerUrl(value: string, family: EtfIssuerFamily): boo
 }
 
 type OfficialProductReference = { url: URL; id: string };
+const verifiedCatalog = new Map(VERIFIED_ISSUER_PRODUCTS.map((record) => [`${record.family}:${record.code}`, record]));
 // Explicit user-provided destination, independently verified against the issuer
 // product HTML on 2026-10-10: exact code 0246X0 and SOL 글로벌DRAM반도체플러스.
 // Keeps the official action available if a cold catalog lookup exceeds its deadline.
 const VERIFIED_PRODUCT_DESTINATIONS: Partial<Record<EtfIssuerFamily, Record<string, string>>> = {
   sol: { "0246X0": "https://www.soletf.com/ko/fund/etf/211124" },
+  // Exact issuer product URL supplied by the user on 2026-10-15. The embedded
+  // ISIN also matches the official KRX checksum for ticker 305540. Availability
+  // of the issuer's HTML endpoint must not invalidate this confirmed pairing.
+  tiger: { "305540": "https://investments.miraeasset.com/tigeretf/ko/product/search/detail/index.do?ksdFund=KR7305540007" },
 };
 function officialProductReference(value: string | null | undefined, family: EtfIssuerFamily, ticker: string): OfficialProductReference | null {
   if (!value || !isOfficialIssuerUrl(value, family)) return null;
@@ -73,6 +92,14 @@ function officialProductReference(value: string | null | undefined, family: EtfI
   else if (family === "plus") id = path === "/product/detail" ? parameter("n") : null;
   else if (family === "ace" || family === "hanaro") id = /^\/fund\/([A-Za-z0-9_-]{1,80})$/.exec(path)?.[1] ?? null;
   else if (family === "ibk") id = /^\/etf\/detail\/(\d+)$/.exec(path)?.[1] ?? null;
+  else if (family === "won") id = /^\/investment\/etf-view\/([A-Za-z0-9_-]{1,80})$/.exec(path)?.[1] ?? null;
+  else if (family === "truston") {
+    const values = url.searchParams.getAll("ta_fund");
+    const slug = values.length === 1 ? values[0]! : "";
+    // Official TRUSTON canonical slugs do not necessarily contain the ticker.
+    // The exact code/slug pairing is verified in the catalog or product HTML.
+    id = path === "" && slug.length > 0 && slug.length <= 250 ? slug : null;
+  }
   else if (family === "rise") {
     id = ["kbam.co.kr", "www.kbam.co.kr"].includes(url.hostname)
       ? /^\/products\/([A-Za-z0-9_-]{1,80})$/.exec(path)?.[1] ?? null
@@ -109,14 +136,20 @@ export function officialHoldingsDestination(code: string, name: string, issuer =
   if (!/^[0-9A-Z]{6}$/.test(ticker)) return null;
   const { family } = etfIssuerIdentity(name, issuer);
   if (family === "unknown") return null;
+  const known = officialProductReference(VERIFIED_PRODUCT_DESTINATIONS[family]?.[ticker] ?? verifiedCatalog.get(`${family}:${ticker}`)?.url, family, ticker);
   const product = officialProductReference(productUrl, family, ticker);
   const holdings = officialProductReference(holdingsUrl, family, ticker);
-  const destination = (holdings && (!product || holdings.id === product.id) ? holdings : product)
-    ?? officialProductReference(VERIFIED_PRODUCT_DESTINATIONS[family]?.[ticker], family, ticker);
+  const destination = known ?? (holdings && (!product || holdings.id === product.id) ? holdings : product);
   if (!destination) return null;
   // Verified 2026-10-10 on official HANARO product HTML: the investment PDF link
   // points to #etfPDF and the same page contains <div id="etfPDF">.
   if (family === "hanaro") destination.url.hash = "etfPDF";
+  // Official TIME product pages independently verified on 2026-10-15 expose
+  // both this holdings-navigation fragment and its matching section ID.
+  if (family === "timefolio") destination.url.hash = "constituentItems";
+  // All seventeen official WON product pages independently expose #asset and
+  // its holdings section ID in the 2026-10-15 verification snapshot.
+  if (family === "won") destination.url.hash = "asset";
   return destination.url.href;
 }
 
@@ -155,7 +188,10 @@ function detailUrl(value: string, base: string, family: EtfIssuerFamily): string
   try {
     const url = new URL(value.replace(/&amp;/g, "&"), base);
     if (!isOfficialIssuerUrl(url.href, family)) return null;
-    if (!/(?:\/(?:detail|finderDetail|view|[A-Z0-9]+_view)(?:[./]|$)|\/fund\/[A-Z0-9]+(?:\/|$)|\/etf\/\d+|\/products\/[A-Z0-9]+$)/i.test(url.pathname)) return null;
+    const wonProduct = family === "won" && /^\/investment\/etf-view\/[A-Za-z0-9_-]{1,80}\/?$/.test(url.pathname);
+    const trustonProduct = family === "truston" && url.pathname === "/" && url.searchParams.getAll("ta_fund").length === 1 && Boolean(url.searchParams.get("ta_fund"));
+    const unicornProduct = family === "unicorn" && url.pathname === "/kor/HD-KP-FG/HD-KP-FG-07-D.html" && url.searchParams.getAll("id").length === 1 && /^\d+$/.test(url.searchParams.get("id") ?? "");
+    if (!wonProduct && !trustonProduct && !unicornProduct && !/(?:\/(?:detail|finderDetail|view|[A-Z0-9]+_view)(?:[./]|$)|\/fund\/[A-Z0-9]+(?:\/|$)|\/etf\/\d+|\/products\/[A-Z0-9]+$)/i.test(url.pathname)) return null;
     if (/view\.do$|view\.php$|detail\.do$/i.test(url.pathname) && ![...url.searchParams].length) return null;
     url.hash = "";
     return url.href;
@@ -183,9 +219,32 @@ export function parseIssuerProductLinks(html: string, code: string, baseUrl: str
   return [...links];
 }
 
+/** Exact complete fund names can bind a catalog link when its cards omit tickers. */
+export function parseNamedIssuerProductLinks(html: string, name: string, baseUrl: string, family: EtfIssuerFamily): string[] {
+  if (!isOfficialIssuerUrl(baseUrl, family)) return [];
+  const key = normalizeIssuerFundName(name);
+  if (key.length < 4) return [];
+  const links = new Set<string>();
+  for (const anchor of html.matchAll(/<a\b[^>]*href\s*=\s*["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)) {
+    if (normalizeIssuerFundName(textOnly(anchor[2]!)) !== key) continue;
+    const url = detailUrl(anchor[1]!, baseUrl, family);
+    if (url) links.add(url);
+  }
+  return [...links];
+}
+
 /** Verify product identity outside portfolio tables, where another ETF's ticker may occur. */
 export function hasIssuerProductIdentity(html: string, code: string, name: string): boolean {
   if (!/^[0-9A-Z]{6}$/.test(code)) return false;
+  // TIME's official detail templates publish the exact product code in title
+  // and JSON-LD while their page heading omits the brand. Compare that primary
+  // title directly, with the documented TIMEFOLIO -> TIME brand rename.
+  const title = textOnly(/<title\b[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1] ?? "");
+  if (/^TIME(?:FOLIO)?\b/i.test(name.trim()) && containsCode(title, code)) {
+    const primary = title.split(/\s*[|·–]\s*/)[0]!.replace(new RegExp(`[（(]\\s*${code}\\s*[)）]`, "i"), "");
+    const normalized = (value: string) => normalizeIssuerFundName(value).replace(/^TIMEFOLIO/, "TIME");
+    if (normalized(primary) === normalized(name)) return true;
+  }
   const productArea = html.replace(/<(nav|aside|footer|script|style)\b[\s\S]*?<\/\1>/gi, " ").replace(/<table\b[\s\S]*?<\/table>/gi, (table) => /(?:종목명|편입종목|구성종목|보유종목|security\s*name)/i.test(textOnly(table)) && /(?:비중|수량|weight|quantity)/i.test(textOnly(table)) ? " " : table);
   if (!containsCode(textOnly(productArea), code)) return false;
   const labeledCodes = [...textOnly(productArea).matchAll(/(?:종목코드|거래소코드|상장코드|단축코드|ticker)\s*[:：]?\s*([A-Z0-9]{6})(?![A-Z0-9])/gi)].map((x) => x[1]!.toUpperCase());
@@ -194,7 +253,7 @@ export function hasIssuerProductIdentity(html: string, code: string, name: strin
   const key = normalizeIssuerFundName(name);
   if (key.length < 4) return false;
   const headings = [...productArea.matchAll(/<(h1|h2)\b[^>]*>([\s\S]*?)<\/\1>/gi)].map((x) => textOnly(x[2]!));
-  const fundHeadings = headings.filter((heading) => ISSUERS.some((issuer) => issuer.brand.test(heading)) && !/^(?:KODEX|TIGER|RISE|KBSTAR|ACE|KINDEX|SOL|PLUS|ARIRANG|HANARO|IBK|TIMEFOLIO|TIME|KIWOOM|KOSEF|WON|WOORI|1Q|KOACT)(?:ETF|ETFS|전체ETF|전체상품|ETF상품|상품안내)?$/i.test(normalizeIssuerFundName(heading)));
+  const fundHeadings = headings.filter((heading) => ISSUERS.some((issuer) => issuer.brand.test(heading)) && !/^(?:KODEX|TIGER|RISE|KBSTAR|ACE|KINDEX|SOL|PLUS|ARIRANG|HANARO|IBK|TIMEFOLIO|TIME|KIWOOM|KOSEF|WON|WOORI|1Q|KOACT|FOCUS|BNK|HK|마이티|TREX|TRUSTON|에셋플러스|MIDAS|파워|UNICORN|DAISHIN|DS|아이엠에셋|KCGI|더제이)(?:ETF|ETFS|전체ETF|전체상품|ETF상품|상품안내)?$/i.test(normalizeIssuerFundName(heading)));
   const primary = fundHeadings[0] ?? textOnly(/<title\b[^>]*>([\s\S]*?)<\/title>/i.exec(productArea)?.[1] ?? "");
   return primary.split(/\s*[|·–]\s*/).some((segment) => {
     const normalized = normalizeIssuerFundName(segment);
@@ -303,6 +362,12 @@ function catalogRecords(value: unknown, depth = 0): Record<string, unknown>[] {
 async function resolveStructured(code: string, name: string, family: EtfIssuerFamily, options: IssuerRequestOptions): Promise<string | null> {
   if (["kodex", "hanaro", "rise", "ace", "koact"].includes(family)) return (await officialCatalog(family, code, options)).get(code) ?? null;
   if (family === "plus") {
+    // The issuer's public overview renders its complete product names and IDs.
+    // This remains usable when the separate find/list API returns an empty list.
+    const overviewUrl = "https://www.plusetf.co.kr/product/overview";
+    const overview = await fetchOfficialIssuerText(overviewUrl, family, options).catch(() => "");
+    const links = parseNamedIssuerProductLinks(overview, name, overviewUrl, family);
+    if (links.length === 1) return links[0]!;
     const data = JSON.parse(await fetchOfficialIssuerText("https://www.plusetf.co.kr/api/v1/product/find/list", family, options, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ searchSortTy: "", searchSort: "DESC", page: 0, searchAnnuityOptionTy: null, searchWord: code }) })) as { content?: { id?: string; nameCode?: string }[] };
     const row = data.content?.find((x) => x.nameCode?.toUpperCase() === code);
     return row?.id ? `https://www.plusetf.co.kr/product/detail?n=${encodeURIComponent(row.id)}` : null;
@@ -378,6 +443,12 @@ export async function resolveEtfIssuer(code: string, name: string, issuer = "", 
   const base: EtfIssuerProduct = { ...identity, issuerUrl: null, status: identity.family === "unknown" ? "unsupported" : "unresolved" };
   if (!/^[0-9A-Z]{6}$/.test(ticker)) return { ...base, reason: "유효하지 않은 ETF 종목코드입니다." };
   if (identity.family === "unknown") return { ...base, reason: "발행사별 상품 주소 연결을 아직 지원하지 않습니다." };
+  if (!identity.websiteUrl) return { ...base, reason: "발행사는 확인했으나 공식 웹사이트 주소는 아직 검증하지 못했습니다." };
+  const confirmed = officialProductReference(VERIFIED_PRODUCT_DESTINATIONS[identity.family]?.[ticker], identity.family, ticker);
+  if (confirmed) return { ...base, issuerUrl: confirmed.url.href, productId: confirmed.id, status: "resolved" };
+  const catalogRecord = !options.fetcher ? verifiedCatalog.get(`${identity.family}:${ticker}`) : null;
+  const persisted = officialProductReference(catalogRecord?.url, identity.family, ticker);
+  if (persisted) return { ...base, issuerUrl: persisted.url.href, productId: persisted.id, status: "resolved" };
   const key = `${identity.family}:${ticker}:${name}`;
   const cached = !options.fetcher ? productCache.get(key) : null;
   if (cached && Date.now() - cached.at < (cached.value.status === "resolved" ? 6 * 60 * 60_000 : 60_000)) return cached.value;

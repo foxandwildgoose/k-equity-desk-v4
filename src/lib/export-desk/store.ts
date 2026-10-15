@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { assertNoSyntheticLeak } from "./demo-guard";
+import { assertNoSyntheticLeak, sanitizeExportDeskSnapshot } from "./demo-guard";
 import type { CompanyExportExposure, VerificationStatus } from "./exposure";
 import {
   seedWeight,
@@ -12,22 +12,19 @@ import type { ImporterId, TradeObservation, IndexDailyRow } from "./parse-import
 import type { TopNMember } from "./ranking";
 import seed from "@/data/export-desk/exposureSeed.config.json";
 import core20 from "@/data/export-desk/core20.config.json";
-import { kstYmd } from "@/lib/format";
 
 const TIER_CONF = 0.5;
 
-function today(): string {
-  return kstYmd();
-}
-
 function loadSeedExposures(): CompanyExportExposure[] {
-  const links = (seed.links as {
-    ticker: string;
-    name: string;
-    category: string;
-    role: ValueChainRole;
-    tier: ProvisionalTier;
-  }[]).map((l) => ({
+  const links = (
+    seed.links as {
+      ticker: string;
+      name: string;
+      category: string;
+      role: ValueChainRole;
+      tier: ProvisionalTier;
+    }[]
+  ).map((l) => ({
     ticker: l.ticker,
     companyName: l.name,
     exportCategoryId: l.category,
@@ -35,14 +32,12 @@ function loadSeedExposures(): CompanyExportExposure[] {
     valueChainRole: l.role,
     exposureWeight: seedWeight(l.tier),
     mappingConfidence: TIER_CONF,
-    mappingType: (l.tier === "PRIMARY" ? "PRIMARY" : "SECONDARY") as
-      | "PRIMARY"
-      | "SECONDARY",
+    mappingType: (l.tier === "PRIMARY" ? "PRIMARY" : "SECONDARY") as "PRIMARY" | "SECONDARY",
     verificationStatus: "UNVERIFIED_SEED" as VerificationStatus,
     evidenceSummary: "Publicly-known line of business (seed). Not a revenue split.",
     evidenceSource: [],
-    effectiveFrom: "2022-01-01",
-    lastReviewedAt: today(),
+    effectiveFrom: "",
+    lastReviewedAt: "",
     active: true,
   }));
   const excluded = (
@@ -59,8 +54,8 @@ function loadSeedExposures(): CompanyExportExposure[] {
     verificationStatus: "UNVERIFIED_SEED" as VerificationStatus,
     evidenceSummary: e.reason,
     evidenceSource: [],
-    effectiveFrom: "2022-01-01",
-    lastReviewedAt: today(),
+    effectiveFrom: "",
+    lastReviewedAt: "",
     active: false,
     inactiveReason: e.reason,
   }));
@@ -94,7 +89,6 @@ export interface DeskSettings {
 }
 
 interface ExportDeskState {
-  demoMode: boolean;
   lang: "ko" | "en";
   settings: DeskSettings;
   observations: TradeObservation[];
@@ -103,7 +97,6 @@ interface ExportDeskState {
   snapshots: { date: string; members: TopNMember[] }[];
   logs: IngestionLog[];
   sourceKeys: Record<string, string>;
-  setDemoMode: (v: boolean) => void;
   setLang: (v: "ko" | "en") => void;
   patchSettings: (p: Partial<DeskSettings>) => void;
   upsertObservations: (rows: TradeObservation[], log: IngestionLog) => void;
@@ -131,7 +124,6 @@ const defaultSettings: DeskSettings = {
 export const useExportDeskStore = create<ExportDeskState>()(
   persist(
     (set, get) => ({
-      demoMode: false,
       lang: "ko",
       settings: defaultSettings,
       observations: [],
@@ -140,10 +132,10 @@ export const useExportDeskStore = create<ExportDeskState>()(
       snapshots: [],
       logs: [],
       sourceKeys: {},
-      setDemoMode: (v) => set({ demoMode: v }),
       setLang: (v) => set({ lang: v }),
       patchSettings: (p) => set({ settings: { ...get().settings, ...p } }),
       upsertObservations: (rows, log) => {
+        assertNoSyntheticLeak(rows);
         const prev = get().observations.filter(
           (o) =>
             !rows.some(
@@ -157,6 +149,7 @@ export const useExportDeskStore = create<ExportDeskState>()(
         set({ observations: [...prev, ...rows], logs: [log, ...get().logs].slice(0, 80) });
       },
       upsertIndex: (rows, log) => {
+        assertNoSyntheticLeak(rows);
         const map = new Map(get().indexImported.map((r) => [r.date, r]));
         for (const r of rows) map.set(r.date, r);
         set({
@@ -181,8 +174,7 @@ export const useExportDeskStore = create<ExportDeskState>()(
             (e) => !(e.ticker === ticker && e.exportCategoryId === category),
           ),
         }),
-      setSourceKey: (id, key) =>
-        set({ sourceKeys: { ...get().sourceKeys, [id]: key } }),
+      setSourceKey: (id, key) => set({ sourceKeys: { ...get().sourceKeys, [id]: key } }),
       exportStoreJson: () =>
         JSON.stringify(
           {
@@ -192,14 +184,13 @@ export const useExportDeskStore = create<ExportDeskState>()(
             snapshots: get().snapshots,
             logs: get().logs,
             settings: get().settings,
-            demoMode: get().demoMode,
           },
           null,
           2,
         ),
       importStoreJson: (raw) => {
         try {
-          const j = JSON.parse(raw) as Partial<ExportDeskState>;
+          const j = sanitizeExportDeskSnapshot(JSON.parse(raw)) as Partial<ExportDeskState>;
           set({
             observations: j.observations ?? get().observations,
             indexImported: j.indexImported ?? get().indexImported,
@@ -219,11 +210,16 @@ export const useExportDeskStore = create<ExportDeskState>()(
           exposures: loadSeedExposures(),
           snapshots: [],
           logs: [],
-          demoMode: false,
           settings: defaultSettings,
         }),
     }),
-    { name: "kx-export-desk-v2" },
+    {
+      name: "kx-export-desk-v2",
+      version: 1,
+      migrate: (persisted) => sanitizeExportDeskSnapshot(persisted),
+      merge: (persisted, current) =>
+        ({ ...current, ...sanitizeExportDeskSnapshot(persisted) }) as ExportDeskState,
+    },
   ),
 );
 
@@ -232,40 +228,3 @@ export function getCore20() {
 }
 
 export { assertNoSyntheticLeak };
-
-export function getDemoExportSeries(demoMode: boolean): TradeObservation[] {
-  if (!demoMode) return [];
-  const start = new Date("2018-01-01");
-  const items = (core20.items as { key: string; ko: string }[]);
-  const rows: TradeObservation[] = [];
-  for (let i = 0; i < 96; i++) {
-    const d = new Date(start);
-    d.setMonth(d.getMonth() + i);
-    const period = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    const seasonal = 1 + 0.08 * Math.sin((2 * Math.PI * (d.getMonth() + 1)) / 12);
-    const trend = 48e9 + i * 2.1e8;
-    rows.push({
-      period,
-      categoryId: "TOTAL",
-      categoryName: "TOTAL (DEMO)",
-      valueUsd: trend * seasonal,
-      classification: "TOTAL",
-      sourceFile: "DEMO",
-      vintage: "DEMO",
-    });
-    items.forEach((it, idx) => {
-      const share = 0.18 / (1 + idx * 0.12);
-      const cycle = 1 + 0.12 * Math.sin((2 * Math.PI * (i + idx * 3)) / 18);
-      rows.push({
-        period,
-        categoryId: it.key,
-        categoryName: `${it.ko} (DEMO)`,
-        valueUsd: trend * share * cycle * seasonal,
-        classification: "MTI",
-        sourceFile: "DEMO",
-        vintage: "DEMO",
-      });
-    });
-  }
-  return rows;
-}

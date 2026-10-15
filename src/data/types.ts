@@ -41,12 +41,18 @@ export interface Stock {
   nameEn: string;
   sectorId: SectorId;
   market: Market;
+  /** False when a numeric quote carrier does not contain a verified price/change. */
+  quoteAvailable?: boolean;
+  quoteAsOf?: string | null;
+  quoteStatus?: "fresh" | "closed" | "stale" | "unavailable";
   price: number;
   change: number;
   changePct: number;
   volume: number;
+  volumeValid?: boolean;
   /** Market cap in 억 KRW */
   marketCap: number;
+  marketCapValid?: boolean;
   capBand: CapBand;
   high52: number;
   low52: number;

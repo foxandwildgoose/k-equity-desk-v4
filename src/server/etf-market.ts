@@ -14,6 +14,7 @@ import { UNIVERSE } from "@/data/universe";
 import { toReadableDoc } from "@/lib/readable-text";
 import { matchesSearchQuery, rankByQuery } from "@/lib/search-match";
 import { normalizeKrTicker } from "@/lib/infer-sector";
+import { normalizeEtfListQuote, normalizeWorldHoldingQuote } from "@/lib/etf-quote-normalization";
 import type { Market } from "@/data/types";
 import {
   chooseOfficialBasket,
@@ -122,6 +123,12 @@ export interface LiveEtfRow {
   marketSum: number;
   issuer?: string;
   quoteAvailable?: boolean;
+  changeValid?: boolean;
+  navAvailable?: boolean;
+  volumeValid?: boolean;
+  marketCapValid?: boolean;
+  tradedAt?: string;
+  fetchedAt?: string;
   /** DC/IRP common exclusion: leverage / inverse */
   /** Heuristic only — NOT a DC/IRP whitelist */
     retirementEligible: boolean;
@@ -153,6 +160,7 @@ type NaverEtfItem = {
   nowVal: number;
   changeVal: number;
   changeRate: number;
+  risefall?: string;
   nav: number | null;
   threeMonthEarnRate: number | null;
   quant: number;
@@ -177,7 +185,9 @@ export async function fetchAllEtfs(force = false, signal?: AbortSignal): Promise
   };
   const items = parsed.result?.etfItemList ?? [];
 
-  const rows: LiveEtfRow[] = items.map((it) => {
+  const rows: LiveEtfRow[] = items.flatMap((it) => {
+    const quote = normalizeEtfListQuote(it);
+    if (!quote) return [];
     const code = normalizeEtfCode(String(it.itemcode));
     const nameKo = String(it.itemname ?? "");
     const tabCode = Number(it.etfTabCode) || 0;
@@ -187,25 +197,21 @@ export async function fetchAllEtfs(force = false, signal?: AbortSignal): Promise
       it.threeMonthEarnRate == null ||
       (code.length === 6 && /^\d+$/.test(code) && Number(code) >= 480000);
 
-    return {
+    return [{
       code,
       nameKo,
       tabCode,
       tabLabel: ETF_TAB_LABEL[tabCode] ?? `유형 ${tabCode}`,
-      price: num(it.nowVal),
-      change: num(it.changeVal),
-      changePct: num(it.changeRate),
-      nav: num(it.nav),
+      ...quote,
       threeMonthEarnRate:
         it.threeMonthEarnRate == null ? null : num(it.threeMonthEarnRate),
-      volume: num(it.quant),
       amount: num(it.amonut),
-      marketSum: num(it.marketSum),
+      fetchedAt: new Date(now).toISOString(),
       retirementEligible: !lev,
       isLeverageOrInverse: lev,
       isNewCandidate: newCandidate && !lev,
       source: "naver-etf-list",
-    };
+    }];
   });
 
   listCache = { at: now, rows };
@@ -797,6 +803,10 @@ export interface HoldingLiveQuote {
   changePct: number;
   volume: number;
   currency: string | null;
+  changeValid?: boolean;
+  volumeValid?: boolean;
+  tradedAt?: string;
+  fetchedAt?: string;
 }
 
 const nameCodeCache = new Map<
@@ -1072,24 +1082,15 @@ export async function fetchWorldQuotes(
             stockItemTotalInfos?: { code?: string; value?: string }[];
             stockName?: string;
           }>(`https://api.stock.naver.com/stock/${encodeURIComponent(rc)}/basic`, signal);
-          const infos = Object.fromEntries(
-            (j.stockItemTotalInfos ?? []).map((t) => [t.code ?? "", t.value ?? ""]),
-          );
-          const price = num(j.closePrice);
-          const change = num(j.compareToPreviousClosePrice);
-          const changePct = num(j.fluctuationsRatio);
-          const volume = num(infos.accumulatedTradingVolume);
+          const normalized = normalizeWorldHoldingQuote(j, rc);
           const cur = holdingQuoteCurrency(j.currencyType?.code ?? j.currencyType?.name, rc);
-          if (!(price > 0)) return null;
+          if (!normalized) return null;
           return {
             rc,
             quote: {
-              price,
-              change,
-              changePct,
-              volume,
+              ...normalized,
               currency: cur,
-              name: j.stockName,
+              fetchedAt: new Date().toISOString(),
             },
           };
         } catch {

@@ -37,6 +37,8 @@ import {
 } from "@/server/etf-market";
 import { UNIVERSE } from "@/data/universe";
 import { officialHoldingsDestination } from "@/server/etf-issuer";
+import { fetchDailyChartSnapshot } from "@/server/daily-chart";
+import { reconcileDailyChart } from "@/lib/charts/daily-reconciliation";
 import { sortDisclosuresNewestFirst, sortTimedNewestFirst } from "@/lib/feed/mappers";
 import { inferSectorId, detectKrMarket, normalizeKrTicker, isKrTicker } from "@/lib/infer-sector";
 import { US_LINKED_CODES, US_POLICY_BRIEFS } from "@/data/us-link";
@@ -132,10 +134,10 @@ export const getMarketQuotes = createServerFn({ method: "GET" }).handler(
     }
     const quotes = await fetchAllUniverseQuotes();
     quoteCache.data = quotes;
-    quoteCache.at = now;
+    quoteCache.at = Date.now();
     return {
       quotes,
-      fetchedAt: new Date(now).toISOString(),
+      fetchedAt: new Date(quoteCache.at).toISOString(),
       source: "naver-finance-snapshot" as const,
       cached: false,
       live: false,
@@ -233,8 +235,7 @@ export const getStockBundle = createServerFn({ method: "GET" })
     if (quote && basic) {
       if (basic.high52) quote.high52 = basic.high52;
       if (basic.low52) quote.low52 = basic.low52;
-      if (basic.tradedAt) quote.tradedAt = basic.tradedAt;
-      if (basic.marketStatus) quote.marketStatus = basic.marketStatus;
+      // Price, trading time and session must stay from the same provider record.
     }
 
     // F2.1: v2 company list first (full, paged source); legacy list as fallback.
@@ -294,7 +295,7 @@ export const getChartData = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     if (data.market === "US") {
-      return fetchOhlc({
+      const history = await fetchOhlc({
         code: data.code.trim().toUpperCase(),
         market: "US",
         interval: data.interval,
@@ -302,15 +303,33 @@ export const getChartData = createServerFn({ method: "GET" })
         range: data.range,
         prePost: data.prePost,
       });
+      if (data.interval !== "day") return history;
+      const daily = reconcileDailyChart({ code: data.code.trim().toUpperCase(), market: "US", bars: history.bars });
+      return { ...history, bars: daily.bars, freshness: daily.freshness };
     }
     const code = normalizeKrTicker(data.code);
-    return fetchOhlc({
+    const historyPromise = fetchOhlc({
       code,
       market: data.market,
       interval: data.interval,
       minuteSize: data.minuteSize,
       range: data.range,
     });
+    if (data.interval !== "day") return historyPromise;
+    const [history, latest, quotes] = await Promise.all([
+      // Latest real daily observations remain usable if historical feeds fail.
+      historyPromise.catch(() => ({ bars: [], source: "history-unavailable" })),
+      fetchDailyChartSnapshot(code),
+      fetchRealtimeQuotes([code]).catch(() => [] as LiveQuote[]),
+    ]);
+    const daily = reconcileDailyChart({
+      code, market: data.market, bars: history.bars, latestBars: latest.bars,
+      quote: quotes.find((quote) => quote.code === code),
+    });
+    return {
+      ...history, bars: daily.bars, freshness: daily.freshness,
+      source: daily.reconciled ? `${history.source}+${latest.source}` : history.source,
+    };
   });
 
 export const getValuationSeries = createServerFn({ method: "GET" })
@@ -633,6 +652,10 @@ export const getEtfBundle = createServerFn({ method: "GET" })
         changePct: number;
         volume: number;
         currency: string | null;
+        changeValid?: boolean;
+        volumeValid?: boolean;
+        tradedAt?: string;
+        fetchedAt?: string;
       }
     > = {};
     for (const q of stockQuotes) {
@@ -642,6 +665,10 @@ export const getEtfBundle = createServerFn({ method: "GET" })
         changePct: q.changePct,
         volume: q.volume,
         currency: "KRW",
+        changeValid: q.changeValid,
+        volumeValid: q.volumeValid,
+        tradedAt: q.tradedAt,
+        fetchedAt: q.fetchedAt,
       };
     }
     for (const [rc, q] of Object.entries(worldQuotes)) {
@@ -678,6 +705,10 @@ export const getEtfBundle = createServerFn({ method: "GET" })
               changePct: q.changePct,
               volume: q.volume,
               currency: q.currency,
+              changeValid: q.changeValid,
+              volumeValid: q.volumeValid,
+              tradedAt: q.tradedAt,
+              fetchedAt: q.fetchedAt,
             }
           : null,
       };

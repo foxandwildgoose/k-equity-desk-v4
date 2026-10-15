@@ -12,13 +12,14 @@ import { WatchButton } from "@/components/stocks/WatchButton";
 import { TradeDeskStrip } from "@/components/stocks/TradeDeskStrip";
 import { ValuationBandChart } from "@/components/stocks/ValuationBandChart";
 import { Badge } from "@/components/ui/badge";
-import {
-  formatMarketCap,
-  formatPrice,
-  formatVolume,
-} from "@/lib/format";
+import { formatMarketCap, formatPrice, formatVolume } from "@/lib/format";
 import { useStockBundle, useChartData } from "@/lib/use-market";
 import { useMarketStream } from "@/lib/use-market-stream";
+import {
+  observedRangePosition,
+  positiveObservation,
+  stockQuotePresentation,
+} from "@/lib/trade-metrics";
 import { inferSectorId, detectKrMarket, normalizeKrTicker, isKrTicker } from "@/lib/infer-sector";
 import { useChartSecurity } from "@/lib/charts/use-chart-security";
 import { DATA_LABEL } from "@/data/market";
@@ -34,9 +35,7 @@ export const Route = createFileRoute("/stock/$ticker")({
     return {
       meta: [
         {
-          title: st
-            ? `${st.nameKo} ${st.code} · Korea Equity`
-            : "종목 · Korea Equity",
+          title: st ? `${st.nameKo} ${st.code} · Korea Equity` : "종목 · Korea Equity",
         },
       ],
     };
@@ -64,17 +63,15 @@ function StockPage() {
       setLastHit(null);
     }
   }, [code]);
-  const { data, isLoading, isError, dataUpdatedAt } = useStockBundle(code);
+  const { data, isLoading, isError } = useStockBundle(code);
   const liveStatus = useMarketStream(validStock ? [code] : []);
   const quote = data && "quote" in data ? data.quote : null;
   const basic = data && "basic" in data ? data.basic : null;
   const flow = data && "flow" in data ? data.flow : null;
   const research = data && "research" in data ? data.research : [];
-  const researchPack =
-    data && "researchPack" in data ? data.researchPack : undefined;
+  const researchPack = data && "researchPack" in data ? data.researchPack : undefined;
   const news = data && "news" in data ? data.news : [];
-  const disclosures =
-    data && "disclosures" in data ? data.disclosures : [];
+  const disclosures = data && "disclosures" in data ? data.disclosures : [];
 
   // Prefer server meta (works for tickers outside app universe)
   const serverMeta = data && "meta" in data ? data.meta : null;
@@ -113,14 +110,19 @@ function StockPage() {
   if (security.data?.instrument === "etf") {
     return <Navigate to="/etfs/$code" params={{ code }} replace />;
   }
-  if (!validStock && security.isLoading) return <p className="p-6 text-sm text-muted-foreground">종목 메타데이터 확인 중…</p>;
+  if (!validStock && security.isLoading)
+    return <p className="p-6 text-sm text-muted-foreground">종목 메타데이터 확인 중…</p>;
   if (!validStock) throw notFound();
   const sector = SECTOR_BY_ID[meta.sectorId];
-  const price = quote?.price ?? 0;
-  const high52 = quote?.high52 || basic?.high52 || 0;
-  const low52 = quote?.low52 || basic?.low52 || 0;
-  const rangePos =
-    high52 > low52 ? ((price - low52) / (high52 - low52)) * 100 : 50;
+  const { freshness, isLive, canDisplay } = stockQuotePresentation(quote, liveStatus.connected);
+  const displayQuote = canDisplay ? quote : null;
+  const price = positiveObservation(displayQuote?.price) ?? 0;
+  const high52 = positiveObservation(quote?.high52) ?? positiveObservation(basic?.high52) ?? 0;
+  const low52 = positiveObservation(quote?.low52) ?? positiveObservation(basic?.low52) ?? 0;
+  const rangePos = observedRangePosition(price, high52, low52);
+  const quoteAsOf = freshness?.asOf
+    ? new Date(freshness.asOf).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })
+    : null;
 
   return (
     <div className="flex flex-col gap-5">
@@ -152,9 +154,7 @@ function StockPage() {
               <h1 className="text-2xl font-bold tracking-tight md:text-3xl lg:text-4xl leading-tight">
                 {meta.nameKo}
               </h1>
-              <span className="text-sm text-muted-foreground tabular font-medium">
-                {meta.code}
-              </span>
+              <span className="text-sm text-muted-foreground tabular font-medium">{meta.code}</span>
               {isLoading && (
                 <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
                   <Loader2 className="size-3 animate-spin" /> 시세
@@ -206,39 +206,50 @@ function StockPage() {
         </div>
 
         <div className="text-left sm:text-right">
-          {quote ? (
+          {displayQuote ? (
             <>
-              <PriceValue
-                value={quote.price}
-                changePct={quote.changePct}
-                size="lg"
-              />
+              <PriceValue value={displayQuote.price} changePct={displayQuote.changePct} size="lg" />
               <div className="mt-0.5 flex sm:justify-end">
                 <PriceChange
-                  change={quote.change}
-                  changePct={quote.changePct}
+                  change={displayQuote.change}
+                  changePct={displayQuote.changePct}
                   size="md"
                 />
               </div>
-              {quote.afterHoursPrice != null && (
+              {positiveObservation(displayQuote.afterHoursPrice) !== null && (
                 <p className="mt-1 text-[11px] text-muted-foreground tabular">
-                  시간외 {formatPrice(quote.afterHoursPrice)}
-                  {quote.afterHoursChangePct != null && (
-                    <>
-                      {" "}
-                      ({quote.afterHoursChangePct >= 0 ? "+" : ""}
-                      {quote.afterHoursChangePct.toFixed(2)}%)
-                    </>
-                  )}
+                  시간외 {formatPrice(displayQuote.afterHoursPrice!)}
+                  {displayQuote.afterHoursChangePct != null &&
+                    Number.isFinite(displayQuote.afterHoursChangePct) && (
+                      <>
+                        {" "}
+                        ({displayQuote.afterHoursChangePct >= 0 ? "+" : ""}
+                        {displayQuote.afterHoursChangePct.toFixed(2)}%)
+                      </>
+                    )}
                 </p>
               )}
               <p className="mt-1 text-[10px] text-muted-foreground">
-                {quote.marketStatus || "시세"} · {liveStatus.connected || quote.source === "kis-krx-websocket" ? "KIS·KRX 실시간" : liveStatus.enabled && liveStatus.reconnecting ? "재연결 중 · 네이버 스냅샷" : "네이버 스냅샷"}
-                {dataUpdatedAt
-                  ? ` · ${new Date(dataUpdatedAt).toLocaleTimeString("ko-KR")}`
-                  : ""}
+                {freshness?.status === "stale"
+                  ? "과거 관측 · 현재 시세 아님"
+                  : freshness?.status === "closed"
+                    ? "최근 시세"
+                    : displayQuote.marketStatus || "시세"}
+                {" · "}
+                {isLive
+                  ? "KIS·KRX 실시간"
+                  : displayQuote.source === "kis-krx-websocket"
+                    ? "KIS·KRX 체결 스냅샷"
+                    : liveStatus.enabled && liveStatus.reconnecting
+                      ? "재연결 중 · 네이버 스냅샷"
+                      : "네이버 스냅샷"}
+                {quoteAsOf ? ` · 기준 ${quoteAsOf} KST` : " · 관측 시각 미확인"}
               </p>
             </>
+          ) : quote ? (
+            <p className="text-sm text-muted-foreground">
+              시세 확인 불가 · 공급자 관측 시각 또는 수치 미확인
+            </p>
           ) : isError ? (
             <p className="text-sm text-price-down">시세 조회 실패</p>
           ) : (
@@ -251,8 +262,7 @@ function StockPage() {
         quote={quote}
         basic={basic}
         dayBars={dayChart.data?.bars}
-        liveConnected={liveStatus.connected || quote?.source === "kis-krx-websocket"}
-        dataUpdatedAt={dataUpdatedAt}
+        liveConnected={liveStatus.connected}
         chartSource={dayChart.data?.source}
       />
 
@@ -300,57 +310,70 @@ function StockPage() {
           <section className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <Stat
               label="거래량"
-              value={quote ? formatVolume(quote.volume) : "—"}
+              value={
+                displayQuote &&
+                displayQuote.volumeValid !== false &&
+                Number.isFinite(displayQuote.volume) &&
+                (displayQuote.volume > 0 ||
+                  (displayQuote.volume === 0 && displayQuote.volumeValid === true))
+                  ? formatVolume(displayQuote.volume)
+                  : "—"
+              }
             />
             <Stat
               label="시가총액"
               value={
                 basic?.marketCapLabel ||
-                (quote?.marketCap
-                  ? formatMarketCap(quote.marketCap)
+                (displayQuote &&
+                displayQuote.marketCapValid !== false &&
+                positiveObservation(displayQuote.marketCap) !== null
+                  ? formatMarketCap(displayQuote.marketCap)
                   : "—")
               }
             />
-            <Stat
-              label="52주 최고"
-              value={high52 ? formatPrice(high52) : "—"}
-            />
-            <Stat
-              label="52주 최저"
-              value={low52 ? formatPrice(low52) : "—"}
-            />
+            <Stat label="52주 최고" value={high52 ? formatPrice(high52) : "—"} />
+            <Stat label="52주 최저" value={low52 ? formatPrice(low52) : "—"} />
           </section>
 
           {basic && (basic.per || basic.pbr || basic.psr || basic.foreignRate) && (
             <section className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {basic.per && <Stat label="PER" value={/배$/.test(basic.per) ? basic.per : `${basic.per}배`} />}
-              {basic.pbr && <Stat label="PBR" value={/배$/.test(basic.pbr) ? basic.pbr : `${basic.pbr}배`} />}
-              {basic.psr && <Stat label="PSR" value={/배$/.test(basic.psr) ? basic.psr : `${basic.psr}배`} />}
-              {basic.foreignRate && (
-                <Stat label="외인소진율" value={basic.foreignRate} />
+              {basic.per && (
+                <Stat label="PER" value={/배$/.test(basic.per) ? basic.per : `${basic.per}배`} />
               )}
+              {basic.pbr && (
+                <Stat label="PBR" value={/배$/.test(basic.pbr) ? basic.pbr : `${basic.pbr}배`} />
+              )}
+              {basic.psr && (
+                <Stat label="PSR" value={/배$/.test(basic.psr) ? basic.psr : `${basic.psr}배`} />
+              )}
+              {basic.foreignRate && <Stat label="외인소진율" value={basic.foreignRate} />}
             </section>
           )}
 
-          {high52 > 0 && low52 > 0 && (
+          {high52 > low52 && low52 > 0 && (
             <section className="rounded-xl border border-border bg-card p-3 md:p-4">
               <h2 className="mb-3 text-sm font-semibold">52주 범위</h2>
               <div className="flex items-center gap-3 text-xs tabular">
-                <span className="text-muted-foreground w-16 shrink-0">
-                  {formatPrice(low52)}
-                </span>
+                <span className="text-muted-foreground w-16 shrink-0">{formatPrice(low52)}</span>
                 <div className="relative h-1.5 flex-1 rounded-full bg-muted">
-                  <div
-                    className="absolute top-1/2 size-3 -translate-y-1/2 -translate-x-1/2 rounded-full border-2 border-background bg-foreground"
-                    style={{
-                      left: `${Math.min(100, Math.max(0, rangePos))}%`,
-                    }}
-                  />
+                  {rangePos !== null && (
+                    <div
+                      className="absolute top-1/2 size-3 -translate-y-1/2 -translate-x-1/2 rounded-full border-2 border-background bg-foreground"
+                      style={{
+                        left: `${Math.min(100, Math.max(0, rangePos))}%`,
+                      }}
+                    />
+                  )}
                 </div>
                 <span className="text-muted-foreground w-16 shrink-0 text-right">
                   {formatPrice(high52)}
                 </span>
               </div>
+              {rangePos === null && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  현재가 또는 범위 내 위치 미확인 — 위치 표시는 생략합니다.
+                </p>
+              )}
             </section>
           )}
         </div>

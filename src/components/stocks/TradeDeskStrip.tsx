@@ -4,7 +4,7 @@ import type { OhlcBar } from "@/server/naver-market";
 import { formatPrice, formatVolume, formatPct } from "@/lib/format";
 import { usePriceColors } from "@/lib/store";
 import { cn } from "@/lib/utils";
-import { atr, lastNumber } from "@/lib/chart-indicators";
+import { stockQuotePresentation, tradeMetrics } from "@/lib/trade-metrics";
 import { AlertTriangle, Radio, ShieldAlert } from "lucide-react";
 
 /**
@@ -16,7 +16,6 @@ export function TradeDeskStrip({
   basic,
   dayBars,
   liveConnected,
-  dataUpdatedAt,
   chartSource,
 }: {
   quote: LiveQuote | null;
@@ -28,93 +27,32 @@ export function TradeDeskStrip({
   } | null;
   dayBars?: OhlcBar[];
   liveConnected?: boolean;
-  dataUpdatedAt?: number;
   chartSource?: string;
 }) {
   const colors = usePriceColors();
 
-  const metrics = useMemo(() => {
-    if (!quote) return null;
-    const prev = quote.prevClose || quote.price - quote.change;
-    const gapPct = prev ? ((quote.open - prev) / prev) * 100 : 0;
-    const dayRange =
-      quote.high > quote.low
-        ? ((quote.price - quote.low) / (quote.high - quote.low)) * 100
-        : 50;
-    const dayRangePct =
-      quote.low > 0 ? ((quote.high - quote.low) / quote.low) * 100 : 0;
-    const fromHigh52 =
-      quote.high52 > 0
-        ? ((quote.price - quote.high52) / quote.high52) * 100
-        : null;
-    const fromLow52 =
-      quote.low52 > 0
-        ? ((quote.price - quote.low52) / quote.low52) * 100
-        : null;
+  const metrics = useMemo(() => (quote ? tradeMetrics(quote, dayBars) : null), [quote, dayBars]);
+  const { freshness, isLive, canDisplay } = stockQuotePresentation(quote, liveConnected);
 
-    let rvol: number | null = null;
-    let atr14: number | null = null;
-    let atrPct: number | null = null;
-    if (dayBars && dayBars.length >= 20) {
-      const vols = dayBars.map((b) => b.volume);
-      const avg20 =
-        vols.slice(-21, -1).reduce((s, v) => s + v, 0) /
-        Math.max(1, Math.min(20, vols.length - 1));
-      if (avg20 > 0) rvol = quote.volume / avg20;
-      const a = atr(
-        dayBars.map((b) => b.high),
-        dayBars.map((b) => b.low),
-        dayBars.map((b) => b.close),
-        14,
-      );
-      atr14 = lastNumber(a);
-      if (atr14 && quote.price) atrPct = (atr14 / quote.price) * 100;
-    }
-
-    // MA structure from day bars
-    const last = dayBars?.[dayBars.length - 1];
-    const maBias = last
-      ? {
-          aboveMa20: last.ma20 != null ? last.close >= last.ma20 : null,
-          ma20Above60:
-            last.ma20 != null && last.ma60 != null
-              ? last.ma20 >= last.ma60
-              : null,
-        }
-      : null;
-
-    const ageMs =
-      dataUpdatedAt != null ? Date.now() - dataUpdatedAt : null;
-
-    return {
-      prev,
-      gapPct,
-      dayRange,
-      dayRangePct,
-      fromHigh52,
-      fromLow52,
-      rvol,
-      atr14,
-      atrPct,
-      maBias,
-      ageMs,
-    };
-  }, [quote, dayBars, dataUpdatedAt]);
-
-  if (!quote || !metrics) {
+  if (!quote || !metrics || !canDisplay) {
     return (
       <div className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
-        시세 로딩 중 — 트레이드 데스크 대기
+        시세 또는 공급자 관측 시각 미확인 — 트레이드 데스크 대기
       </div>
     );
   }
 
-  const stale =
-    metrics.ageMs != null &&
-    metrics.ageMs > 45_000 &&
-    !liveConnected;
-  const isLive =
-    liveConnected || quote.source === "kis-krx-websocket";
+  const stale = freshness?.status === "stale";
+  const chartSourceLabel = chartSource?.includes("naver-mobile-daily")
+    ? chartSource.includes("history-unavailable")
+      ? "네이버 일별 시세 · 과거 구간 미수신"
+      : "과거 일봉 + 네이버 일별 시세"
+    : chartSource?.toLowerCase().includes("yahoo") ? "Yahoo 시세"
+    : chartSource?.toLowerCase().includes("naver") ? "네이버 시세"
+    : "출처 미확인";
+  const asOf = freshness?.asOf
+    ? new Date(freshness.asOf).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })
+    : "미확인";
 
   return (
     <section className="desk-card desk-card-navy overflow-hidden">
@@ -137,48 +75,55 @@ export function TradeDeskStrip({
               </>
             ) : stale ? (
               <>
-                <AlertTriangle className="size-3" /> STALE{" "}
-                {Math.round((metrics.ageMs ?? 0) / 1000)}s
+                <AlertTriangle className="size-3" /> 과거 관측
               </>
             ) : (
-              <>스냅샷</>
+              <>{freshness?.status === "closed" ? "최근 시세" : "스냅샷"}</>
             )}
           </span>
         </div>
         <p className="text-[11px] text-muted-foreground">
-          차트 소스 {chartSource || "—"} · 헤더 시세와 분봉은 공급원이 다를 수
-          있음
+          시세 기준 {asOf} KST · 일봉 기준 {metrics.chartAsOf ?? "미확인"} · 차트 소스{" "}
+          {chartSourceLabel} · 헤더 시세와 차트의 거래 기준이 다를 수 있음
         </p>
       </div>
 
       <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-8 gap-px bg-border">
-        <Cell label="시가" value={formatPrice(quote.open)} />
-        <Cell label="고가" value={formatPrice(quote.high)} />
-        <Cell label="저가" value={formatPrice(quote.low)} />
-        <Cell label="종가/현재" value={formatPrice(quote.price)} emphasize />
-        <Cell label="전일" value={formatPrice(metrics.prev)} />
+        <Cell label="시가" value={metrics.open !== null ? formatPrice(metrics.open) : "—"} />
+        <Cell label="고가" value={metrics.high !== null ? formatPrice(metrics.high) : "—"} />
+        <Cell label="저가" value={metrics.low !== null ? formatPrice(metrics.low) : "—"} />
+        <Cell
+          label="종가/현재"
+          value={metrics.price !== null ? formatPrice(metrics.price) : "—"}
+          emphasize
+        />
+        <Cell label="전일" value={metrics.prev !== null ? formatPrice(metrics.prev) : "—"} />
         <Cell
           label="갭"
-          value={`${metrics.gapPct >= 0 ? "+" : ""}${metrics.gapPct.toFixed(2)}%`}
+          value={metrics.gapPct !== null ? formatPct(metrics.gapPct) : "—"}
           tone={
-            metrics.gapPct > 0 ? "up" : metrics.gapPct < 0 ? "down" : undefined
+            metrics.gapPct !== null && metrics.gapPct > 0
+              ? "up"
+              : metrics.gapPct !== null && metrics.gapPct < 0
+                ? "down"
+                : undefined
           }
         />
         <Cell
           label="일중 위치"
-          value={`${metrics.dayRange.toFixed(0)}%`}
-          sub={`고저폭 ${metrics.dayRangePct.toFixed(2)}%`}
+          value={metrics.dayRange !== null ? `${metrics.dayRange.toFixed(0)}%` : "—"}
+          sub={
+            metrics.dayRangePct !== null ? `고저폭 ${metrics.dayRangePct.toFixed(2)}%` : undefined
+          }
         />
-        <Cell label="거래량" value={formatVolume(quote.volume)} />
+        <Cell label="거래량" value={metrics.volume !== null ? formatVolume(metrics.volume) : "—"} />
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 p-3">
         <Mini
           label="RVOL (20일)"
-          value={
-            metrics.rvol != null ? `${metrics.rvol.toFixed(2)}x` : "—"
-          }
-          hint="당일 거래량 ÷ 최근 20일 평균"
+          value={metrics.rvol != null ? `${metrics.rvol.toFixed(2)}x` : "—"}
+          hint="확인된 정규장 거래량 ÷ 당일을 제외한 검증된 과거 20개 정규장 일봉의 평균 거래량"
           hot={metrics.rvol != null && metrics.rvol >= 1.5}
         />
         <Mini
@@ -186,37 +131,21 @@ export function TradeDeskStrip({
           value={
             metrics.atr14 != null
               ? `${formatPrice(Math.round(metrics.atr14))}${
-                  metrics.atrPct != null
-                    ? ` (${metrics.atrPct.toFixed(2)}%)`
-                    : ""
+                  metrics.atrPct != null ? ` (${metrics.atrPct.toFixed(2)}%)` : ""
                 }`
               : "—"
           }
-          hint="변동성 단위 — 손절·목표가 폭 참고"
+          hint={`일봉 기준 ${metrics.chartAsOf ?? "미확인"} · 변동성 단위 — 손절·목표가 폭 참고`}
         />
         <Mini
           label="52주 고점 대비"
-          value={
-            metrics.fromHigh52 != null
-              ? formatPct(metrics.fromHigh52)
-              : "—"
-          }
-          tone={
-            metrics.fromHigh52 != null && metrics.fromHigh52 < 0
-              ? "down"
-              : undefined
-          }
+          value={metrics.fromHigh52 != null ? formatPct(metrics.fromHigh52) : "—"}
+          tone={metrics.fromHigh52 != null && metrics.fromHigh52 < 0 ? "down" : undefined}
         />
         <Mini
           label="52주 저점 대비"
-          value={
-            metrics.fromLow52 != null ? formatPct(metrics.fromLow52) : "—"
-          }
-          tone={
-            metrics.fromLow52 != null && metrics.fromLow52 > 0
-              ? "up"
-              : undefined
-          }
+          value={metrics.fromLow52 != null ? formatPct(metrics.fromLow52) : "—"}
+          tone={metrics.fromLow52 != null && metrics.fromLow52 > 0 ? "up" : undefined}
         />
         <Mini
           label="추세 (일봉 MA)"
@@ -232,27 +161,28 @@ export function TradeDeskStrip({
                       : "· 역배열",
                 ].join(" ")
           }
-          hint="종가 vs MA20, MA20 vs MA60"
+          hint={`일봉 기준 ${metrics.chartAsOf ?? "미확인"} · 종가 vs MA20, MA20 vs MA60`}
         />
         <Mini
           label="밸류·수급"
-          value={[
-            basic?.per ? `PER ${basic.per}` : null,
-            basic?.pbr ? `PBR ${basic.pbr}` : null,
-            basic?.foreignRate ? `외인 ${basic.foreignRate}` : null,
-          ]
-            .filter(Boolean)
-            .join(" · ") || "—"}
+          value={
+            [
+              basic?.per ? `PER ${basic.per}` : null,
+              basic?.pbr ? `PBR ${basic.pbr}` : null,
+              basic?.foreignRate ? `외인 ${basic.foreignRate}` : null,
+            ]
+              .filter(Boolean)
+              .join(" · ") || "—"
+          }
         />
       </div>
 
       <div className="flex flex-wrap items-start gap-2 border-t border-border px-3 py-2 text-[11px] text-muted-foreground leading-relaxed">
         <ShieldAlert className="size-3.5 shrink-0 mt-0.5 text-desk-gold" />
         <span>
-          <b className="text-foreground">데스크 주의:</b> 본 화면은 리서치·워크플로
-          도구이며 투자 권유·주문 실행이 아닙니다. 시세는 스냅샷/스트림 혼합, 차트
-          OHLC는 Yahoo·네이버 비공식 경로일 수 있습니다. 실주문 전 증권사 HTS/MTS
-          호가·잔량·VI를 재확인하세요.
+          <b className="text-foreground">데스크 주의:</b> 본 화면은 리서치·워크플로 도구이며 투자
+          권유·주문 실행이 아닙니다. 시세는 스냅샷/스트림 혼합, 차트 OHLC는 Yahoo·네이버 비공식
+          경로일 수 있습니다. 실주문 전 증권사 HTS/MTS 호가·잔량·VI를 재확인하세요.
           {stale && (
             <span className={cn("ml-1 font-semibold", colors.down)}>
               데이터가 지연 중입니다 — 매매 판단 보류를 권고합니다.
@@ -291,9 +221,7 @@ function Cell({
       >
         {value}
       </div>
-      {sub && (
-        <div className="text-[10px] text-muted-foreground tabular">{sub}</div>
-      )}
+      {sub && <div className="text-[10px] text-muted-foreground tabular">{sub}</div>}
     </div>
   );
 }

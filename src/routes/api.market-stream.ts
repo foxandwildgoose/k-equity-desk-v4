@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { kisRealtimeHub } from "@/server/kis-realtime";
+import { createStreamCleanup } from "@/lib/stream-cleanup";
 import { isDigitTicker, normalizeKrTicker } from "@/lib/infer-sector";
 
 const encoder = new TextEncoder();
@@ -17,20 +18,26 @@ export const Route = createFileRoute("/api/market-stream")({
     handlers: {
       GET: async ({ request }) => {
         const url = new URL(request.url);
-        const codes = [...new Set((url.searchParams.get("codes") ?? "")
-          .split(",")
-          .map((x) => normalizeKrTicker(x))
-          .filter((x) => isDigitTicker(x)))]
-          .slice(0, 40);
+        const codes = [
+          ...new Set(
+            (url.searchParams.get("codes") ?? "")
+              .split(",")
+              .map((x) => normalizeKrTicker(x))
+              .filter((x) => isDigitTicker(x)),
+          ),
+        ].slice(0, 40);
 
         if (!codes.length) {
           return Response.json({ error: "codes_required" }, { status: 400 });
         }
         // Optional shorter lifetime (QA / tuning), clamped to [5 s, 240 s].
         const maxParam = Number(url.searchParams.get("maxMs"));
-        const lifetimeMs = Number.isFinite(maxParam) && maxParam > 0 ? Math.min(Math.max(maxParam, 5_000), MAX_STREAM_MS) : MAX_STREAM_MS;
+        const lifetimeMs =
+          Number.isFinite(maxParam) && maxParam > 0
+            ? Math.min(Math.max(maxParam, 5_000), MAX_STREAM_MS)
+            : MAX_STREAM_MS;
 
-        const cleanup: Array<() => void> = [];
+        const cleanup = createStreamCleanup();
         let heartbeat: ReturnType<typeof setInterval> | null = null;
         let lifetime: ReturnType<typeof setTimeout> | null = null;
         const stop = () => {
@@ -38,7 +45,7 @@ export const Route = createFileRoute("/api/market-stream")({
           if (lifetime) clearTimeout(lifetime);
           heartbeat = null;
           lifetime = null;
-          for (const off of cleanup.splice(0)) off();
+          cleanup.close();
         };
 
         const stream = new ReadableStream<Uint8Array>({
@@ -47,40 +54,82 @@ export const Route = createFileRoute("/api/market-stream")({
             controller.enqueue(sse("status", kisRealtimeHub.getStatus()));
 
             const offStatus = kisRealtimeHub.onStatus((status) => {
-              try { controller.enqueue(sse("status", status)); } catch { /* closed */ }
-            });
-            cleanup.push(offStatus);
-
-            void Promise.all(
-              codes.map((code) =>
-                kisRealtimeHub.subscribe(code, (trade) => {
-                  try { controller.enqueue(sse("trade", trade)); } catch { /* closed */ }
-                }),
-              ),
-            ).then((offs) => cleanup.push(...offs)).catch((error) => {
               try {
-                controller.enqueue(sse("status", {
-                  ...kisRealtimeHub.getStatus(),
-                  connected: false,
-                  message: error instanceof Error ? error.message : "KIS stream error",
-                }));
-              } catch { /* closed */ }
+                controller.enqueue(sse("status", status));
+              } catch {
+                /* closed */
+              }
             });
+            cleanup.add(offStatus);
+
+            if (request.signal.aborted) {
+              stop();
+              controller.close();
+              return;
+            }
+            void Promise.all(
+              codes.map(async (code) => {
+                try {
+                  const off = await kisRealtimeHub.subscribe(code, (trade) => {
+                    if (cleanup.closed) return;
+                    try {
+                      controller.enqueue(sse("trade", trade));
+                    } catch {
+                      /* closed */
+                    }
+                  });
+                  cleanup.add(off);
+                } catch (error) {
+                  if (cleanup.closed) return;
+                  try {
+                    controller.enqueue(
+                      sse("status", {
+                        ...kisRealtimeHub.getStatus(),
+                        connected: false,
+                        message: error instanceof Error ? error.message : "KIS stream error",
+                      }),
+                    );
+                  } catch {
+                    /* closed */
+                  }
+                }
+              }),
+            );
 
             heartbeat = setInterval(() => {
-              try { controller.enqueue(encoder.encode(": heartbeat\n\n")); } catch { /* closed */ }
+              try {
+                controller.enqueue(encoder.encode(": heartbeat\n\n"));
+              } catch {
+                /* closed */
+              }
             }, 15_000);
 
             lifetime = setTimeout(() => {
-              try { controller.enqueue(sse("reconnect", { afterMs: RETRY_MS, reason: "lifetime" })); } catch { /* closed */ }
+              try {
+                controller.enqueue(sse("reconnect", { afterMs: RETRY_MS, reason: "lifetime" }));
+              } catch {
+                /* closed */
+              }
               stop();
-              try { controller.close(); } catch { /* already closed */ }
+              try {
+                controller.close();
+              } catch {
+                /* already closed */
+              }
             }, lifetimeMs);
 
-            request.signal.addEventListener("abort", () => {
-              stop();
-              try { controller.close(); } catch { /* already closed */ }
-            }, { once: true });
+            request.signal.addEventListener(
+              "abort",
+              () => {
+                stop();
+                try {
+                  controller.close();
+                } catch {
+                  /* already closed */
+                }
+              },
+              { once: true },
+            );
           },
           cancel() {
             stop();

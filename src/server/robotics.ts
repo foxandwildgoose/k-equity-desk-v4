@@ -23,6 +23,7 @@ import { fetchJsonWithPolicy } from "@/server/feeds/http";
 import { recordFailure, recordResult, setHealthNote } from "@/server/feeds/health";
 import { yahooChartSnapshot } from "@/lib/feed/parsers/generic";
 import { parseSourceTime } from "@/lib/feed/time";
+import { quoteFreshness } from "@/lib/market-freshness";
 import { newsItemToFeed, sortReportsNewestFirst } from "@/lib/feed/mappers";
 import { sortNewestFirst } from "@/lib/feed/sort";
 import { discoverRobotEtfs, pickExactListing, position52w, roboticsKey } from "@/lib/robotics/classify";
@@ -139,6 +140,8 @@ const universeCache = new Map<string, { at: number; data: RoboticsUniverse }>();
 const UNIVERSE_TTL = 60_000;
 
 function krRowFrom(e: { code: string; name: string; nameEn?: string | null; segment?: string | null; exposure?: RoboticsExposure | null; kind: RoboticsQuoteRow["kind"] }, q: Awaited<ReturnType<typeof fetchRealtimeQuotes>>[number]): RoboticsQuoteRow {
+  const freshness = quoteFreshness(q);
+  const current = freshness.status === "fresh" || freshness.status === "closed";
   return {
     key: roboticsKey("KR", e.code),
     market: "KR",
@@ -149,14 +152,14 @@ function krRowFrom(e: { code: string; name: string; nameEn?: string | null; segm
     exposure: e.exposure ?? null,
     kind: e.kind,
     price: q.price > 0 ? q.price : null,
-    changePct: Number.isFinite(q.changePct) ? q.changePct : null,
+    changePct: current && q.changeValid !== false && Number.isFinite(q.changePct) ? q.changePct : null,
     pos52w: position52w(q.price, q.low52 || null, q.high52 || null),
-    marketCap: q.marketCap > 0 ? q.marketCap : null,
-    volume: q.volume > 0 ? q.volume : null,
+    marketCap: q.marketCapValid !== false && q.marketCap > 0 ? q.marketCap : null,
+    volume: q.volumeValid !== false && q.volume >= 0 ? q.volume : null,
     currency: "KRW",
-    asOf: null,
+    asOf: freshness.asOf,
     source: "네이버 시세",
-    delay: "약 30초 캐시",
+    delay: freshness.status === "closed" ? "최근 거래일 종가" : current ? "스냅샷" : "과거·시각 미확인 / 등락 통계 제외",
   };
 }
 

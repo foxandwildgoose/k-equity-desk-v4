@@ -3,6 +3,8 @@ import { SECTORS, FOCUS_SECTOR_IDS } from "@/data/sectors";
 import { sectorStatsFromQuotes } from "@/data/stocks";
 import { useAppStore, usePriceColors } from "@/lib/store";
 import { useMarketQuotes } from "@/lib/use-market";
+import { useMarketClock } from "@/lib/use-market-clock";
+import { coverageLabel } from "@/lib/market-presentation";
 import { formatPct } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
@@ -101,6 +103,7 @@ export function Sidebar({
   const colors = usePriceColors();
   const { data } = useMarketQuotes();
   const quotes = data?.quotes ?? [];
+  const now = useMarketClock();
 
   const sectors = focusMode
     ? SECTORS.filter((s) => FOCUS_SECTOR_IDS.includes(s.id) || s.focus)
@@ -180,17 +183,18 @@ export function Sidebar({
       <div className="flex-1 overflow-y-auto scroll-thin px-2 pb-3">
         <div className="px-2.5 py-2 text-[9px] font-semibold uppercase tracking-[0.14em] text-white/35">
           Sectors · 산업
+          <p className="mt-1 font-normal tracking-normal">커버리지 종목 단순평균</p>
         </div>
         <div className="space-y-0.5">
           {sectors.map((s) => {
-            const stats = sectorStatsFromQuotes(s.id, quotes);
+            const stats = sectorStatsFromQuotes(s.id, quotes, now);
             // F6.9: the robotics sector row opens the robotics section.
             const robotics = s.id === "robotics";
             const to = robotics ? "/robotics" : `/industry/${s.id}`;
             const active = pathname === to || pathname.startsWith(`${to}/`) || (robotics && pathname.startsWith("/industry/robotics"));
-            const up = stats.avgChangePct > 0;
+            const up = (stats.avgChangePct ?? 0) > 0;
             const color =
-              !stats.count || stats.avgChangePct === 0
+              stats.avgChangePct == null || stats.avgChangePct === 0
                 ? "text-white/40"
                 : up
                   ? colors.up
@@ -202,23 +206,26 @@ export function Sidebar({
             );
             const body = (
               <>
-                <span className="truncate text-[13px]">
-                  {s.id === "us-linked" ? (
-                    <span className="text-desk-gold mr-1">★</span>
-                  ) : null}
-                  {s.nameKo}
+                <span className="flex min-w-0 flex-col gap-0.5">
+                  <span className="truncate text-[13px]">
+                    {s.id === "us-linked" ? <span className="text-desk-gold mr-1">★</span> : null}
+                    {s.nameKo}
+                  </span>
+                  <span className="text-[10px] font-normal text-white/45 truncate">
+                    {coverageLabel(stats)}
+                  </span>
                 </span>
                 <span className={cn("text-[11px] tabular shrink-0 font-medium font-mono", color)}>
-                  {stats.count ? formatPct(stats.avgChangePct) : "—"}
+                  {stats.avgChangePct != null ? formatPct(stats.avgChangePct) : "—"}
                 </span>
               </>
             );
             return robotics ? (
-              <Link key={s.id} to="/robotics" onClick={onNavigate} className={cls} data-sector-link="robotics">
+              <Link key={s.id} to="/robotics" onClick={onNavigate} className={cls} data-sector-link="robotics" data-sector-id={s.id} data-valid-count={stats.count} title={coverageLabel(stats)}>
                 {body}
               </Link>
             ) : (
-              <Link key={s.id} to="/industry/$sectorId" params={{ sectorId: s.id }} onClick={onNavigate} className={cls}>
+              <Link key={s.id} to="/industry/$sectorId" params={{ sectorId: s.id }} onClick={onNavigate} className={cls} data-sector-id={s.id} data-valid-count={stats.count} title={coverageLabel(stats)}>
                 {body}
               </Link>
             );

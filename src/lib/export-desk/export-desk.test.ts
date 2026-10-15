@@ -24,11 +24,16 @@ import {
   validateWeightConservation,
   aggregateHskToMti,
   assertNoMtiInHsParams,
+  isEvidenceBackedExposure,
   type CompanyExportExposure,
 } from "./exposure.ts";
 import { parsePeriod, parseKoreanNumber, importTradeCsv } from "./parse-import.ts";
 import { resolveRegionalCapability } from "./taxonomy.ts";
-import { assertNoSyntheticLeak } from "./demo-guard.ts";
+import { assertNoSyntheticLeak, sanitizeExportDeskSnapshot } from "./demo-guard.ts";
+import { completeMonthlyObservations } from "./observation-integrity.ts";
+import { destinationRows } from "./destinations.ts";
+import { capQuoteFromProvider, observedCapRanking } from "./cap-ranking.ts";
+import { normalizeNaverListingQuote } from "../quote-normalization.ts";
 import { aggregateProxy } from "./hs-map.ts";
 import { parseFredCsv } from "./parse-fred.ts";
 
@@ -54,7 +59,10 @@ function exp(
 test("T1 national 12M rolling default series", () => {
   const monthly = Array.from({ length: 24 }, (_, i) => 10 + i);
   const roll = calculateRolling12MSum(monthly);
-  assert.equal(roll[11], monthly.slice(0, 12).reduce((a, b) => a + b, 0));
+  assert.equal(
+    roll[11],
+    monthly.slice(0, 12).reduce((a, b) => a + b, 0),
+  );
   const idx = normalizeToBase100(roll.filter(Number.isFinite));
   assert.ok(Math.abs(idx[0]! - 100) < 1e-9);
 });
@@ -118,7 +126,8 @@ test("T4 point-in-time membership never applies today retroactively", () => {
 });
 
 test("T5 completeness enumerates non-zero categories beyond core20", () => {
-  const csv = "기간,품목,코드,수출액\n2024-01,기타,hs-99,1000000\n2024-01,반도체,semiconductors,5000000\n";
+  const csv =
+    "기간,품목,코드,수출액\n2024-01,기타,hs-99,1000000\n2024-01,반도체,semiconductors,5000000\n";
   const res = importTradeCsv(csv, "fix.csv", "MTI_MONTHLY_EXPORT");
   assert.equal(res.ok, true);
   const ids = new Set(res.rows.map((r) => r.categoryId));
@@ -145,9 +154,7 @@ test("T7 HAC on YoY path", () => {
   assert.equal(inf.insufficient, false);
   assert.ok(inf.se != null);
   const residuals = yx.filter(Number.isFinite);
-  const se = neweyWestStandardError(
-    residuals.map((v, i, a) => (i === 0 ? 0 : v - a[i - 1]!)),
-  );
+  const se = neweyWestStandardError(residuals.map((v, i, a) => (i === 0 ? 0 : v - a[i - 1]!)));
   assert.ok(se === null || se >= 0);
 });
 
@@ -174,9 +181,7 @@ test("T10 provenance fields exist on imported rows", () => {
 });
 
 test("T11 demo isolation", () => {
-  assert.throws(() =>
-    assertNoSyntheticLeak([{ sourceFile: "DEMO", vintage: "DEMO" }], false),
-  );
+  assert.throws(() => assertNoSyntheticLeak([{ sourceFile: "DEMO", vintage: "DEMO" }]));
 });
 
 test("T12 weight conservation rejects 1.3", () => {
@@ -186,6 +191,30 @@ test("T12 weight conservation rejects 1.3", () => {
   ]);
   assert.equal(r.ok, false);
   assert.match(r.error ?? "", /1\.300/);
+});
+
+test("unverified seed weights and unsupported manual mappings never enter a financial composite", () => {
+  const seed = exp({
+    ticker: "005930",
+    exportCategoryId: "semiconductors",
+    verificationStatus: "UNVERIFIED_SEED",
+    evidenceSource: ["https://example.com/report"],
+  });
+  assert.equal(isEvidenceBackedExposure(seed), false);
+  assert.equal(
+    isEvidenceBackedExposure({
+      ...seed,
+      verificationStatus: "VERIFIED_MANUAL",
+      evidenceSource: [],
+    }),
+    false,
+  );
+  assert.equal(isEvidenceBackedExposure({ ...seed, verificationStatus: "VERIFIED_MANUAL" }), true);
+  assert.equal(
+    validateWeightConservation([{ ticker: "005930", exposureWeight: Number.NaN }]).ok,
+    false,
+  );
+  assert.equal(validateWeightConservation([{ ticker: "005930", exposureWeight: -0.2 }]).ok, false);
 });
 
 test("T13 vintage parse + korean units", () => {
@@ -236,14 +265,128 @@ test("fxRateForPeriod uses monthly series, not today's spot, for history", () =>
   ];
   assert.equal(fxRateForPeriod("2018-01", series, 1400), 1060);
   assert.equal(fxRateForPeriod("2018-02", series, 1400), 1080);
-  assert.equal(fxRateForPeriod("2018-03", series, 1400), 1080);
-  assert.equal(fxRateForPeriod("2026-08", series, 1400), 1450);
+  assert.equal(fxRateForPeriod("2018-03", series, 1400), null);
+  assert.equal(fxRateForPeriod("2026-08", series, 1400), null);
   assert.equal(fxRateForPeriod("2010-01", series, 1400), null);
-  assert.equal(fxRateForPeriod("2018-01", [], 1400), 1400);
+  assert.equal(fxRateForPeriod("2018-01", [], 1400), null);
+});
+
+test("legacy persisted demo state and imports retain only real observations", () => {
+  const real = { sourceFile: "official-exports.csv", vintage: "2026-09", valueUsd: 123 };
+  const clean = sanitizeExportDeskSnapshot({
+    demoMode: true,
+    setDemoMode: "legacy",
+    observations: [{ sourceFile: "DEMO", vintage: "DEMO" }, real, { sourceFile: "synthetic.csv" }],
+    settings: { range: "5Y" },
+    exposures: [{ ticker: "005930" }],
+  });
+  assert.deepEqual(clean.observations, [real]);
+  assert.deepEqual(clean.settings, { range: "5Y" });
+  assert.deepEqual(clean.exposures, [{ ticker: "005930" }]);
+  assert.ok(!("demoMode" in clean));
+  assert.ok(!("setDemoMode" in clean));
+  assert.doesNotThrow(() => assertNoSyntheticLeak([real]));
+});
+
+test("Comtrade destination percentages require a real positive world denominator", () => {
+  const countries = [
+    { partnerCode: 842, primaryValue: 25 },
+    { partnerCode: 156, primaryValue: 75 },
+  ];
+  assert.ok(destinationRows(countries).every((row) => row.share === null));
+  assert.ok(
+    destinationRows([{ partnerCode: 0, primaryValue: 0 }, ...countries]).every(
+      (row) => row.share === null,
+    ),
+  );
+  const verified = destinationRows([{ partnerCode: 0, primaryValue: 100 }, ...countries]);
+  assert.deepEqual(
+    verified.map((row) => row.share),
+    [0.75, 0.25],
+  );
+  assert.equal(
+    destinationRows([{ partnerCode: 0, primaryValue: 10 }, countries[0]!])[0]?.share,
+    null,
+  );
+  assert.deepEqual(
+    destinationRows([{ partnerCode: 842, primaryValue: Number.POSITIVE_INFINITY }]),
+    [],
+  );
+});
+
+test("missing calendar months remain missing in rolling and year-over-year calculations", () => {
+  const rows = completeMonthlyObservations([
+    {
+      period: "2025-01",
+      categoryId: "TOTAL",
+      valueUsd: 10,
+      classification: "TOTAL",
+      sourceFile: "official.csv",
+    },
+    {
+      period: "2025-03",
+      categoryId: "TOTAL",
+      valueUsd: 30,
+      classification: "TOTAL",
+      sourceFile: "official.csv",
+    },
+    {
+      period: "2026-01",
+      categoryId: "TOTAL",
+      valueUsd: 20,
+      classification: "TOTAL",
+      sourceFile: "official.csv",
+    },
+  ]);
+  assert.equal(rows.length, 13);
+  assert.equal(rows[1]?.period, "2025-02");
+  assert.ok(Number.isNaN(rows[1]!.valueUsd));
+  assert.equal(calculateYoYGrowth(rows.map((row) => row.valueUsd))[12], 100);
+  assert.ok(Number.isNaN(calculateRolling12MSum(rows.map((row) => row.valueUsd))[12]!));
+});
+
+test("market-cap ranking retains Oct 15 observation before the Oct 16 open, never collection date", () => {
+  const received = "2026-10-16T08:30:00+09:00";
+  const source = { code: "005930", nameKo: "삼성전자", market: "KOSPI" as const, marketCap: 100_000,
+    marketCapValid: true, price: 50_000, changePct: -2, changeValid: true, marketStatus: "CLOSE",
+    tradedAt: "2026-10-15T15:30:00+09:00", fetchedAt: received };
+  const quote = capQuoteFromProvider(source, false);
+  assert.equal(quote.tradedAt, source.tradedAt);
+  assert.equal(quote.fetchedAt, received);
+  const ranked = observedCapRanking([quote], 100, Date.parse(received));
+  assert.equal(ranked.asOf, "2026-10-15");
+  assert.equal(ranked.members[0]?.asOf, "2026-10-15");
+  assert.equal(ranked.verifiedCount, 1);
+  assert.equal(observedCapRanking([quote], 100, Date.parse("2026-10-16T10:00:00+09:00")).members.length, 0, "yesterday cannot be today's intraday ranking");
+  assert.equal(observedCapRanking([{ ...quote, tradedAt: null }], 100, Date.parse(received)).asOf, null, "collection time cannot date an HTML price/capitalisation");
+  const invalid = capQuoteFromProvider({ ...source, changeValid: false }, false);
+  assert.equal(invalid.changeValid, false);
+  assert.equal(observedCapRanking([invalid], 100, Date.parse(received)).verifiedCount, 0);
+  assert.equal(observedCapRanking([{ ...quote, marketCapValid: false }], 100, Date.parse(received)).verifiedCount, 0);
+  const fund = capQuoteFromProvider({ ...source, isEtf: true }, false);
+  assert.equal(fund.isEtf, true);
+  assert.equal(observedCapRanking([fund], 100, Date.parse(received)).members.length, 0, "ETFs in the cap listing are not common-equity issuers");
+});
+
+test("dated listing cap units and trading date survive normalization into export rankings", () => {
+  // Historical public listing response captured 2026-10-15, not live test data.
+  const sourceUrl = "https://m.stock.naver.com/api/stocks/marketValue/KOSPI?page=1&pageSize=100";
+  const snapshot = normalizeNaverListingQuote({ itemCode: "005930", stockEndType: "stock", stockName: "삼성전자",
+    closePrice: "207,500", compareToPreviousClosePrice: "-24,500", compareToPreviousPrice: { code: "5" },
+    fluctuationsRatio: "-10.56", accumulatedTradingVolume: "33,002,824", marketValue: "12,131,028",
+    marketValueRaw: "1213102811160000", localTradedAt: "2026-10-15T20:20:22+09:00", marketStatus: "CLOSE" });
+  assert(snapshot && snapshot.marketCap != null);
+  assert.equal(snapshot.marketCap, 12131028.1116, "KRW raw capitalisation must become 억 KRW exactly once");
+  assert.equal(snapshot.volume, 33002824);
+  const row = capQuoteFromProvider({ ...snapshot, nameKo: "삼성전자", market: "KOSPI", marketCap: snapshot.marketCap,
+    marketCapValid: true, changeValid: true, fetchedAt: "2026-10-16T08:30:00+09:00", sourceUrl }, false);
+  const ranking = observedCapRanking([row], 100, Date.parse("2026-10-16T08:30:00+09:00"));
+  assert.equal(ranking.members[0]?.marketCap, 12131028.1116);
+  assert.equal(ranking.members[0]?.asOf, "2026-10-15");
+  assert.equal(row.sourceUrl, sourceUrl);
 });
 
 test("WAD with missing workingDays stays null (never invents 21 days)", () => {
   assert.equal(calculateWorkingDayAdjusted(210, 0), null);
   assert.equal(calculateWorkingDayAdjusted(210, 21), 10);
 });
-

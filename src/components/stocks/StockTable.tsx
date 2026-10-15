@@ -4,6 +4,7 @@ import type { SortDir, SortKey, Stock } from "@/data/types";
 import { formatPrice, formatVolume, formatMarketCap } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { isEtfTicker } from "@/lib/infer-sector";
+import { isAvailableStockQuote } from "@/lib/trade-metrics";
 import { PriceChange, PriceValue } from "./PriceChange";
 import { Sparkline } from "./Sparkline";
 import { WatchButton } from "./WatchButton";
@@ -12,26 +13,27 @@ import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 
 function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
   if (!active) return <ArrowUpDown className="size-3 opacity-40" />;
-  return dir === "asc" ? (
-    <ArrowUp className="size-3" />
-  ) : (
-    <ArrowDown className="size-3" />
-  );
+  return dir === "asc" ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />;
 }
 
-export function StockTable({
-  stocks,
-  compact = false,
-}: {
-  stocks: Stock[];
-  compact?: boolean;
-}) {
+export function StockTable({ stocks, compact = false }: { stocks: Stock[]; compact?: boolean }) {
   const [sortKey, setSortKey] = useState<SortKey>("changePct");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
   const sorted = useMemo(() => {
     const list = [...stocks];
     list.sort((a, b) => {
+      if (sortKey !== "name") {
+        const availableA =
+          isAvailableStockQuote(a) &&
+          (sortKey !== "volume" || a.volumeValid !== false) &&
+          (sortKey !== "marketCap" || a.marketCapValid !== false);
+        const availableB =
+          isAvailableStockQuote(b) &&
+          (sortKey !== "volume" || b.volumeValid !== false) &&
+          (sortKey !== "marketCap" || b.marketCapValid !== false);
+        if (availableA !== availableB) return availableA ? -1 : 1;
+      }
       let cmp = 0;
       switch (sortKey) {
         case "name":
@@ -88,7 +90,7 @@ export function StockTable({
                 className="inline-flex items-center gap-1 hover:text-foreground"
                 onClick={() => toggleSort("price")}
               >
-                현재가 <SortIcon active={sortKey === "price"} dir={sortDir} />
+                관측가 <SortIcon active={sortKey === "price"} dir={sortDir} />
               </button>
             </th>
             <th className={cn(th, "text-right")}>
@@ -102,17 +104,14 @@ export function StockTable({
             </th>
             {!compact && (
               <>
-                <th className={cn(th, "hidden md:table-cell text-center")}>
-                  추이
-                </th>
+                <th className={cn(th, "hidden md:table-cell text-center")}>추이</th>
                 <th className={cn(th, "text-right hidden lg:table-cell")}>
                   <button
                     type="button"
                     className="inline-flex items-center gap-1 hover:text-foreground"
                     onClick={() => toggleSort("volume")}
                   >
-                    거래량{" "}
-                    <SortIcon active={sortKey === "volume"} dir={sortDir} />
+                    거래량 <SortIcon active={sortKey === "volume"} dir={sortDir} />
                   </button>
                 </th>
                 <th className={cn(th, "text-right hidden lg:table-cell")}>
@@ -121,8 +120,7 @@ export function StockTable({
                     className="inline-flex items-center gap-1 hover:text-foreground"
                     onClick={() => toggleSort("marketCap")}
                   >
-                    시총{" "}
-                    <SortIcon active={sortKey === "marketCap"} dir={sortDir} />
+                    시총 <SortIcon active={sortKey === "marketCap"} dir={sortDir} />
                   </button>
                 </th>
               </>
@@ -140,28 +138,29 @@ export function StockTable({
                 <WatchButton code={st.code} />
               </td>
               <td className="px-2 py-1.5">
-                <SecurityLink code={st.code} nameKo={st.nameKo} className="group flex flex-col min-w-0">
+                <SecurityLink
+                  code={st.code}
+                  nameKo={st.nameKo}
+                  className="group flex flex-col min-w-0"
+                >
                   <span className="font-medium text-foreground group-hover:underline truncate">
                     {st.nameKo}
                   </span>
                   <span className="text-[11px] text-muted-foreground tabular">
                     {st.code} · {st.nameEn}
                   </span>
+                  <StockQuoteStamp stock={st} />
                 </SecurityLink>
               </td>
               <td className="px-2 py-1.5 text-right">
-                {st.price > 0 ? (
-                  <PriceValue
-                    value={st.price}
-                    changePct={st.changePct}
-                    size="sm"
-                  />
+                {isAvailableStockQuote(st) ? (
+                  <PriceValue value={st.price} changePct={st.changePct} size="sm" />
                 ) : (
                   <span className="text-xs text-muted-foreground">—</span>
                 )}
               </td>
               <td className="px-2 py-1.5 text-right">
-                {st.price > 0 ? (
+                {isAvailableStockQuote(st) ? (
                   <PriceChange change={st.change} changePct={st.changePct} />
                 ) : (
                   <span className="text-xs text-muted-foreground">—</span>
@@ -179,17 +178,25 @@ export function StockTable({
                           label={`${st.nameKo} 최근 ${st.sparkline.length}개 시세 추이 (네이버 시세)`}
                         />
                       ) : (
-                        <span className="text-[10px] text-muted-foreground">
-                          —
-                        </span>
+                        <span className="text-[10px] text-muted-foreground">—</span>
                       )}
                     </div>
                   </td>
                   <td className="px-2 py-1.5 text-right text-xs tabular text-muted-foreground hidden lg:table-cell">
-                    {st.volume ? formatVolume(st.volume) : "—"}
+                    {isAvailableStockQuote(st) &&
+                    st.volumeValid !== false &&
+                    Number.isFinite(st.volume) &&
+                    (st.volume > 0 || (st.volume === 0 && st.volumeValid === true))
+                      ? formatVolume(st.volume)
+                      : "—"}
                   </td>
                   <td className="px-2 py-1.5 text-right text-xs tabular text-muted-foreground hidden lg:table-cell">
-                    {st.marketCap ? formatMarketCap(st.marketCap) : "—"}
+                    {isAvailableStockQuote(st) &&
+                    st.marketCapValid !== false &&
+                    Number.isFinite(st.marketCap) &&
+                    st.marketCap > 0
+                      ? formatMarketCap(st.marketCap)
+                      : "—"}
                   </td>
                 </>
               )}
@@ -230,6 +237,7 @@ function SecurityLink({
 }
 
 export function StockMiniRow({ stock }: { stock: Stock }) {
+  const available = isAvailableStockQuote(stock);
   return (
     <SecurityLink
       code={stock.code}
@@ -238,22 +246,51 @@ export function StockMiniRow({ stock }: { stock: Stock }) {
     >
       <div className="min-w-0">
         <div className="text-sm font-medium truncate">{stock.nameKo}</div>
-        <div className="text-[11px] text-muted-foreground tabular">
-          {stock.code}
-        </div>
+        <div className="text-[11px] text-muted-foreground tabular">{stock.code}</div>
+        <StockQuoteStamp stock={stock} />
       </div>
       <div className="text-right shrink-0">
-        <PriceValue
-          value={stock.price}
-          changePct={stock.changePct}
-          size="sm"
-        />
-        <PriceChange
-          change={stock.change}
-          changePct={stock.changePct}
-          size="sm"
-        />
+        {available ? (
+          <>
+            <PriceValue value={stock.price} changePct={stock.changePct} size="sm" />
+            <PriceChange change={stock.change} changePct={stock.changePct} size="sm" />
+          </>
+        ) : (
+          <span className="text-sm text-muted-foreground" aria-label="시세 미확인">
+            —
+          </span>
+        )}
       </div>
     </SecurityLink>
+  );
+}
+
+function StockQuoteStamp({ stock }: { stock: Stock }) {
+  if (!isAvailableStockQuote(stock))
+    return <span className="block text-[10px] text-muted-foreground">시세 미확인</span>;
+  const at = stock.quoteAsOf ? new Date(stock.quoteAsOf) : null;
+  const dated =
+    at && Number.isFinite(at.getTime())
+      ? at.toLocaleString("ko-KR", {
+          timeZone: "Asia/Seoul",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : null;
+  const status =
+    stock.quoteStatus === "fresh"
+      ? "관측"
+      : stock.quoteStatus === "closed"
+        ? "최근 시세"
+        : stock.quoteStatus === "stale"
+          ? "과거 관측"
+          : "시각 미확인";
+  return (
+    <span className="block text-[10px] text-muted-foreground tabular">
+      {status}
+      {dated ? ` · ${dated} KST` : ""}
+    </span>
   );
 }

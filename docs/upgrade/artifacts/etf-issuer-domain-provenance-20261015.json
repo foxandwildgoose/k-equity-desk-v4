@@ -1,0 +1,169 @@
+{
+  "date": "2026-10-15",
+  "scope": "35 Korean ETFs across nine unregistered brands; read-only public evidence research",
+  "sourceClassification": "Public third-party GitHub source; official issuer content unavailable due CONNECT 403 policy denial",
+  "officialContentVerified": 0,
+  "productUrlCandidates": [
+    {
+      "brand": "UNICORN",
+      "ticker": "494220",
+      "name": "UNICORN SK하이닉스밸류체인액티브",
+      "url": "https://www.hyundaiam.com/kor/HD-KP-FG/HD-KP-FG-07-D.html?id=2682049",
+      "status": "third-party-source-backed candidate; NOT official-verified",
+      "evidence": [
+        {
+          "url": "https://github.com/filterys/etf-weekly-tracker/blob/7b74f1412dc1e6a1d3eef66a74313309d7b8fc19/config/etfs.py#L31",
+          "localFile": "/workspace/minor-issuer-research/hyundai-config.py",
+          "line": 31,
+          "fact": "ticker494220 and exact product name map to view_id2682049"
+        },
+        {
+          "url": "https://github.com/filterys/etf-weekly-tracker/blob/7b74f1412dc1e6a1d3eef66a74313309d7b8fc19/fetch_daily.py#L426",
+          "localFile": "/workspace/minor-issuer-research/hyundai-fetch.py",
+          "line": 426,
+          "fact": "constructs issuer product URL using view_id"
+        }
+      ]
+    }
+  ],
+  "brands": [
+    {
+      "brand": "MIDAS",
+      "universeCount": 6,
+      "officialRootCandidate": "https://www.midasasset.com/",
+      "domainEvidence": {
+        "url": "https://github.com/bksgyp/etf_reader/blob/10635677bcc74aca46a69eaa766954aa65950685/scripts/download-issuer-logos.mjs#L11",
+        "localFile": "/workspace/minor-issuer-research/issuer-logo-domains.mjs",
+        "line": 11
+      },
+      "officialRootStatus": "blocked CONNECT403",
+      "catalogUrl": null,
+      "notes": "Root navigation URL only; no official product catalog path verified."
+    },
+    {
+      "brand": "파워",
+      "universeCount": 6,
+      "officialRootCandidate": "https://www.kyoboaxa-im.co.kr/",
+      "domainEvidence": {
+        "url": "https://github.com/bksgyp/etf_reader/blob/10635677bcc74aca46a69eaa766954aa65950685/scripts/download-issuer-logos.mjs#L7",
+        "localFile": "/workspace/minor-issuer-research/issuer-logo-domains.mjs",
+        "line": 7
+      },
+      "officialRootStatus": "blocked CONNECT403",
+      "catalogUrl": null,
+      "notes": "Root navigation URL only; no official product catalog path verified."
+    },
+    {
+      "brand": "UNICORN",
+      "universeCount": 5,
+      "officialRootCandidate": "https://www.hyundaiam.com/",
+      "domainEvidence": {
+        "url": "https://github.com/bksgyp/etf_reader/blob/10635677bcc74aca46a69eaa766954aa65950685/scripts/download-issuer-logos.mjs#L33",
+        "localFile": "/workspace/minor-issuer-research/issuer-logo-domains.mjs",
+        "line": 33
+      },
+      "officialRootStatus": "blocked CONNECT403",
+      "catalogUrl": null,
+      "notes": "Root navigation URL only; no official product catalog path verified."
+    },
+    {
+      "brand": "DAISHIN",
+      "universeCount": 4,
+      "officialRootCandidate": "https://asset.daishin.com/",
+      "domainEvidence": {
+        "url": "https://github.com/bksgyp/etf_reader/blob/10635677bcc74aca46a69eaa766954aa65950685/scripts/download-issuer-logos.mjs#L8",
+        "localFile": "/workspace/minor-issuer-research/issuer-logo-domains.mjs",
+        "line": 8
+      },
+      "officialRootStatus": "blocked CONNECT403",
+      "catalogUrl": null,
+      "notes": "Root navigation URL only; no official product catalog path verified."
+    },
+    {
+      "brand": "DS",
+      "universeCount": 2,
+      "officialRootCandidate": null,
+      "domainEvidence": null,
+      "officialRootStatus": "not established",
+      "catalogUrl": null,
+      "notes": "No catalog path or opaque product ID guessed. DS official domain not established."
+    },
+    {
+      "brand": "아이엠에셋",
+      "universeCount": 1,
+      "officialRootCandidate": "https://www.im-fund.com/",
+      "domainEvidence": {
+        "url": "https://github.com/bksgyp/etf_reader/blob/10635677bcc74aca46a69eaa766954aa65950685/scripts/download-issuer-logos.mjs#L19",
+        "localFile": "/workspace/minor-issuer-research/issuer-logo-domains.mjs",
+        "line": 19
+      },
+      "officialRootStatus": "blocked CONNECT403",
+      "catalogUrl": null,
+      "notes": "Root navigation URL only; no official product catalog path verified."
+    },
+    {
+      "brand": "에셋플러스",
+      "universeCount": 9,
+      "officialRootCandidate": "https://www.assetplus.co.kr/",
+      "domainEvidence": {
+        "url": "https://github.com/bksgyp/etf_reader/blob/10635677bcc74aca46a69eaa766954aa65950685/scripts/download-issuer-logos.mjs#L20",
+        "localFile": "/workspace/minor-issuer-research/issuer-logo-domains.mjs",
+        "line": 20
+      },
+      "officialRootStatus": "blocked CONNECT403",
+      "catalogUrl": null,
+      "notes": "Root navigation URL only; no official product catalog path verified."
+    },
+    {
+      "brand": "KCGI",
+      "universeCount": 1,
+      "officialRootCandidate": "https://kcgiam.com/",
+      "domainEvidence": {
+        "url": "https://github.com/bksgyp/etf_reader/blob/10635677bcc74aca46a69eaa766954aa65950685/scripts/download-issuer-logos.mjs#L25",
+        "localFile": "/workspace/minor-issuer-research/issuer-logo-domains.mjs",
+        "line": 25
+      },
+      "officialRootStatus": "blocked CONNECT403",
+      "catalogUrl": null,
+      "notes": "Root navigation URL only; no official product catalog path verified."
+    },
+    {
+      "brand": "더제이",
+      "universeCount": 1,
+      "officialRootCandidate": "https://www.thejasset.com/",
+      "domainEvidence": {
+        "url": "https://github.com/bksgyp/etf_reader/blob/10635677bcc74aca46a69eaa766954aa65950685/scripts/download-issuer-logos.mjs#L9",
+        "localFile": "/workspace/minor-issuer-research/issuer-logo-domains.mjs",
+        "line": 9
+      },
+      "officialRootStatus": "blocked CONNECT403",
+      "catalogUrl": null,
+      "notes": "Root navigation URL only; no official product catalog path verified."
+    }
+  ],
+  "blockedHosts": [
+    "www.midasasset.com",
+    "www.kyoboaxa-im.co.kr",
+    "www.hyundaiam.com",
+    "asset.daishin.com",
+    "www.im-fund.com",
+    "www.assetplus.co.kr",
+    "kcgiam.com",
+    "www.thejasset.com"
+  ],
+  "directProbeArtifact": "/workspace/minor-issuer-research/official-root-probes.json",
+  "sourceSha256": {
+    "issuer-logo-domains.mjs": "b43ce5f6986da5ffa03d78c0940549c9e0d7b1e4ce1f16330f85a49267da08bc",
+    "issuer-manifest.json": "f2288b30bccc809c53c2711c97d9d2337eaf45db39da91a57ff379f9c5aec2cf",
+    "hyundai-config.py": "c789454bf18cde5aa408a77743567d54c64bc179b5387cf4a5ace7db5b54497b",
+    "hyundai-fetch.py": "90670ed6594858a9c7750c1f0a4857fdc577745b63049da9fe0cbd3bb25fa856"
+  },
+  "constraints": "Repository, database, Git state, secrets, network policy, TLS, proxy routes unchanged. Direct blocked hosts were not retried by alternate routes.",
+  "additionalDbDomainCandidate": {
+    "officialRootCandidate": "https://www.db-asset.co.kr/",
+    "evidenceUrl": "https://github.com/bksgyp/etf_reader/blob/10635677bcc74aca46a69eaa766954aa65950685/scripts/download-issuer-logos.mjs#L10",
+    "evidenceFact": "Source maps 디비자산운용 to www.db-asset.co.kr",
+    "status": "one normal HTTPS probe failed CONNECT403; direct identity unverified",
+    "headersArtifact": "/workspace/minor-issuer-research/db-root.headers"
+  }
+}

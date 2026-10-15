@@ -52,10 +52,7 @@ export function calculateRolling12MSum(values: number[], window = 12): number[] 
   });
 }
 
-export function calculateWorkingDayAdjusted(
-  value: number,
-  workingDays: number,
-): number | null {
+export function calculateWorkingDayAdjusted(value: number, workingDays: number): number | null {
   if (!(workingDays > 0) || !Number.isFinite(value)) return null;
   return value / workingDays;
 }
@@ -113,7 +110,7 @@ export function calculateSpearman(x: number[], y: number[]): number | null {
   const rank = (arr: number[]) => {
     const sorted = arr.map((v, i) => ({ v, i })).sort((a, b) => a.v - b.v);
     const r = new Array<number>(arr.length);
-    for (let i = 0; i < sorted.length; ) {
+    for (let i = 0; i < sorted.length;) {
       let j = i;
       while (j < sorted.length && sorted[j]!.v === sorted[i]!.v) j++;
       const avg = (i + j - 1) / 2 + 1;
@@ -122,17 +119,10 @@ export function calculateSpearman(x: number[], y: number[]): number | null {
     }
     return r;
   };
-  return calculatePearson(
-    rank(p.map((v) => v[0])),
-    rank(p.map((v) => v[1])),
-  );
+  return calculatePearson(rank(p.map((v) => v[0])), rank(p.map((v) => v[1])));
 }
 
-export function calculatePartialCorrelation(
-  x: number[],
-  y: number[],
-  z: number[],
-): number | null {
+export function calculatePartialCorrelation(x: number[], y: number[], z: number[]): number | null {
   const rxy = calculatePearson(x, y);
   const rxz = calculatePearson(x, z);
   const ryz = calculatePearson(y, z);
@@ -201,10 +191,7 @@ export function neweyWestStandardError(series: number[], lags = 3): number | nul
   return Math.sqrt(hac / n);
 }
 
-export function benjaminiHochbergFDR(
-  pValues: number[],
-  q = 0.1,
-): boolean[] {
+export function benjaminiHochbergFDR(pValues: number[], q = 0.1): boolean[] {
   const idx = pValues.map((p, i) => ({ p, i })).sort((a, b) => a.p - b.p);
   const keep = new Array<boolean>(pValues.length).fill(false);
   const m = pValues.length;
@@ -247,10 +234,7 @@ function variance(x: number[]): number {
   return x.reduce((a, b) => a + (b - m) ** 2, 0) / (x.length - 1);
 }
 
-export function calculateExportSurprise(
-  actual: number,
-  consensus: number | null,
-): number | null {
+export function calculateExportSurprise(actual: number, consensus: number | null): number | null {
   if (consensus == null || !Number.isFinite(actual) || !Number.isFinite(consensus)) {
     return null;
   }
@@ -263,23 +247,18 @@ export function convertUsdKrw(usd: number, fx: number): number | null {
   return usd * fx;
 }
 
-/** Pick the FX rate valid for a YYYY-MM period. Never reuse today's spot for history. */
+/** Require the same month's observed FX. Missing history remains unknown. */
 export function fxRateForPeriod(
   period: string,
   series: { date: string; value: number }[],
-  spot?: number,
+  _spot?: number,
 ): number | null {
   const ym = period.slice(0, 7);
-  if (!ym) return null;
+  if (!/^\d{4}-(?:0[1-9]|1[0-2])$/.test(ym)) return null;
   const sorted = [...series]
-    .filter((r) => r.value > 0 && r.date)
+    .filter((r) => Number.isFinite(r.value) && r.value > 0 && r.date)
     .sort((a, b) => a.date.localeCompare(b.date)); // ked-allow-string-date-sort: single-format time series
-  if (!sorted.length) return spot && spot > 0 ? spot : null;
-  const exact = sorted.find((r) => r.date.slice(0, 7) === ym);
-  if (exact) return exact.value;
-  const prior = sorted.filter((r) => r.date.slice(0, 7) <= ym).at(-1);
-  if (prior) return prior.value;
-  return null;
+  return sorted.filter((r) => r.date.slice(0, 7) === ym).at(-1)?.value ?? null;
 }
 
 export function alignByReleaseDate<T extends { period: string; releasedAt?: string }>(
@@ -287,8 +266,8 @@ export function alignByReleaseDate<T extends { period: string; releasedAt?: stri
   mode: "OBSERVATION" | "RELEASE",
 ): T[] {
   if (mode === "OBSERVATION") return [...rows].sort((a, b) => a.period.localeCompare(b.period)); // ked-allow-string-date-sort: single-format time series
-  return [...rows].sort((a, b) =>
-    (a.releasedAt ?? a.period).localeCompare(b.releasedAt ?? b.period), // ked-allow-string-date-sort: single-format time series
+  return [...rows].sort(
+    (a, b) => (a.releasedAt ?? a.period).localeCompare(b.releasedAt ?? b.period), // ked-allow-string-date-sort: single-format time series
   );
 }
 

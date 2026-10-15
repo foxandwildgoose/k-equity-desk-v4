@@ -20,6 +20,7 @@ import {
   sampleMean,
   sampleSigma,
   sharesOnPriceBasis,
+  statsOf,
   trailingMultiple,
   evMultiple,
   yahooUsSymbol,
@@ -33,6 +34,59 @@ test("sample sigma is n-1 and percentile counts values at or below current", () 
   assert.equal(percentileRank([10, 20, 30, 40], 10), 25);
   assert.equal(percentileRank([10, 20, 30, 40], 40), 100);
   assert.equal(percentileRank([10, -5, 20], -5), null);
+});
+
+test("invalid latest valuation leaves current statistics unavailable without losing historical statistics", () => {
+  for (const latest of [null, -4, 0, NaN, Infinity]) {
+    const stats = statsOf([10, 20, 30, latest]);
+    assert.equal(stats.current, null, `latest ${latest}`);
+    assert.equal(stats.percentile, null, `latest ${latest}`);
+    assert.equal(stats.n, 3);
+    assert.equal(stats.mean, 20);
+    assert.equal(stats.sigma, 10);
+    assert.equal(stats.p50, 20);
+  }
+  const latestValid = statsOf([10, null, 30, 20]);
+  assert.equal(latestValid.current, 20);
+  assert.equal(latestValid.percentile, (2 / 3) * 100);
+});
+
+test("empty or entirely invalid valuation history cannot supply a current multiple", () => {
+  for (const values of [[], [null], [-4, 0, null]]) {
+    const stats = statsOf(values);
+    assert.equal(stats.current, null);
+    assert.equal(stats.percentile, null);
+    assert.equal(stats.mean, null);
+    assert.equal(stats.sigma, null);
+    assert.equal(stats.n, 0);
+  }
+});
+
+test("a newly loss-making stock never presents its previous profitable PER as current after reslicing", () => {
+  const annuals = [
+    { year: 2024, periodEnd: "2024-12-31", eps: 10 },
+    { year: 2025, periodEnd: "2025-12-31", eps: -2 },
+  ].map((row) => ({
+    ...row, estimate: false, per: null, ebitdaEok: null, salesEok: null,
+    evEok: null, price: null, shares: null, debtEok: null, evEbitda: null,
+  }));
+  const pack = buildValuationPack({
+    code: "005930", annuals, consensus: null,
+    months: [
+      { date: "2025-10-31", price: 100 },
+      { date: "2025-11-30", price: 120 },
+      { date: "2025-12-31", price: 80 },
+    ],
+  });
+  assert.deepEqual(pack.per.points.map((point) => point.value), [10, 12, null]);
+  assert.equal(pack.window.to, "2025-12-31");
+  assert.equal(pack.per.stats.current, null);
+  assert.equal(pack.per.stats.percentile, null);
+  assert.equal(pack.per.stats.mean, 11);
+  const sliced = resliceValuation(pack, "2025-11-30");
+  assert.equal(sliced.per.stats.current, null);
+  assert.equal(sliced.per.stats.percentile, null);
+  assert.equal(sliced.per.stats.mean, 12);
 });
 
 test("expanding percentile ignores the future and waits for 8 prints", () => {
@@ -368,6 +422,22 @@ test("Nasdaq forecast uses the next four quarters as NTM, not a made-up history"
   });
   assert.equal(yearlyOnly?.horizon, "fy1");
   assert.equal(yearlyOnly?.eps, 9.25);
+});
+
+test("Nasdaq NTM includes loss/zero quarters and never substitutes later positive quarters", () => {
+  const payload = (values: unknown[]) => ({ data: { quarterlyForecast: { rows: values.map((value, index) => ({
+    fiscalEnd: ["Oct 2026", "Jan 2027", "Apr 2027", "Jul 2027", "Oct 2027"][index], consensusEPSForecast: value,
+  })) } } });
+  assert.equal(parseNasdaqEarningsForecast(payload([-1, 2, 2, 2, 99]))?.eps, 5);
+  assert.equal(parseNasdaqEarningsForecast(payload([0, 2, 2, 2, 99]))?.eps, 6);
+  assert.equal(parseNasdaqEarningsForecast(payload([-9, 2, 2, 2, 99])), null);
+  assert.equal(parseNasdaqEarningsForecast(payload([null, 2, 2, 2, 99])), null);
+  assert.equal(parseNasdaqEarningsForecast(payload([" ", 2, 2, 2, 99])), null);
+  assert.equal(parseNasdaqEarningsForecast(payload([false, 2, 2, 2, 99])), null);
+  const missingWithAnnual = payload([null, 2, 2, 2, 99]) as { data: Record<string, unknown> };
+  missingWithAnnual.data.yearlyForecast = { rows: [{ fiscalEnd: "Jan 2027", consensusEPSForecast: 7, noOfEstimates: 10 }] };
+  assert.equal(parseNasdaqEarningsForecast(missingWithAnnual)?.horizon, "fy1");
+  assert.equal(parseNasdaqEarningsForecast(missingWithAnnual)?.eps, 7);
 });
 
 test("US sales join a nearby period end and an alternate revenue tag", () => {

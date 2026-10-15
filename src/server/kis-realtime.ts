@@ -1,4 +1,6 @@
 import WebSocket from "ws";
+import { parseKisTradeFrame, type KisRealtimeTrade } from "../lib/kis-trade.ts";
+export type { KisRealtimeTrade } from "../lib/kis-trade.ts";
 
 /**
  * Korea Investment & Securities (KIS) domestic-stock KRX realtime adapter.
@@ -7,27 +9,6 @@ import WebSocket from "ws";
  * Official KRX realtime trade TR: H0STCNT0.
  * Keep the Naver adapter as a snapshot/failover source, not as a tick stream.
  */
-
-export type KisRealtimeTrade = {
-  code: string;
-  tradeTime: string;
-  price: number;
-  change: number;
-  changePct: number;
-  open: number;
-  high: number;
-  low: number;
-  ask: number;
-  bid: number;
-  tradeVolume: number;
-  accumulatedVolume: number;
-  accumulatedValue: number;
-  tradeStrength: number;
-  businessDate: string;
-  marketControlCode: string;
-  source: "kis-krx-websocket";
-  receivedAt: string;
-};
 
 export type KisStreamStatus = {
   enabled: boolean;
@@ -41,16 +22,10 @@ type Listener = (trade: KisRealtimeTrade) => void;
 type StatusListener = (status: KisStreamStatus) => void;
 
 const APPROVAL_URL =
-  process.env.KIS_APPROVAL_URL ??
-  "https://openapi.koreainvestment.com:9443/oauth2/approval";
+  process.env.KIS_APPROVAL_URL ?? "https://openapi.koreainvestment.com:9443/oauth2/approval";
 const WS_URL = process.env.KIS_WS_URL ?? "ws://ops.koreainvestment.com:21000";
 const TR_ID = "H0STCNT0";
 const APPROVAL_TTL_MS = 12 * 60 * 60 * 1000;
-
-function n(v: unknown): number {
-  const out = Number(String(v ?? "").replace(/,/g, ""));
-  return Number.isFinite(out) ? out : 0;
-}
 
 function enabled(): boolean {
   return Boolean(process.env.KIS_APP_KEY && process.env.KIS_APP_SECRET);
@@ -65,6 +40,7 @@ async function getApprovalKey(): Promise<string> {
   }
 
   const res = await fetch(APPROVAL_URL, {
+    signal: AbortSignal.timeout(10_000),
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
@@ -80,39 +56,7 @@ async function getApprovalKey(): Promise<string> {
   return json.approval_key;
 }
 
-function parseTradePayload(payload: string): KisRealtimeTrade | null {
-  const f = payload.split("^");
-  if (f.length < 46) return null;
-  const code = f[0]?.trim();
-  if (!code || !/^\d{6}$/.test(code)) return null;
-  const signCode = f[3] ?? "3";
-  const direction =
-    signCode === "4" || signCode === "5" ? -1 : signCode === "3" ? 0 : 1;
-  const change = direction * Math.abs(n(f[4]));
-  const changePct = direction * Math.abs(n(f[5]));
-  return {
-    code,
-    tradeTime: f[1] ?? "",
-    price: n(f[2]),
-    change,
-    changePct,
-    open: n(f[7]),
-    high: n(f[8]),
-    low: n(f[9]),
-    ask: n(f[10]),
-    bid: n(f[11]),
-    tradeVolume: n(f[12]),
-    accumulatedVolume: n(f[13]),
-    accumulatedValue: n(f[14]),
-    tradeStrength: n(f[18]),
-    businessDate: f[33] ?? "",
-    marketControlCode: f[44] ?? "",
-    source: "kis-krx-websocket",
-    receivedAt: new Date().toISOString(),
-  };
-}
-
-class KisRealtimeHub {
+export class KisRealtimeHub {
   private socket: WebSocket | null = null;
   private listeners = new Map<string, Set<Listener>>();
   private statusListeners = new Set<StatusListener>();
@@ -127,9 +71,7 @@ class KisRealtimeHub {
       connected: this.socket?.readyState === WebSocket.OPEN,
       provider: "kis",
       source: "kis-krx-websocket",
-      message: enabled()
-        ? undefined
-        : "KIS_APP_KEY / KIS_APP_SECRET 미설정 — 스냅샷 모드",
+      message: enabled() ? undefined : "KIS_APP_KEY / KIS_APP_SECRET 미설정 — 스냅샷 모드",
     };
   }
 
@@ -150,8 +92,14 @@ class KisRealtimeHub {
 
     if (enabled()) {
       const wasOpen = this.socket?.readyState === WebSocket.OPEN;
-      await this.ensureConnected();
-      if (first && wasOpen) this.sendSubscription(code, "1");
+      try {
+        await this.ensureConnected();
+        if (first && wasOpen) this.sendSubscription(code, "1");
+      } catch (error) {
+        set.delete(listener);
+        if (!set.size) this.listeners.delete(code);
+        throw error;
+      }
     }
 
     return () => {
@@ -161,6 +109,11 @@ class KisRealtimeHub {
       if (current.size === 0) {
         this.listeners.delete(code);
         this.sendSubscription(code, "0");
+        if (!this.listeners.size) {
+          if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+          this.reconnectTimer = null;
+          this.socket?.close();
+        }
       }
     };
   }
@@ -183,10 +136,10 @@ class KisRealtimeHub {
       await new Promise<void>((resolve, reject) => {
         const ws = new WebSocket(WS_URL);
         this.socket = ws;
-        const timeout = setTimeout(
-          () => reject(new Error("KIS WebSocket connect timeout")),
-          10_000,
-        );
+        const timeout = setTimeout(() => {
+          ws.terminate();
+          reject(new Error("KIS WebSocket connect timeout"));
+        }, 10_000);
 
         ws.once("open", () => {
           clearTimeout(timeout);
@@ -204,6 +157,7 @@ class KisRealtimeHub {
         });
         ws.on("close", () => {
           clearTimeout(timeout);
+          if (this.socket !== ws) return;
           this.socket = null;
           this.connectPromise = null;
           this.emitStatus("KIS 연결 끊김 — 재연결 대기");
@@ -231,7 +185,7 @@ class KisRealtimeHub {
     const delay = Math.min(30_000, 1_000 * 2 ** this.reconnectAttempt++);
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
-      void this.ensureConnected().catch(() => this.scheduleReconnect());
+      if (this.listeners.size) void this.ensureConnected().catch(() => this.scheduleReconnect());
     }, delay);
   }
 
@@ -255,10 +209,8 @@ class KisRealtimeHub {
     if (raw.startsWith("0|") || raw.startsWith("1|")) {
       const parts = raw.split("|");
       if (parts[1] !== TR_ID) return;
-      const trade = parseTradePayload(parts[3] ?? "");
-      if (!trade) return;
-      for (const listener of this.listeners.get(trade.code) ?? []) {
-        listener(trade);
+      for (const trade of parseKisTradeFrame(raw)) {
+        for (const listener of this.listeners.get(trade.code) ?? []) listener(trade);
       }
       return;
     }

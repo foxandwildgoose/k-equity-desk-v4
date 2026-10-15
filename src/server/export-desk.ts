@@ -1,8 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { fetchUsdKrw } from "@/server/etf-market";
-import { fetchOhlc, fetchRealtimeQuotes } from "@/server/naver-market";
+import { fetchOhlc, fetchRealtimeQuotes, fetchDatedNaverMarketListing } from "@/server/naver-market";
 import { UNIVERSE } from "@/data/universe";
+import { capQuoteFromProvider, observedCapRanking, type ExportCapQuote } from "@/lib/export-desk/cap-ranking";
 
 export type MacroPoint = { date: string; value: number };
 
@@ -88,101 +89,27 @@ function isPreferredName(name: string): boolean {
   return /우$|우B$|우C$|우선|1우|2우|3우/.test(name.replace(/\s/g, ""));
 }
 
-export async function fetchKospiMarketSum(pages = 4): Promise<
-  {
-    ticker: string;
-    name: string;
-    marketCap: number;
-    price: number;
-    changePct: number;
-    isPreferred: boolean;
-  }[]
-> {
-  const rows: {
-    ticker: string;
-    name: string;
-    marketCap: number;
-    price: number;
-    changePct: number;
-    isPreferred: boolean;
-  }[] = [];
-  const seen = new Set<string>();
-  for (let page = 1; page <= pages; page++) {
-    const url = `https://finance.naver.com/sise/sise_market_sum.naver?sosok=0&page=${page}`;
-    const res = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0 KoreaExportDesk/1.0" },
-    });
-    if (!res.ok) break;
-    const buf = await res.arrayBuffer();
-    let html: string;
-    try {
-      html = new TextDecoder("euc-kr").decode(buf);
-    } catch {
-      html = new TextDecoder("utf-8").decode(buf);
-    }
-    const table = html.match(/<table[^>]*class="type_2"[\s\S]*?<\/table>/i)?.[0] ?? "";
-    const trs = table.match(/<tr[^>]*>[\s\S]*?<\/tr>/gi) ?? [];
-    for (const tr of trs) {
-      const code = tr.match(/code=(\d{6})/)?.[1];
-      const name = tr.match(/class="tltle">([^<]+)/)?.[1]?.trim();
-      if (!code || !name || seen.has(code)) continue;
-      const nums = [...tr.matchAll(/<td class="number">([\s\S]*?)<\/td>/gi)].map((m) =>
-        Number(
-          m[1]!.replace(/<[^>]+>/g, "")
-            .replace(/,/g, "")
-            .replace(/[^\d.+-]/g, "")
-            .trim(),
-        ),
-      );
-      const price = nums[0] ?? 0;
-      const changePct = nums[2] ?? 0;
-      const marketCap = nums[4] ?? 0;
-      if (!(marketCap > 0)) continue;
-      seen.add(code);
-      rows.push({
-        ticker: code,
-        name,
-        marketCap,
-        price,
-        changePct,
-        isPreferred: isPreferredName(name),
-      });
-    }
-  }
-  return rows;
+/** Published listing rows carry their own price, market cap, volume and trade time. */
+export async function fetchKospiMarketSum(pages = 4): Promise<ExportCapQuote[]> {
+  const rows = await fetchDatedNaverMarketListing("KOSPI", pages);
+  return rows.filter(row => row.isEtf !== true).map(row => capQuoteFromProvider(row, isPreferredName(row.nameKo)));
 }
 
 export const getKospiCapQuotes = createServerFn({ method: "GET" }).handler(async () => {
   const ranked = await fetchKospiMarketSum(4).catch(() => []);
-  if (ranked.length > 0) {
-    return {
-      quotes: ranked.map((q) => ({
-        ticker: q.ticker,
-        name: q.name,
-        price: q.price,
-        changePct: q.changePct,
-        marketCap: q.marketCap,
-        market: "KOSPI" as const,
-        isPreferred: q.isPreferred,
-      })),
-      fetchedAt: new Date().toISOString(),
-      source: "Naver 시가총액 (KOSPI)",
-    };
-  }
-  const kospi = UNIVERSE.filter((u) => u.market === "KOSPI").map((u) => u.code);
-  const quotes = await fetchRealtimeQuotes(kospi);
+  const fallback = ranked.length ? [] : await fetchRealtimeQuotes(UNIVERSE.filter(row => row.market === "KOSPI").map(row => row.code)).catch(() => []);
+  const quotes = ranked.length ? ranked : fallback.filter(row => row.isEtf !== true).map(row => capQuoteFromProvider(row, isPreferredName(row.nameKo)));
+  const verified = observedCapRanking(quotes, 200);
   return {
-    quotes: quotes.map((q) => ({
-      ticker: q.code,
-      name: q.nameKo,
-      price: q.price,
-      changePct: q.changePct,
-      marketCap: q.marketCap ?? 0,
-      market: q.market,
-      isPreferred: false,
-    })),
+    quotes,
+    asOf: verified.asOf,
+    observedAt: verified.observedAt,
+    dateBasis: verified.asOf ? "provider-trade-time" as const : "unknown" as const,
+    verifiedCount: verified.verifiedCount,
+    totalCount: quotes.length,
     fetchedAt: new Date().toISOString(),
-    source: "Naver realtime fallback",
+    source: ranked.length ? "Naver KOSPI 시총 목록 · 동일 응답의 시총·거래시각" : "Naver 앱 커버리지 시총 · 관측일 확인",
+    note: "확인된 종목 범위의 시총 정렬입니다. ETF·우선주 및 거래 기준일이나 유효 시총이 없는 관측값은 순위에서 제외하며 전체 KOSPI 순위를 보장하지 않습니다.",
   };
 });
 

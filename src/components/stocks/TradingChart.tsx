@@ -20,6 +20,7 @@ import {
 import { ProChart, type ChartMarkerInput } from "@/components/charts/pro/ProChart";
 import { barTimeOf } from "@/lib/charts/bar-time";
 import type { ChartEventInput } from "@/lib/charts/chart-events";
+import type { DailyChartFreshness } from "@/lib/charts/daily-reconciliation";
 import { Loader2 } from "lucide-react";
 
 const INTERVALS: { id: ChartInterval; label: string }[] = [
@@ -141,6 +142,8 @@ export function TradingChart({
 
   const bars = useMemo(() => data?.bars ?? [], [data?.bars]);
   const source = data?.source ?? "";
+  const dailyFreshness = interval === "day" && data && "freshness" in data
+    ? data.freshness as DailyChartFreshness | undefined : undefined;
 
   const street = useMemo(() => {
     if (bars.length < 2) return null;
@@ -192,7 +195,9 @@ export function TradingChart({
   );
 
   const intervalKey = interval === "minute" ? `minute-${minuteSize}` : interval;
-  const modeLabel = interval === "minute" ? (isUs ? "분봉 · Yahoo 지연 시세" : "분봉 · 비공식 경로(지연 가능)") : isUs ? "Yahoo 가격 조정 · 당일 봉 지연" : "일봉 이상 · 당일 봉은 지연·잠정";
+  const modeLabel = interval === "minute" ? (isUs ? "분봉 · Yahoo 지연 시세" : "분봉 · 비공식 경로(지연 가능)")
+    : interval === "day" && dailyFreshness ? dailyFreshness.note
+    : isUs ? "Yahoo 가격 조정 · 실제 거래일 기준" : "공급자 실제 거래일 기준 · 장중 봉 잠정";
 
   const controls = (
     <div className="flex flex-wrap items-center gap-1">
@@ -244,6 +249,19 @@ export function TradingChart({
         </div>
       )}
       <div className={view === "price" ? "contents" : "hidden"} aria-hidden={view !== "price"}>
+        {dailyFreshness && (
+          <div
+            role="status"
+            aria-live="polite"
+            data-testid="daily-chart-freshness"
+            data-status={dailyFreshness.status}
+            data-market-date={dailyFreshness.marketDate}
+            data-last-trading-date={dailyFreshness.lastActualTradingDate ?? ""}
+            className={cn("border-b border-border px-3 py-2 text-xs leading-relaxed", dailyFreshness.status === "not-current" || dailyFreshness.status === "unavailable" ? "text-primary" : "text-muted-foreground")}
+          >
+            {dailyFreshness.note}
+          </div>
+        )}
         <ProChart
           code={isUs ? code.toUpperCase() : code}
           market={mk}
@@ -289,7 +307,7 @@ export function TradingChart({
         <RsiDivergenceStrip items={divergences} barCount={bars.length} formatValue={px} />
         <MacdCrossStrip items={macdCrosses} barCount={bars.length} />
         <div className="border-t border-border bg-muted/20 px-3 py-1 text-[10px] leading-relaxed text-muted-foreground">
-          차트 OHLC: {isUs ? "Yahoo 조정계수 적용 · 미국 정규장(시간외 버튼으로 프리·애프터 포함) · 뉴욕 시각" : "Yahoo/네이버 비공식 경로"} · 체결 스트림과 마지막 봉이 어긋날 수 있음 · 실주문 전 HTS 재확인 · 그림·지표는 종목·주기별로 이 브라우저에 저장
+          차트 OHLC: {isUs ? "Yahoo 조정계수 적용 · 미국 정규장(시간외 버튼으로 프리·애프터 포함) · 뉴욕 시각" : "Yahoo/네이버 공급자 실제 거래일 · 한국 시각"} · 일봉은 실제 시가·고가·저가·종가만 표시 · 실주문 전 HTS 재확인 · 그림·지표는 종목·주기별로 이 브라우저에 저장
           {interval === "minute" ? " · 분봉은 봉주기별 최대 기간 지원(1m≤7일, 5~30m≤60일, 60m≤2년)" : ""}
         </div>
       </div>

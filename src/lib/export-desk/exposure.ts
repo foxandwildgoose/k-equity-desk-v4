@@ -1,17 +1,9 @@
 export type ValueChainRole =
-  | "MATERIALS"
-  | "EQUIPMENT"
-  | "COMPONENTS"
-  | "DEVICE_MAKER"
-  | "DOWNSTREAM"
-  | "LOGISTICS";
+  "MATERIALS" | "EQUIPMENT" | "COMPONENTS" | "DEVICE_MAKER" | "DOWNSTREAM" | "LOGISTICS";
 
 export type ProvisionalTier = "PRIMARY" | "MATERIAL" | "MINOR";
 
-export type VerificationStatus =
-  | "VERIFIED_DART"
-  | "VERIFIED_MANUAL"
-  | "UNVERIFIED_SEED";
+export type VerificationStatus = "VERIFIED_DART" | "VERIFIED_MANUAL" | "UNVERIFIED_SEED";
 
 export interface CompanyExportExposure {
   ticker: string;
@@ -51,6 +43,13 @@ export function validateWeightConservation(
   const sums = new Map<string, number>();
   for (const r of rows) {
     if (r.active === false) continue;
+    if (!Number.isFinite(r.exposureWeight) || r.exposureWeight < 0 || r.exposureWeight > 1) {
+      return {
+        ok: false,
+        ticker: r.ticker,
+        error: "노출 가중치는 0~1 사이의 유효한 숫자여야 합니다.",
+      };
+    }
     sums.set(r.ticker, (sums.get(r.ticker) ?? 0) + r.exposureWeight);
   }
   for (const [ticker, sum] of sums) {
@@ -64,6 +63,17 @@ export function validateWeightConservation(
     }
   }
   return { ok: true };
+}
+
+/** Descriptive seed tiers cannot become numeric financial exposure evidence. */
+export function isEvidenceBackedExposure(row: CompanyExportExposure): boolean {
+  return (
+    row.verificationStatus !== "UNVERIFIED_SEED" &&
+    Number.isFinite(row.exposureWeight) &&
+    row.exposureWeight > 0 &&
+    row.exposureWeight <= 1 &&
+    row.evidenceSource.some((source) => /^https?:\/\//i.test(source))
+  );
 }
 
 export function isActiveOn(row: CompanyExportExposure, date: string): boolean {
@@ -92,8 +102,7 @@ export function resolveCompanySectorExposure(
     if (!opts.top100Tickers.has(r.ticker)) return false;
     const catOk =
       r.exportCategoryId === opts.categoryId ||
-      (opts.includeInheritedFrom != null &&
-        r.exportCategoryId === opts.includeInheritedFrom);
+      (opts.includeInheritedFrom != null && r.exportCategoryId === opts.includeInheritedFrom);
     if (!catOk) return false;
     if (r.exposureWeight < minW) return false;
     if (r.mappingConfidence < minC) return false;
@@ -101,7 +110,9 @@ export function resolveCompanySectorExposure(
   });
   if (opts.primaryOnly) {
     const best = new Map<string, CompanyExportExposure>();
-    for (const r of rows.filter((x) => isActiveOn(x, opts.asOf) && opts.top100Tickers.has(x.ticker))) {
+    for (const r of rows.filter(
+      (x) => isActiveOn(x, opts.asOf) && opts.top100Tickers.has(x.ticker),
+    )) {
       const prev = best.get(r.ticker);
       if (!prev || r.exposureWeight > prev.exposureWeight) best.set(r.ticker, r);
     }
@@ -159,10 +170,7 @@ export function validateTradeTotals(
   return { gap, gapPct, pass: Math.abs(gapPct) <= tolPct };
 }
 
-export function applyCorporateActionAdjustment(
-  price: number,
-  splitRatio: number,
-): number | null {
+export function applyCorporateActionAdjustment(price: number, splitRatio: number): number | null {
   if (!(splitRatio > 0) || !Number.isFinite(price)) return null;
   return price / splitRatio;
 }

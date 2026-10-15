@@ -1,0 +1,57 @@
+{
+  "fetchedAt": "2026-10-15T15:32:14.050Z",
+  "total": 140,
+  "positive": 140,
+  "negative": 0,
+  "dated": 0,
+  "samples": [
+    {
+      "code": "005930",
+      "name": "삼성전자",
+      "price": 207500,
+      "change": 24500,
+      "changePct": 10.56,
+      "source": "naver-finance-snapshot"
+    },
+    {
+      "code": "000660",
+      "name": "SK하이닉스",
+      "price": 1238000,
+      "change": 181000,
+      "changePct": 12.76,
+      "source": "naver-finance-snapshot"
+    },
+    {
+      "code": "005380",
+      "name": "현대차",
+      "price": 289500,
+      "change": 24000,
+      "changePct": 7.66,
+      "source": "naver-finance-snapshot"
+    },
+    {
+      "code": "373220",
+      "name": "LG에너지솔루션",
+      "price": 393000,
+      "change": 29000,
+      "changePct": 6.87,
+      "source": "naver-finance-snapshot"
+    },
+    {
+      "code": "207940",
+      "name": "삼성바이오로직스",
+      "price": 1241000,
+      "change": 59000,
+      "changePct": 4.99,
+      "source": "naver-finance-snapshot"
+    },
+    {
+      "code": "105560",
+      "name": "KB금융",
+      "price": 159900,
+      "change": 700,
+      "changePct": 0.44,
+      "source": "naver-finance-snapshot"
+    }
+  ]
+}

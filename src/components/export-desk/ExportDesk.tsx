@@ -1,14 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,12 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DATA_SOURCES } from "@/data/export-desk/dataSources.config";
 import regionalCap from "@/data/export-desk/regionalCapability.config.json";
 import { t } from "@/lib/export-desk/i18n";
-import {
-  assertNoSyntheticLeak,
-  getCore20,
-  getDemoExportSeries,
-  useExportDeskStore,
-} from "@/lib/export-desk/store";
+import { completeMonthlyObservations } from "@/lib/export-desk/observation-integrity";
+import { assertNoSyntheticLeak, getCore20, useExportDeskStore } from "@/lib/export-desk/store";
 import {
   calculateCrossCorrelation,
   calculateMomentum,
@@ -38,18 +26,22 @@ import {
   resampleDailyToMonthEnd,
   alignByReleaseDate,
 } from "@/lib/export-desk/stats";
-import {
-  rankKospiByMarketCap,
-  type RankableSecurity,
-} from "@/lib/export-desk/ranking";
+import { observedCapRanking } from "@/lib/export-desk/cap-ranking";
+import { useMarketClock } from "@/lib/use-market-clock";
+import { formatMarketAsOf } from "@/lib/market-presentation";
 import {
   resolveCompanySectorExposure,
+  isEvidenceBackedExposure,
   validateTradeTotals,
   type CompanyExportExposure,
 } from "@/lib/export-desk/exposure";
 import { resolveRegionalCapability } from "@/lib/export-desk/taxonomy";
 import { importTradeCsv, type ImporterId } from "@/lib/export-desk/parse-import";
-import { useExportMacro, useIndustryMonthlyPrices, useKospiCapQuotes } from "@/lib/export-desk/use-macro";
+import {
+  useExportMacro,
+  useIndustryMonthlyPrices,
+  useKospiCapQuotes,
+} from "@/lib/export-desk/use-macro";
 import { useLiveTrade } from "@/lib/export-desk/use-live";
 import { ExportAmountChart, ExportDualChart } from "@/components/export-desk/ExportDualChart";
 import { ChartFrame } from "@/components/charts/core/ChartFrame";
@@ -59,13 +51,7 @@ import type { TradeObservation } from "@/lib/export-desk/parse-import";
 import { cn } from "@/lib/utils";
 import { kstYmd } from "@/lib/format";
 import { normalizeKrTicker } from "@/lib/infer-sector";
-import {
-  AlertTriangle,
-  FileUp,
-  Globe2,
-  Info,
-  Ship,
-} from "lucide-react";
+import { AlertTriangle, FileUp, Globe2, Info, Ship } from "lucide-react";
 
 const TABS = [
   { id: "total", key: "export.total.title" },
@@ -108,7 +94,6 @@ function Provenance({
 export function ExportDesk() {
   const lang = useExportDeskStore((s) => s.lang);
   const setLang = useExportDeskStore((s) => s.setLang);
-  const demo = useExportDeskStore((s) => s.demoMode);
   const settings = useExportDeskStore((s) => s.settings);
   const patch = useExportDeskStore((s) => s.patchSettings);
   const [tab, setTab] = useState<string>("total");
@@ -121,11 +106,6 @@ export function ExportDesk() {
 
   return (
     <div className="page-stack">
-      {demo && (
-        <div className="sticky top-0 z-20 rounded-md bg-desk-copper px-3 py-2 text-sm font-semibold text-black">
-          {t("export.demo.banner", lang)}
-        </div>
-      )}
       <header className="page-header">
         <p className="desk-kicker mb-1.5">Trade statistics × listed equity</p>
         <h1 className="page-title flex items-center gap-2">
@@ -133,8 +113,8 @@ export function ExportDesk() {
           {t("export.desk.title", lang)}
         </h1>
         <p className="page-lead">
-          총수출은 FRED/OECD 월별 공식 시계열, 품목은 UN Comtrade HS,
-          시세는 거래소 스냅샷입니다. 데모 숫자가 기본값이 아닙니다.
+          총수출은 FRED/OECD 월별 공식 시계열, 품목은 UN Comtrade HS, 시세는 거래소 스냅샷입니다.
+          공식 자료가 없으면 N/A로 표시합니다.
         </p>
         <LiveTape />
         <div className="mt-3 flex flex-wrap items-center gap-3 text-xs">
@@ -154,9 +134,7 @@ export function ExportDesk() {
           <select
             className="h-8 rounded-md border border-border bg-background px-2"
             value={settings.chartMode}
-            onChange={(e) =>
-              patch({ chartMode: e.target.value as typeof settings.chartMode })
-            }
+            onChange={(e) => patch({ chartMode: e.target.value as typeof settings.chartMode })}
           >
             <option value="indexed">Indexed=100</option>
             <option value="absolute">Absolute</option>
@@ -166,9 +144,7 @@ export function ExportDesk() {
           <select
             className="h-8 rounded-md border border-border bg-background px-2"
             value={settings.levelSeries}
-            onChange={(e) =>
-              patch({ levelSeries: e.target.value as typeof settings.levelSeries })
-            }
+            onChange={(e) => patch({ levelSeries: e.target.value as typeof settings.levelSeries })}
           >
             <option value="roll12">12M 누적 (기본)</option>
             <option value="wad">일평균</option>
@@ -177,9 +153,7 @@ export function ExportDesk() {
           <select
             className="h-8 rounded-md border border-border bg-background px-2"
             value={settings.universeN}
-            onChange={(e) =>
-              patch({ universeN: Number(e.target.value) as 100 | 200 })
-            }
+            onChange={(e) => patch({ universeN: Number(e.target.value) as 100 | 200 })}
           >
             <option value={100}>Top 100</option>
             <option value={200}>Top 200</option>
@@ -243,19 +217,17 @@ function useAllObservations(): TradeObservation[] {
 }
 
 function useExportSeries(categoryId = "TOTAL") {
-  const demo = useExportDeskStore((s) => s.demoMode);
   const alignment = useExportDeskStore((s) => s.settings.alignment);
   const all = useAllObservations();
   return useMemo(() => {
     const real = all.filter((o) => o.categoryId === categoryId);
-    const demoRows = getDemoExportSeries(demo).filter((o) => o.categoryId === categoryId);
-    const used = real.length ? real : demo ? demoRows : [];
-    if (!demo) assertNoSyntheticLeak(used, false);
+    assertNoSyntheticLeak(real);
+    const used = completeMonthlyObservations(real);
     return alignByReleaseDate(
       [...used].sort((a, b) => a.period.localeCompare(b.period)),
       alignment,
     );
-  }, [all, demo, categoryId, alignment]);
+  }, [all, categoryId, alignment]);
 }
 
 function LiveTape() {
@@ -266,17 +238,11 @@ function LiveTape() {
   const last = exports.at(-1);
   const prev = exports.at(-2);
   const y = yoy.at(-1);
-  const mom =
-    last && prev && prev.valueUsd
-      ? ((last.valueUsd / prev.valueUsd - 1) * 100)
-      : null;
+  const mom = last && prev && prev.valueUsd ? (last.valueUsd / prev.valueUsd - 1) * 100 : null;
   const roll = calculateRolling12MSum(values).at(-1);
   const imp = live.data?.imports ?? [];
-  const matchedImp = last
-    ? imp.find((i) => i.period === last.period)
-    : undefined;
-  const bal =
-    last && matchedImp ? last.valueUsd - matchedImp.valueUsd : null;
+  const matchedImp = last ? imp.find((i) => i.period === last.period) : undefined;
+  const bal = last && matchedImp ? last.valueUsd - matchedImp.valueUsd : null;
   const macro = useExportMacro();
   const k = macro.data?.kospi.at(-1);
   return (
@@ -315,10 +281,7 @@ function LiveTape() {
   );
 }
 
-function clipRange<T extends { period?: string; date?: string }>(
-  rows: T[],
-  range: string,
-): T[] {
+function clipRange<T extends { period?: string; date?: string }>(rows: T[], range: string): T[] {
   if (range === "MAX" || rows.length === 0) return rows;
   const years = range === "1Y" ? 1 : range === "3Y" ? 3 : range === "10Y" ? 10 : 5;
   const ym = kstYmd().slice(0, 7);
@@ -341,11 +304,8 @@ function numOrNull(v: number | null | undefined): number | null {
 function TotalPanel() {
   const lang = useExportDeskStore((s) => s.lang);
   const settings = useExportDeskStore((s) => s.settings);
-  const demo = useExportDeskStore((s) => s.demoMode);
   const exports = useExportSeries("TOTAL");
   const macro = useExportMacro();
-  // D9: hook hoisted out of JSX (was called behind `demo && …`).
-  const allObservations = useAllObservations();
   const kospiMonth = useMemo(
     () =>
       resampleDailyToMonthEnd(
@@ -356,18 +316,14 @@ function TotalPanel() {
 
   const fullChart = useMemo(() => {
     const values = exports.map((e) => e.valueUsd);
-    const wad = exports.map((e) =>
-      calculateWorkingDayAdjusted(e.valueUsd, e.workingDays ?? 0) ?? NaN,
+    const wad = exports.map(
+      (e) => calculateWorkingDayAdjusted(e.valueUsd, e.workingDays ?? 0) ?? NaN,
     );
     const roll = calculateRolling12MSum(values);
     const yoy = calculateYoYGrowth(values);
     const mom = calculateMomentum(values, 3);
     const level =
-      settings.levelSeries === "raw"
-        ? values
-        : settings.levelSeries === "wad"
-          ? wad
-          : roll;
+      settings.levelSeries === "raw" ? values : settings.levelSeries === "wad" ? wad : roll;
     const byP = new Map(kospiMonth.map((k) => [k.period, k.value]));
     const aligned = exports.map((e, i) => {
       const k = byP.get(e.period);
@@ -383,11 +339,14 @@ function TotalPanel() {
       (r) => Number.isFinite(r.exp) || Number.isFinite(r.kospi),
     );
     // Preserve the visible range's index base in the pre-roll history as well.
-    const expBase = clipped.find(r => Number.isFinite(r.exp) && r.exp !== 0)?.exp;
-    const kBase = clipped.find(r => Number.isFinite(r.kospi) && r.kospi !== 0)?.kospi;
-    const expIdx = aligned.map(r => expBase ? r.exp / expBase * 100 : NaN);
-    const kIdx = aligned.map(r => kBase ? r.kospi / kBase * 100 : NaN);
-    const kYoy = calculateYoYGrowth(aligned.map((r) => r.kospi), 12);
+    const expBase = clipped.find((r) => Number.isFinite(r.exp) && r.exp !== 0)?.exp;
+    const kBase = clipped.find((r) => Number.isFinite(r.kospi) && r.kospi !== 0)?.kospi;
+    const expIdx = aligned.map((r) => (expBase ? (r.exp / expBase) * 100 : NaN));
+    const kIdx = aligned.map((r) => (kBase ? (r.kospi / kBase) * 100 : NaN));
+    const kYoy = calculateYoYGrowth(
+      aligned.map((r) => r.kospi),
+      12,
+    );
     const fxSeries = macro.data?.fx ?? [];
     const spot = macro.data?.spotUsdKrw ?? 0;
     return aligned.map((r, i) => {
@@ -401,20 +360,50 @@ function TotalPanel() {
         expIdx: numOrNull(expIdx[i]),
         kIdx: numOrNull(kIdx[i]),
         kYoy: numOrNull(kYoy[i]),
-        expKrw: numOrNull(fx != null ? convertUsdKrw(r.exp, fx) ?? NaN : NaN),
+        expKrw: numOrNull(fx != null ? (convertUsdKrw(r.exp, fx) ?? NaN) : NaN),
       };
     });
-  }, [exports, kospiMonth, settings.levelSeries, settings.range, macro.data?.fx, macro.data?.spotUsdKrw]);
+  }, [
+    exports,
+    kospiMonth,
+    settings.levelSeries,
+    settings.range,
+    macro.data?.fx,
+    macro.data?.spotUsdKrw,
+  ]);
 
   const chart = useMemo(() => clipRange(fullChart, settings.range), [fullChart, settings.range]);
-  const dualRow = (r: typeof fullChart[number]) => ({ time: r.period,
-    a: settings.chartMode === "absolute" ? r.exp : settings.chartMode === "growth" ? r.yoy : settings.chartMode === "krw" ? r.expKrw : r.expIdx,
-    b: settings.chartMode === "krw" ? null : settings.chartMode === "growth" ? r.kYoy : settings.chartMode === "absolute" ? r.kospi : r.kIdx });
+  const dualRow = (r: (typeof fullChart)[number]) => ({
+    time: r.period,
+    a:
+      settings.chartMode === "absolute"
+        ? r.exp
+        : settings.chartMode === "growth"
+          ? r.yoy
+          : settings.chartMode === "krw"
+            ? r.expKrw
+            : r.expIdx,
+    b:
+      settings.chartMode === "krw"
+        ? null
+        : settings.chartMode === "growth"
+          ? r.kYoy
+          : settings.chartMode === "absolute"
+            ? r.kospi
+            : r.kIdx,
+  });
 
   const last = chart.filter((r) => r.exp != null).at(-1);
   const lastK = chart.filter((r) => r.kospi != null).at(-1);
   const totalSource =
-    demo && !allObservations.some((o) => o.categoryId === "TOTAL" && o.sourceFile !== "DEMO") ? "DEMO" : last ? "FRED/OECD XTEXVA01KRM667S" : "대기";
+    [
+      ...new Set(
+        exports
+          .filter((row) => Number.isFinite(row.valueUsd))
+          .map((row) => row.sourceFile)
+          .filter(Boolean),
+      ),
+    ].join(" · ") || "관측 미확보";
 
   return (
     <section className="desk-card desk-card-navy p-4 space-y-4">
@@ -428,14 +417,8 @@ function TotalPanel() {
           value={last?.exp != null ? formatUsdBn(last.exp) : "N/A"}
           sub={last?.period ?? "—"}
         />
-        <Kpi
-          label="YoY"
-          value={last?.yoy != null ? `${last.yoy.toFixed(1)}%` : "N/A"}
-        />
-        <Kpi
-          label="3M momentum"
-          value={last?.mom != null ? `${last.mom.toFixed(1)}%` : "N/A"}
-        />
+        <Kpi label="YoY" value={last?.yoy != null ? `${last.yoy.toFixed(1)}%` : "N/A"} />
+        <Kpi label="3M momentum" value={last?.mom != null ? `${last.mom.toFixed(1)}%` : "N/A"} />
         <Kpi
           label="KOSPI"
           value={lastK?.kospi != null ? lastK.kospi.toFixed(0) : "N/A"}
@@ -455,7 +438,8 @@ function TotalPanel() {
               <i className="inline-block size-2 rounded-full bg-desk-gold" /> 수출
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <i className="inline-block size-2 rounded-full" style={{ background: "#3b82f6" }} /> KOSPI
+              <i className="inline-block size-2 rounded-full" style={{ background: "#3b82f6" }} />{" "}
+              KOSPI
             </span>
             <span>드래그로 이동 · 휠로 확대</span>
           </div>
@@ -471,10 +455,24 @@ function TotalPanel() {
                     ? "수출 USD"
                     : "수출=100"
             }
-            bName={settings.chartMode === "growth" ? "KOSPI YoY" : settings.chartMode === "absolute" ? "KOSPI" : "KOSPI=100"}
+            bName={
+              settings.chartMode === "growth"
+                ? "KOSPI YoY"
+                : settings.chartMode === "absolute"
+                  ? "KOSPI"
+                  : "KOSPI=100"
+            }
             source={`수출 ${totalSource} · KOSPI ${macro.data?.source ?? "—"}`}
             asOf={macro.data?.fetchedAt ?? null}
-            mode={settings.chartMode === "growth" ? "월간 · 전년 대비 %" : settings.chartMode === "absolute" ? "월간 · 수출 USD(좌) / KOSPI(우)" : settings.chartMode === "krw" ? "월간 · 원화 환산" : "월간 · 기준=100"}
+            mode={
+              settings.chartMode === "growth"
+                ? "월간 · 전년 대비 %"
+                : settings.chartMode === "absolute"
+                  ? "월간 · 수출 USD(좌) / KOSPI(우)"
+                  : settings.chartMode === "krw"
+                    ? "월간 · 원화 환산"
+                    : "월간 · 기준=100"
+            }
           />
         </div>
       )}
@@ -482,7 +480,7 @@ function TotalPanel() {
         source={totalSource}
         period={`${chart[0]?.period ?? "—"} ~ ${chart.at(-1)?.period ?? "—"}`}
         ingested={macro.data?.fetchedAt ?? "—"}
-        taxonomy={getCore20().taxonomyVersion}
+        taxonomy={`${getCore20().taxonomyVersion} (미검증 참고 분류)`}
       />
       <LiveNewsStrip />
     </section>
@@ -529,7 +527,9 @@ function LiveNewsStrip() {
   if (!items.length) return null;
   return (
     <div className="space-y-1">
-      <div className="text-[11px] font-semibold text-muted-foreground">수출 헤드라인 (원문 링크 · 수치는 차트에 넣지 않음)</div>
+      <div className="text-[11px] font-semibold text-muted-foreground">
+        수출 헤드라인 (원문 링크 · 수치는 차트에 넣지 않음)
+      </div>
       <ul className="space-y-1">
         {items.slice(0, 6).map((n) => (
           <li key={n.url} className="text-xs leading-snug">
@@ -563,10 +563,21 @@ function EmptyExport() {
 }
 
 function Core20Panel({ onOpen }: { onOpen: (cat: string) => void }) {
-  const allItems = getCore20().items as { key: string; ko: string; en: string; subItems: string[]; addedIn2026Revision?: boolean }[];
+  const allItems = getCore20().items as {
+    key: string;
+    ko: string;
+    en: string;
+    subItems: string[];
+    addedIn2026Revision?: boolean;
+  }[];
   const [rev, setRev] = useState<"20" | "15">("20");
   const [focus, setFocus] = useState("semiconductors");
-  const [picked, setPicked] = useState<string[]>(["semiconductors", "automobiles", "ships", "petroleum_products"]);
+  const [picked, setPicked] = useState<string[]>([
+    "semiconductors",
+    "automobiles",
+    "ships",
+    "petroleum_products",
+  ]);
   const items = rev === "20" ? allItems : allItems.filter((it) => !it.addedIn2026Revision);
   const lang = useExportDeskStore((s) => s.lang);
   const all = useAllObservations();
@@ -600,91 +611,142 @@ function Core20Panel({ onOpen }: { onOpen: (cat: string) => void }) {
     <div className="space-y-3">
       <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
         <div className="mb-1 flex flex-wrap items-center gap-1.5">
-          <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 font-medium text-emerald-300">확정 · UN Comtrade HS</span>
-          <span className="rounded bg-amber-500/15 px-1.5 py-0.5 font-medium text-amber-200">MOTIE 속보 미연결</span>
-          <span className="rounded bg-amber-500/15 px-1.5 py-0.5 font-medium text-amber-200">관세청 API 키 없음</span>
-          <span className="rounded border border-border px-1.5 py-0.5">MTI-2026 · 2026-06-01</span>
+          <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 font-medium text-emerald-300">
+            공개 프리뷰 · UN Comtrade HS
+          </span>
+          <span className="rounded bg-amber-500/15 px-1.5 py-0.5 font-medium text-amber-200">
+            MOTIE 속보 미연결
+          </span>
+          <span className="rounded bg-amber-500/15 px-1.5 py-0.5 font-medium text-amber-200">
+            관세청 API 키 없음
+          </span>
+          <span className="rounded border border-border px-1.5 py-0.5">참고 분류 · 공식 개정 근거 미확인</span>
         </div>
-        2026 MTI 개정으로 15대에서 20대로 늘었습니다. 구/신 토글은 품목 목록만 바꿉니다. 금액은 만들지 않습니다.
-        표시 금액은 HS 근사이며 MOTIE MTI 잠정치가 아닙니다. HS 85를 반도체로 대체하지 않습니다. 매핑이 없거나 관측이 없으면 N/A.
-        부분 품목 합을 총수출 100%로 늘려 맞추지 않습니다.
+        품목 목록은 미검증 참고 설정입니다. 공식 MTI 개정 사실·시행일은 확인되지 않았습니다.
+        목록 토글은 참고 품목만 바꾸며 금액을 만들지 않습니다. 표시 금액은 HS 근사이며 MOTIE MTI 잠정치가 아닙니다. HS 85를 반도체로
+        대체하지 않습니다. 매핑이 없거나 관측이 없으면 N/A. 부분 품목 합을 총수출 100%로 늘려 맞추지
+        않습니다.
       </div>
       <div className="flex flex-wrap gap-1">
-        <button type="button" className={cn("h-8 rounded-md px-2 text-xs", rev === "20" ? "bg-desk-gold/20 text-desk-gold" : "bg-muted text-muted-foreground")} onClick={() => setRev("20")}>
-          신 20대
+        <button
+          type="button"
+          className={cn(
+            "h-8 rounded-md px-2 text-xs",
+            rev === "20" ? "bg-desk-gold/20 text-desk-gold" : "bg-muted text-muted-foreground",
+          )}
+          onClick={() => setRev("20")}
+        >
+          참고 20개
         </button>
-        <button type="button" className={cn("h-8 rounded-md px-2 text-xs", rev === "15" ? "bg-desk-gold/20 text-desk-gold" : "bg-muted text-muted-foreground")} onClick={() => setRev("15")}>
-          구 15대
+        <button
+          type="button"
+          className={cn(
+            "h-8 rounded-md px-2 text-xs",
+            rev === "15" ? "bg-desk-gold/20 text-desk-gold" : "bg-muted text-muted-foreground",
+          )}
+          onClick={() => setRev("15")}
+        >
+          참고 15개
         </button>
         <span className="self-center text-[11px] text-muted-foreground">
-          표시 {items.length} · Comtrade {live.data?.comtradeLatestPeriod ?? "N/A"} · 캐시 {live.data?.comtradeMonthsCached ?? 0}개월
+          표시 {items.length} · Comtrade {live.data?.comtradeLatestPeriod ?? "N/A"} · 캐시{" "}
+          {live.data?.comtradeMonthsCached ?? 0}개월
         </span>
       </div>
       {amountSeries.length > 0 ? (
-        <ExportAmountChart series={amountSeries} focusId={focusId} source="UN Comtrade preview HS" asOf={live.data?.source.fetchedAt ?? null} />
+        <ExportAmountChart
+          series={amountSeries}
+          focusId={focusId}
+          source="UN Comtrade preview HS"
+          asOf={live.data?.source.fetchedAt ?? null}
+        />
       ) : (
         <div className="rounded-lg border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
-          {live.isLoading ? "HS 품목 시계열 수집 중" : "선택한 품목에 그릴 Comtrade 관측이 없습니다. 금액을 채우지 않습니다."}
+          {live.isLoading
+            ? "HS 품목 시계열 수집 중"
+            : "선택한 품목에 그릴 Comtrade 관측이 없습니다. 금액을 채우지 않습니다."}
         </div>
       )}
       <p className="text-xs text-muted-foreground">
-        최대 6개 오버레이. 카드를 누르면 산업 × 주가 비교로 이동합니다. 고저 마커는 포커스 품목(마지막에 고른 항목)에만 그립니다.
+        최대 6개 오버레이. 카드를 누르면 산업 × 주가 비교로 이동합니다. 고저 마커는 포커스
+        품목(마지막에 고른 항목)에만 그립니다.
       </p>
-    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-      {items.map((it) => {
-        const series = all
-          .filter((o) => o.categoryId === it.key)
-          .sort((a, b) => a.period.localeCompare(b.period));
-        const last = series.at(-1);
-        const prev = series.find((s) => s.period === addMonths(last?.period, -12));
-        const yoy =
-          last && prev && prev.valueUsd ? ((last.valueUsd / prev.valueUsd - 1) * 100).toFixed(1) : "N/A";
-        const total = last ? totals.find((t) => t.period === last.period) : undefined;
-        const share = last && total && total.valueUsd > 0 ? (last.valueUsd / total.valueUsd) * 100 : null;
-        const mapped = exposures.filter((e) => e.exportCategoryId === it.key && e.active !== false);
-        const verified = mapped.filter((e) => e.mappingConfidence >= settings.minConfidence);
-        const proxy = proxyForKey(it.key);
-        const on = picked.includes(it.key);
-        return (
-          <div key={it.key} className={cn("desk-card desk-card-teal p-3 text-left", on && "ring-1 ring-desk-gold/50")}>
-            <button type="button" onClick={() => onOpen(it.key)} className="w-full text-left">
-            <div className="flex items-start justify-between gap-2">
-              <div className="text-sm font-semibold">{lang === "en" ? it.en : it.ko}</div>
-              {it.addedIn2026Revision && <span className="text-[10px] text-desk-gold">2026 신설</span>}
-            </div>
-            <div className="mt-1 text-lg tabular font-semibold">
-              {last ? formatUsdBn(last.valueUsd) : proxy ? "N/A" : "HS 없음"}
-            </div>
-            <div className="text-[11px] text-muted-foreground">
-              YoY {yoy}
-              {share != null ? ` · FRED 총수출 대비 ${share.toFixed(1)}% (정의 상이)` : " · 비중 N/A"}
-            </div>
-            <div className="mt-2 flex flex-wrap gap-1">
-              <Badge variant="outline" className="text-[10px]">
-                {proxy ? "확정 HS" : "HS 없음"}
-              </Badge>
-              <Badge variant="outline" className="text-[10px]">
-                {proxy ? proxy.label : "N/A"}
-              </Badge>
-              <Badge variant="outline" className="text-[10px]">
-                매핑 {verified.length}/{mapped.length}
-              </Badge>
-            </div>
-            {it.subItems.length > 0 && (
-              <div className="mt-2 text-[11px] text-muted-foreground">{it.subItems.join(" · ")}</div>
-            )}
-            </button>
-            <button
-              type="button"
-              className="mt-2 text-[11px] text-desk-gold hover:underline"
-              onClick={() => togglePick(it.key)}
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        {items.map((it) => {
+          const series = all
+            .filter((o) => o.categoryId === it.key)
+            .sort((a, b) => a.period.localeCompare(b.period));
+          const last = series.at(-1);
+          const prev = series.find((s) => s.period === addMonths(last?.period, -12));
+          const yoy =
+            last && prev && prev.valueUsd
+              ? ((last.valueUsd / prev.valueUsd - 1) * 100).toFixed(1)
+              : "N/A";
+          const total = last ? totals.find((t) => t.period === last.period) : undefined;
+          const share =
+            last && total && total.valueUsd > 0 ? (last.valueUsd / total.valueUsd) * 100 : null;
+          const mapped = exposures.filter(
+            (e) => e.exportCategoryId === it.key && e.active !== false,
+          );
+          const verified = mapped.filter((e) => e.mappingConfidence >= settings.minConfidence);
+          const proxy = proxyForKey(it.key);
+          const on = picked.includes(it.key);
+          return (
+            <div
+              key={it.key}
+              className={cn(
+                "desk-card desk-card-teal p-3 text-left",
+                on && "ring-1 ring-desk-gold/50",
+              )}
             >
-              {on ? "오버레이에서 빼기" : picked.length >= 6 ? "오버레이 6개 가득 참" : "오버레이에 넣기"}
-            </button>
-          </div>
-        );
-      })}
-    </div>
+              <button type="button" onClick={() => onOpen(it.key)} className="w-full text-left">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="text-sm font-semibold">{lang === "en" ? it.en : it.ko}</div>
+                  {it.addedIn2026Revision && (
+                    <span className="text-[10px] text-desk-gold">추가 참고 품목</span>
+                  )}
+                </div>
+                <div className="mt-1 text-lg tabular font-semibold">
+                  {last ? formatUsdBn(last.valueUsd) : proxy ? "N/A" : "HS 없음"}
+                </div>
+                <div className="text-[11px] text-muted-foreground">
+                  YoY {yoy}
+                  {share != null
+                    ? ` · FRED 총수출 대비 ${share.toFixed(1)}% (정의 상이)`
+                    : " · 비중 N/A"}
+                </div>
+                <div className="mt-2 flex flex-wrap gap-1">
+                  <Badge variant="outline" className="text-[10px]">
+                    {proxy ? "HS 프리뷰" : "HS 없음"}
+                  </Badge>
+                  <Badge variant="outline" className="text-[10px]">
+                    {proxy ? proxy.label : "N/A"}
+                  </Badge>
+                  <Badge variant="outline" className="text-[10px]">
+                    매핑 {verified.length}/{mapped.length}
+                  </Badge>
+                </div>
+                {it.subItems.length > 0 && (
+                  <div className="mt-2 text-[11px] text-muted-foreground">
+                    {it.subItems.join(" · ")}
+                  </div>
+                )}
+              </button>
+              <button
+                type="button"
+                className="mt-2 text-[11px] text-desk-gold hover:underline"
+                onClick={() => togglePick(it.key)}
+              >
+                {on
+                  ? "오버레이에서 빼기"
+                  : picked.length >= 6
+                    ? "오버레이 6개 가득 참"
+                    : "오버레이에 넣기"}
+              </button>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -717,21 +779,40 @@ function AllIndustriesPanel({ onOpen }: { onOpen: (cat: string) => void }) {
       rows = rows.filter((r) => r.id.toLowerCase().includes(n) || r.name.toLowerCase().includes(n));
     }
     if (onlyMapped) {
-      const ids = new Set(exposures.filter((e) => e.active !== false).map((e) => e.exportCategoryId));
+      const ids = new Set(
+        exposures.filter((e) => e.active !== false).map((e) => e.exportCategoryId),
+      );
       rows = rows.filter((r) => ids.has(r.id));
     }
     return rows.sort((a, b) => b.value - a.value);
   }, [observations, q, onlyMapped, exposures, core]);
 
   const barRows = cats.filter((c) => c.id.startsWith("hs2:") && c.value > 0).slice(0, 15);
-  const bar = barRows.map((c) => ({ name: c.name.replace(/ \(HS.*$/, ""), value: c.value / 1e9, id: c.id }));
+  const bar = barRows.map((c) => ({
+    name: c.name.replace(/ \(HS.*$/, ""),
+    value: c.value / 1e9,
+    id: c.id,
+  }));
   const barAsOf = barRows.reduce((m, c) => (c.period > m ? c.period : m), ""); // ked-allow-string-date-sort: single-format time series
-  const barSources = [...new Set(observations.filter((o) => barRows.some((c) => c.id === o.categoryId)).map((o) => o.sourceFile))].slice(0, 2).join(", ");
+  const barSources = [
+    ...new Set(
+      observations
+        .filter((o) => barRows.some((c) => c.id === o.categoryId))
+        .map((o) => o.sourceFile),
+    ),
+  ]
+    .slice(0, 2)
+    .join(", ");
 
   return (
     <section className="desk-card p-4">
       <div className="mb-3 flex flex-wrap gap-2">
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="품목명 · 코드" className="max-w-xs" />
+        <Input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="품목명 · 코드"
+          className="max-w-xs"
+        />
         <label className="inline-flex items-center gap-1.5 text-xs">
           <Switch checked={onlyMapped} onCheckedChange={setOnlyMapped} />
           Top-100 매칭 있는 산업만
@@ -744,10 +825,19 @@ function AllIndustriesPanel({ onOpen }: { onOpen: (cat: string) => void }) {
             unit="USD bn"
             source={barSources || "수출 관측값"}
             asOf={barAsOf || null}
-            ariaLabel={`수출 상위 ${bar.length}개 품목 막대 차트: ${bar.slice(0, 5).map((b) => `${b.name} ${b.value.toFixed(1)}bn`).join(", ")}`}
+            ariaLabel={`수출 상위 ${bar.length}개 품목 막대 차트: ${bar
+              .slice(0, 5)
+              .map((b) => `${b.name} ${b.value.toFixed(1)}bn`)
+              .join(", ")}`}
             pngName={chartExportName("KR", "EXPORT", "top-hs2", "png", Date.now())}
             csv={() => ({
-              text: ["id,name,period,value_usd_bn", ...barRows.map((c) => `${c.id},"${c.name.replace(/"/g, "'")}",${c.period},${(c.value / 1e9).toFixed(3)}`)].join("\n"),
+              text: [
+                "id,name,period,value_usd_bn",
+                ...barRows.map(
+                  (c) =>
+                    `${c.id},"${c.name.replace(/"/g, "'")}",${c.period},${(c.value / 1e9).toFixed(3)}`,
+                ),
+              ].join("\n"),
               filename: chartExportName("KR", "EXPORT", "top-hs2", "csv", Date.now()),
             })}
             testId="export-top-bar"
@@ -759,7 +849,12 @@ function AllIndustriesPanel({ onOpen }: { onOpen: (cat: string) => void }) {
                   <XAxis type="number" tick={{ fontSize: 10 }} unit="bn" />
                   <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={76} />
                   <Tooltip formatter={(v: number) => `$${Number(v).toFixed(1)}bn`} />
-                  <Bar dataKey="value" fill="#d4a017" name="수출 $bn" onClick={(d) => onOpen(String((d as { id?: string }).id))} />
+                  <Bar
+                    dataKey="value"
+                    fill="#d4a017"
+                    name="수출 $bn"
+                    onClick={(d) => onOpen(String((d as { id?: string }).id))}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -800,13 +895,7 @@ function AllIndustriesPanel({ onOpen }: { onOpen: (cat: string) => void }) {
   );
 }
 
-function IndustryPanel({
-  cat,
-  onCat,
-}: {
-  cat: string;
-  onCat: (c: string) => void;
-}) {
+function IndustryPanel({ cat, onCat }: { cat: string; onCat: (c: string) => void }) {
   const lang = useExportDeskStore((s) => s.lang);
   const items = getCore20().items as { key: string; ko: string }[];
   const observations = useAllObservations();
@@ -816,36 +905,29 @@ function IndustryPanel({
   const settings = useExportDeskStore((s) => s.settings);
   const exposures = useExportDeskStore((s) => s.exposures);
   const caps = useKospiCapQuotes();
-  const [verifiedOnly, setVerifiedOnly] = useState(false);
+  const [verifiedOnly, setVerifiedOnly] = useState(true);
   const [showNames, setShowNames] = useState(true);
-  const asOf = kstYmd();
-
-  const universe = useMemo(() => {
-    const rows: RankableSecurity[] = (caps.data?.quotes ?? [])
-      .filter((q) => q.market === "KOSPI" && q.marketCap > 0)
-      .map((q) => ({
-        ticker: q.ticker,
-        name: q.name,
-        marketCap: q.marketCap,
-        date: asOf,
-        isPreferred: q.isPreferred,
-      }));
-    return rankKospiByMarketCap(rows, { n: settings.universeN, date: asOf });
-  }, [caps.data, asOf, settings.universeN]);
+  const now = useMarketClock();
+  const capRanking = useMemo(() => observedCapRanking(caps.data?.quotes ?? [], settings.universeN, now), [caps.data, settings.universeN, now]);
+  const asOf = capRanking.asOf;
+  const universe = capRanking.members;
 
   const tickers = new Set(universe.map((u) => u.ticker));
-  const matched = resolveCompanySectorExposure(exposures, {
-    categoryId: cat,
-    asOf,
-    top100Tickers: tickers,
-    minWeight: verifiedOnly ? settings.minWeight : 0.05,
-    minConfidence: verifiedOnly ? settings.minConfidence : 0,
-    primaryOnly: settings.primaryOnly,
-  });
-  const chartNames = matched.slice(0, 8);
+  const matched = asOf ? resolveCompanySectorExposure(
+    verifiedOnly ? exposures.filter(isEvidenceBackedExposure) : exposures,
+    {
+      categoryId: cat,
+      asOf,
+      top100Tickers: tickers,
+      minWeight: verifiedOnly ? settings.minWeight : 0.05,
+      minConfidence: verifiedOnly ? settings.minConfidence : 0,
+      primaryOnly: settings.primaryOnly,
+    },
+  ) : [];
+  const chartNames = matched.filter(isEvidenceBackedExposure).slice(0, 8);
   const px = useIndustryMonthlyPrices(chartNames.map((m) => m.ticker));
   const exports = useExportSeries(cat);
-  const quotes = new Map((caps.data?.quotes ?? []).map((q) => [q.ticker, q]));
+  const quotes = new Map(capRanking.quotes.map((q) => [q.ticker, q]));
 
   const overlay = useMemo(() => {
     const values = exports.map((e) => e.valueUsd);
@@ -905,10 +987,7 @@ function IndustryPanel({
     });
   }, [exports, px.data, chartNames]);
 
-  const clipped = useMemo(
-    () => clipRange(overlay, settings.range),
-    [overlay, settings.range],
-  );
+  const clipped = useMemo(() => clipRange(overlay, settings.range), [overlay, settings.range]);
   const yoyByPeriod = new Map<string, number>();
   {
     const y = calculateYoYGrowth(exports.map((x) => x.valueUsd));
@@ -931,9 +1010,17 @@ function IndustryPanel({
   const yoyC = clipped.map((r) => yoyCByPeriod.get(String(r.period)) ?? NaN);
   const inf = pearsonWithInference(yoyE, yoyC, { transform: "yoy" });
   const catLabel =
-    items.find((i) => i.key === cat)?.ko ??
-    (cat.startsWith("hs2:") ? hsName(cat.slice(4)) : cat);
-  const PALETTE = ["#60a5fa", "#34d399", "#f472b6", "#a78bfa", "#fbbf24", "#22d3ee", "#fb7185", "#c084fc"];
+    items.find((i) => i.key === cat)?.ko ?? (cat.startsWith("hs2:") ? hsName(cat.slice(4)) : cat);
+  const PALETTE = [
+    "#60a5fa",
+    "#34d399",
+    "#f472b6",
+    "#a78bfa",
+    "#fbbf24",
+    "#22d3ee",
+    "#fb7185",
+    "#c084fc",
+  ];
 
   return (
     <section className="desk-card desk-card-indigo p-4 space-y-3">
@@ -948,13 +1035,11 @@ function IndustryPanel({
               {it.ko}
             </option>
           ))}
-          {extraCats
-            .sort()
-            .map((id) => (
-              <option key={id} value={id}>
-                {id.startsWith("hs2:") ? hsName(id.slice(4)) : id}
-              </option>
-            ))}
+          {extraCats.sort().map((id) => (
+            <option key={id} value={id}>
+              {id.startsWith("hs2:") ? hsName(id.slice(4)) : id}
+            </option>
+          ))}
         </select>
         <label className="inline-flex items-center gap-1.5 text-xs">
           <Switch
@@ -976,10 +1061,18 @@ function IndustryPanel({
         </span>
       </div>
       <p className="text-[11px] text-muted-foreground leading-relaxed">
-        <strong>{catLabel}</strong> 수출(12M 누적, 지수=100)과 시총 Top {settings.universeN} 중
-        해당 산업 노출 기업의 주가. 관세 통계는 제품이지 기업이 아닙니다 — 분석용 노출 맵이며
-        세관 귀속이 아닙니다. 시총 순위: {caps.data?.source ?? "N/A"} (당일, 과거 소급 아님).
+        <strong>{catLabel}</strong> 수출(12M 누적, 지수=100)과 확인된 시총 상위 {settings.universeN} 범위에서 해당
+        산업 노출 기업의 주가. 관세 통계는 제품이지 기업이 아닙니다 — 분석용 노출 맵이며 세관 귀속이
+        아닙니다. 시총 자료: {caps.data?.source ?? "N/A"}. 거래 관측 기준일 {asOf ?? "미확인"}
+        {" · "}수집 {formatMarketAsOf(caps.data?.fetchedAt)} · 기준일·유효 시총 확인 {capRanking.verifiedCount}/{capRanking.totalCount}종목.
+        전체 KOSPI 순위 또는 과거 당시의 편입 순위를 확정한 자료가 아닙니다.
       </p>
+      {chartNames.length === 0 && (
+        <p className="text-xs text-muted-foreground">
+          근거 자료가 확인된 노출 가중치가 없어 기업 합성지수는 표시하지 않습니다. 미검증 후보의
+          임시 가중치는 계산에 사용하지 않습니다.
+        </p>
+      )}
       {exports.length === 0 ? (
         <EmptyExport />
       ) : (
@@ -989,7 +1082,11 @@ function IndustryPanel({
             a: typeof r.expIdx === "number" ? r.expIdx : null,
             b: typeof r.compIdx === "number" ? r.compIdx : null,
           }))}
-          history={overlay.map(r => ({ time: String(r.period), a: typeof r.expIdx === "number" ? r.expIdx : null, b: typeof r.compIdx === "number" ? r.compIdx : null }))}
+          history={overlay.map((r) => ({
+            time: String(r.period),
+            a: typeof r.expIdx === "number" ? r.expIdx : null,
+            b: typeof r.compIdx === "number" ? r.compIdx : null,
+          }))}
           aName={`${catLabel} 수출`}
           bName="노출가중 주가"
         />
@@ -997,15 +1094,17 @@ function IndustryPanel({
       <div className="grid gap-2 sm:grid-cols-3">
         <Kpi
           label="수출-주가 YoY 상관"
-          value={inf.insufficient ? t("export.insufficient", lang) : inf.r == null ? "N/A" : inf.r.toFixed(3)}
+          value={
+            inf.insufficient
+              ? t("export.insufficient", lang)
+              : inf.r == null
+                ? "N/A"
+                : inf.r.toFixed(3)
+          }
           sub={inf.insufficient ? `N=${inf.n}` : `N=${inf.n} HAC`}
         />
         <Kpi label="매칭 기업" value={String(matched.length)} sub={`차트 ${chartNames.length}개`} />
-        <Kpi
-          label="유니버스"
-          value={`${universe.length}`}
-          sub={caps.data?.source ?? "N/A"}
-        />
+        <Kpi label="유니버스" value={`${universe.length}`} sub={caps.data?.source ?? "N/A"} />
       </div>
       {matched.length === 0 ? (
         <div className="rounded-lg border border-dashed px-4 py-8 text-center text-sm">
@@ -1030,7 +1129,11 @@ function IndustryPanel({
               return (
                 <tr key={m.ticker}>
                   <td>
-                    <Link to="/stock/$ticker" params={{ ticker: m.ticker }} className="hover:underline">
+                    <Link
+                      to="/stock/$ticker"
+                      params={{ ticker: m.ticker }}
+                      className="hover:underline"
+                    >
                       {m.companyName}
                     </Link>
                     <div className="text-[10px] tabular text-muted-foreground">{m.ticker}</div>
@@ -1067,7 +1170,7 @@ function IndustryPanel({
         source={`${caps.data?.source ?? "N/A"} · ${px.data?.source ?? "월봉 대기"}`}
         period={`${clipped[0]?.period ?? "—"} ~ ${clipped.at(-1)?.period ?? "—"}`}
         ingested={px.data?.fetchedAt ?? caps.data?.fetchedAt ?? "—"}
-        taxonomy={getCore20().taxonomyVersion}
+        taxonomy={`${getCore20().taxonomyVersion} (미검증 참고 분류)`}
       />
     </section>
   );
@@ -1126,7 +1229,8 @@ function CorrPanel() {
     <section className="desk-card p-4 space-y-3">
       <h2 className="text-lg font-semibold">{t("export.corr.title", lang)}</h2>
       <p className="text-xs text-muted-foreground">
-        RELEASE_TIME 정렬 권고. 점수는 예측이 아니라 사후 기술 통계입니다. 매수/매도 의견이 아닙니다.
+        RELEASE_TIME 정렬 권고. 점수는 예측이 아니라 사후 기술 통계입니다. 매수/매도 의견이
+        아닙니다.
       </p>
       {pack.inf.insufficient ? (
         <div className="rounded-md border px-3 py-6 text-center text-sm">
@@ -1134,12 +1238,21 @@ function CorrPanel() {
         </div>
       ) : (
         <div className="grid gap-2 sm:grid-cols-3">
-          <Kpi label="Pearson YoY (HAC)" value={pack.inf.r == null ? "N/A" : pack.inf.r.toFixed(3)} sub={`N=${pack.inf.n} SE=${pack.inf.se?.toFixed(3) ?? "N/A"}`} />
-          <Kpi label="USD/KRW 통제 편상관" value={pack.partial == null ? "N/A" : pack.partial.toFixed(3)} />
+          <Kpi
+            label="Pearson YoY (HAC)"
+            value={pack.inf.r == null ? "N/A" : pack.inf.r.toFixed(3)}
+            sub={`N=${pack.inf.n} SE=${pack.inf.se?.toFixed(3) ?? "N/A"}`}
+          />
+          <Kpi
+            label="USD/KRW 통제 편상관"
+            value={pack.partial == null ? "N/A" : pack.partial.toFixed(3)}
+          />
           <Kpi
             label="최강 시차"
             value={
-              pack.xcorr.filter((x) => x.corr != null).sort((a, b) => Math.abs(b.corr!) - Math.abs(a.corr!))[0]
+              pack.xcorr
+                .filter((x) => x.corr != null)
+                .sort((a, b) => Math.abs(b.corr!) - Math.abs(a.corr!))[0]
                 ? `lag ${pack.xcorr.filter((x) => x.corr != null).sort((a, b) => Math.abs(b.corr!) - Math.abs(a.corr!))[0]!.lag}`
                 : "N/A"
             }
@@ -1153,14 +1266,21 @@ function CorrPanel() {
 function RegionPanel() {
   const live = useLiveTrade();
   const dest = live.data?.destinations;
-  const levels = regionalCap.levels as { id: string; ko: string; available?: boolean; reason?: string; note?: string }[];
+  const levels = regionalCap.levels as {
+    id: string;
+    ko: string;
+    available?: boolean;
+    reason?: string;
+    note?: string;
+  }[];
   return (
     <section className="desk-card p-4 space-y-3">
       <h2 className="text-lg font-semibold flex items-center gap-2">
         <Globe2 className="size-4" /> 수출 목적지 · 지역
       </h2>
       <p className="text-xs text-muted-foreground">
-        국가별은 UN Comtrade 총수출(HS TOTAL) 상대국입니다. 시도/시군구는 공식 미제공 시 숫자를 만들지 않습니다.
+        국가별은 UN Comtrade 총수출(HS TOTAL) 상대국입니다. 시도/시군구는 공식 미제공 시 숫자를
+        만들지 않습니다.
       </p>
       {dest?.rows.length ? (
         <table className="desk-table w-full">
@@ -1176,14 +1296,20 @@ function RegionPanel() {
               <tr key={r.partnerCode}>
                 <td>{r.name}</td>
                 <td className="text-right tabular">{formatUsdBn(r.valueUsd)}</td>
-                <td className="text-right tabular">{(r.share * 100).toFixed(1)}%</td>
+                <td className="text-right tabular">
+                  {r.share != null && Number.isFinite(r.share)
+                    ? `${(r.share * 100).toFixed(1)}%`
+                    : "N/A"}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       ) : (
         <div className="text-sm text-muted-foreground">
-          {live.isLoading ? "상대국 집계 수집 중" : "상대국 스냅샷이 아직 없습니다. 화면을 한 번 더 열면 캐시가 쌓입니다."}
+          {live.isLoading
+            ? "상대국 집계 수집 중"
+            : "상대국 스냅샷이 아직 없습니다. 화면을 한 번 더 열면 캐시가 쌓입니다."}
         </div>
       )}
       <Provenance
@@ -1218,12 +1344,20 @@ function SigunguGuard() {
   return (
     <div className="rounded-md bg-muted/40 p-3 text-sm">
       <div className="flex gap-2 mb-2">
-        <select value={geo} onChange={(e) => setGeo(e.target.value)} className="h-8 rounded border bg-background px-2">
+        <select
+          value={geo}
+          onChange={(e) => setGeo(e.target.value)}
+          className="h-8 rounded border bg-background px-2"
+        >
           <option>NATIONAL</option>
           <option>SIDO</option>
           <option>SIGUNGU</option>
         </select>
-        <select value={cls} onChange={(e) => setCls(e.target.value)} className="h-8 rounded border bg-background px-2">
+        <select
+          value={cls}
+          onChange={(e) => setCls(e.target.value)}
+          className="h-8 rounded border bg-background px-2"
+        >
           <option>HS</option>
           <option>MTI</option>
           <option>HSK10</option>
@@ -1234,7 +1368,9 @@ function SigunguGuard() {
           {reason ?? "공식 시계열이 없습니다. 숫자를 합성하지 않습니다."}
         </div>
       ) : (
-        <div className="text-xs text-muted-foreground">선택한 큐브는 가져오기 후에만 값이 있습니다.</div>
+        <div className="text-xs text-muted-foreground">
+          선택한 큐브는 가져오기 후에만 값이 있습니다.
+        </div>
       )}
     </div>
   );
@@ -1242,7 +1378,6 @@ function SigunguGuard() {
 
 function QaPanel() {
   const observations = useAllObservations();
-  const demo = useExportDeskStore((s) => s.demoMode);
   const logs = useExportDeskStore((s) => s.logs);
   const live = useLiveTrade();
   const totals = observations.filter((o) => o.categoryId === "TOTAL");
@@ -1260,10 +1395,19 @@ function QaPanel() {
     <section className="desk-card p-4 space-y-3">
       <h2 className="text-lg font-semibold">데이터 품질 / 출처</h2>
       <ul className="text-xs space-y-1 text-muted-foreground">
-        <li>· 총수출·총수입: FRED/OECD 월간 (XTEXVA01KRM667S, XTIMVA01KRM667S). 통관 속보가 아닙니다.</li>
-        <li>· 품목: UN Comtrade HS 공개 프리뷰. MTI 코드가 아니며 HS 85를 반도체로 쓰지 않습니다.</li>
-        <li>· 산업부 월간 수출입 동향(잠정)과 관세청 data.go.kr API는 서비스 키가 없어 미연결입니다. 없는 금액은 N/A입니다.</li>
-        <li>· 2026-06-01 MTI 개정: 15대→20대. 구 15대 토글은 2026년 신설 5개 품목을 목록에서만 뺍니다.</li>
+        <li>
+          · 총수출·총수입: FRED/OECD 월간 (XTEXVA01KRM667S, XTIMVA01KRM667S). 통관 속보가 아닙니다.
+        </li>
+        <li>
+          · 품목: UN Comtrade HS 공개 프리뷰. MTI 코드가 아니며 HS 85를 반도체로 쓰지 않습니다.
+        </li>
+        <li>
+          · 산업부 월간 수출입 동향(잠정)과 관세청 data.go.kr API는 서비스 키가 없어 미연결입니다.
+          없는 금액은 N/A입니다.
+        </li>
+        <li>
+          · 품목 분류는 UNVERIFIED_SEED 참고 설정입니다. 공식 MTI 개정 여부·시행일을 확인한 목록이 아닙니다.
+        </li>
         {(live.data?.notes ?? []).map((n) => (
           <li key={n}>· {n}</li>
         ))}
@@ -1280,10 +1424,9 @@ function QaPanel() {
           정의가 다르면 갭이 정상입니다 (HS vs OECD 총수출).
         </span>
       </div>
-      <label className="inline-flex items-center gap-1.5 text-xs">
-        <Switch checked={demo} onCheckedChange={(v) => useExportDeskStore.getState().setDemoMode(v)} />
-        DEMO MODE (합성 숫자 — 기본 꺼짐)
-      </label>
+      <p className="text-xs text-muted-foreground">
+        합성·데모 데이터는 제공하지 않습니다. 공식 관측값이 없으면 N/A로 표시합니다.
+      </p>
       <div className="text-xs text-muted-foreground">로그 {logs.length}건</div>
       <ul className="text-xs space-y-1 max-h-48 overflow-auto">
         {logs.map((l) => (
@@ -1353,11 +1496,23 @@ function AdminPanel() {
     ticker: "",
     companyName: "",
     exportCategoryId: "semiconductors",
-    exposureWeight: "0.6",
-    mappingConfidence: "0.8",
+    exposureWeight: "",
+    mappingConfidence: "",
+    evidenceUrl: "",
   });
 
   function save() {
+    if (
+      !/^https?:\/\/\S+$/i.test(form.evidenceUrl.trim()) ||
+      !form.exposureWeight.trim() ||
+      !form.mappingConfidence.trim() ||
+      !Number.isFinite(Number(form.mappingConfidence)) ||
+      Number(form.mappingConfidence) < 0 ||
+      Number(form.mappingConfidence) > 1
+    ) {
+      setErr("근거 자료 URL과 노출 가중치·신뢰도(0~1)를 입력해 주세요.");
+      return;
+    }
     const row: CompanyExportExposure = {
       ticker: normalizeKrTicker(form.ticker),
       companyName: form.companyName || form.ticker,
@@ -1369,30 +1524,51 @@ function AdminPanel() {
       mappingType: "PRIMARY",
       verificationStatus: "VERIFIED_MANUAL",
       evidenceSummary: "Manual desk edit",
-      evidenceSource: [],
+      evidenceSource: [form.evidenceUrl.trim()],
       effectiveFrom: kstYmd(),
       lastReviewedAt: kstYmd(),
       active: true,
     };
     const r = upsert(row);
-    setErr(r.ok ? null : r.error ?? "저장 실패");
+    setErr(r.ok ? null : (r.error ?? "저장 실패"));
   }
 
   return (
     <section className="desk-card p-4 space-y-3">
       <h2 className="text-lg font-semibold">매핑 관리</h2>
-      <div className="grid gap-2 sm:grid-cols-5">
-        <Input placeholder="코드" value={form.ticker} onChange={(e) => setForm({ ...form, ticker: e.target.value })} />
-        <Input placeholder="이름" value={form.companyName} onChange={(e) => setForm({ ...form, companyName: e.target.value })} />
+      <div className="grid gap-2 sm:grid-cols-3">
+        <Input
+          placeholder="코드"
+          value={form.ticker}
+          onChange={(e) => setForm({ ...form, ticker: e.target.value })}
+        />
+        <Input
+          placeholder="이름"
+          value={form.companyName}
+          onChange={(e) => setForm({ ...form, companyName: e.target.value })}
+        />
         <Input
           placeholder="산업 key"
           value={form.exportCategoryId}
           onChange={(e) => setForm({ ...form, exportCategoryId: e.target.value })}
         />
         <Input
-          placeholder="가중"
+          placeholder="노출 가중치 (0~1)"
+          aria-label="노출 가중치"
           value={form.exposureWeight}
           onChange={(e) => setForm({ ...form, exposureWeight: e.target.value })}
+        />
+        <Input
+          placeholder="신뢰도 (0~1)"
+          aria-label="매핑 신뢰도"
+          value={form.mappingConfidence}
+          onChange={(e) => setForm({ ...form, mappingConfidence: e.target.value })}
+        />
+        <Input
+          placeholder="근거 자료 URL"
+          aria-label="노출 가중치 근거 자료 URL"
+          value={form.evidenceUrl}
+          onChange={(e) => setForm({ ...form, evidenceUrl: e.target.value })}
         />
         <Button type="button" onClick={save}>
           저장 (수동검증)
@@ -1413,7 +1589,10 @@ function AdminPanel() {
           </thead>
           <tbody>
             {exposures.map((e) => (
-              <tr key={`${e.ticker}-${e.exportCategoryId}`} className={e.active === false ? "opacity-50" : ""}>
+              <tr
+                key={`${e.ticker}-${e.exportCategoryId}`}
+                className={e.active === false ? "opacity-50" : ""}
+              >
                 <td>
                   {e.companyName} <span className="tabular">{e.ticker}</span>
                 </td>
@@ -1427,7 +1606,11 @@ function AdminPanel() {
                   )}
                 </td>
                 <td>
-                  <button type="button" className="text-desk-rose" onClick={() => remove(e.ticker, e.exportCategoryId)}>
+                  <button
+                    type="button"
+                    className="text-desk-rose"
+                    onClick={() => remove(e.ticker, e.exportCategoryId)}
+                  >
                     삭제
                   </button>
                 </td>
@@ -1472,8 +1655,7 @@ function ImportPanel() {
         <FileUp className="size-4" /> 데이터 가져오기 (Track F)
       </h2>
       <p className="text-xs text-muted-foreground">
-        KITA/관세청/KRX에서 받은 CSV. 헤더는 한글·영문 모두 인식합니다. 단위:
-        천달러·백만불·억달러.
+        KITA/관세청/KRX에서 받은 CSV. 헤더는 한글·영문 모두 인식합니다. 단위: 천달러·백만불·억달러.
       </p>
       <div className="flex flex-wrap gap-2">
         <select
@@ -1525,7 +1707,7 @@ function ImportPanel() {
             const f = e.target.files?.[0];
             if (!f) return;
             const r = load(await f.text());
-            setMsg(r.ok ? "스토어 복원" : r.error ?? "실패");
+            setMsg(r.ok ? "스토어 복원" : (r.error ?? "실패"));
           }}
         />
       </div>

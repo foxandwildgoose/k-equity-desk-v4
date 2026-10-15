@@ -30,12 +30,14 @@ import { normalizeKrTicker, isKrTicker } from "@/lib/infer-sector";
 import { yahooUsSymbol } from "@/lib/valuation-series";
 import type { EtfMarketBucket } from "@/server/etf-market";
 import { UNIVERSE } from "@/data/universe";
+import { mergeQuoteSnapshots } from "@/lib/market-quote-state";
 import { US_LINKED_CODES } from "@/data/us-link";
 
 /** Coverage-universe snapshot quotes (Naver). KIS ticks overlay via useMarketStream. */
 export function useMarketQuotes(refetchMs = 45_000) {
   return useQuery({
     queryKey: ["market-quotes"],
+    structuralSharing: mergeQuoteSnapshots,
     queryFn: () => getMarketQuotes(),
     staleTime: 40_000,
     refetchInterval: refetchMs,
@@ -81,6 +83,7 @@ export function useStockBundle(code: string) {
   const padded = normalizeKrTicker(code);
   return useQuery({
     queryKey: ["stock-bundle", padded],
+    structuralSharing: mergeQuoteSnapshots,
     queryFn: () => getStockBundle({ data: { code: padded } }),
     staleTime: 25_000,
     refetchInterval: 45_000,
@@ -123,8 +126,9 @@ export function useChartData(opts: {
         },
       }),
     staleTime: opts.interval === "minute" ? 15_000 : 60_000,
+    refetchInterval: opts.interval === "minute" || opts.interval === "day" ? 45_000 : false,
     enabled: (opts.enabled ?? true) && (us ? yahooUsSymbol(code) != null : isKrTicker(code)),
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -283,6 +287,7 @@ export function useEtfBundle(code: string) {
   const normalized = normalizeKrTicker(code);
   return useQuery({
     queryKey: ["etf-bundle", normalized],
+    structuralSharing: mergeQuoteSnapshots,
     queryFn: () => getEtfBundle({ data: { code: normalized } }),
     staleTime: 30_000,
     enabled: isKrTicker(normalized),
@@ -320,6 +325,7 @@ export function useQuotesByCodes(codes: string[]) {
   const key = [...codes].sort().join(",");
   return useQuery({
     queryKey: ["quotes-by-codes", key],
+    structuralSharing: mergeQuoteSnapshots,
     queryFn: () => getQuotesByCodes({ data: { codes } }),
     enabled: codes.length > 0,
     staleTime: 30_000,

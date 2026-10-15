@@ -26,6 +26,9 @@ import {
 } from "lucide-react";
 import type { UsLiveArticle } from "@/server/us-link-feed";
 import { SourceLinks } from "@/components/ui/SourceLinks";
+import { quoteCoverage } from "@/lib/market-freshness";
+import { useMarketClock } from "@/lib/use-market-clock";
+import { coverageLabel } from "@/lib/market-presentation";
 
 export const Route = createFileRoute("/us-link")({
   component: UsLinkPage,
@@ -153,6 +156,7 @@ function UsLinkPage() {
     useUsLinkDesk();
   const { map } = useQuoteMap();
   const colors = usePriceColors();
+  const now = useMarketClock();
   const [tab, setTab] = useState<Tab>("ai-race");
   const [pillar, setPillar] = useState<string | "all">("all");
   const [activeBrief, setActiveBrief] = useState<string | null>(null);
@@ -444,12 +448,12 @@ function UsLinkPage() {
         <section className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {US_LINK_PILLARS.map((p) => {
             const codes = US_LINKED_NAMES.filter((n) => n.pillar === p.id);
-            const qs = codes
-              .map((c) => quoteByCode.get(c.code))
-              .filter(Boolean);
-            const avg = qs.length
-              ? qs.reduce((s, q) => s + (q?.changePct ?? 0), 0) / qs.length
-              : 0;
+            const qs = codes.flatMap((c) => {
+              const quote = quoteByCode.get(c.code);
+              return quote ? [quote] : [];
+            });
+            const coverage = quoteCoverage(qs, codes.map((c) => c.code), now);
+            const avg = coverage.avgChangePct;
             return (
               <button
                 key={p.id}
@@ -469,14 +473,14 @@ function UsLinkPage() {
                   <span
                     className={cn(
                       "text-sm font-semibold tabular",
-                      avg > 0
+                      avg != null && avg > 0
                         ? colors.up
-                        : avg < 0
+                        : avg != null && avg < 0
                           ? colors.down
                           : "text-muted-foreground",
                     )}
                   >
-                    {qs.length ? formatPct(avg) : "—"}
+                    {avg != null ? formatPct(avg) : "—"}
                   </span>
                 </div>
                 <p className="mt-2 text-sm text-muted-foreground line-clamp-3 leading-relaxed">
@@ -496,7 +500,7 @@ function UsLinkPage() {
                   />
                 </div>
                 <div className="mt-2 text-xs text-muted-foreground">
-                  {codes.length}종목 · 카드 클릭 시 종목 목록
+                  커버리지 단순평균 · {coverageLabel(coverage)}
                 </div>
               </button>
             );

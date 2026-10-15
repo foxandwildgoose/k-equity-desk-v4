@@ -9,6 +9,7 @@ import { US_LINKED_CODES } from "./us-link";
 import { matchesSearchQuery, rankByQuery } from "@/lib/search-match";
 import { SECTOR_BY_ID } from "./sectors";
 import { normalizeKrTicker } from "@/lib/infer-sector";
+import { isValidMarketQuote, marketQuoteMovers, quoteCoverage, quoteFreshness } from "@/lib/market-freshness";
 
 export { UNIVERSE, UNIVERSE_BY_CODE, getUniverseItem };
 export type { UniverseItem };
@@ -60,17 +61,23 @@ export function mergeQuote(
 ): Stock {
   const price = q?.price ?? 0;
   const marketCap = q?.marketCap ?? 0;
+  const freshness = q ? quoteFreshness(q) : null;
   return {
     code: meta.code,
     nameKo: meta.nameKo,
     nameEn: meta.nameEn,
     sectorId: meta.sectorId,
     market: meta.market,
+    quoteAvailable: Boolean(q && isValidMarketQuote(q)),
+    quoteAsOf: freshness?.asOf ?? null,
+    quoteStatus: freshness?.status ?? "unavailable",
     price,
     change: q?.change ?? 0,
     changePct: q?.changePct ?? 0,
     volume: q?.volume ?? 0,
+    volumeValid: Boolean(q && q.volumeValid !== false && Number.isFinite(q.volume) && q.volume >= 0),
     marketCap,
+    marketCapValid: Boolean(q && q.marketCapValid !== false && Number.isFinite(q.marketCap) && q.marketCap > 0),
     high52: q?.high52 ?? 0,
     low52: q?.low52 ?? 0,
     sparkline: [],
@@ -95,41 +102,33 @@ export function quoteToStock(q: LiveQuote): Stock {
 export function marketMoversFromQuotes(
   quotes: LiveQuote[],
   n = 6,
+  now = Date.now(),
 ): { gainers: Stock[]; losers: Stock[] } {
-  const sorted = [...quotes].filter((q) => q.price > 0);
-  const byPct = [...sorted].sort((a, b) => b.changePct - a.changePct);
+  const selected = marketQuoteMovers(quotes, n, now);
   return {
-    gainers: byPct.slice(0, n).map(quoteToStock),
-    losers: [...byPct].reverse().slice(0, n).map(quoteToStock),
+    gainers: selected.gainers.map(quoteToStock),
+    losers: selected.losers.map(quoteToStock),
   };
 }
 
 export function sectorStatsFromQuotes(
   sectorId: string,
   quotes: LiveQuote[],
-): {
-  count: number;
-  avgChangePct: number;
-  topGainer: Stock | null;
-  topLoser: Stock | null;
-} {
+  now = Date.now(),
+) {
   const codes =
     sectorId === "us-linked"
       ? new Set(US_LINKED_CODES)
       : new Set(
           UNIVERSE.filter((u) => u.sectorId === sectorId).map((u) => u.code),
         );
-  const list = quotes.filter((q) => codes.has(q.code) && q.price > 0);
-  if (!list.length) {
-    return { count: 0, avgChangePct: 0, topGainer: null, topLoser: null };
-  }
-  const avg =
-    list.reduce((s, q) => s + q.changePct, 0) / Math.max(1, list.length);
-  const sorted = [...list].sort((a, b) => b.changePct - a.changePct);
+  const coverage = quoteCoverage(quotes, codes, now);
+  const sorted = [...coverage.quotes].sort((a, b) => b.changePct - a.changePct);
+  const topGainer = sorted.find((quote) => quote.changePct > 0);
+  const topLoser = [...sorted].reverse().find((quote) => quote.changePct < 0);
   return {
-    count: list.length,
-    avgChangePct: avg,
-    topGainer: quoteToStock(sorted[0]!),
-    topLoser: quoteToStock(sorted[sorted.length - 1]!),
+    ...coverage,
+    topGainer: topGainer ? quoteToStock(topGainer) : null,
+    topLoser: topLoser ? quoteToStock(topLoser) : null,
   };
 }

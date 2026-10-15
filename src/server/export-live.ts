@@ -1,23 +1,19 @@
 import { createServerFn } from "@tanstack/react-start";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { CORE20_HS_PROXY, aggregateProxy, hsName, partnerName } from "@/lib/export-desk/hs-map";
+import { CORE20_HS_PROXY, aggregateProxy, hsName } from "@/lib/export-desk/hs-map";
+import { destinationRows, type DestinationRow } from "@/lib/export-desk/destinations";
 import { parseFredCsv, type FredPoint } from "@/lib/export-desk/parse-fred";
 import type { TradeObservation } from "@/lib/export-desk/parse-import";
 import { fetchGoogleNewsRss } from "@/server/us-link-feed";
 
 const FRED_EXP = "XTEXVA01KRM667S";
 const FRED_IMP = "XTIMVA01KRM667S";
-const CACHE_PATH = "/tmp/kx-export-live-v1.json";
+const CACHE_PATH = "/tmp/kx-export-live-v2.json";
 const COMTRADE = "https://comtradeapi.un.org/public/v1/preview/C/M/HS";
 
 export type { FredPoint };
 
-export interface DestinationRow {
-  partnerCode: string;
-  name: string;
-  valueUsd: number;
-  share: number;
-}
+export type { DestinationRow };
 
 export interface LiveTradeBundle {
   exports: FredPoint[];
@@ -104,11 +100,15 @@ async function writeFredCache(id: string, rows: FredPoint[]): Promise<void> {
   }
 }
 
-async function comtrade(params: Record<string, string>): Promise<{ rows: Record<string, unknown>[]; definitiveEmpty: boolean }> {
+async function comtrade(
+  params: Record<string, string>,
+): Promise<{ rows: Record<string, unknown>[]; definitiveEmpty: boolean }> {
   const qs = new URLSearchParams(params);
   const url = `${COMTRADE}?${qs.toString()}`;
   const pull = async () =>
-    fetch(url, { headers: { "User-Agent": "Mozilla/5.0 KoreaExportDesk/1.0", Accept: "application/json" } });
+    fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 KoreaExportDesk/1.0", Accept: "application/json" },
+    });
   let res = await pull();
   if (res.status === 429) {
     await new Promise((r) => setTimeout(r, 1600));
@@ -172,7 +172,9 @@ async function readCache(): Promise<DiskCache> {
         if (v && typeof v === "object" && v.byCode && typeof v.byCode === "object") months[k] = v;
       }
     }
-    const empty = Array.isArray(raw.empty) ? raw.empty.filter((x): x is string => typeof x === "string") : [];
+    const empty = Array.isArray(raw.empty)
+      ? raw.empty.filter((x): x is string => typeof x === "string")
+      : [];
     return {
       months,
       empty,
@@ -234,22 +236,7 @@ async function ensureComtrade(cache: DiskCache, maxCalls: number): Promise<numbe
         cmdCode: "TOTAL",
       });
       used += 1;
-      const world = rows.find((r) => String(r.partnerCode) === "0");
-      const worldVal = Number(world?.primaryValue ?? 0) || 1;
-      const dests = rows
-        .filter((r) => String(r.partnerCode) !== "0")
-        .map((r) => {
-          const valueUsd = Number(r.primaryValue ?? 0);
-          return {
-            partnerCode: String(r.partnerCode ?? ""),
-            name: partnerName(String(r.partnerCode ?? "")),
-            valueUsd,
-            share: valueUsd / worldVal,
-          };
-        })
-        .filter((r) => r.valueUsd > 0)
-        .sort((a, b) => b.valueUsd - a.valueUsd)
-        .slice(0, 18);
+      const dests = destinationRows(rows);
       if (dests.length) cache.destinations = { period: latest, rows: dests };
     }
   }
@@ -370,7 +357,8 @@ export const getLiveTradeBundle = createServerFn({ method: "GET" }).handler(asyn
     comtradeLatestPeriod: Object.keys(cache.months).sort().at(-1) ?? null,
     comtradeMonthsCached: Object.keys(cache.months).length,
     source: {
-      totals: "FRED/OECD International Trade: Exports/Imports Value Goods Korea (XTEXVA01KRM667S / XTIMVA01KRM667S)",
+      totals:
+        "FRED/OECD International Trade: Exports/Imports Value Goods Korea (XTEXVA01KRM667S / XTIMVA01KRM667S)",
       items: "UN Comtrade monthly HS, reporter=Korea (410), partner=World",
       fetchedAt: new Date().toISOString(),
     },

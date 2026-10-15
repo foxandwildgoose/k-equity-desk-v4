@@ -1,0 +1,103 @@
+{
+  "mode": "Actual built server RPC and independent actual Naver provider; no fixtures",
+  "base": "http://127.0.0.1:8081",
+  "passed": true,
+  "results": [
+    {
+      "code": "0246X0",
+      "durationMs": 2943,
+      "source": "history-unavailable+naver-mobile-daily",
+      "barCount": 5,
+      "freshness": {
+        "status": "awaiting-session",
+        "marketDate": "2026-10-16",
+        "lastActualTradingDate": "2026-10-15",
+        "note": "최근 실제 거래일 2026-10-15 · 다음 정규장 거래 자료 대기"
+      },
+      "last": {
+        "date": "2026-10-15",
+        "label": "10/15",
+        "open": 7925,
+        "high": 7995,
+        "low": 7660,
+        "close": 7770,
+        "volume": 705272,
+        "volumeValid": true,
+        "bullish": false,
+        "ma5": 8719
+      },
+      "expected": {
+        "date": "2026-10-15",
+        "open": 7925,
+        "high": 7995,
+        "low": 7660,
+        "close": 7770,
+        "volume": 705272
+      }
+    },
+    {
+      "code": "305540",
+      "durationMs": 2157,
+      "source": "history-unavailable+naver-mobile-daily",
+      "barCount": 5,
+      "freshness": {
+        "status": "awaiting-session",
+        "marketDate": "2026-10-16",
+        "lastActualTradingDate": "2026-10-15",
+        "note": "최근 실제 거래일 2026-10-15 · 다음 정규장 거래 자료 대기"
+      },
+      "last": {
+        "date": "2026-10-15",
+        "label": "10/15",
+        "open": 19185,
+        "high": 19530,
+        "low": 18525,
+        "close": 18870,
+        "volume": 1002381,
+        "volumeValid": true,
+        "bullish": false,
+        "ma5": 19593
+      },
+      "expected": {
+        "date": "2026-10-15",
+        "open": 19185,
+        "high": 19530,
+        "low": 18525,
+        "close": 18870,
+        "volume": 1002381
+      }
+    },
+    {
+      "code": "005930",
+      "durationMs": 1688,
+      "source": "history-unavailable+naver-mobile-daily",
+      "barCount": 5,
+      "freshness": {
+        "status": "awaiting-session",
+        "marketDate": "2026-10-16",
+        "lastActualTradingDate": "2026-10-15",
+        "note": "최근 실제 거래일 2026-10-15 · 다음 정규장 거래 자료 대기"
+      },
+      "last": {
+        "date": "2026-10-15",
+        "label": "10/15",
+        "open": 225000,
+        "high": 225000,
+        "low": 204500,
+        "close": 207500,
+        "volume": 56671284,
+        "volumeValid": true,
+        "bullish": false,
+        "ma5": 238000
+      },
+      "expected": {
+        "date": "2026-10-15",
+        "open": 225000,
+        "high": 225000,
+        "low": 204500,
+        "close": 207500,
+        "volume": 56671284
+      }
+    }
+  ]
+}

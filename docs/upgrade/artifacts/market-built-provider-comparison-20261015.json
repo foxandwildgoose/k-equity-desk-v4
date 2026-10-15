@@ -1,0 +1,128 @@
+{
+  "mode": "Actual app RPC compared with independently fetched actual provider; no fixtures",
+  "base": "http://127.0.0.1:8081",
+  "passed": true,
+  "summary": {
+    "fetchedAt": "2026-10-15T16:30:16.157Z",
+    "total": 140,
+    "positive": 20,
+    "negative": 120,
+    "validVolume": 140,
+    "validCap": 140,
+    "dated": 140,
+    "samples": [
+      {
+        "code": "005930",
+        "name": "삼성전자",
+        "price": 207500,
+        "change": -24500,
+        "changePct": -10.56,
+        "tradedAt": "2026-10-15T20:20:22+09:00",
+        "source": "naver-finance-snapshot"
+      },
+      {
+        "code": "000660",
+        "name": "SK하이닉스",
+        "price": 1238000,
+        "change": -181000,
+        "changePct": -12.76,
+        "tradedAt": "2026-10-15T20:20:25+09:00",
+        "source": "naver-finance-snapshot"
+      },
+      {
+        "code": "373220",
+        "name": "LG에너지솔루션",
+        "price": 393000,
+        "change": -29000,
+        "changePct": -6.87,
+        "tradedAt": "2026-10-15T20:20:20+09:00",
+        "source": "naver-finance-snapshot"
+      },
+      {
+        "code": "005380",
+        "name": "현대차",
+        "price": 289500,
+        "change": -24000,
+        "changePct": -7.66,
+        "tradedAt": "2026-10-15T20:20:26+09:00",
+        "source": "naver-finance-snapshot"
+      },
+      {
+        "code": "207940",
+        "name": "삼성바이오로직스",
+        "price": 1241000,
+        "change": 59000,
+        "changePct": 4.99,
+        "tradedAt": "2026-10-15T20:20:23+09:00",
+        "source": "naver-finance-snapshot"
+      },
+      {
+        "code": "105560",
+        "name": "KB금융",
+        "price": 159900,
+        "change": 700,
+        "changePct": 0.44,
+        "tradedAt": "2026-10-15T20:20:21+09:00",
+        "source": "naver-finance-snapshot"
+      }
+    ]
+  },
+  "comparisons": [
+    {
+      "code": "005930",
+      "price": 207500,
+      "changePct": -10.56,
+      "tradedAt": "2026-10-15T20:20:22+09:00",
+      "matched": true
+    },
+    {
+      "code": "000660",
+      "price": 1238000,
+      "changePct": -12.76,
+      "tradedAt": "2026-10-15T20:20:25+09:00",
+      "matched": true
+    },
+    {
+      "code": "005380",
+      "price": 289500,
+      "changePct": -7.66,
+      "tradedAt": "2026-10-15T20:20:26+09:00",
+      "matched": true
+    },
+    {
+      "code": "373220",
+      "price": 393000,
+      "changePct": -6.87,
+      "tradedAt": "2026-10-15T20:20:20+09:00",
+      "matched": true
+    },
+    {
+      "code": "207940",
+      "price": 1241000,
+      "changePct": 4.99,
+      "tradedAt": "2026-10-15T20:20:23+09:00",
+      "matched": true
+    },
+    {
+      "code": "105560",
+      "price": 159900,
+      "changePct": 0.44,
+      "tradedAt": "2026-10-15T20:20:21+09:00",
+      "matched": true
+    },
+    {
+      "code": "066970",
+      "price": 100800,
+      "changePct": -13.4,
+      "tradedAt": "2026-10-15T20:20:19+09:00",
+      "matched": true
+    },
+    {
+      "code": "450080",
+      "price": 31900,
+      "changePct": -9.63,
+      "tradedAt": "2026-10-15T20:20:21+09:00",
+      "matched": true
+    }
+  ]
+}

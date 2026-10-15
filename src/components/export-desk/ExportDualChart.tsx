@@ -245,7 +245,7 @@ export function ExportAmountChart({
         toolbar={<RangePresets chart={chart} first={shown[0]?.points[0] ? toDay(shown[0].points[0].time) : undefined} last={focus?.points.at(-1) ? toDay(focus.points.at(-1)!.time) : undefined} />}
         hud={hud}
         legend={legend}
-        status={{ source, mode: "월간 · 확정 HS", updatedAt: asOf, note: "MOTIE MTI 금액이 아닙니다. 없는 월은 비워 둡니다." }}
+        status={{ source, mode: "월간 · HS 공개 프리뷰", updatedAt: asOf, note: "MOTIE MTI 금액이 아닙니다. 없는 월은 비워 둡니다." }}
         onExportPng={() => exportChartPng(chart, "KR", "EXPORT", "core-items")}
         height={340}
         testId="export-amount-chart"

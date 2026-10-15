@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { etfIssuerIdentity, fetchOfficialIssuerText, hasIssuerProductIdentity, isOfficialIssuerUrl, krxEtfIsin, officialHoldingsDestination, parseIssuerProductLinks, resolveEtfIssuer } from "./etf-issuer.ts";
+import { VERIFIED_ISSUER_PRODUCTS } from "../data/etf-issuer-products.ts";
+import { etfIssuerIdentity, fetchOfficialIssuerText, hasIssuerProductIdentity, isOfficialIssuerUrl, krxEtfIsin, officialHoldingsDestination, parseIssuerProductLinks, parseNamedIssuerProductLinks, resolveEtfIssuer } from "./etf-issuer.ts";
 
 function fixtureFetch(handler: (url: string, init?: RequestInit) => Response | Promise<Response>): typeof fetch {
   return (async (input: string | URL | Request, init?: RequestInit) => handler(String(input), init)) as typeof fetch;
@@ -11,6 +12,31 @@ test("issuer brands include renamed families and distinguish Samsung active", ()
   for (const [name, family] of [["KBSTAR 200", "rise"], ["KINDEX 미국S&P500", "ace"], ["ARIRANG 200", "plus"], ["KOSEF 200", "kiwoom"], ["TIME 글로벌AI인공지능액티브", "timefolio"], ["WON 반도체", "won"], ["1Q 미국나스닥100", "oneq"], ["KoAct 바이오헬스케어액티브", "koact"], ["SOL 글로벌DRAM반도체플러스", "sol"]]) assert.equal(etfIssuerIdentity(name!).family, family);
   assert.equal(etfIssuerIdentity("알 수 없는 상품", "삼성액티브자산운용").family, "koact");
   assert.equal(etfIssuerIdentity("알 수 없는 상품", "알 수 없는 운용사").websiteUrl, null);
+});
+
+test("all additional published brands have issuer identities without inventing DS destinations", async () => {
+  for (const [brand, family, website] of [
+    ["에셋플러스", "assetplus", "https://www.assetplus.co.kr/"], ["MIDAS", "midas", "https://www.midasasset.com/"],
+    ["파워", "power", "https://www.kyoboaxa-im.co.kr/"], ["UNICORN", "unicorn", "https://www.hyundaiam.com/"],
+    ["DAISHIN", "daishin", "https://asset.daishin.com/"], ["아이엠에셋", "imasset", "https://www.im-fund.com/"],
+    ["KCGI", "kcgi", "https://kcgiam.com/"], ["더제이", "thej", "https://www.thejasset.com/"],
+  ]) {
+    const identity = etfIssuerIdentity(`${brand} 테스트 ETF`);
+    assert.equal(identity.family, family);
+    assert.equal(identity.websiteUrl, website);
+    assert.equal(officialHoldingsDestination("999999", `${brand} 테스트 ETF`, "", website), null);
+  }
+  assert.equal(etfIssuerIdentity("1Q 미국나스닥100").websiteUrl, "https://www.hanaam.com/qetf/main");
+  assert.ok(isOfficialIssuerUrl("https://www.hanaam.com/qetf/main", "oneq"));
+  assert.ok(isOfficialIssuerUrl("https://www.db-asset.co.kr/", "mighty"));
+  assert.ok(isOfficialIssuerUrl("https://www.dbasset.co.kr/", "mighty"));
+  assert.equal(etfIssuerIdentity("DS 테스트 ETF").family, "ds");
+  assert.equal(etfIssuerIdentity("DS 테스트 ETF").websiteUrl, null);
+  let calls = 0;
+  const unresolved = await resolveEtfIssuer("0220B0", "DS 테스트 ETF", "", { fetcher: fixtureFetch(() => { calls++; throw new Error("No invented domain"); }) });
+  assert.equal(unresolved.status, "unresolved");
+  assert.equal(unresolved.websiteUrl, null);
+  assert.equal(calls, 0);
 });
 
 test("official fetch allowlist rejects ports, credentials, other issuer hosts and redirects", async () => {
@@ -47,10 +73,19 @@ test("KODEX/PLUS/HANARO official catalogs resolve exact product identifiers", as
   const kodex = await resolveEtfIssuer("069500", "KODEX 200", "", { fetcher: fixtureFetch(() => json([{ stkTicker: "069500", fId: "2ETF01", totalCnt: "1" }])) });
   assert.equal(kodex.issuerUrl, "https://www.samsungfund.com/etf/product/view.do?id=2ETF01");
   assert.equal(kodex.productId, "2ETF01");
-  const plus = await resolveEtfIssuer("111111", "PLUS 테스트", "", { fetcher: fixtureFetch((_url, init) => { assert.equal(init?.method, "POST"); return json({ content: [{ id: "other", nameCode: "111112" }, { id: "exact", nameCode: "111111" }] }); }) });
+  const plus = await resolveEtfIssuer("111111", "PLUS 테스트", "", { fetcher: fixtureFetch((url, init) => { if (url.endsWith("/overview")) return new Response("<p>새 상품</p>"); assert.equal(init?.method, "POST"); return json({ content: [{ id: "other", nameCode: "111112" }, { id: "exact", nameCode: "111111" }] }); }) });
   assert.equal(plus.issuerUrl, "https://www.plusetf.co.kr/product/detail?n=exact");
   const hanaro = await resolveEtfIssuer("123456", "HANARO 테스트", "", { fetcher: fixtureFetch(() => new Response(`<a href="/fund/F123A" class="baseInfo"><dt>종목코드</dt><dd>123456</dd></a>`)) });
   assert.equal(hanaro.issuerUrl, "https://www.hanaroetf.com/fund/F123A");
+});
+
+test("PLUS exact-name overview avoids broken API without confusing hedged share classes", async () => {
+  const html = `<a href="/product/detail?n=006273">PLUS 고배당주</a><a href="/product/detail?n=OTHER">PLUS 고배당주(H)</a><a href="/">PLUS 고배당주</a><a href="https://evil.test/view?id=1">PLUS 고배당주</a>`;
+  assert.deepEqual(parseNamedIssuerProductLinks(html, "PLUS 고배당주", "https://www.plusetf.co.kr/product/overview", "plus"), ["https://www.plusetf.co.kr/product/detail?n=006273"]);
+  let calls = 0;
+  const product = await resolveEtfIssuer("161510", "PLUS 고배당주", "", { fetcher: fixtureFetch((url) => { calls++; assert.ok(url.endsWith("/overview")); return new Response(html); }) });
+  assert.equal(product.issuerUrl, "https://www.plusetf.co.kr/product/detail?n=006273");
+  assert.equal(calls, 1);
 });
 
 test("a catalog match resolves without fetching unrelated later pages", async () => {
@@ -150,13 +185,24 @@ test("central holdings action uses official exact-product routes across issuer f
     ["161510", "PLUS 고배당주", "https://www.plusetf.co.kr/product/detail?n=006273"],
     ["123456", "IBK 테스트", "https://www.ibkasset.com/etf/detail/27"],
     ["462900", "KoAct 바이오헬스케어액티브", "https://www.samsungactive.co.kr/etf/view.do?id=2ETFJ9"],
-    ["200250", "KIWOOM 200", "https://www.kiwoometf.com/service/etf/KO02010200M?gcode=200250"],
+    ["069660", "KIWOOM 200", "https://www.kiwoometf.com/service/etf/KO02010200M?gcode=069660"],
     ["123456", "TIMEFOLIO 테스트", "https://timeetf.co.kr/m11_view.php?idx=27"],
   ];
-  for (const [code, name, url] of products) assert.equal(officialHoldingsDestination(code!, name!, "", url), url);
+  for (const [code, name, url] of products) assert.equal(officialHoldingsDestination(code!, name!, "", url), name!.startsWith("TIME") ? `${url}#constituentItems` : url);
   assert.equal(officialHoldingsDestination("0123S0", "HANARO 26-12은행채(AA+이상) 액티브", "", "https://www.hanaroetf.com/fund/BB6BC368BE7143F3"), "https://www.hanaroetf.com/fund/BB6BC368BE7143F3#etfPDF");
   // Metadata identifies the issuer even when the product name lacks its brand.
   assert.equal(officialHoldingsDestination("0246X0", "글로벌DRAM반도체플러스", "신한자산운용", products[0]![2]), products[0]![2]);
+});
+
+test("user-confirmed TIGER secondary-battery product remains active when issuer HTML is blocked", async () => {
+  const url = "https://investments.miraeasset.com/tigeretf/ko/product/search/detail/index.do?ksdFund=KR7305540007";
+  assert.equal(krxEtfIsin("305540"), "KR7305540007");
+  const product = await resolveEtfIssuer("305540", "TIGER 2차전지테마", "미래에셋자산운용", { fetcher: fixtureFetch(() => { throw new Error("Official site HTTP 403"); }) });
+  assert.equal(product.status, "resolved");
+  assert.equal(product.issuerUrl, url);
+  assert.equal(product.productId, "KR7305540007");
+  assert.equal(officialHoldingsDestination("305540", "TIGER 2차전지테마", "미래에셋자산운용", null, null), url);
+  assert.equal(officialHoldingsDestination("305540", "ACE 다른 ETF", "", null, null), null);
 });
 
 test("holdings action does not adopt another product, an unverified fragment or a generic issuer link", () => {
@@ -173,9 +219,63 @@ test("holdings action does not adopt another product, an unverified fragment or 
   }
   assert.equal(officialHoldingsDestination("123456", "미등록 운용사 ETF", "", product), null);
   assert.equal(officialHoldingsDestination("../bad", "SOL ETF", "", product), null);
-  assert.equal(officialHoldingsDestination("069500", "KODEX 200", "", "https://www.samsungfund.com/etf/product/view.do?id=2ETF01&id=OTHER"), null);
-  assert.equal(officialHoldingsDestination("360750", "TIGER 미국S&P500", "", "https://investments.miraeasset.com/tigeretf/ko/product/search/detail/index.do?ksdFund=KR7139260004"), null);
-  assert.equal(officialHoldingsDestination("200250", "KIWOOM 200", "", "https://www.kiwoometf.com/service/etf/KO02010200M?gcode=123456"), null);
+  assert.equal(officialHoldingsDestination("123456", "KODEX 미확인 ETF", "", "https://www.samsungfund.com/etf/product/view.do?id=2ETF01&id=OTHER"), null);
+  assert.equal(officialHoldingsDestination("069500", "KODEX 200", "", "https://www.samsungfund.com/etf/product/view.do?id=OTHER"), "https://www.samsungfund.com/etf/product/view.do?id=2ETF01");
+  assert.equal(officialHoldingsDestination("123456", "TIGER 미확인 ETF", "", "https://investments.miraeasset.com/tigeretf/ko/product/search/detail/index.do?ksdFund=KR7139260004"), null);
+  assert.equal(officialHoldingsDestination("360750", "TIGER 미국S&P500", "", "https://investments.miraeasset.com/tigeretf/ko/product/search/detail/index.do?ksdFund=KR7139260004"), "https://investments.miraeasset.com/tigeretf/ko/product/search/detail/index.do?ksdFund=KR7360750004");
+  assert.equal(officialHoldingsDestination("123456", "KIWOOM 미확인 ETF", "", "https://www.kiwoometf.com/service/etf/KO02010200M?gcode=200250"), null);
+});
+
+test("persisted official product records are unique, source-verified and usable without runtime HTTP", async () => {
+  assert.ok(VERIFIED_ISSUER_PRODUCTS.length > 0);
+  const codes = new Set<string>();
+  for (const record of VERIFIED_ISSUER_PRODUCTS) {
+    assert.match(record.code, /^[0-9A-Z]{6}$/);
+    assert.ok(!codes.has(record.code), `duplicate ETF ${record.code}`);
+    codes.add(record.code);
+    const family = etfIssuerIdentity(record.name).family;
+    assert.equal(family, record.family, record.code);
+    assert.ok(isOfficialIssuerUrl(record.url, family), record.code);
+    if (record.sourceKind !== "corroborated-issuer-template") assert.ok(isOfficialIssuerUrl(record.sourceUrl, family), record.code);
+    assert.equal(new URL(record.url).hash, "");
+    if (record.sourceKind === "verified-issuer-template") {
+      assert.equal(record.family, "tiger");
+      assert.equal(record.templateVerification, "user-confirmed-2026-10-15");
+      assert.match(record.listingSourceSha256!, /^[a-f0-9]{64}$/);
+      assert.equal(new URL(record.url).searchParams.get("ksdFund"), krxEtfIsin(record.code));
+    } else if (record.sourceKind === "corroborated-issuer-template") {
+      assert.equal(record.family, "kiwoom");
+      assert.equal(record.templateVerification, "independent-published-implementations");
+      assert.match(record.sourceSha256!, /^[a-f0-9]{64}$/);
+      assert.match(record.corroboratingSourceSha256!, /^[a-f0-9]{64}$/);
+      assert.match(record.listingSourceSha256!, /^[a-f0-9]{64}$/);
+      assert.equal(new URL(record.url).searchParams.get("gcode"), record.code);
+    } else assert.match(record.sourceSha256!, /^[a-f0-9]{64}$/);
+    assert.match(record.verifiedAt, /^\d{4}-\d{2}-\d{2}$/);
+    assert.ok(Date.parse(record.verifiedAt) <= Date.now());
+    const expectedAnchor = family === "hanaro" ? "#etfPDF" : family === "timefolio" ? "#constituentItems" : family === "won" ? "#asset" : "";
+    assert.equal(officialHoldingsDestination(record.code, record.name, "", null, null), record.url + expectedAnchor, record.code);
+    const result = await resolveEtfIssuer(record.code, record.name);
+    assert.equal(result.status, "resolved", record.code);
+    assert.equal(result.issuerUrl, record.url, record.code);
+  }
+});
+
+test("TIME primary title supports official brand rename and TRUSTON uses metadata-bound non-ticker slugs", () => {
+  assert.ok(hasIssuerProductIdentity(`<title>TIME 미국나스닥100액티브(426030)</title><h1>미국나스닥100액티브</h1>`, "426030", "TIMEFOLIO 미국나스닥100액티브"));
+  assert.equal(hasIssuerProductIdentity(`<title>TIME 다른상품(426030)</title>`, "426030", "TIME 미국나스닥100액티브"), false);
+  const record = VERIFIED_ISSUER_PRODUCTS.find((row) => row.code === "496130")!;
+  assert.ok(record);
+  assert.equal(officialHoldingsDestination(record.code, record.name, "", null, null), record.url);
+});
+
+test("published-listing TIGER template does not activate unknown tickers or mismatched issuers", () => {
+  assert.equal(officialHoldingsDestination("999999", "TIGER 등록되지 않은 ETF", "", null, null), null);
+  assert.equal(officialHoldingsDestination("305540", "KODEX 다른 ETF", "", null, null), null);
+  assert.equal(officialHoldingsDestination("999999", "TIGER 등록되지 않은 ETF", "", "https://investments.miraeasset.com/tigeretf/ko/product/search/detail/index.do?ksdFund=KR7999999001&ksdFund=KR7305540007"), null);
+  assert.equal(officialHoldingsDestination("999999", "KIWOOM 등록되지 않은 ETF", "", null, null), null);
+  assert.equal(officialHoldingsDestination("069660", "SOL 다른 ETF", "", null, null), null);
+  assert.equal(officialHoldingsDestination("069660", "KIWOOM 200", "", "https://www.kiwoometf.com/service/etf/KO02010200M?gcode=123456"), "https://www.kiwoometf.com/service/etf/KO02010200M?gcode=069660");
 });
 
 test("TIGER and KIWOOM code-shaped candidate URLs require official page identity", async () => {

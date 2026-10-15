@@ -15,6 +15,8 @@ import { ChevronRight, Loader2 } from "lucide-react";
 import type { SectorId } from "@/data/types";
 import { DATA_LABEL } from "@/data/market";
 import { SourceLinks } from "@/components/ui/SourceLinks";
+import { useMarketClock } from "@/lib/use-market-clock";
+import { coverageLabel } from "@/lib/market-presentation";
 
 export const Route = createFileRoute("/industry/$sectorId")({
   component: IndustryPage,
@@ -37,6 +39,7 @@ function IndustryPage() {
   const sector = SECTOR_BY_ID[sectorId];
   const { data, isLoading: queryLoading } = useMarketQuotes();
   const colors = usePriceColors();
+  const now = useMarketClock();
   // The route chunk can hydrate after the shell's quote query settled; render
   // the SSR state until mounted so server and first client render match.
   const [mounted, setMounted] = useState(false);
@@ -49,10 +52,10 @@ function IndustryPage() {
     const q = quotes.find((x) => x.code === u.code);
     return mergeQuote(u, q);
   });
-  const stats = sectorStatsFromQuotes(sectorId, quotes);
-  const up = stats.avgChangePct > 0;
+  const stats = sectorStatsFromQuotes(sectorId, quotes, now);
+  const up = (stats.avgChangePct ?? 0) > 0;
   const avgColor =
-    stats.avgChangePct === 0
+    stats.avgChangePct == null || stats.avgChangePct === 0
       ? "text-muted-foreground"
       : up
         ? colors.up
@@ -106,10 +109,11 @@ function IndustryPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         <div className="rounded-lg border border-border bg-card px-3 py-2.5">
-          <div className="text-[11px] text-muted-foreground">섹터 평균 등락</div>
+          <div className="text-[11px] text-muted-foreground">커버리지 종목 단순평균</div>
           <div className={cn("mt-0.5 text-lg font-semibold tabular", avgColor)}>
-            {stats.count ? formatPct(stats.avgChangePct) : "—"}
+            {stats.avgChangePct != null ? formatPct(stats.avgChangePct) : "—"}
           </div>
+          <p className="mt-1 text-xs text-muted-foreground">{coverageLabel(stats)}</p>
         </div>
         <div className="rounded-lg border border-border bg-card px-3 py-2.5">
           <div className="text-[11px] text-muted-foreground">상승 1위</div>
