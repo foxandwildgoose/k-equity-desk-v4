@@ -1,0 +1,106 @@
+{
+  "observedAt": "2026-10-19T09:03:42.166413+00:00",
+  "applicationCommit": "6ae66ce7f5702ec4e573e10d3911f3845ba7ea4a",
+  "deploymentStatus": "success",
+  "deploymentUrl": "https://vercel.com/foxandwildgoose/k-equity-desk-v4/96s4Xd3bFQT3ugTVSSYATyETyE7J",
+  "base": "https://k-equity-desk-v4.vercel.app",
+  "tlsVerification": "Enabled; isolated Chromium CA profile, inherited HTTPS/HTTP proxy; no ignore-certificate flags",
+  "independentOfficialComparison": {
+    "observedAt": "2026-10-19T08:56:18.715Z",
+    "base": "https://k-equity-desk-v4.vercel.app",
+    "mode": "actual official responses compared row by row with actual application RPC; no mocks; TLS verified",
+    "summaries": [
+      {
+        "code": "379800",
+        "asOf": "2026-10-19",
+        "rows": 504,
+        "verifiedPublishedWeights": 503,
+        "sum": 100.11000000000006,
+        "status": "current",
+        "url": "https://www.samsungfund.com/etf/product/view.do?id=2ETFE4",
+        "quotes": 24
+      },
+      {
+        "code": "0246X0",
+        "asOf": "2026-10-19",
+        "rows": 11,
+        "verifiedPublishedWeights": 11,
+        "sum": 99.97999999999999,
+        "status": "current",
+        "url": "https://www.soletf.com/ko/fund/etf/211124",
+        "quotes": 9
+      },
+      {
+        "code": "360200",
+        "asOf": "2026-10-19",
+        "rows": 499,
+        "verifiedPublishedWeights": 499,
+        "sum": 99.45000000000007,
+        "status": "current",
+        "url": "https://www.aceetf.co.kr/fund/K55101D78195",
+        "quotes": 7
+      }
+    ]
+  },
+  "publishedPercentagesIndependentlyCompared": 1013,
+  "browserFeatureIsolation": "Only third-party font resources and Grok branding scripts are fulfilled empty for feature isolation.",
+  "browserResults": [
+    {
+      "code": "379800",
+      "viewport": "desktop",
+      "status": "passed",
+      "runtimeRevision": "6ae66ce",
+      "pageErrors": [],
+      "consoleErrors": [],
+      "applicationFailures": []
+    },
+    {
+      "code": "379800",
+      "viewport": "mobile",
+      "status": "passed",
+      "runtimeRevision": "6ae66ce",
+      "pageErrors": [],
+      "consoleErrors": [],
+      "applicationFailures": []
+    },
+    {
+      "code": "360750",
+      "viewport": "desktop",
+      "status": "passed",
+      "runtimeRevision": "6ae66ce",
+      "pageErrors": [],
+      "consoleErrors": [],
+      "applicationFailures": []
+    },
+    {
+      "code": "360750",
+      "viewport": "mobile",
+      "status": "passed",
+      "runtimeRevision": "6ae66ce",
+      "pageErrors": [],
+      "consoleErrors": [],
+      "applicationFailures": []
+    }
+  ],
+  "tigerProductionReceipt": {
+    "code": "360750",
+    "asOf": "2026-10-16",
+    "source": "미래에셋자산운용 공식 구성종목 (2026-10-16)",
+    "officialCount": 504,
+    "holdingsCount": 504,
+    "sum": 100.16000000000004,
+    "officialUrl": "https://investments.miraeasset.com/tigeretf/ko/product/search/detail/index.do?ksdFund=KR7360750004",
+    "independentRawIssuerComparison": false,
+    "independentComparisonLimitation": "Exact direct official POST from managed cloud returned HTTP 403; actual Vercel adapter receipt and UI consistency verified separately."
+  },
+  "riseUnresolved": {
+    "code": "379780",
+    "asOf": "2026-10-16",
+    "source": "WiseReport CU 참고 (2026-10-16) · 공식 NAV 비중 없음 (추정 비중은 표시하지 않음)",
+    "status": "unavailable",
+    "officialCount": 0,
+    "sum": null,
+    "officialUrl": null,
+    "officialCatalogProbe": "https://kbam.co.kr/api/products/etfs?page=1 returned HTTP 503 upstream connection timeout"
+  }
+}

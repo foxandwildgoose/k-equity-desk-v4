@@ -85,9 +85,47 @@ HTML-only assumption and no longer requires the marketing page to load first.
 Its field/date contract is documented by the two commit-pinned public
 integrations named in its source. Those integrations supply schema evidence,
 not portfolio values. Its regression cases use explicitly synthetic responses.
-The actual issuer's HTTP 403 remains unresolved; the new adapter is not proof
-of live receipt. RISE's upstream failure also remains unresolved. Neither case
-is filled with guessed percentages or presented as a successful live feed.
+Before deployment, the actual issuer's HTTP 403 prevented proof of live
+receipt from the managed cloud. The production follow-up below supersedes
+that receipt limitation for Vercel. RISE's upstream discovery failure remains
+documented separately. Unavailable cases are not filled with guessed values.
+
+## Production follow-up
+
+Application commit **6ae66ce7f5702ec4e573e10d3911f3845ba7ea4a** was pushed to
+GitHub main and deployed successfully through the existing Vercel integration.
+The production application returned the same **1,013 published percentages**
+as separately retrieved current official KODEX, SOL and ACE responses, compared
+row by row with TLS verification enabled and no market-data mocks.
+
+TIGER 미국S&P500 **also recovered in production** through the new official
+JSON adapter: **2026-10-16**, **504/504** published weights, total **100.16%**.
+Both desktop and mobile displayed that issuer date and the received values;
+the native official button requested the exact KR7360750004 product URL in
+a new tab. This is successful official receipt in Vercel, not a claim that
+the disclosure is dated 10/19 or is a live portfolio.
+
+An additional direct request from the managed cloud, with the exact POST
+parameters and headers, still returned HTTP 403. Therefore the TIGER result
+is kept separate from the three-issuer **independent raw-response comparison**:
+the 504 values were checked for production receipt and UI consistency, but
+were not independently compared with a second raw issuer response in this
+environment. The native-click check verifies the requested destination, not
+that the external product page rendered successfully in the cloud browser.
+
+Production desktop/mobile checks for KODEX and TIGER passed **4/4**, each
+confirming runtime revision 6ae66ce, zero page/application/console errors and
+no page overflow. Development checks passed 8/8 and separately labeled
+historical/unavailable UI fixtures passed 6/6. Only unrelated font/branding
+resources were isolated in feature checks; application RPCs were real.
+
+RISE 미국S&P500 (379780) was separately checked on the new production
+deployment and remains unavailable: zero confirmed official ratios, API sum
+`null`, and no verified official product URL. Its reference names are dated
+10/16 and carry no displayed percentages. The new official KBAM catalog probe
+also returned HTTP 503 (upstream connection timeout). No guessed product ID
+or percentage was substituted. Production evidence is summarized in
+`artifacts/etf-holdings-production-verification-20261019.json`.
 
 ## Display and verification
 
