@@ -40,6 +40,16 @@ test("RISE named headers may reorder columns but valuation never supplies a weig
   assert.equal(parseRiseSpreadsheetRows([HEADERS, ["005930", "삼성전자", 1, null, 100]], AS_OF), null);
 });
 
+test("spreadsheet ISIN parsing keeps preferred classes unresolved and explicit trading codes exact", () => {
+  const preferred = parseRiseSpreadsheetRows([HEADERS, ["KR7005931001", "삼성전자우", 1, 100, 1]], AS_OF);
+  assert.equal(preferred?.rows[0]!.code, null);
+  assert.equal(preferred?.rows[0]!.isin, "KR7005931001");
+  const explicit = parseRiseSpreadsheetRows([HEADERS, ["005935", "삼성전자우", 1, 100, 1]], AS_OF);
+  assert.equal(explicit?.rows[0]!.code, "005935");
+  const modern = parseRiseSpreadsheetRows([HEADERS, ["KR70177R0000", "신규 ETF", 1, 100, 1]], AS_OF);
+  assert.equal(modern?.rows[0]!.code, "0177R0");
+});
+
 test("full forty-position file is accepted while its Top30 subset is incomplete", () => {
   const rows = Array.from({ length: 40 }, (_, i) => [String(100000 + i), `종목 ${i}`, 1.25, 2.5, 1]);
   assert.equal(parseRiseSpreadsheetRows([HEADERS, ...rows], AS_OF)?.rows.length, 40);

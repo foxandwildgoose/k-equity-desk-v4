@@ -603,6 +603,9 @@ export const getEtfBundle = createServerFn({ method: "GET" })
         officialCount: 0,
         issuerUrl: null as string | null,
         issuerProductUrl: null as string | null,
+        status: "unavailable" as const,
+        statusReason: "운용사 구성내역을 수신하지 못했습니다. 공식 사이트 버튼의 연결 여부와 비중 수신 여부는 별개입니다.",
+        fetchedAt: new Date().toISOString(),
       })),
     ]);
     if (!detail.etf) return { error: "not_found" as const };
@@ -636,12 +639,13 @@ export const getEtfBundle = createServerFn({ method: "GET" })
         ]),
     );
 
+    const partialWorldQuotes: Awaited<ReturnType<typeof fetchWorldQuotes>> = {};
     const [stockQuotes, worldQuotes] = await Promise.all([
       krCodes.length > 0
         ? withEtfDeadline(() => fetchRealtimeQuotes(krCodes, metaByCode), [], 2_000)
         : Promise.resolve([]),
       usCodes.length > 0
-        ? withEtfDeadline((signal) => fetchWorldQuotes(usCodes, signal), {}, 2_000)
+        ? withEtfDeadline((signal) => fetchWorldQuotes(usCodes, signal, partialWorldQuotes), partialWorldQuotes, 2_000)
         : Promise.resolve({} as Awaited<ReturnType<typeof fetchWorldQuotes>>),
     ]);
     const qmap: Record<
@@ -687,6 +691,7 @@ export const getEtfBundle = createServerFn({ method: "GET" })
         nation: h.nation,
         market: h.market,
         isin: h.isin,
+        foreignTicker: h.foreignTicker ?? null,
         weight: h.weight,
         weightSource: h.weightSource,
         quantity: h.quantity,
@@ -729,7 +734,7 @@ export const getEtfBundle = createServerFn({ method: "GET" })
         weight,
       }))
       .sort((a, b) => Math.abs(b.weight) - Math.abs(a.weight));
-    const officialWeightSum = allocation.reduce((s, a) => s + a.weight, 0);
+    const officialWeightSum = allocation.length ? allocation.reduce((s, a) => s + a.weight, 0) : null;
     const officialCount = holdings.filter((h) => h.weightSource === "official").length;
     const weightBasis: "official" | "none" = officialCount > 0 ? "official" : "none";
     const quotedCount = holdings.filter((h) => h.quote && h.quote.price > 0).length;
@@ -778,6 +783,9 @@ export const getEtfBundle = createServerFn({ method: "GET" })
       holdingsAsOf: holdingPack.asOf,
       holdingsSource: holdingPack.source,
       holdingsSourceKind: holdingPack.sourceKind,
+      holdingsStatus: holdingPack.status,
+      holdingsStatusReason: holdingPack.statusReason,
+      holdingsFetchedAt: holdingPack.fetchedAt,
       holdingsIssuerUrl: holdingPack.issuerUrl ?? null,
       issuerProductUrl: holdingPack.issuerProductUrl,
       issuerHoldingsUrl,

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { fetchIssuerPageHoldings, parseIssuerHoldingsPage, parseTigerIssuerHoldings } from "./etf-issuer-holdings.ts";
+import { fetchIssuerPageHoldings, parseIssuerHoldingsPage, parseTigerIssuerHoldings, parseTigerIssuerJson } from "./etf-issuer-holdings.ts";
 import { krxEtfIsin, type EtfIssuerProduct } from "./etf-issuer.ts";
 
 const NAME = "TIME 테스트채권혼합액티브";
@@ -25,6 +25,14 @@ test("full issuer table preserves published percentages, fractional quantities, 
   assert.equal(parsed.rows[1]!.isin, "KR319000GA77");
   assert.equal(parsed.rows[2]!.weight, 1.25);
   assert.equal(parsed.rows[2]!.nameKo, "원화예금");
+});
+
+test("official HTML never converts a preferred-share ISIN to its encoded six-character substring", () => {
+  const byIsin = parseIssuerHoldingsPage(PAGE.replace("005930", "KR7005931001").replace("삼성전자", "삼성전자우"), CODE, NAME);
+  assert.equal(byIsin?.rows[0]!.code, null);
+  assert.equal(byIsin?.rows[0]!.isin, "KR7005931001");
+  const explicit = parseIssuerHoldingsPage(PAGE.replace("005930", "005935").replace("삼성전자", "삼성전자우"), CODE, NAME);
+  assert.equal(explicit?.rows[0]!.code, "005935");
 });
 
 test("ticker/name identity must be outside the holdings and exact", () => {
@@ -133,9 +141,82 @@ test("TIGER uses exact ISIN, actual issuer PDF date, and full table request", as
   const result = await fetchIssuerPageHoldings(ticker, name, product, { fetcher });
   assert.equal(result?.asOf, "2026-10-08");
   assert.equal(requests.length, 3);
+  assert.match(requests[0]!.url, /\/chart\/prdct-item-list\.ajax\?/);
   assert.equal(new URLSearchParams(requests[2]!.body).get("fixDate"), "2026.10.08");
   assert.equal(new URLSearchParams(requests[2]!.body).get("listCnt"), "1000");
   assert.equal(new URLSearchParams(requests[2]!.body).get("ksdFund"), isin);
   assert.equal(requests[1]!.headers.get("X-Requested-With"), "XMLHttpRequest");
   assert.equal(requests[2]!.headers.get("Referer"), product.issuerUrl);
+});
+
+// Synthetic schema fixtures based on the two pinned public integrations above;
+// actual issuer requests are separately recorded as HTTP 403 in the live audit.
+const TIGER_JSON = { rtnData: [
+  { memItemname: "NVIDIA CORP", code: "US67066G1040", stockQty: "12.5", stockRate: "98.75", wkdate: "20261016" },
+  { memItemname: "원화현금", code: "KRD010010001", stockQty: "1,250", stockRate: "1.25", wkdate: "20261016" },
+] };
+
+test("TIGER JSON preserves issuer percentages and its actual publication date", () => {
+  const basket = parseTigerIssuerJson(TIGER_JSON)!;
+  assert.equal(basket.asOf, "2026-10-16");
+  assert.equal(basket.rows[0]!.weight, 98.75);
+  assert.equal(basket.rows[0]!.quantity, 12.5);
+  assert.equal(basket.rows[0]!.isin, "US67066G1040");
+  assert.equal(basket.rows[1]!.weight, 1.25);
+  assert.equal(basket.rows[1]!.quantity, 1250);
+});
+
+test("TIGER JSON rejects missing, conflicting, invalid dates and incomplete baskets", () => {
+  const edit = (changes: Record<string, unknown>) => ({ rtnData: [TIGER_JSON.rtnData[0], { ...TIGER_JSON.rtnData[1], ...changes }] });
+  for (const changes of [{ wkdate: undefined }, { wkdate: "20261019" }, { wkdate: "20260230" }, { stockRate: undefined }, { stockRate: "0.01" }, { stockRate: "NaN" }, { memItemname: "NVIDIA CORP", code: "US67066G1040" }]) {
+    assert.equal(parseTigerIssuerJson(edit(changes)), null, JSON.stringify(changes));
+  }
+  assert.equal(parseTigerIssuerJson({ rtnData: [] }), null);
+  assert.equal(parseTigerIssuerJson({ rtnData: TIGER_JSON.rtnData.slice(0, 1) }), null);
+});
+
+test("TIGER JSON rejects explicit pagination gaps even when the received weights nearly total 100", () => {
+  for (const metadata of [
+    { totalCount: 3 }, { totalCnt: "3" }, { totalElements: 3 }, { recordsTotal: 3 },
+    { last: false }, { hasNext: true }, { pagination: { last: false } }, { page: { totalElements: 3 } },
+    { totalCount: "unknown" }, { totalCount: 1 }, { last: "false" }, { hasNext: "true" },
+  ]) {
+    assert.equal(parseTigerIssuerJson({ ...TIGER_JSON, ...metadata }), null, JSON.stringify(metadata));
+  }
+  assert.ok(parseTigerIssuerJson({ ...TIGER_JSON, totalCount: 2, last: true, hasNext: false }));
+});
+
+test("TIGER JSON requires a confirmed count or end at known 500/1000-row caps", () => {
+  for (const count of [500, 1000]) {
+    const rtnData = Array.from({ length: count }, (_, index) => ({
+      memItemname: `Synthetic security ${index}`, code: `US${String(index).padStart(10, "0")}`,
+      stockQty: 1, stockRate: 99.95 / count, wkdate: "20261016",
+    }));
+    assert.equal(parseTigerIssuerJson({ rtnData }), null, "a request size is not completeness evidence");
+    assert.equal(parseTigerIssuerJson({ rtnData, listCnt: count }), null);
+    assert.equal(parseTigerIssuerJson({ rtnData, totalCount: count + 1 }), null);
+    assert.equal(parseTigerIssuerJson({ rtnData, totalCount: count, hasNext: true }), null);
+    assert.equal(parseTigerIssuerJson({ rtnData, totalCount: count })?.rows.length, count);
+    assert.equal(parseTigerIssuerJson({ rtnData, pagination: { last: true } })?.rows.length, count);
+    assert.equal(parseTigerIssuerJson({ rtnData, hasNext: false })?.rows.length, count);
+  }
+});
+
+test("TIGER JSON fetch uses exact resolved ISIN without a marketing-page prerequisite", async () => {
+  const ticker = "360750", name = "TIGER 미국S&P500", isin = krxEtfIsin(ticker)!;
+  const product: EtfIssuerProduct = { family: "tiger", issuerName: "미래에셋자산운용", issuerUrl: `https://investments.miraeasset.com/tigeretf/ko/product/search/detail/index.do?ksdFund=${isin}`, websiteUrl: "https://investments.miraeasset.com/", status: "resolved" };
+  const calls: string[] = [];
+  const fetcher: typeof fetch = async (input, init) => {
+    const url = new URL(String(input)); calls.push(url.href);
+    assert.equal(url.pathname, "/tigeretf/ko/product/chart/prdct-item-list.ajax");
+    assert.equal(url.searchParams.get("ksdFund"), isin);
+    assert.equal(url.searchParams.get("listCnt"), "1000");
+    assert.equal(url.searchParams.has("fixDate"), false);
+    assert.equal(init?.method, "POST");
+    return Response.json(TIGER_JSON);
+  };
+  assert.equal((await fetchIssuerPageHoldings(ticker, name, product, { fetcher }))?.asOf, "2026-10-16");
+  assert.equal(calls.length, 1);
+  assert.equal(await fetchIssuerPageHoldings(ticker, name, { ...product, issuerUrl: product.issuerUrl!.replace(isin, krxEtfIsin("133690")!) }, { fetcher }), null);
+  assert.equal(calls.length, 1);
 });

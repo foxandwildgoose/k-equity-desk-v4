@@ -1,0 +1,47 @@
+{
+  "observedAt": "2026-10-19T08:52:41.320Z",
+  "base": "http://127.0.0.1:8081",
+  "mode": "actual official responses compared row by row with actual application RPC; no mocks; TLS verified",
+  "summaries": [
+    {
+      "code": "379800",
+      "asOf": "2026-10-19",
+      "rows": 504,
+      "verifiedPublishedWeights": 503,
+      "sum": 100.11000000000006,
+      "status": "current",
+      "url": "https://www.samsungfund.com/etf/product/view.do?id=2ETFE4",
+      "quotes": 8,
+      "officialSource": "https://www.samsungfund.com/api/v1/kodex/product/2ETFE4.do",
+      "sha256OfSavedSourceJSON": "6fd81a91f830288cabee9f1fd5e05952cd8efa9746d669d73c7d4d3f651494aa",
+      "sha256OfSavedApplicationBundleJSON": "c40130bb0778c8330d298211f5abb0166e36ff511c5d716c432ce93ccb3e3236"
+    },
+    {
+      "code": "0246X0",
+      "asOf": "2026-10-19",
+      "rows": 11,
+      "verifiedPublishedWeights": 11,
+      "sum": 99.97999999999999,
+      "status": "current",
+      "url": "https://www.soletf.com/ko/fund/etf/211124",
+      "quotes": 7,
+      "officialSource": "https://www.soletf.com/api/etf/pds/pdf/211124",
+      "sha256OfSavedSourceJSON": "eb4eb60aa23c1c162c44fbb120e39f9d47ba6cb03ca4851c3d320114d6f9e47c",
+      "sha256OfSavedApplicationBundleJSON": "ba5e14632ffed34a4776b771076143d8fdffa9f91bb671ba1bff9a6ee28b72aa"
+    },
+    {
+      "code": "360200",
+      "asOf": "2026-10-19",
+      "rows": 499,
+      "verifiedPublishedWeights": 499,
+      "sum": 99.45000000000024,
+      "status": "current",
+      "url": "https://www.aceetf.co.kr/fund/K55101D78195",
+      "quotes": 4,
+      "officialSource": "https://papi.aceetf.co.kr/api/funds/K55101D78195/pdf?page=1&size=1000",
+      "sha256OfSavedSourceJSON": "3117fd2a0ce1ffabfad3cf1adf63a2b50ad9a1acc1f8a5ede775ea41cfd89af1",
+      "sha256OfSavedApplicationBundleJSON": "6d9ad2e615f3cbe89fe260b3edcf7611307c7456ef3b29f6650ac78eb81c1b33"
+    }
+  ],
+  "publishedPercentagesCompared": 1013
+}

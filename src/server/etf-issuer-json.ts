@@ -63,7 +63,7 @@ function parseRows(items: unknown[] | null, fields: RowFields, basketDate?: stri
     if (weight == null || Math.abs(weight) > 100) return null;
     const isin = /^[A-Z]{2}[A-Z0-9]{10}$/.test(security) ? security : null;
     rows.push({ nameKo, weight, quantity: numeric(valueFor(row, fields.quantity)), asOf,
-      code: /^[0-9A-Z]{6}$/.test(security) ? security : isin && /^KR7[0-9][A-Z0-9]{5}00\d$/.test(isin) ? isin.slice(3, 9) : krCodeFromIsin(isin), isin });
+      code: /^[0-9A-Z]{6}$/.test(security) ? security : krCodeFromIsin(isin), isin });
   }
   const sum = rows.reduce((total, row) => total + (row.weight ?? 0), 0);
   const identities = rows.map((row) => row.isin ?? row.code ?? row.nameKo);

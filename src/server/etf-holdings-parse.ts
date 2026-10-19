@@ -7,6 +7,9 @@ export type ParsedCuRow = {
   asOf: string | null;
   code: string | null;
   isin: string | null;
+  /** Exact issuer-listed foreign ticker; its trading venue is not an ISIN domicile. */
+  foreignTicker?: string | null;
+  tradingCountry?: string | null;
 };
 
 function asKrCode(v: unknown): string | null {
@@ -14,10 +17,15 @@ function asKrCode(v: unknown): string | null {
   return /^[0-9A-Z]{6}$/.test(s) ? s : null;
 }
 
-/** KRX equity ISIN KR7 + 6-digit ticker (e.g. KR7005930003 → 005930). */
+/** Ordinary KRX equity/ETF ISIN: KR7 + a primary code ending 0 + 00 + check digit.
+ * Preferred share class encodings are not their trading codes (e.g. Samsung's
+ * KR7005931001 must not become 005931; its trading code is 005935). Leave those
+ * unresolved for explicit issuer tickers or verified name matching.
+ * KR1 bonds and KR4 derivatives do not contain a domestic equity ticker.
+ */
 export function krCodeFromIsin(isin: string | null | undefined): string | null {
-  const s = String(isin ?? "").toUpperCase();
-  const m = /^KR[0-9](\d{6})/.exec(s);
+  const s = String(isin ?? "").trim().toUpperCase();
+  const m = /^KR7([0-9A-Z]{5}0)00\d$/.exec(s);
   return m ? asKrCode(m[1]) : null;
 }
 
@@ -165,7 +173,7 @@ export function applyCuValueWeights<T>(rows: T[], _usdKrw?: number, _cuNavKrw?: 
   return rows;
 }
 
-/** NAV weights are publishable only when they cover the whole fund. */
+/** The issuer's known NAV percentages must cover approximately the whole fund. */
 export const OFFICIAL_WEIGHT_SUM_MIN = 99;
 export const OFFICIAL_WEIGHT_SUM_MAX = 101;
 
@@ -218,6 +226,11 @@ export type BasketCandidate<
   priority: number;
   issuerUrl?: string | null;
   asOf?: string | null;
+  /** A verified full issuer response may omit its actual cash percentage.
+   * Preserve the other explicit percentages while keeping that cash row null.
+   * Never enable this for an unverified/partial table or a missing security weight.
+   */
+  allowUnweightedCash?: boolean;
 };
 
 export type OfficialBasketChoice<
@@ -228,25 +241,48 @@ export type OfficialBasketChoice<
   sourceKind: HoldingsSourceKind;
   issuerUrl: string | null;
   asOf: string | null;
-  /** False → weights were stripped. A partial sleeve must not be shown as NAV %. */
+  /** False → weights were stripped. Missing cash remains null even when true. */
   weightsPublished: boolean;
 };
 
+/** Compare publication dates from the actual basket, including row-dated APIs.
+ * A request date, an invalid date, or conflicting row dates cannot rank a source
+ * ahead of another issuer's dated publication.
+ */
+function officialBasketDate<
+  T extends { nameKo: string; weight: number | null; quantity?: number | null },
+>(candidate: BasketCandidate<T>): string | null {
+  const dates = new Set(candidate.rows.flatMap((row) =>
+    "asOf" in row && typeof row.asOf === "string" ? [row.asOf] : [],
+  ));
+  if (dates.size > 1 || (candidate.asOf && dates.size && !dates.has(candidate.asOf))) return null;
+  const asOf = candidate.asOf ?? [...dates][0] ?? null;
+  if (!asOf || !/^\d{4}-\d{2}-\d{2}$/.test(asOf)) return null;
+  const parsed = new Date(`${asOf}T00:00:00Z`);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === asOf ? asOf : null;
+}
+
 /**
  * Publish one basket. A candidate is usable only when its official weights
- * sum to about 100% of NAV and originate from the issuer. Otherwise keep
- * reference names and drop every weight
- * so a priced subset cannot be mistaken for the fund.
+ * sum to about 100% of NAV and originate from the issuer. The opt-in exception
+ * for a verified full response preserves explicit weights when only actual
+ * cash has no published percentage. Its cash percentage stays unknown.
+ * Otherwise keep reference names and drop every weight so a priced subset
+ * cannot be mistaken for the fund.
  */
 export function chooseOfficialBasket<
   T extends { nameKo: string; weight: number | null; quantity?: number | null },
 >(candidates: BasketCandidate<T>[]): OfficialBasketChoice<T> {
-  const ranked = [...candidates].sort(
+  const ranked = candidates.map((candidate) => ({ ...candidate, rows: prepareOfficialRows(candidate.rows) })).sort(
     (a, b) => {
       const issuerA = a.sourceKind === "issuer-pdf" || a.sourceKind === "issuer-file";
       const issuerB = b.sourceKind === "issuer-pdf" || b.sourceKind === "issuer-file";
       if (issuerA !== issuerB) return issuerA ? -1 : 1;
-      if (issuerA && a.asOf && b.asOf && a.asOf !== b.asOf) return b.asOf.localeCompare(a.asOf);
+      if (issuerA) {
+        const dateA = officialBasketDate(a), dateB = officialBasketDate(b);
+        if (dateA && dateB && dateA !== dateB) return dateB.localeCompare(dateA);
+        if (Boolean(dateA) !== Boolean(dateB)) return dateA ? -1 : 1;
+      }
       return b.priority - a.priority || b.rows.length - a.rows.length;
     },
   );
@@ -256,19 +292,19 @@ export function chooseOfficialBasket<
     // Third-party tables are reference names only; a total near 100 is not proof.
     if (candidate.sourceKind !== "issuer-pdf" && candidate.sourceKind !== "issuer-file") continue;
     if (!isCompleteOfficialWeightSum(sumNavWeights(rows))) continue;
-    if (rows.some((row) => row.weight == null || !Number.isFinite(row.weight) || Math.abs(row.weight) > 100)) continue;
+    if (rows.some((row) => {
+      if (row.weight != null) return !Number.isFinite(row.weight) || Math.abs(row.weight) > 100;
+      const isin = "isin" in row && typeof row.isin === "string" ? row.isin : "";
+      return !candidate.allowUnweightedCash || !/^KRD01[A-Z0-9]{7}$/i.test(isin) || !/현금|예금|예치/.test(row.nameKo);
+    })) continue;
     const identities = rows.map((row) => {
       const isin = "isin" in row && typeof row.isin === "string" ? row.isin : null;
       const code = "code" in row && typeof row.code === "string" ? row.code : null;
       return isin || code || row.nameKo;
     });
     if (new Set(identities).size !== identities.length) continue;
-    const rowDates = new Set(rows.flatMap((row) => "asOf" in row && typeof row.asOf === "string" ? [row.asOf] : []));
-    if (rowDates.size > 1 || (candidate.asOf && rowDates.size && !rowDates.has(candidate.asOf))) continue;
-    const asOf = candidate.asOf ?? [...rowDates][0] ?? null;
-    if (!asOf || !/^\d{4}-\d{2}-\d{2}$/.test(asOf)) continue;
-    const parsedDate = new Date(`${asOf}T00:00:00Z`);
-    if (!Number.isFinite(parsedDate.getTime()) || parsedDate.toISOString().slice(0, 10) !== asOf) continue;
+    const asOf = officialBasketDate(candidate);
+    if (!asOf) continue;
     return {
       rows,
       source: candidate.source,
@@ -288,7 +324,7 @@ export function chooseOfficialBasket<
       source: `${candidate.source} · 공식 NAV 비중 없음 (추정 비중은 표시하지 않음)`,
       sourceKind: candidate.sourceKind,
       issuerUrl: candidate.issuerUrl ?? null,
-      asOf: candidate.asOf ?? null,
+      asOf: officialBasketDate(candidate),
       weightsPublished: false,
     };
   }
@@ -440,7 +476,8 @@ export function parseKodexPdfRows(
         : Number(item.applyQ);
     const itm = String(item.itmNo ?? "").trim().toUpperCase();
     const isin = /^[A-Z]{2}[A-Z0-9]{10}$/.test(itm) ? itm : null;
-    const code = isin ? krCodeFromIsin(isin) : asKrCode(itm.split(/\s+/)[0] ?? "");
+    const usSecurity = /^([A-Z][A-Z0-9./-]{0,14}) US EQUITY$/.exec(itm);
+    const code = usSecurity ? null : isin ? krCodeFromIsin(isin) : asKrCode(itm.split(/\s+/)[0] ?? "");
     rows.push({
       nameKo,
       weight,
@@ -448,6 +485,7 @@ export function parseKodexPdfRows(
       asOf,
       code,
       isin,
+      ...(usSecurity ? { foreignTicker: usSecurity[1]!, tradingCountry: "USA" } : {}),
     });
   }
   rows.sort(compareHoldingsByWeight);

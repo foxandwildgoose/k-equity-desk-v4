@@ -67,7 +67,7 @@ export function parseRiseSpreadsheetRows(data: Cell[][], asOf: string): Omit<Iss
     if (!nameKo || weight == null || Math.abs(weight) > 100 || quantity == null) return null;
     const isin = /^[A-Z]{2}[A-Z0-9]{10}$/.test(security) ? security : null;
     rows.push({ nameKo, weight, quantity, asOf,
-      code: /^[0-9A-Z]{6}$/.test(security) ? security : isin && /^KR7[0-9A-Z]{6}00\d$/.test(isin) ? isin.slice(3, 9) : krCodeFromIsin(isin), isin });
+      code: /^[0-9A-Z]{6}$/.test(security) ? security : krCodeFromIsin(isin), isin });
   }
   const identities = rows.map((x) => x.isin ?? x.code ?? x.nameKo);
   const sum = rows.reduce((total, row) => total + row.weight!, 0);

@@ -4,9 +4,9 @@
  * https://github.com/minguisstockgoat/passive-etf-dashboard/blob/main/scripts/fetchers.py
  * Use runtime official ETF_CD6/FUND_CD identity; never copy its cached weights,
  * product IDs or its disabled TLS verification. HTML discovery is a fallback.
- * The managed environment currently blocks this issuer, so live access remains
- * independently verifiable after the official host is allowed. A blocked fetch,
- * JS-only table, missing date or unmatched code yields null, never guessed data.
+ * A blocked fetch, JS-only table, missing date or unmatched code yields null,
+ * never guessed data. Previously verified central product metadata can skip
+ * catalog traversal; it never supplies or caches a current portfolio basket.
  */
 import { krCodeFromIsin, type ParsedCuRow } from "./etf-holdings-parse.ts";
 
@@ -27,6 +27,8 @@ export type SolOfficialHoldings = SolProduct & {
 
 export type SolFetchOptions = {
   fetcher?: typeof fetch;
+  /** Exact product identity already verified by the central issuer registry. */
+  product?: SolProduct;
   /** Bounded catalog traversal, not a whole-site crawl. */
   maxPages?: number;
   maxCatalogPages?: number;
@@ -129,6 +131,30 @@ function isProductUrl(url: string): boolean {
   return productId(url) != null;
 }
 
+/** Trust only a central product binding for this ticker and its exact SOL URL. */
+function verifiedProductSeed(ticker: string, product?: SolProduct): SolProduct | null {
+  const code = normalizeTicker(ticker);
+  if (
+    !code ||
+    !product ||
+    normalizeTicker(product.code) !== code ||
+    !/^\d{6}$/.test(product.productId ?? "") ||
+    !/SOL/i.test(product.name.trim())
+  )
+    return null;
+  const issuerUrl = sameIssuerUrl(product.issuerUrl, SOL_WEBSITE_URL);
+  if (!issuerUrl) return null;
+  const url = new URL(issuerUrl);
+  if (
+    url.port ||
+    url.search ||
+    !/^\/ko\/fund\/etf\/\d{6}\/?$/.test(url.pathname) ||
+    productId(issuerUrl) !== product.productId
+  )
+    return null;
+  return { code, productId: product.productId, name: product.name.trim(), issuerUrl };
+}
+
 /** Catalog matches only nominate a URL; the detail page must verify the ticker. */
 export function parseSolCatalog(html: string, ticker: string, pageUrl = SOL_WEBSITE_URL): string[] {
   const code = normalizeTicker(ticker);
@@ -190,7 +216,14 @@ function normalizeDate(value: unknown): string | null {
     : null;
 }
 
-export type SolPdfItem = {
+type SolPdfProductIdentity = {
+  ETF_CD6?: unknown;
+  FUND_CD?: unknown;
+  etfCd6?: unknown;
+  fundCd?: unknown;
+};
+
+export type SolPdfItem = SolPdfProductIdentity & {
   STOCK_CODE?: unknown;
   SEC_NM?: unknown;
   QTY?: unknown;
@@ -199,6 +232,46 @@ export type SolPdfItem = {
   WT_DISP?: unknown;
   WORK_DT?: unknown;
 };
+
+type SolPdfResponse = SolPdfProductIdentity & {
+  workDt?: unknown;
+  items?: SolPdfItem[];
+  totalCount?: unknown;
+  total?: unknown;
+};
+
+function pdfProductMatches(value: SolPdfProductIdentity, product: SolProduct): boolean {
+  for (const field of ["ETF_CD6", "etfCd6"] as const) {
+    if (field in value && String(value[field] ?? "").trim().toUpperCase() !== product.code)
+      return false;
+  }
+  for (const field of ["FUND_CD", "fundCd"] as const) {
+    if (field in value && String(value[field] ?? "").trim() !== product.productId)
+      return false;
+  }
+  return true;
+}
+
+/** Check identity/counts before removing the issuer's CU-notional header rows. */
+function validPdfResponse(pack: SolPdfResponse, product: SolProduct): pack is SolPdfResponse & {
+  items: SolPdfItem[];
+} {
+  if (!Array.isArray(pack.items) || !pdfProductMatches(pack, product)) return false;
+  for (const field of ["totalCount", "total"] as const) {
+    if (!(field in pack)) continue;
+    const raw = pack[field];
+    const count =
+      typeof raw === "number"
+        ? raw
+        : typeof raw === "string" && /^\d+$/.test(raw.trim())
+          ? Number(raw.trim())
+          : NaN;
+    if (!Number.isSafeInteger(count) || count < 0 || count !== pack.items.length) return false;
+  }
+  return pack.items.every(
+    (item) => item != null && typeof item === "object" && pdfProductMatches(item, product),
+  );
+}
 
 /** Current official PDF response. All dates must describe the same basket. */
 export function parseSolPdfRows(
@@ -504,14 +577,17 @@ export async function fetchSolOfficialHoldings(
   options: SolFetchOptions = {},
 ): Promise<SolOfficialHoldings | null> {
   return withinDeadline(options, async (bounded) => {
-    const catalogProduct = await findApiProduct(ticker, bounded);
+    const catalogProduct =
+      verifiedProductSeed(ticker, bounded.product) ?? (await findApiProduct(ticker, bounded));
     if (catalogProduct) {
-      const pack = await getJson<{ workDt?: unknown; items?: SolPdfItem[] }>(
+      const pack = await getJson<SolPdfResponse>(
         `${SOL_WEBSITE_URL}/api/etf/pds/pdf/${catalogProduct.productId}`,
         bounded,
       );
       const basket =
-        pack && Array.isArray(pack.items) ? parseSolPdfRows(pack.items, pack.workDt) : null;
+        pack && validPdfResponse(pack, catalogProduct)
+          ? parseSolPdfRows(pack.items, pack.workDt)
+          : null;
       if (basket)
         return {
           ...catalogProduct,

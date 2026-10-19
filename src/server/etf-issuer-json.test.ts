@@ -74,6 +74,15 @@ test("official Korean ISINs preserve modern alphanumeric KRX security codes", ()
   assert.equal(result.rows[0]!.isin, "KR70177R0000");
 });
 
+test("issuer JSON keeps preferred-share ISIN unresolved but preserves an explicit trading code", () => {
+  const byIsin = parseAceIssuerHoldings({ pdfList: [{ ...ACE.pdfList[0], sec_NM: "삼성전자우", jm_KSC_CD: "KR7005931001", wg: "100" }] });
+  assert.ok(byIsin);
+  assert.equal(byIsin.rows[0]!.code, null);
+  assert.equal(byIsin.rows[0]!.isin, "KR7005931001");
+  const explicit = parseAceIssuerHoldings({ pdfList: [{ ...ACE.pdfList[0], sec_NM: "삼성전자우", jm_KSC_CD: "005935", wg: "100" }] });
+  assert.equal(explicit?.rows[0]!.code, "005935");
+});
+
 test("KIWOOM preserves actual cash and each businessDate without requested-date inference", () => {
   const result = parseKiwoomIssuerHoldings(KIWOOM);
   assert.ok(result);

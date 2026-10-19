@@ -2,6 +2,7 @@
 import {
   isCompleteOfficialWeightSum,
   isCuNotionalName,
+  krCodeFromIsin,
   normalizeIssuerFundName,
   sumNavWeights,
   type ParsedCuRow,
@@ -83,7 +84,7 @@ function rowFromCells(cells: string[], indexes: { name: number; weight: number; 
   if (weight == null || Math.abs(weight) > 100) return false;
   const rawCode = (cells[indexes.isin] ?? cells[indexes.code] ?? "").trim().toUpperCase();
   const isin = /^[A-Z]{2}[A-Z0-9]{9}[0-9]$/.test(rawCode) ? rawCode : null;
-  const code = isin && /^KR7[0-9][A-Z0-9]{5}00\d$/.test(isin) ? isin.slice(3, 9) : /^[0-9][A-Z0-9]{5}$/.test(rawCode) ? rawCode : null;
+  const code = isin ? krCodeFromIsin(isin) : /^[0-9][A-Z0-9]{5}$/.test(rawCode) ? rawCode : null;
   return { nameKo, weight, quantity: indexes.quantity >= 0 ? number(cells[indexes.quantity] ?? "") : null, code, isin, asOf };
 }
 
@@ -175,12 +176,91 @@ export function parseTigerIssuerHoldings(html: string, asOf: string): ParsedIssu
   return complete(rows) ? { rows, asOf } : null;
 }
 
+/**
+ * A near-100% sum cannot establish that a response was not capped. These common
+ * count/end aliases are defensive checks, not claims about fields observed in
+ * the currently inaccessible TIGER response. listCnt is a request size and is
+ * deliberately not treated as a total count.
+ */
+function completeTigerResponse(pack: Record<string, unknown>, length: number): boolean {
+  let confirmedEnd = false;
+  const scopes = [pack, ...[pack.pagination, pack.page].filter((value): value is Record<string, unknown> =>
+    value != null && typeof value === "object" && !Array.isArray(value),
+  )];
+  for (const scope of scopes) {
+    for (const key of ["totalCount", "totalCnt", "totalElements", "recordsTotal"]) {
+      const value = scope[key];
+      if (value == null) continue;
+      const raw = String(value).trim();
+      if (!/^\d+$/.test(raw)) return false;
+      const count = Number(raw);
+      if (!Number.isSafeInteger(count) || count !== length) return false;
+      confirmedEnd = true;
+    }
+    for (const [key, expected] of [["last", true], ["hasNext", false]] as const) {
+      const value = scope[key];
+      if (value == null) continue;
+      const actual = value === true || value === "true" ? true : value === false || value === "false" ? false : null;
+      if (actual !== expected) return false;
+      confirmedEnd = true;
+    }
+  }
+  // Both the historically documented 500-row request and our 1000-row request
+  // are possible server caps. Require an explicit end/count at either boundary.
+  return ![500, 1000].includes(length) || confirmedEnd;
+}
+
+/**
+ * TIGER's current chart API publishes the complete basket as rtnData, with a
+ * per-row wkdate. Field names are independently documented by these public
+ * integrations; their cached values are never used as holdings data:
+ * https://github.com/filterys/etf-weekly-tracker/blob/a2ce9c84abdf820969562922edaf41124fb66360/fetch_daily.py
+ * https://github.com/djseok/DJ_ETF_Study/blob/141b23a86591d9aac268e4aca0655ad8595332fb/gas/etf_holdings_sync.gs
+ */
+export function parseTigerIssuerJson(value: unknown): ParsedIssuerHoldingsPage | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const pack = value as Record<string, unknown>;
+  const items = pack.rtnData;
+  if (!Array.isArray(items) || !items.length || items.length > 1000 || !completeTigerResponse(pack, items.length)) return null;
+  let asOf: string | null = null;
+  const rows: ParsedCuRow[] = [];
+  for (const item of items) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return null;
+    const row = item as Record<string, unknown>;
+    const rowDate = date(String(row.wkdate ?? ""));
+    if (!rowDate || (asOf && rowDate !== asOf)) return null;
+    asOf = rowDate;
+    if (typeof row.memItemname !== "string") return null;
+    const nameKo = row.memItemname.trim();
+    const security = String(row.code ?? "").trim().toUpperCase();
+    if (isCuNotionalName(nameKo) || security === "CASH00000001" || TOTAL_NAME.test(nameKo)) continue;
+    if (!nameKo) return null;
+    const weight = number(String(row.stockRate ?? ""));
+    if (weight == null || Math.abs(weight) > 100) return null;
+    const isin = /^[A-Z]{2}[A-Z0-9]{9}[0-9]$/.test(security) ? security : null;
+    const code = isin ? krCodeFromIsin(isin) : /^[0-9][A-Z0-9]{5}$/.test(security) ? security : null;
+    rows.push({ nameKo, weight, quantity: number(String(row.stockQty ?? "")), isin, code, asOf });
+  }
+  return asOf && complete(rows) ? { rows, asOf } : null;
+}
+
 async function fetchTigerHoldings(code: string, product: EtfIssuerProduct, options: IssuerRequestOptions): Promise<IssuerPageHoldings | null> {
   if (product.family !== "tiger" || !product.issuerUrl) return null;
   const isin = new URL(product.issuerUrl).searchParams.get("ksdFund");
   if (!isin || isin !== krxEtfIsin(code)) return null;
   const base = "https://investments.miraeasset.com/tigeretf/ko/product/search/detail";
   const init = (data: Record<string, string>): RequestInit => ({ method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8", "X-Requested-With": "XMLHttpRequest", Referer: product.issuerUrl! }, body: new URLSearchParams(data).toString() });
+  // The central exact-ISIN product mapping establishes identity. Requiring the
+  // marketing page to load first made a separately available holdings API fail.
+  // Do not supply today's date: the response's wkdate is authoritative.
+  try {
+    const url = new URL("https://investments.miraeasset.com/tigeretf/ko/product/chart/prdct-item-list.ajax");
+    url.search = new URLSearchParams({ ksdFund: isin, prfPrd: "Week01", listCnt: "1000" }).toString();
+    const body = await fetchOfficialIssuerText(url.href, "tiger", options, init({}));
+    const parsed = parseTigerIssuerJson(JSON.parse(body) as unknown);
+    if (parsed) return { ...parsed, issuerUrl: product.issuerUrl };
+  } catch { /* Legacy official PDF remains a dated fallback. */ }
+  if (options.signal?.aborted) return null;
   const metadata = await fetchOfficialIssuerText(`${base}/pdf.ajax`, "tiger", options, init({ ksdFund: isin }));
   const asOf = portfolioDate(metadata);
   if (!asOf) return null;
@@ -205,11 +285,12 @@ export async function fetchIssuerPageHoldings(code: string, name: string, produc
     const structured = await fetchStructuredIssuerHoldings(code, name, product, requestOptions);
     if (structured) return structured;
     if (controller.signal.aborted) return null;
+    if (product.family === "tiger") return await fetchTigerHoldings(code, product, requestOptions);
     const page = await fetchOfficialIssuerText(product.issuerUrl, product.family, requestOptions);
     const parsed = parseIssuerHoldingsPage(page, code, name);
     if (parsed) return { ...parsed, issuerUrl: product.issuerUrl };
     if (!hasIssuerProductIdentity(page, code, name) || !exactNameInHeadings(page, name)) return null;
-    return await fetchTigerHoldings(code, product, requestOptions);
+    return null;
   } catch { return null; }
   finally {
     clearTimeout(timer);

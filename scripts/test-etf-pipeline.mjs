@@ -1,12 +1,15 @@
 /** Exercise the actual server pipeline with controlled external responses. */
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
 import { createServer } from 'vite';
 
 const originalFetch = globalThis.fetch;
-const server = await createServer({ configFile: false, resolve: { alias: { '@': resolve('src') } }, server: { middlewareMode: true }, logLevel: 'error' });
+// This fixture server must not invalidate a running app's optimizer metadata.
+const cacheDir = mkdtempSync(join(tmpdir(), 'k-equity-etf-pipeline-'));
+const server = await createServer({ configFile: false, cacheDir, resolve: { alias: { '@': resolve('src') } }, server: { middlewareMode: true }, logLevel: 'error' });
 try {
   const module = await server.ssrLoadModule('/src/server/etf-market.ts');
   const snapshotModule = await server.ssrLoadModule('/src/data/etf-official-snapshots.ts');
@@ -28,7 +31,8 @@ try {
   assert.equal(holdings.asOf, '2026-10-08');
   assert.equal(holdings.holdings.length, 11);
   assert.equal(holdings.officialCount, 11);
-  assert.equal(holdings.issuerProductUrl, null);
+  assert.equal(holdings.issuerProductUrl, 'https://www.soletf.com/ko/fund/etf/211124');
+  assert.equal(holdings.status, 'historical');
   assert.match(holdings.source, /過去|과거/);
   for (const expected of snapshot.rows) {
     const actual = holdings.holdings.find(row => row.nameKo === expected.nameKo);
@@ -53,7 +57,7 @@ try {
       { TRD_DT: '20261008', STK_NM_KOR: 'Kioxia', ETF_WEIGHT: 86.12, AGMT_STK_CNT: 119.18 },
       { TRD_DT: '20261008', STK_NM_KOR: '삼성전자', ETF_WEIGHT: 13.88, AGMT_STK_CNT: 457 },
     ] }) + '; var chartDraw');
-    if (url.includes('/stock/285A.T/basic')) return json({ closePrice: '5000', currencyType: { name: 'JPY' } });
+    if (url.includes('/stock/285A.T/basic')) return json({ reutersCode:'285A.T', closePrice:'5000', compareToPreviousClosePrice:'100', fluctuationsRatio:'2.04', compareToPreviousPrice:{code:'2'}, currencyType:{name:'JPY'} });
     throw new Error('Test fixture: unspecified request ' + url);
   };
   const thirdParty = await module.fetchEtfHoldings('111111');
@@ -63,8 +67,62 @@ try {
   const quotes = await module.fetchWorldQuotes(['285A.T']);
   assert.equal(quotes['285A.T'].currency, 'JPY');
   assert.equal(quotes['285A.T'].price, 5000);
-  console.log('ETF pipeline: attached XLS hash, 11 official weights, dated unavailable-quote fallback, rejected third-party weights, and JPY quote passed. All external calls were fixtures.');
+  // Real issuer response regression, served by fixtures to isolate failure in
+  // unrelated catalogs/quotes. Published US stock weights survive unavailable FX.
+  const kodexFixture = JSON.parse(readFileSync('src/server/fixtures/kodex-sp500-20261019.json', 'utf8'));
+  const kodexPayload = { info:{product:kodexFixture.product}, pdf:kodexFixture.pdf };
+  let directRequests = 0;
+  let catalogRequests = 0;
+  globalThis.fetch = async input => {
+    const url = String(input);
+    if (url.includes('/api/stock/379800/integration')) return json({ stockName:'KODEX 미국S&P500', etfKeyIndicator:{issuerName:'삼성자산운용'} });
+    if (url.includes('/kodex/product/2ETFE4.do')) { directRequests++; return json(kodexPayload); }
+    if (url.includes('/kodex/product.do?')) catalogRequests++;
+    throw new Error('Test fixture: quote/catalog unavailable '+url);
+  };
+  const [a, b] = await Promise.all([module.fetchEtfHoldings('379800'), module.fetchEtfHoldings('379800')]);
+  assert.equal(directRequests, 1, 'concurrent requests share one official basket retrieval');
+  assert.equal(catalogRequests, 0, 'known product does not rediscover the full catalog');
+  assert.equal(a, b);
+  assert.equal(a.officialCount, 503);
+  assert.equal(a.holdings.length, 504);
+  assert.equal(a.asOf, '2026-10-19');
+  assert.ok(Math.abs(a.holdings.reduce((sum,row)=>sum+(row.weight??0),0)-100.11)<1e-8);
+  assert.equal(a.holdings.find(row=>row.nameKo==='원화현금').weight, null);
+  assert.equal(a.holdings.find(row=>row.foreignTicker==='GOOGL').assetClass, 'us-equity');
+  assert.equal(a.holdings.find(row=>row.foreignTicker==='GOOG').assetClass, 'us-equity');
+  assert.equal(a.holdings.filter(row=>row.assetClass==='us-equity').length, 503);
+  assert.equal(a.holdings.find(row=>row.nameKo==='NVIDIA Corp').weight, 7.88);
+  const requestModule = await server.ssrLoadModule('/src/server/etf-request.ts');
+  globalThis.fetch = async (input, init) => {
+    const rc = decodeURIComponent(new URL(String(input)).pathname.split('/')[2]);
+    if (rc === 'SLOW.O') return new Promise((_resolve, reject) => {
+      init.signal.addEventListener('abort', () => reject(new Error('Test fixture: delayed quote aborted')), {once:true});
+    });
+    return json({reutersCode:rc, closePrice:'101', compareToPreviousClosePrice:'1', fluctuationsRatio:'1', compareToPreviousPrice:{code:'2'}, currencyType:{name:'USD'}});
+  };
+  const partial = {};
+  const retained = await requestModule.withEtfDeadline(signal=>module.fetchWorldQuotes(['A.O','B.O','C.O','D.O','E.O','F.O','SLOW.O'], signal, partial), partial, 50);
+  assert.equal(Object.keys(retained).length, 6, 'one delayed quote must not discard six successful US quotes');
+  assert.equal(retained['A.O'].price,101);
+  assert.equal(retained['A.O'].currency,'USD');
+  assert.equal(a.holdings.find(row=>row.nameKo==='NVIDIA Corp').weight,7.88);
+  // Synthetic one-security PDF verifies classification without a quote. The
+  // encoded preferred class is not its actual exchange trading code.
+  globalThis.fetch = async input => {
+    const url=String(input);
+    if(url.includes('/api/stock/069500/integration')) return json({stockName:'KODEX 200',etfKeyIndicator:{issuerName:'삼성자산운용'}});
+    if(url.includes('/kodex/product/2ETF01.do')) return json({info:{product:{stkTicker:'069500',fId:'2ETF01'}},pdf:{gijunYMD:'20261019',list:[{secNm:'삼성전자우',itmNo:'KR7005931001',ratio:'100',applyQ:'1'}]}});
+    throw new Error('Test fixture: no preferred quote available');
+  };
+  const preferred=await module.fetchEtfHoldings('069500');
+  assert.equal(preferred.holdings[0].code,null);
+  assert.equal(preferred.holdings[0].assetClass,'kr-equity');
+  assert.equal(preferred.holdings[0].nation,'KOR');
+  assert.equal(preferred.holdings[0].weight,100);
+  console.log('ETF pipeline: attached XLS hash, 11 official weights, dated unavailable-quote fallback, rejected third-party weights, JPY quote, and 503 actual KODEX ratios with null cash, preserved US share classes, direct product selection and concurrent deduplication passed. All external calls were fixtures.');
 } finally {
   globalThis.fetch = originalFetch;
   await server.close();
+  rmSync(cacheDir, { recursive: true, force: true });
 }

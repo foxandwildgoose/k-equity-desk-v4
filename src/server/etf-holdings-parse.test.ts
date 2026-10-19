@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { readFileSync } from "node:fs";
 import {
   applyCuValueWeights,
   chooseOfficialBasket,
@@ -83,6 +84,32 @@ test("krCodeFromIsin extracts KRX ticker and ignores cash ISIN", () => {
   assert.equal(krCodeFromIsin("KR7000660001"), "000660");
   assert.equal(krCodeFromIsin("KRD010010001"), null);
   assert.equal(krCodeFromIsin("US80004C2008"), null);
+});
+
+test("KR7 alphanumeric equity codes remain exact while bonds and derivatives never become stocks", () => {
+  assert.equal(krCodeFromIsin("KR70177R0000"), "0177R0");
+  assert.equal(krCodeFromIsin(" kr70177r0000 "), "0177R0");
+  assert.equal(krCodeFromIsin("KR1035017901"), null);
+  assert.equal(krCodeFromIsin("KR4101000000"), null);
+  assert.equal(krCodeFromIsin("KR7005930003EXTRA"), null);
+  assert.equal(krCodeFromIsin("KR7005930"), null);
+  const rows = parseIbkPdfRows([
+    { name: "국고채권", pdfCode: "KR1035017901", weight: 25 },
+    { name: "현대적 코드 ETF", pdfCode: "KR70177R0000", weight: 75 },
+  ], "2026-10-08");
+  assert.equal(rows.find((row) => row.isin === "KR1035017901")!.code, null);
+  assert.equal(rows.find((row) => row.isin === "KR70177R0000")!.code, "0177R0");
+});
+
+test("preferred-share ISIN class encodings are never mistaken for trading codes", () => {
+  assert.equal(krCodeFromIsin("KR7005931001"), null, "Samsung preferred is 005935, never encoded substring 005931");
+  assert.equal(krCodeFromIsin("KR7051911006"), null, "LG Chem preferred is 051915, never encoded substring 051911");
+  const byIsin = parseIbkPdfRows([{ name: "삼성전자우", pdfCode: "KR7005931001", weight: 100 }], "2026-10-19");
+  assert.equal(byIsin[0]!.code, null);
+  assert.equal(byIsin[0]!.isin, "KR7005931001");
+  assert.equal(byIsin[0]!.weight, 100);
+  const explicit = parseKodexPdfRows([{ secNm: "삼성전자우", itmNo: "005935", ratio: "100" }], "2026-10-19");
+  assert.equal(explicit[0]!.code, "005935", "an explicit issuer trading code remains authoritative");
 });
 
 test("duplicate securities and oversized percentages cannot establish an official basket", () => {
@@ -256,6 +283,20 @@ test("parseKodexPdfRows reads ratio and skips 설정현금액", () => {
   assert.equal(rows[0]!.code, "005930");
   assert.equal(rows[1]!.weight, 26.75);
   assert.equal(rows[1]!.code, null);
+  assert.equal(rows[1]!.foreignTicker, "INTC");
+  assert.equal(rows[1]!.tradingCountry, "USA");
+});
+
+test("official US ticker/venue survives parsing without guessing a Reuters exchange suffix", () => {
+  const rows = parseKodexPdfRows([
+    { secNm: "ALPHABET INC-CL A", itmNo: "GOOGL US Equity", ratio: "25" },
+    { secNm: "ALPHABET INC-CL C", itmNo: "GOOG US Equity", ratio: "25" },
+    { secNm: "BERKSHIRE HATHAWAY CL B ORD.", itmNo: "BRK/B US Equity", ratio: "25" },
+    { secNm: "Six-letter US security", itmNo: "ABCDEF US Equity", ratio: "25" },
+  ], "2026-10-19");
+  assert.deepEqual(rows.map((row) => row.foreignTicker), ["GOOGL", "GOOG", "BRK/B", "ABCDEF"]);
+  assert.ok(rows.every((row) => row.tradingCountry === "USA" && row.code == null));
+  assert.ok(rows.every((row) => !String(row.foreignTicker).endsWith(".O") && !String(row.foreignTicker).endsWith(".N")));
 });
 
 test("issuer family and IBK name match the legal catalog title", () => {
@@ -336,4 +377,70 @@ test("a 90% issuer subset is not expanded or published as the full fund", () => 
   const chosen = chooseOfficialBasket([{ rows: [{ nameKo: "stock", weight: 90 }], source: "partial", sourceKind: "issuer-pdf", priority: 100 }]);
   assert.equal(chosen.weightsPublished, false);
   assert.equal(chosen.rows[0]!.weight, null);
+});
+
+test("newer row-dated issuer data outranks an older high-priority envelope date", () => {
+  const newer = { rows: [{ nameKo: "NVIDIA CORP", weight: 99, asOf: "2026-10-09" }, { nameKo: "현금", weight: 1, asOf: "2026-10-09" }], source: "newer rows", sourceKind: "issuer-pdf" as const, priority: 80 };
+  const older = { rows: [{ nameKo: "NVIDIA CORP", weight: 98, asOf: "2026-10-08" }, { nameKo: "현금", weight: 2, asOf: "2026-10-08" }], source: "older envelope", sourceKind: "issuer-pdf" as const, priority: 100, asOf: "2026-10-08" };
+  for (const candidates of [[newer, older], [older, newer]]) {
+    const chosen = chooseOfficialBasket(candidates);
+    assert.equal(chosen.source, "newer rows");
+    assert.equal(chosen.asOf, "2026-10-09");
+    assert.equal(chosen.rows[0]!.weight, 99);
+  }
+});
+
+test("invalid or mixed dates cannot become the displayed reference-basket date", () => {
+  for (const rows of [
+    [{ nameKo: "A", weight: 50, asOf: "2026-10-08" }, { nameKo: "B", weight: 50, asOf: "2026-10-09" }],
+    [{ nameKo: "A", weight: 100, asOf: "2026-02-30" }],
+  ]) {
+    const chosen = chooseOfficialBasket([{ rows, source: "conflicting issuer", sourceKind: "issuer-pdf", priority: 100 }]);
+    assert.equal(chosen.weightsPublished, false);
+    assert.equal(chosen.asOf, null);
+  }
+});
+
+test("verified full KODEX-shaped basket retains 503 explicit ratios when only actual cash is unweighted", () => {
+  // Actual issuer response: 503 security percentages, one unweighted cash row,
+  // and a CU notional. Source URL and raw-response hash live in the fixture.
+  const fixture = JSON.parse(readFileSync(new URL("./fixtures/kodex-sp500-20261019.json", import.meta.url), "utf8"));
+  assert.equal(fixture.product.stkTicker, "379800");
+  assert.equal(fixture.pdf.totalCnt, fixture.pdf.list.length);
+  assert.equal(fixture.pdf.gijunYMD, "20261019");
+  const rows = parseKodexPdfRows(fixture.pdf.list, "2026-10-19");
+  assert.equal(rows.length, 504);
+  assert.equal(rows.filter((row) => row.tradingCountry === "USA").length, 503);
+  assert.equal(rows.find((row) => row.nameKo === "ALPHABET INC-CL A")!.foreignTicker, "GOOGL");
+  assert.equal(rows.find((row) => row.nameKo === "ALPHABET INC-CL C")!.foreignTicker, "GOOG");
+  assert.equal(rows.find((row) => row.nameKo === "BERKSHIRE HATHAWAY CL B ORD.")!.foreignTicker, "BRK/B");
+  const candidate = { rows, source: "verified full KODEX PDF", sourceKind: "issuer-pdf" as const, priority: 100, asOf: "2026-10-19" };
+  assert.equal(chooseOfficialBasket([candidate]).weightsPublished, false, "default policy stays strict");
+  const chosen = chooseOfficialBasket([{ ...candidate, allowUnweightedCash: true }]);
+  assert.equal(chosen.weightsPublished, true);
+  assert.equal(chosen.rows.filter((row) => row.weight != null).length, 503);
+  assert.ok(Math.abs(chosen.rows.reduce((sum, row) => sum + (row.weight ?? 0), 0) - 100.11) < 1e-9);
+  assert.equal(chosen.rows.find((row) => row.isin === "KRD010010001")!.weight, null);
+  for (const item of fixture.pdf.list) {
+    if (item.ratio != null) assert.equal(chosen.rows.find((row) => row.nameKo === item.secNm)!.weight, Number(item.ratio));
+  }
+});
+
+test("unweighted-cash exception rejects missing stock/bond weights, unconfirmed cash and incomplete sleeves", () => {
+  const published = { nameKo: "NVIDIA CORP", weight: 100 as number | null, isin: "US67066G1040" };
+  for (const missing of [
+    { nameKo: "Apple Inc", weight: null, isin: "US0378331005" },
+    { nameKo: "국고채권", weight: null, isin: "KR1035017901" },
+    { nameKo: "원화현금", weight: null, isin: null },
+    { nameKo: "확인되지 않은 종목", weight: null, isin: "KRD010010001" },
+  ]) {
+    const chosen = chooseOfficialBasket([{ rows: [published, missing], source: "issuer", sourceKind: "issuer-pdf", priority: 100, asOf: "2026-10-19", allowUnweightedCash: true }]);
+    assert.equal(chosen.weightsPublished, false);
+    assert.ok(chosen.rows.every((row) => row.weight == null));
+  }
+  const cash = { nameKo: "원화현금", weight: null, isin: "KRD010010001" };
+  const incomplete = chooseOfficialBasket([{ rows: [{ ...published, weight: 90 }, cash], source: "issuer", sourceKind: "issuer-pdf", priority: 100, asOf: "2026-10-19", allowUnweightedCash: true }]);
+  assert.equal(incomplete.weightsPublished, false);
+  const thirdParty = chooseOfficialBasket([{ rows: [published, cash], source: "secondary table", sourceKind: "wisereport-cu", priority: 100, asOf: "2026-10-19", allowUnweightedCash: true }]);
+  assert.equal(thirdParty.weightsPublished, false);
 });

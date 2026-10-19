@@ -1,9 +1,11 @@
 import { withEtfDeadline } from "@/server/etf-request";
 import { etfIssuerIdentity } from "@/server/etf-issuer";
-import { resolveEtfIssuer } from "@/server/etf-issuer";
+import { resolveEtfIssuer, isOfficialIssuerUrl, type EtfIssuerProduct } from "@/server/etf-issuer";
 import { fetchIssuerPageHoldings } from "@/server/etf-issuer-holdings";
 import { findUploadedIssuerHoldingsSnapshot } from "@/data/etf-official-snapshots";
 import { fetchSolOfficialHoldings } from "@/server/etf-sol";
+import { holdingsDisclosureStatus, koreaDisclosureDay } from "@/server/etf-holdings-status";
+import { pickHoldingSearchItem, type HoldingIdentityHint } from "@/server/etf-holding-identity";
 /**
  * Live Korea ETF market (Naver Finance full list).
  * Retirement filter: exclude leverage / inverse / 2X products (DC·IRP common rule).
@@ -788,6 +790,7 @@ export interface EtfHoldingRow {
   nation: string | null;
   currency: string | null;
   isin: string | null;
+  foreignTicker?: string | null;
   isCash: boolean;
   isBond: boolean;
   isFuture: boolean;
@@ -879,13 +882,6 @@ function formatYmd(raw: string | null | undefined): string | null {
   return raw;
 }
 
-function usClassHint(name: string): string | null {
-  if (/\bCLASS\s*C\b|\bCL\s*C\b/i.test(name)) return "class c";
-  if (/\bCLASS\s*A\b|\bCL\s*A\b/i.test(name)) return "class a";
-  if (/\bCLASS\s*B\b|\bCL\s*B\b/i.test(name)) return "class b";
-  return null;
-}
-
 function searchQueriesForName(name: string): string[] {
   const raw = name.trim();
   const cleaned = raw
@@ -911,17 +907,18 @@ type NameHit = {
 };
 
 /** Map holding name → KR ticker or US reuters code via Naver autocomplete */
-export async function resolveHoldingName(nameKo: string, signal?: AbortSignal): Promise<NameHit | null> {
+export async function resolveHoldingName(nameKo: string, signal?: AbortSignal, identity: HoldingIdentityHint = {}): Promise<NameHit | null> {
   const key = nameKo.trim();
   if (!key || isCashLike(key) || isBondLike(key) || isFutureLike(key)) return null;
-  if (nameCodeCache.has(key)) return nameCodeCache.get(key) ?? null;
+  const cacheKey = JSON.stringify([key, identity.isin, identity.code, identity.nation, identity.foreignTicker]);
+  if (nameCodeCache.has(cacheKey)) return nameCodeCache.get(cacheKey) ?? null;
 
   const uni = UNIVERSE.find(
     (u) =>
       u.nameKo === key ||
       u.nameKo.replace(/\s/g, "") === key.replace(/\s/g, ""),
   );
-  if (uni) {
+  if (uni && pickHoldingSearchItem(key, [{ name: uni.nameKo, code: uni.code, nationCode: "KOR", isEtf: false }], identity)) {
     const hit: NameHit = {
       code: uni.code,
       market: uni.market,
@@ -930,11 +927,11 @@ export async function resolveHoldingName(nameKo: string, signal?: AbortSignal): 
       nation: "KOR",
       isEtf: false,
     };
-    nameCodeCache.set(key, hit);
+    nameCodeCache.set(cacheKey, hit);
     return hit;
   }
 
-  for (const q of searchQueriesForName(key)) {
+  for (const q of [...new Set([...(identity.foreignTicker ? [identity.foreignTicker] : []), ...searchQueriesForName(key)])]) {
     if (signal?.aborted) return null;
     try {
       const url = `https://m.stock.naver.com/front-api/search/autoComplete?query=${encodeURIComponent(q)}&target=stock`;
@@ -952,48 +949,7 @@ export async function resolveHoldingName(nameKo: string, signal?: AbortSignal): 
         };
       }>(url, signal);
       const items = j.result?.items ?? [];
-      const korStock =
-        items.find(
-          (it) =>
-            it.nationCode === "KOR" &&
-            !it.isEtf &&
-            it.name === key &&
-            /^[0-9A-Za-z]{6}$/.test(String(it.code ?? "")),
-        ) ??
-        items.find(
-          (it) =>
-            it.nationCode === "KOR" &&
-            !it.isEtf &&
-            /^[0-9A-Za-z]{6}$/.test(String(it.code ?? "")),
-        );
-      const korEtf = items.find(
-        (it) =>
-          it.nationCode === "KOR" &&
-          it.isEtf &&
-          /^[0-9A-Za-z]{6}$/.test(String(it.code ?? "")),
-      );
-      const usaItems = items.filter(
-        (it) => it.nationCode === "USA" && Boolean(it.reutersCode || it.code),
-      );
-      const hint = usClassHint(key);
-      const hinted = hint
-        ? usaItems.find((it) => (it.name ?? "").toLowerCase().includes(hint))
-        : undefined;
-      const us =
-        hinted ??
-        usaItems[0] ??
-        items.find(
-          (it) =>
-            it.nationCode &&
-            it.nationCode !== "KOR" &&
-            Boolean(it.reutersCode || it.code),
-        );
-
-      const pick = looksKoreanEtfName(key)
-        ? korEtf ?? korStock ?? us
-        : looksOverseas(key)
-          ? us ?? korStock ?? korEtf
-          : korStock ?? korEtf ?? us;
+      const pick = pickHoldingSearchItem(key, items, identity);
       if (!pick) continue;
 
       const nation = pick.nationCode ?? null;
@@ -1017,14 +973,14 @@ export async function resolveHoldingName(nameKo: string, signal?: AbortSignal): 
         nation,
         isEtf: Boolean(pick.isEtf) || looksKoreanEtfName(key),
       };
-      nameCodeCache.set(key, hit);
+      if (nameCodeCache.size >= 2048) nameCodeCache.delete(nameCodeCache.keys().next().value!);
+      nameCodeCache.set(cacheKey, hit);
       return hit;
     } catch {
       /* try next query */
     }
   }
 
-  if (!signal?.aborted) nameCodeCache.set(key, null);
   return null;
 }
 
@@ -1064,9 +1020,10 @@ export async function fetchUsdKrw(): Promise<number> {
 export async function fetchWorldQuotes(
   reutersCodes: string[],
   signal?: AbortSignal,
+  /** A bounded caller can retain completed quotes when another market stalls. */
+  out: Record<string, HoldingLiveQuote & { name?: string }> = {},
 ): Promise<Record<string, HoldingLiveQuote & { name?: string }>> {
   const unique = [...new Set(reutersCodes.filter(Boolean))];
-  const out: Record<string, HoldingLiveQuote & { name?: string }> = {};
   for (let i = 0; i < unique.length; i += 6) {
     if (signal?.aborted) break;
     const batch = unique.slice(i, i + 6);
@@ -1085,7 +1042,7 @@ export async function fetchWorldQuotes(
           const normalized = normalizeWorldHoldingQuote(j, rc);
           const cur = holdingQuoteCurrency(j.currencyType?.code ?? j.currencyType?.name, rc);
           if (!normalized) return null;
-          return {
+          const part = {
             rc,
             quote: {
               ...normalized,
@@ -1093,6 +1050,10 @@ export async function fetchWorldQuotes(
               fetchedAt: new Date().toISOString(),
             },
           };
+          // Commit each successful security immediately, rather than losing a
+          // whole US basket when the caller's deadline expires on a later row.
+          out[rc] = part.quote;
+          return part;
         } catch {
           return null;
         }
@@ -1111,6 +1072,7 @@ const holdingsCache = new Map<
   string,
   { at: number; data: Awaited<ReturnType<typeof buildEtfHoldings>> }
 >();
+const holdingsRequests = new Map<string, Promise<HoldingsBundle>>();
 
 type CuRow = {
   nameKo: string;
@@ -1119,6 +1081,8 @@ type CuRow = {
   asOf: string | null;
   code: string | null;
   isin: string | null;
+  foreignTicker?: string | null;
+  tradingCountry?: string | null;
 };
 
 function classifyRow(input: {
@@ -1146,7 +1110,9 @@ function classifyRow(input: {
   const brandEtf = looksKoreanEtfName(name) || input.isEtf;
   const fut = !cash && !brandEtf && isFutureLike(name, isin);
   const bond = !cash && !brandEtf && !fut && isBondLike(name, isin);
-  const hasKrCode = Boolean(input.code);
+  // A listed Korean equity ISIN establishes the asset class even when an
+  // encoded preferred share still needs an exact trading-code lookup.
+  const hasKrCode = Boolean(input.code || (isin && /^KR7[0-9A-Z]{6}00\d$/i.test(isin)));
   const overseas = Boolean(
     !cash &&
       !bond &&
@@ -1156,7 +1122,7 @@ function classifyRow(input: {
         : looksOverseas(name) || (isin != null && /^(US|JP|HK|GB|CA|DE|FR|XS|LU|IE)/i.test(isin))),
   );
   const krEtf = Boolean(brandEtf && (input.code || !overseas));
-  const krEq = Boolean(input.code && !krEtf && !cash && !bond && !fut && !overseas);
+  const krEq = Boolean(hasKrCode && !krEtf && !cash && !bond && !fut && !overseas);
   let assetClass: EtfAssetClass = "other";
   if (cash) assetClass = "cash";
   else if (bond) assetClass = "bond";
@@ -1171,7 +1137,7 @@ function classifyRow(input: {
   const nation =
     input.nation ??
     (isin && /^JP/i.test(isin) ? "JPN" : null) ??
-    (cash || bond || fut || input.code ? "KOR" : null);
+    (cash || bond || fut || hasKrCode ? "KOR" : null);
   return {
     isCash: cash,
     isBond: bond,
@@ -1403,10 +1369,12 @@ function finalizeHolding(
     asOf: string | null;
     code: string | null;
     isin: string | null;
+    foreignTicker?: string | null;
+    tradingCountry?: string | null;
     hit: NameHit | null;
   },
 ): EtfHoldingRow {
-  const hit = opts.hit;
+  const hit = opts.isin && !opts.isin.startsWith("KR") && opts.hit?.code ? null : opts.hit;
   const code = asKrCode(opts.code) ?? asKrCode(hit?.code);
   const isin = opts.isin;
   const reuters = hit?.reutersCode ?? null;
@@ -1414,7 +1382,7 @@ function finalizeHolding(
     nameKo,
     code,
     reutersCode: reuters,
-    nation: hit?.nation ?? (isin && /^US/i.test(isin) ? "USA" : code ? "KOR" : null),
+    nation: opts.tradingCountry ?? hit?.nation ?? (isin && /^US/i.test(isin) ? "USA" : code ? "KOR" : null),
     isin,
     isEtf: Boolean(hit?.isEtf) || looksKoreanEtfName(nameKo),
   });
@@ -1430,6 +1398,7 @@ function finalizeHolding(
     nation: flags.nation,
     currency: flags.currency,
     isin,
+    foreignTicker: opts.foreignTicker ?? null,
     isCash: flags.isCash,
     isBond: flags.isBond,
     isFuture: flags.isFuture,
@@ -1477,24 +1446,25 @@ async function fetchEtfIdentity(code: string, signal?: AbortSignal): Promise<{ n
   }
 }
 
-async function fetchIbkOfficialHoldings(etfName: string, signal?: AbortSignal): Promise<{
+async function fetchIbkOfficialHoldings(etfName: string, signal?: AbortSignal, product?: EtfIssuerProduct): Promise<{
   rows: CuRow[];
   asOf: string | null;
   issuerUrl: string;
 } | null> {
-  const catalog = await getJsonUtf8<{
+  const productId = adapterProductId(product, "ibk");
+  const catalog = productId ? null : await getJsonUtf8<{
     data?: { content?: { id: number; name: string }[]; baseDate?: string };
   }>("https://www.ibkasset.com/api/etf", signal);
-  const id = matchIbkProductId(etfName, catalog.data?.content ?? []);
+  const id = productId ? Number(productId) : matchIbkProductId(etfName, catalog?.data?.content ?? []);
   if (id == null) return null;
-  const matched = catalog.data?.content?.find((item) => item.id === id);
-  if (!matched || normalizeIssuerFundName(matched.name) !== normalizeIssuerFundName(etfName)) return null;
+  const matched = catalog?.data?.content?.find((item) => item.id === id);
+  if (!productId && (!matched || normalizeIssuerFundName(matched.name) !== normalizeIssuerFundName(etfName))) return null;
   const pdf = await getJsonUtf8<{
     data?: { baseDate?: string; content?: IbkPdfItem[]; totalElements?: number; totalPages?: number; last?: boolean };
   }>(`https://www.ibkasset.com/api/etf/${id}/pdf?page=0&size=200`, signal);
   const content = pdf.data?.content ?? [];
   if (pdf.data?.last === false || (pdf.data?.totalPages ?? 1) > 1 || (pdf.data?.totalElements ?? content.length) > content.length) return null;
-  const asOf = pdf.data?.baseDate ?? catalog.data?.baseDate ?? null;
+  const asOf = formatYmd(pdf.data?.baseDate ?? catalog?.data?.baseDate ?? null);
   const rows = parseIbkPdfRows(pdf.data?.content ?? [], asOf);
   if (!rows.length) return null;
   return {
@@ -1551,12 +1521,12 @@ async function hanaroFundUid(ticker: string, signal?: AbortSignal): Promise<stri
   return map.get(ticker) ?? null;
 }
 
-async function fetchHanaroOfficialHoldings(ticker: string, signal?: AbortSignal): Promise<{
+async function fetchHanaroOfficialHoldings(ticker: string, signal?: AbortSignal, product?: EtfIssuerProduct): Promise<{
   rows: CuRow[];
   asOf: string | null;
   issuerUrl: string;
 } | null> {
-  const uid = await hanaroFundUid(ticker, signal);
+  const uid = adapterProductId(product, "hanaro") ?? await hanaroFundUid(ticker, signal);
   if (!uid) return null;
   const pageUrl = `https://www.hanaroetf.com/fund/${encodeURIComponent(uid)}`;
   const [listHtml, pageHtml] = await Promise.all([
@@ -1611,21 +1581,26 @@ async function kodexFundId(ticker: string, signal?: AbortSignal): Promise<string
 
 type KodexListItem = { stkTicker?: string; fId?: string; totalCnt?: string };
 
-async function fetchKodexOfficialHoldings(ticker: string, signal?: AbortSignal): Promise<{
+async function fetchKodexOfficialHoldings(ticker: string, signal?: AbortSignal, product?: EtfIssuerProduct): Promise<{
   rows: CuRow[];
   asOf: string | null;
   issuerUrl: string;
 } | null> {
-  const fid = await kodexFundId(ticker, signal);
+  const fid = adapterProductId(product, "kodex") ?? await kodexFundId(ticker, signal);
   if (!fid) return null;
   const pack = await getJsonReferer<{
-    pdf?: { gijunYMD?: string; list?: KodexPdfItem[] };
+    pdf?: { gijunYMD?: string; list?: KodexPdfItem[]; totalCnt?: number; nowCnt?: number };
+    info?: { product?: { stkTicker?: string; fId?: string } };
   }>(
     `https://www.samsungfund.com/api/v1/kodex/product/${encodeURIComponent(fid)}.do`,
     `https://www.samsungfund.com/etf/product/view.do?id=${encodeURIComponent(fid)}`, signal,
   );
+  const identity = pack.info?.product;
+  if ((identity?.stkTicker && identity.stkTicker.toUpperCase() !== ticker) || (identity?.fId && identity.fId !== fid)) return null;
+  const list = pack.pdf?.list ?? [];
+  if ((pack.pdf?.totalCnt ?? list.length) > list.length || (pack.pdf?.nowCnt ?? list.length) > list.length) return null;
   const asOf = formatYmd(pack.pdf?.gijunYMD ?? null);
-  const rows = parseKodexPdfRows(pack.pdf?.list ?? [], asOf);
+  const rows = parseKodexPdfRows(list, asOf);
   if (!rows.length) return null;
   return {
     rows,
@@ -1642,31 +1617,46 @@ type HoldingsBundle = {
   officialCount: number;
   issuerUrl: string | null;
   issuerProductUrl: string | null;
+  status: "current" | "historical" | "unavailable";
+  statusReason: string;
+  fetchedAt: string;
 };
+
+/** Reuse the centrally verified code-to-product mapping for data, not just navigation. */
+function adapterProductId(product: EtfIssuerProduct | undefined, family: EtfIssuerProduct["family"]): string | null {
+  if (!product || product.status !== "resolved" || product.family !== family || !product.issuerUrl || !product.productId || !isOfficialIssuerUrl(product.issuerUrl, family)) return null;
+  const url = new URL(product.issuerUrl);
+  const id = family === "kodex" ? (url.pathname === "/etf/product/view.do" && url.searchParams.getAll("id").length === 1 ? url.searchParams.get("id") : null)
+    : family === "ibk" ? /^\/etf\/detail\/(\d+)\/?$/.exec(url.pathname)?.[1]
+    : family === "hanaro" ? /^\/fund\/([A-Za-z0-9_-]+)\/?$/.exec(url.pathname)?.[1] : null;
+  return id && id === product.productId && /^[A-Za-z0-9_-]{1,80}$/.test(id) ? id : null;
+}
 
 async function buildEtfHoldings(code: string): Promise<HoldingsBundle> {
   const c = normalizeEtfCode(code);
   const snapshot = findUploadedIssuerHoldingsSnapshot(c);
-  const wiseP = withEtfDeadline((signal) => fetchWiseReportCu(c, signal), { rows: [] as CuRow[], asOf: null as string | null });
-  const naverP = withEtfDeadline((signal) => fetchNaverEtfAssetTable(c, signal), [] as CuRow[]);
   const identity = snapshot ? { name: snapshot.fundName, issuer: snapshot.issuerName }
     : await withEtfDeadline((signal) => fetchEtfIdentity(c, signal), { name: "", issuer: "" });
   const family = issuerHoldingsFamily(identity.name, identity.issuer);
   const fallbackProduct = { ...etfIssuerIdentity(identity.name, identity.issuer), issuerUrl: null,
     status: "unresolved" as const, reason: "Official issuer lookup unavailable" };
-  const [wisePack, naverRows, plusPack, ibkPack, kodexPack, hanaroPack, solPack, issuerProduct] = await Promise.all([
-    wiseP, naverP,
+  const issuerProduct = await withEtfDeadline((signal) => resolveEtfIssuer(c, identity.name, identity.issuer, { signal }), fallbackProduct, 10_000);
+  const [plusPack, ibkPack, kodexPack, hanaroPack, solPack] = await Promise.all([
     family === "plus" ? withEtfDeadline((signal) => fetchPlusOfficialHoldings(c, signal), null, 10_000) : null,
-    family === "ibk" ? withEtfDeadline((signal) => fetchIbkOfficialHoldings(identity.name, signal), null, 10_000) : null,
-    family === "kodex" ? withEtfDeadline((signal) => fetchKodexOfficialHoldings(c, signal), null, 10_000) : null,
-    family === "hanaro" ? withEtfDeadline((signal) => fetchHanaroOfficialHoldings(c, signal), null, 10_000) : null,
-    family === "sol" ? withEtfDeadline((signal) => fetchSolOfficialHoldings(c, { signal }), null, 10_000) : null,
-    withEtfDeadline((signal) => resolveEtfIssuer(c, identity.name, identity.issuer, { signal }), fallbackProduct, 10_000),
+    family === "ibk" ? withEtfDeadline((signal) => fetchIbkOfficialHoldings(identity.name, signal, issuerProduct), null, 10_000) : null,
+    family === "kodex" ? withEtfDeadline((signal) => fetchKodexOfficialHoldings(c, signal, issuerProduct), null, 10_000) : null,
+    family === "hanaro" ? withEtfDeadline((signal) => fetchHanaroOfficialHoldings(c, signal, issuerProduct), null, 10_000) : null,
+    family === "sol" ? withEtfDeadline((signal) => fetchSolOfficialHoldings(c, { signal,
+      product: issuerProduct.status === "resolved" && issuerProduct.issuerUrl && issuerProduct.productId
+        ? { code: c, productId: issuerProduct.productId, name: identity.name, issuerUrl: issuerProduct.issuerUrl } : undefined,
+    }), null, 10_000) : null,
   ]);
-
-  const pagePack = family === "other" && issuerProduct.issuerUrl
+  // A verified link is also the key for the data adapter. Do not rediscover all
+  // products on every cold request or make a working PDF wait on third parties.
+  const dedicatedAvailable = plusPack || ibkPack || kodexPack || hanaroPack || solPack;
+  const pagePack = !dedicatedAvailable && family === "other" && issuerProduct.issuerUrl
     ? await withEtfDeadline((signal) => fetchIssuerPageHoldings(c, identity.name, issuerProduct, { signal }), null, 10_000) : null;
-  const chosen = chooseOfficialBasket([
+  const candidates: Parameters<typeof chooseOfficialBasket<CuRow>>[0] = [
     ...(pagePack ? [{ rows: pagePack.rows,
       source: `${issuerProduct.issuerName} 공식 구성종목 (${pagePack.asOf})`,
       sourceKind: "issuer-pdf" as const, priority: 100,
@@ -1686,6 +1676,7 @@ async function buildEtfHoldings(code: string): Promise<HoldingsBundle> {
             priority: 100,
             issuerUrl: kodexPack.issuerUrl,
             asOf: kodexPack.asOf,
+            allowUnweightedCash: true,
           },
         ]
       : []),
@@ -1725,21 +1716,18 @@ async function buildEtfHoldings(code: string): Promise<HoldingsBundle> {
           },
         ]
       : []),
-    {
-      rows: wisePack.rows,
-      source: `WiseReport CU 공시 (KRX/운용사, ${wisePack.asOf ?? "기준일 확인"})`,
-      sourceKind: "wisereport-cu" as const,
-      priority: 50,
-      asOf: wisePack.asOf,
-    },
-    {
-      rows: naverRows,
-      source: "Naver Finance 구성종목 테이블",
-      sourceKind: "naver-table" as const,
-      priority: 10,
-      asOf: naverRows.find((r) => r.asOf)?.asOf ?? null,
-    },
-  ]);
+  ];
+  let chosen = chooseOfficialBasket(candidates);
+  if (!chosen.weightsPublished) {
+    const [wisePack, naverRows] = await Promise.all([
+      withEtfDeadline((signal) => fetchWiseReportCu(c, signal), { rows: [] as CuRow[], asOf: null as string | null }),
+      withEtfDeadline((signal) => fetchNaverEtfAssetTable(c, signal), [] as CuRow[]),
+    ]);
+    chosen = chooseOfficialBasket([...candidates,
+      { rows: wisePack.rows, source: `WiseReport CU 참고 (${wisePack.asOf ?? "기준일 미확인"})`, sourceKind: "wisereport-cu", priority: 50, asOf: wisePack.asOf },
+      { rows: naverRows, source: "Naver Finance 구성종목 참고", sourceKind: "naver-table", priority: 10, asOf: naverRows.find((row) => row.asOf)?.asOf ?? null },
+    ]);
+  }
 
   const asOf = chosen.asOf;
   const rankedIdx = chosen.rows
@@ -1767,7 +1755,7 @@ async function buildEtfHoldings(code: string): Promise<HoldingsBundle> {
         const idx = i + j;
         let hit: NameHit | null = null;
         if (resolveIdx.has(idx) && Date.now() < resolutionDeadline) {
-          hit = await withEtfDeadline((signal) => resolveHoldingName(row.nameKo, signal), null, Math.max(1, resolutionDeadline - Date.now()));
+          hit = await withEtfDeadline((signal) => resolveHoldingName(row.nameKo, signal, { isin: row.isin, code: row.code, nation: row.tradingCountry, foreignTicker: row.foreignTicker }), null, Math.max(1, resolutionDeadline - Date.now()));
         } else if (row.code && looksKoreanEtfName(row.nameKo)) {
           hit = {
             code: row.code,
@@ -1784,6 +1772,8 @@ async function buildEtfHoldings(code: string): Promise<HoldingsBundle> {
           asOf: row.asOf ?? asOf,
           code: row.code,
           isin: row.isin,
+          foreignTicker: row.foreignTicker,
+          tradingCountry: row.tradingCountry,
           hit,
         });
       }),
@@ -1792,15 +1782,19 @@ async function buildEtfHoldings(code: string): Promise<HoldingsBundle> {
   }
 
   holdings.sort(compareHoldingsByWeight);
-
+  const officialCount = holdings.filter((h) => h.weightSource === "official").length;
+  const disclosure = holdingsDisclosureStatus({ asOf, sourceKind: chosen.sourceKind, officialCount, rowCount: holdings.length });
   return {
     holdings,
     asOf,
     source: chosen.source,
     sourceKind: chosen.sourceKind,
-    officialCount: holdings.filter((h) => h.weightSource === "official").length,
+    officialCount,
     issuerUrl: chosen.issuerUrl,
     issuerProductUrl: chosen.issuerUrl ?? issuerProduct.issuerUrl,
+    status: disclosure.status,
+    statusReason: disclosure.reason,
+    fetchedAt: new Date().toISOString(),
   };
 }
 
@@ -1808,10 +1802,18 @@ export async function fetchEtfHoldings(code: string): Promise<HoldingsBundle> {
   const c = normalizeEtfCode(code);
   const now = Date.now();
   const hit = holdingsCache.get(c);
-  if (hit && now - hit.at < HOLDINGS_TTL_MS) return hit.data;
-  const data = await buildEtfHoldings(c);
-  holdingsCache.set(c, { at: now, data });
-  return data;
+  const ttl = hit?.data.status === "current" ? HOLDINGS_TTL_MS : 5_000;
+  if (hit && now - hit.at < ttl && koreaDisclosureDay(new Date(hit.at)) === koreaDisclosureDay()) return hit.data;
+  const pending = holdingsRequests.get(c);
+  if (pending) return pending;
+  const request = buildEtfHoldings(c).then((data) => {
+    holdingsCache.delete(c);
+    holdingsCache.set(c, { at: Date.now(), data });
+    if (holdingsCache.size > 128) holdingsCache.delete(holdingsCache.keys().next().value!);
+    return data;
+  }).finally(() => holdingsRequests.delete(c));
+  holdingsRequests.set(c, request);
+  return request;
 }
 
 async function getJsonUtf8AsText(url: string, signal?: AbortSignal): Promise<string> {

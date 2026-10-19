@@ -12,6 +12,7 @@ import {
   parseSolProductPage,
   resolveSolProduct,
   SOL_WEBSITE_URL,
+  type SolProduct,
 } from "./etf-sol.ts";
 
 // Synthetic HTML exercises discovery/parser behavior. The product ID here is
@@ -169,6 +170,169 @@ const PDF_ITEMS = SNAPSHOT.rows.map((row) => ({
   WT_DISP: `${row.weight}%`,
   WORK_DT: "20261008",
 }));
+
+const VERIFIED_PRODUCT: SolProduct = {
+  code: "0246X0",
+  productId: "999999",
+  name: "SOL 글로벌DRAM반도체플러스",
+  issuerUrl: PRODUCT_URL,
+};
+
+test("SOL verified product seed reads the current basket without waiting for catalog traversal", async () => {
+  const calls: string[] = [];
+  const pdfUrl = `${SOL_WEBSITE_URL}/api/etf/pds/pdf/999999`;
+  const fetcher = (async (input: RequestInfo | URL) => {
+    const url = String(input);
+    calls.push(url);
+    if (url !== pdfUrl) return await new Promise<Response>(() => {});
+    return new Response(
+      JSON.stringify({
+        workDt: "20261019",
+        items: PDF_ITEMS.map((row) => ({
+          ...row,
+          WORK_DT: "20261019",
+          QTY: row.STOCK_CODE?.startsWith("JP") ? "999999999" : "0.001",
+          PRICE: row.STOCK_CODE?.startsWith("US") ? "1" : "999999999",
+        })),
+      }),
+      { status: 200 },
+    );
+  }) as typeof fetch;
+  const result = await fetchSolOfficialHoldings("0246x0", {
+    fetcher,
+    product: VERIFIED_PRODUCT,
+    deadlineMs: 100,
+  });
+  assert.ok(result);
+  assert.deepEqual(calls, [pdfUrl]);
+  assert.equal(result.code, "0246X0");
+  assert.equal(result.issuerUrl, PRODUCT_URL);
+  assert.equal(result.asOf, "2026-10-19");
+  assert.equal(result.rows.find((row) => row.isin === "US5951121038")?.weight, 24.51);
+  assert.equal(result.rows.find((row) => row.isin === "JP3236330001")?.weight, 3.89);
+  assert.equal(result.rows.find((row) => row.code === "005930")?.weight, 25.23);
+  assert.match(result.source, /2026-10-19/);
+});
+
+test("SOL rejects mismatched or nonofficial product seeds and resolves the requested ETF normally", async () => {
+  const catalogUrl = `${SOL_WEBSITE_URL}/api/etf/pds?searchText=&page=1`;
+  const pdfUrl = `${SOL_WEBSITE_URL}/api/etf/pds/pdf/999999`;
+  const invalidProducts: SolProduct[] = [
+    { ...VERIFIED_PRODUCT, code: "0246X1", productId: "999998", issuerUrl: `${SOL_WEBSITE_URL}/ko/fund/etf/999998` },
+    { ...VERIFIED_PRODUCT, productId: "999998" },
+    { ...VERIFIED_PRODUCT, productId: "99999" },
+    { ...VERIFIED_PRODUCT, productId: null },
+    { ...VERIFIED_PRODUCT, issuerUrl: "https://attacker.example/ko/fund/etf/999999" },
+    { ...VERIFIED_PRODUCT, issuerUrl: "https://www.soletf.com.attacker.example/ko/fund/etf/999999" },
+    { ...VERIFIED_PRODUCT, issuerUrl: "http://www.soletf.com/ko/fund/etf/999999" },
+    { ...VERIFIED_PRODUCT, issuerUrl: "https://www.soletf.com:8443/ko/fund/etf/999999" },
+    { ...VERIFIED_PRODUCT, issuerUrl: `${PRODUCT_URL}?product=999998` },
+    { ...VERIFIED_PRODUCT, issuerUrl: `${SOL_WEBSITE_URL}/` },
+    { ...VERIFIED_PRODUCT, name: "다른 운용사 ETF" },
+  ];
+  for (const product of invalidProducts) {
+    const calls: string[] = [];
+    const fetcher = fixtureFetch(
+      {
+        [catalogUrl]: JSON.stringify({
+          items: [{ ETF_CD6: "0246X0", FUND_CD: "999999", ETF_NAME: "SOL 글로벌DRAM반도체플러스" }],
+        }),
+        [pdfUrl]: JSON.stringify({ workDt: "20261008", items: PDF_ITEMS }),
+      },
+      calls,
+    );
+    const result = await fetchSolOfficialHoldings("0246X0", { fetcher, product });
+    assert.ok(result);
+    assert.equal(result.productId, "999999");
+    assert.deepEqual(calls, [catalogUrl, pdfUrl]);
+  }
+});
+
+test("SOL verified product seed retains HTML discovery when the current PDF is unavailable", async () => {
+  const calls: string[] = [];
+  const result = await fetchSolOfficialHoldings("0246X0", {
+    product: VERIFIED_PRODUCT,
+    fetcher: fixtureFetch(
+      {
+        [`${SOL_WEBSITE_URL}/`]: `<a href="/ko/fund/etf/999999">SOL 글로벌DRAM반도체플러스 (0246X0)</a>`,
+        [PRODUCT_URL]: PRODUCT_PAGE,
+      },
+      calls,
+    ),
+  });
+  assert.ok(result);
+  assert.equal(result.asOf, "2026-10-08");
+  assert.equal(result.rows.find((row) => row.isin === "US5951121038")?.weight, 24.51);
+  assert.deepEqual(calls, [
+    `${SOL_WEBSITE_URL}/api/etf/pds/pdf/999999`,
+    `${SOL_WEBSITE_URL}/`,
+    PRODUCT_URL,
+  ]);
+});
+
+const IDENTIFIED_PDF_ITEMS = [
+  ...PDF_ITEMS.map((row) => ({ ...row, ETF_CD6: "0246X0", FUND_CD: "999999" })),
+  {
+    STOCK_CODE: "CASH00000001",
+    SEC_NM: "100%현금설정액",
+    QTY: "486297518",
+    PRICE: "486297518",
+    WT_DISP: "",
+    WORK_DT: "20261008",
+    ETF_CD6: "0246X0",
+    FUND_CD: "999999",
+  },
+];
+
+async function fetchPdfFixture(pack: Record<string, unknown>) {
+  return fetchSolOfficialHoldings("0246X0", {
+    product: VERIFIED_PRODUCT,
+    fetcher: fixtureFetch({
+      [`${SOL_WEBSITE_URL}/api/etf/pds/pdf/999999`]: JSON.stringify(pack),
+    }),
+  });
+}
+
+test("SOL PDF validates declared product identity on the envelope and every row including CU headers", async () => {
+  const good = {
+    workDt: "20261008",
+    ETF_CD6: "0246X0",
+    FUND_CD: "999999",
+    totalCount: "12",
+    items: IDENTIFIED_PDF_ITEMS,
+  };
+  const result = await fetchPdfFixture(good);
+  assert.ok(result);
+  assert.equal(result.rows.length, 11);
+  assert.equal(result.rows.find((row) => row.isin === "US5951121038")?.weight, 24.51);
+  const bad = [
+    { ...good, ETF_CD6: "0246X1" },
+    { ...good, FUND_CD: "999998" },
+    { ...good, ETF_CD6: null },
+    { ...good, etfCd6: "0246X1" },
+    { ...good, fundCd: "999998" },
+    { ...good, items: IDENTIFIED_PDF_ITEMS.map((row, i) => i === 0 ? { ...row, ETF_CD6: "0246X1" } : row) },
+    { ...good, items: IDENTIFIED_PDF_ITEMS.map((row, i) => i === 1 ? { ...row, FUND_CD: "999998" } : row) },
+    { ...good, items: IDENTIFIED_PDF_ITEMS.map((row, i) => i === 11 ? { ...row, FUND_CD: "999998" } : row) },
+  ];
+  for (const pack of bad) assert.equal(await fetchPdfFixture(pack), null);
+});
+
+test("SOL PDF count validation rejects truncated baskets even when their weights still total 100", async () => {
+  const good = {
+    workDt: "20261008",
+    totalCount: 12,
+    total: "12",
+    items: IDENTIFIED_PDF_ITEMS,
+  };
+  assert.ok(await fetchPdfFixture(good));
+  assert.equal(await fetchPdfFixture({ ...good, items: IDENTIFIED_PDF_ITEMS.slice(0, 11) }), null);
+  assert.equal(await fetchPdfFixture({ ...good, totalCount: 13 }), null);
+  assert.equal(await fetchPdfFixture({ ...good, total: "13" }), null);
+  for (const invalidCount of [null, "", "NaN", "12.0", "-12", -1, 12.5, true, {}, "9007199254740993"]) {
+    assert.equal(await fetchPdfFixture({ ...good, totalCount: invalidCount }), null);
+  }
+});
 
 test("SOL JSON PDF parser takes WT_DISP only and excludes CU notional", () => {
   const items = [

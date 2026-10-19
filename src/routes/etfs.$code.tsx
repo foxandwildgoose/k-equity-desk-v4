@@ -102,8 +102,26 @@ function EtfDetailPage() {
   const hasOfficialWeights = weightBasis === "official" && officialCount > 0;
   const holdingsSource =
     data && "holdingsSource" in data ? data.holdingsSource : null;
-  const isUploadedSnapshot =
-    data && "holdingsSourceKind" in data && data.holdingsSourceKind === "issuer-file";
+  const holdingsStatus = data && "holdingsStatus" in data
+    ? data.holdingsStatus
+    : null;
+  const holdingsStatusReason = data && "holdingsStatusReason" in data && typeof data.holdingsStatusReason === "string"
+    ? data.holdingsStatusReason
+    : null;
+  const holdingsFetchedAt = data && "holdingsFetchedAt" in data && typeof data.holdingsFetchedAt === "string"
+    ? data.holdingsFetchedAt
+    : null;
+  const isUploadedSnapshot = data && "holdingsSourceKind" in data && data.holdingsSourceKind === "issuer-file";
+  const todayKst = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(new Date());
+  const disclosureAgeDays = typeof asOf === "string" && /^\d{4}-\d{2}-\d{2}$/.test(asOf)
+    ? (Date.parse(`${todayKst}T00:00:00+09:00`) - Date.parse(`${asOf}T00:00:00+09:00`)) / 86_400_000
+    : null;
+  const isHistoricalHoldings = hasOfficialWeights && (
+    holdingsStatus === "historical" || (!holdingsStatus && isUploadedSnapshot) || (disclosureAgeDays != null && disclosureAgeDays > 7)
+  );
+  const hasOverseasHoldings = holdings.some((holding) => holding.isOverseas);
   const quotedCount =
     data && "quotedCount" in data ? data.quotedCount : 0;
   const fmt =
@@ -325,7 +343,7 @@ function EtfDetailPage() {
         </div>
         <div className="desk-card desk-card-gold p-4">
           <div className="text-sm text-muted-foreground">
-            운용사 공식 비중 합계
+            운용사 공표 비중 합계
           </div>
           <div className="mt-1 text-xl font-semibold tabular">
             {officialWeightSum != null && hasOfficialWeights
@@ -336,9 +354,14 @@ function EtfDetailPage() {
             {!data
               ? "비중 확인 중"
               : hasOfficialWeights
-                ? `공식 NAV 비중 ${officialCount}/${holdings.length || 0}종 · 공시 비중 순`
+                ? `공표 비중 ${officialCount}/${holdings.length || 0}종 · 공표 비중 순`
                 : "운용사 공식 비중 확인 불가 · 비중 미표시"}
           </div>
+          {hasOfficialWeights && officialCount < holdings.length && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              현금 등 미공표 비중은 — 로 표시합니다. 합계를 100%로 보정하지 않습니다.
+            </p>
+          )}
         </div>
         <div className="desk-card desk-card-indigo p-4">
           <div className="text-sm text-muted-foreground">편입 종목 조회 시세</div>
@@ -356,7 +379,7 @@ function EtfDetailPage() {
           <div className="flex flex-wrap items-end justify-between gap-2 mb-3">
             <h2 className="text-base font-semibold">자산군 공식 비중</h2>
             <p className="text-xs text-muted-foreground">
-              NAV 대비 운용사 공시 비중을 자산군별로 합산
+              운용사가 공표한 비중을 자산군별로 합산
             </p>
           </div>
           <div className="flex h-3 w-full overflow-hidden rounded-full bg-muted">
@@ -393,11 +416,18 @@ function EtfDetailPage() {
 
       <section className="desk-card desk-card-teal overflow-hidden">
         <div className="border-b border-border px-4 py-3.5">
-          <h2 className="text-lg font-semibold">편입 종목 · 운용사 공식 비중</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-lg font-semibold">편입 종목 · 운용사 공식 비중</h2>
+            {!isLoading && (
+              <Badge variant="outline" className={cn("text-xs", isHistoricalHoldings && "text-desk-gold border-desk-gold/40")}>
+                {isHistoricalHoldings ? "과거 공시 자료" : hasOfficialWeights ? "공시 비중 확인" : "비중 확인 불가"}
+              </Badge>
+            )}
+          </div>
           <p className="text-sm text-muted-foreground flex items-start gap-1.5 mt-1">
             <Info className="size-4 shrink-0 mt-0.5" />
             {hasOfficialWeights
-              ? "비중은 운용사가 공시한 기준일의 NAV 대비 비중입니다. 현재가는 별도 시세이며 비중 계산에 사용하지 않습니다."
+              ? "비중은 운용사가 공표한 기준일의 비중입니다. 현재가는 별도 시세이며 비중 계산에 사용하지 않습니다."
               : isLoading
                 ? "운용사 공식 구성내역과 비중을 확인하고 있습니다."
                 : "운용사 공식 비중을 확인하지 못했습니다. 비중은 — 로 표시하며 현재가나 편입 수량으로 추정하지 않습니다."}
@@ -406,9 +436,25 @@ function EtfDetailPage() {
             편입내역 출처: {holdingsSource ?? (isLoading ? "확인 중" : "확인 불가")}
             {" · "}공시 기준일: {asOf ?? (isLoading ? "확인 중" : "미확인")}
           </p>
-          {isUploadedSnapshot && (
-            <p className="mt-2 text-sm text-desk-gold">
-              첨부 자료의 {asOf ?? "미확인 기준일"} 공시 비중입니다. 운용사의 최신 구성내역을 실시간으로 확인하지 못해 과거 자료를 표시합니다.
+          {holdingsFetchedAt && Number.isFinite(Date.parse(holdingsFetchedAt)) && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              자료 수신 시각: {formatMarketAsOf(holdingsFetchedAt)} (한국시간 · 공시 기준일과 별도)
+            </p>
+          )}
+          {!isLoading && (holdingsStatusReason || isHistoricalHoldings || !hasOfficialWeights) && (
+            <p
+              className={cn("mt-2 text-sm leading-relaxed", isHistoricalHoldings ? "text-desk-gold" : "text-muted-foreground")}
+              role="status"
+              data-testid="etf-holdings-status"
+            >
+              {isHistoricalHoldings
+                ? `${asOf ?? "기준일 미확인"} 공시의 과거 자료입니다. 현재 구성과 다를 수 있습니다. ${holdingsStatusReason ?? "최신 공시 비중을 확인하지 못했습니다."}`
+                : holdingsStatusReason ?? "공식 공시 비중을 수신하지 못해 비중을 표시하지 않습니다. 운용사 공식 구성내역에서 확인해 주세요."}
+            </p>
+          )}
+          {hasOverseasHoldings && (
+            <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+              미국·해외 주식의 현재가와 환율은 별도 참고 시세입니다. 아래 비중은 해당 공시 기준일의 비중을 유지합니다.
             </p>
           )}
           <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -419,6 +465,7 @@ function EtfDetailPage() {
                   target="_blank"
                   rel="noopener noreferrer"
                   title="새 탭에서 운용사 공식 구성내역 열기"
+                  aria-describedby="issuer-holdings-link-explanation"
                 >
                   <Landmark aria-hidden="true" />
                   운용사 공식 구성내역
@@ -431,7 +478,7 @@ function EtfDetailPage() {
                   size="lg"
                   variant="outline"
                   disabled
-                  aria-describedby="issuer-holdings-link-status"
+                  aria-describedby="issuer-holdings-link-status issuer-holdings-link-explanation"
                 >
                   <Landmark aria-hidden="true" />
                   운용사 공식 구성내역
@@ -448,6 +495,9 @@ function EtfDetailPage() {
               more={[{ label: "네이버 구성종목 참고", url: naverItemUrl }]}
             />
           </div>
+          <p id="issuer-holdings-link-explanation" className="mt-2 text-sm text-muted-foreground leading-relaxed">
+            버튼은 운용사의 해당 ETF 화면을 엽니다. 이 화면의 비중은 별도로 수신한 공시 자료이며, 갱신 상태는 위의 공시 기준일과 자료 확인 상태로 확인할 수 있습니다.
+          </p>
         </div>
 
         {isLoading && holdings.length === 0 ? (
@@ -464,7 +514,7 @@ function EtfDetailPage() {
             <table className="w-full min-w-[820px] text-base">
               <thead className="bg-muted/40 text-sm text-muted-foreground">
                 <tr className="text-left">
-                  <th className="px-4 py-3 font-medium">공식 NAV 비중</th>
+                  <th className="px-4 py-3 font-medium">운용사 공표 비중</th>
                   <th className="px-4 py-3 font-medium">구분</th>
                   <th className="px-4 py-3 font-medium">종목</th>
                   <th className="px-4 py-3 font-medium text-right">현재가</th>
