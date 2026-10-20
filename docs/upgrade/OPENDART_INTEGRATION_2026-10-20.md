@@ -8,9 +8,12 @@ or enter it in browser settings.
 
 The disclosure desk, individual stock disclosures, scan disclosures and
 aggregated disclosure feed now prefer `https://opendart.fss.or.kr/api/list.json`.
-Company lookups resolve the exact six-character exchange ticker to the official
-eight-digit `corp_code` using `api/corpCode.xml`. The mapping does not guess by
-company name or substitute a common share code for a preferred share.
+Company lookups search official DART using the exact six-character exchange
+ticker, then verify both `stock_code` and `corp_code` through OpenDART
+`api/company.json` before accepting a candidate. The full `api/corpCode.xml`
+archive remains a fallback. It does not guess by company name or substitute a
+common share code for a preferred share. This avoids blocking normal company
+pages on a large archive download that exceeded 30 seconds in Production.
 
 - Market lookup: latest page (up to 100 records per market) for KOSPI and KOSDAQ
   within seven calendar days. This is a recent-disclosures view, not a complete
@@ -30,7 +33,8 @@ company name or substitute a common share code for a preferred share.
   Ambiguous historical ticker mappings are quarantined individually so they
   cannot invalidate unrelated companies. Fixed diagnostic codes distinguish
   archive, XML, network and response-validation failures without exposing keys.
-- Requests have response-size limits. JSON requests allow 12 seconds; the first
+- Requests have response-size limits. Code discovery allows 5 seconds and API
+  JSON requests allow 12 seconds; the first
   full corporate-archive download has a separate 30-second budget. The archive
   and JSON results use bounded in-memory caches and concurrent-request deduplication;
   secret rotation invalidates old state. No database or filesystem writes are

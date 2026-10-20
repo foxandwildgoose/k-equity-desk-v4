@@ -59,11 +59,13 @@ const messages: Record<OpenDartStatus["state"], string> = {
 class OpenDartError extends Error {
   state: FailureState;
   reasonCode: OpenDartReasonCode;
-  constructor(state: FailureState = "unavailable", reasonCode: OpenDartReasonCode = "API_UNAVAILABLE") {
+  resolutionReasonCode?: OpenDartReasonCode;
+  constructor(state: FailureState = "unavailable", reasonCode: OpenDartReasonCode = "API_UNAVAILABLE", resolutionReasonCode?: OpenDartReasonCode) {
     super(messages[state]);
     this.name = "OpenDartError";
     this.state = state;
     this.reasonCode = reasonCode;
+    this.resolutionReasonCode = resolutionReasonCode;
   }
 }
 
@@ -268,6 +270,7 @@ export function createOpenDartClient(dependencies: ClientDependencies = {}) {
   // The full company archive is substantially larger than a 100-row JSON page.
   // Give its first download a separate, bounded budget; test overrides cover both.
   const archiveTimeoutMs = dependencies.timeoutMs === undefined ? 30_000 : timeoutMs;
+  const discoveryTimeoutMs = dependencies.timeoutMs === undefined ? 5_000 : timeoutMs;
   let activeKey = "";
   let keyGeneration = 0;
   let corporationMap: { key: string; expires: number; map: CorporationMap } | undefined;
@@ -276,21 +279,27 @@ export function createOpenDartClient(dependencies: ClientDependencies = {}) {
   let cooldown: { key: string; expires: number; state: FailureState; reasonCode: OpenDartReasonCode } | undefined;
   const cache = new Map<string, { expires: number; result: OpenDartResult }>();
   const pending = new Map<string, Promise<OpenDartResult>>();
+  const companyCache = new Map<string, { expires: number; corpCode: string }>();
+  const companyPending = new Map<string, Promise<string>>();
 
-  function result(state: OpenDartStatus["state"], configured: boolean, items: OpenDartDisclosure[] = [], reasonCode: OpenDartReasonCode = "API_UNAVAILABLE"): OpenDartResult {
-    return { items, status: { configured, state, message: messages[state], checkedAt: new Date(now()).toISOString(), fallbackUsed: false, reasonCode } };
+  function result(state: OpenDartStatus["state"], configured: boolean, items: OpenDartDisclosure[] = [], reasonCode: OpenDartReasonCode = "API_UNAVAILABLE", resolutionReasonCode?: OpenDartReasonCode): OpenDartResult {
+    return { items, status: { configured, state, message: messages[state], checkedAt: new Date(now()).toISOString(), fallbackUsed: false, reasonCode, ...(resolutionReasonCode ? { resolutionReasonCode } : {}) } };
   }
 
   async function bytes(path: string, apiKey: string, params: Record<string, string>, maxBytes: number): Promise<Uint8Array> {
-    const stage = path === "/api/corpCode.xml" ? "CORP" : "LIST";
-    const url = new URL(path, API_ORIGIN);
-    url.search = new URLSearchParams({ crtfc_key: apiKey, ...params }).toString();
+    const discovery = path === "/dsab001/search.ax";
+    const stage = discovery ? "DISCOVERY" : path === "/api/corpCode.xml" ? "CORP" : path === "/api/company.json" ? "COMPANY" : "LIST";
+    const url = new URL(path, discovery ? "https://dart.fss.or.kr" : API_ORIGIN);
+    if (!discovery) url.search = new URLSearchParams({ crtfc_key: apiKey, ...params }).toString();
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
     const operation = async () => {
       const response = await request(url, {
-        method: "GET", signal: controller.signal, redirect: "error", cache: "no-store",
-        headers: { Accept: path.endsWith(".json") ? "application/json" : "application/zip, application/xml" },
+        method: discovery ? "POST" : "GET", signal: controller.signal, redirect: "error", cache: "no-store",
+        ...(discovery ? { body: new URLSearchParams(params).toString() } : {}),
+        headers: discovery
+          ? { Accept: "text/html", "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8", "X-Requested-With": "XMLHttpRequest", "User-Agent": "Mozilla/5.0 (compatible; KoreaEquityCommand/1.0) AppleWebKit/537.36", "Accept-Language": "ko-KR,ko;q=0.9,en;q=0.8", Referer: "https://dart.fss.or.kr/dsab001/main.do", Origin: "https://dart.fss.or.kr" }
+          : { Accept: path.endsWith(".json") ? "application/json" : "application/zip, application/xml" },
       });
       if (response.status === 429) throw new OpenDartError("rate-limited", "API_RATE_LIMIT");
       if (!response.ok || !response.body) throw new OpenDartError("unavailable", `${stage}_REQUEST_HTTP`);
@@ -319,7 +328,7 @@ export function createOpenDartClient(dependencies: ClientDependencies = {}) {
       return await Promise.race([
         operation(),
         new Promise<never>((_, reject) => {
-          timer = setTimeout(() => { controller.abort(); reject(new OpenDartError("unavailable", `${stage}_REQUEST_TIMEOUT`)); }, stage === "CORP" ? archiveTimeoutMs : timeoutMs);
+          timer = setTimeout(() => { controller.abort(); reject(new OpenDartError("unavailable", `${stage}_REQUEST_TIMEOUT`)); }, stage === "CORP" ? archiveTimeoutMs : stage === "DISCOVERY" ? discoveryTimeoutMs : timeoutMs);
         }),
       ]);
     } catch (error) {
@@ -352,6 +361,66 @@ export function createOpenDartClient(dependencies: ClientDependencies = {}) {
     return promise;
   }
 
+  async function lightweightCompany(stockCode: string, apiKey: string): Promise<string> {
+    const range = dateRange(kstDate(now()), 120, true);
+    const htmlBytes = await bytes("/dsab001/search.ax", apiKey, {
+      currentPage: "1", maxResults: "30", maxLinks: "10", sort: "date", series: "desc", textCrpNm: stockCode,
+      startDate: `${range.begin.slice(0, 4)}-${range.begin.slice(4, 6)}-${range.begin.slice(6, 8)}`,
+      endDate: `${range.end.slice(0, 4)}-${range.end.slice(4, 6)}-${range.end.slice(6, 8)}`,
+    }, JSON_LIMIT);
+    let html: string;
+    try { html = new TextDecoder("utf-8", { fatal: true }).decode(htmlBytes); }
+    catch { throw new OpenDartError("unavailable", "DISCOVERY_INVALID_HTML"); }
+    const candidates = [...new Set([...html.matchAll(/openCorpInfoNew\s*\(\s*["'](\d{8})["']/g)].map((match) => match[1]))];
+    if (!candidates.length) throw new OpenDartError("company-not-found", "DISCOVERY_NO_CANDIDATES");
+    if (candidates.length > 5) throw new OpenDartError("unavailable", "DISCOVERY_TOO_MANY_CANDIDATES");
+    const checked = await Promise.all(candidates.map(async (candidate) => {
+      const data = await bytes("/api/company.json", apiKey, { corp_code: candidate }, JSON_LIMIT);
+      let payload: unknown;
+      try { payload = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(data)); }
+      catch { throw new OpenDartError("unavailable", "COMPANY_JSON_INVALID"); }
+      if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new OpenDartError("unavailable", "COMPANY_JSON_INVALID");
+      const company = payload as Record<string, unknown>;
+      if (responseState(company.status) !== "ok") return undefined;
+      return company.corp_code === candidate && company.stock_code === stockCode ? candidate : undefined;
+    }));
+    const verified = checked.filter((candidate): candidate is string => candidate !== undefined);
+    if (verified.length > 1) throw new OpenDartError("company-not-found", "COMPANY_MAPPING_AMBIGUOUS");
+    if (verified.length !== 1) throw new OpenDartError("company-not-found", "COMPANY_IDENTITY_INVALID");
+    return verified[0];
+  }
+
+  async function resolveCompany(stockCode: string, apiKey: string, fingerprint: string, generation: number): Promise<string> {
+    const key = `${fingerprint}:${stockCode}`;
+    const cached = companyCache.get(key);
+    if (cached && cached.expires > now()) return cached.corpCode;
+    const existing = companyPending.get(key);
+    if (existing) return existing;
+    const operation = (async () => {
+      let corpCode: string;
+      try { corpCode = await lightweightCompany(stockCode, apiKey); }
+      catch (error) {
+        if (error instanceof OpenDartError && (["invalid-key", "rate-limited"].includes(error.state) || error.reasonCode === "COMPANY_MAPPING_AMBIGUOUS")) throw error;
+        try {
+          const mapped = (await corporations(apiKey, fingerprint, generation)).get(stockCode);
+          if (!mapped) throw new OpenDartError("company-not-found", mapped === null ? "COMPANY_MAPPING_AMBIGUOUS" : "CORP_NOT_FOUND");
+          corpCode = mapped;
+        } catch (archiveError) {
+          const safe = archiveError instanceof OpenDartError ? archiveError : new OpenDartError();
+          throw new OpenDartError(safe.state, safe.reasonCode, error instanceof OpenDartError ? error.reasonCode : "COMPANY_JSON_INVALID");
+        }
+      }
+      if (activeKey === fingerprint && keyGeneration === generation) {
+        if (companyCache.size >= MAX_CACHE) companyCache.delete(companyCache.keys().next().value!);
+        companyCache.set(key, { expires: now() + CORP_TTL, corpCode });
+      }
+      return corpCode;
+    })();
+    companyPending.set(key, operation);
+    try { return await operation; }
+    finally { if (companyPending.get(key) === operation) companyPending.delete(key); }
+  }
+
   async function fetchDisclosures(options: DisclosureOptions = {}): Promise<OpenDartResult> {
     const apiKey = getApiKey()?.trim();
     if (!apiKey || !/^[a-fA-F0-9]{40}$/.test(apiKey)) {
@@ -359,6 +428,7 @@ export function createOpenDartClient(dependencies: ClientDependencies = {}) {
       activeKey = "";
       corporationMap = undefined; corporationPending = undefined; corporationFailure = undefined; cooldown = undefined;
       cache.clear(); pending.clear();
+      companyCache.clear(); companyPending.clear();
     }
     if (!apiKey) return result("missing-key", false, [], "KEY_MISSING");
     if (!/^[a-fA-F0-9]{40}$/.test(apiKey)) return result("invalid-key", true, [], "KEY_INVALID_FORMAT");
@@ -368,6 +438,7 @@ export function createOpenDartClient(dependencies: ClientDependencies = {}) {
       activeKey = fingerprint;
       corporationMap = undefined; corporationPending = undefined; corporationFailure = undefined; cooldown = undefined;
       cache.clear(); pending.clear();
+      companyCache.clear(); companyPending.clear();
     }
     const generation = keyGeneration;
     const stockCode = options.stockCode;
@@ -386,9 +457,7 @@ export function createOpenDartClient(dependencies: ClientDependencies = {}) {
       try {
         let company: string | undefined;
         if (stockCode) {
-          const mappedCompany = (await corporations(apiKey, fingerprint, generation)).get(stockCode);
-          if (!mappedCompany) throw new OpenDartError("company-not-found", mappedCompany === null ? "COMPANY_MAPPING_AMBIGUOUS" : "CORP_NOT_FOUND");
-          company = mappedCompany;
+          company = await resolveCompany(stockCode, apiKey, fingerprint, generation);
         }
         const list = async (market?: "Y" | "K") => {
           const body = await bytes("/api/list.json", apiKey, {
@@ -407,7 +476,7 @@ export function createOpenDartClient(dependencies: ClientDependencies = {}) {
       } catch (error) {
         const state = error instanceof OpenDartError ? error.state : "unavailable";
         const reasonCode = error instanceof OpenDartError ? error.reasonCode : "API_UNAVAILABLE";
-        response = result(state, true, [], reasonCode);
+        response = result(state, true, [], reasonCode, error instanceof OpenDartError ? error.resolutionReasonCode : undefined);
         if (activeKey === fingerprint && keyGeneration === generation && (state === "invalid-key" || state === "rate-limited")) {
           cooldown = { key: fingerprint, expires: now() + (state === "invalid-key" ? 90_000 : 60_000), state, reasonCode };
         }

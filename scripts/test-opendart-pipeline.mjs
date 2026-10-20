@@ -35,6 +35,7 @@ const archive = zipSync({
 });
 let phase = "success";
 let archiveCalls = 0;
+let discoveryCalls = 0;
 let legacyCalls = 0;
 let slowOptionalSources = false;
 const json = (data) =>
@@ -53,7 +54,7 @@ const htmlRow = (stock, sequence) =>
   `<tr><td><a href="javascript:openCorpInfoNew('${stocks[stock]}');">${names[stock]}</a></td><td><a href="/dsaf001/main.do?rcpNo=${date + sequence}">TEST FIXTURE 웹 대체 공시</a></td><td><span class="webOnly">${today.replaceAll("-", ".")}</span> 14:30</td></tr>`;
 
 // Install before SSR import: the production client captures its transport once.
-globalThis.fetch = async (input) => {
+globalThis.fetch = async (input, init) => {
   const url = new URL(String(input));
   if (slowOptionalSources && ["kind.krx.co.kr", "m.stock.naver.com"].includes(url.hostname)) {
     await new Promise((resolve) => setTimeout(resolve, 200));
@@ -70,6 +71,14 @@ globalThis.fetch = async (input) => {
           `<result><status>010</status><message>TEST FIXTURE untrusted provider text</message></result>`,
         );
       return new Response(archive);
+    }
+    if (url.pathname === "/api/company.json") {
+      if (phase === "invalid-key")
+        return json({ status: "010", message: "TEST FIXTURE untrusted provider text" });
+      const corp = url.searchParams.get("corp_code");
+      const stock = Object.keys(stocks).find((code) => stocks[code] === corp);
+      assert.ok(stock, "candidate must come from official code discovery");
+      return json({ status: "000", corp_code: corp, stock_code: stock, corp_name: names[stock] });
     }
     assert.equal(url.pathname, "/api/list.json");
     assert.equal(url.searchParams.get("page_count"), "100");
@@ -91,6 +100,11 @@ globalThis.fetch = async (input) => {
     });
   }
   if (url.hostname === "dart.fss.or.kr") {
+    const query = new URLSearchParams(String(init?.body ?? "")).get("textCrpNm");
+    if (query && /^[0-9A-Z]{6}$/.test(query)) {
+      discoveryCalls++;
+      return new Response(`<table>${stocks[query] ? htmlRow(query, "000007") : ""}</table>`);
+    }
     legacyCalls++;
     return new Response(
       `<table>${htmlRow("005930", "000005")}${htmlRow("000660", "000006")}</table>`,
@@ -116,7 +130,12 @@ try {
     module.fetchStockDisclosureBundle("000660", "SK하이닉스"),
     module.fetchStockDisclosureBundle("0001A0", "테스트 기업"),
   ]);
-  assert.equal(archiveCalls, 1, "parallel company requests share the official corporation archive");
+  assert.equal(
+    archiveCalls,
+    0,
+    "verified lightweight lookups must not download the full corporate archive",
+  );
+  assert.equal(discoveryCalls, 3, "each exact code is discovered independently");
   for (const [stock, pack] of [
     ["005930", samsung],
     ["000660", hynix],
@@ -142,6 +161,7 @@ try {
   const unknown = await module.fetchStockDisclosureBundle("999999", "삼성전자");
   assert.equal(unknown.openDart.state, "company-not-found");
   assert.equal(unknown.dart.length, 0);
+  assert.equal(archiveCalls, 1, "the full archive remains a fallback for unresolved identities");
   assert.equal(
     legacyCalls,
     0,
@@ -185,7 +205,7 @@ try {
   assert.equal(boundedFeed.kind.available, false);
   assert.match(boundedFeed.kind.message, /조회 시간/);
   console.log(
-    "OpenDART pipeline fixtures passed: official code mapping (including alphanumeric), parallel archive reuse, date-only receipt ordering, official viewer links, authoritative empty results, unknown-company rejection, market aggregation, key rotation, explicit safe web fallback and retention of official data despite slow optional providers. No live API or real credential used.",
+    "OpenDART pipeline fixtures passed: code-only discovery with official company verification, no bulk archive on successful lookups, archive fallback for unresolved identities, alphanumeric mapping, date-only receipt ordering, official viewer links, authoritative empty results, market aggregation, key rotation, safe web fallback and retention despite slow optional providers. No live API or real credential used.",
   );
 } finally {
   globalThis.fetch = originalFetch;

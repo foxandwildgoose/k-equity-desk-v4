@@ -19,11 +19,21 @@ function archive(xml = "<result><list><corp_code>00126380</corp_code><corp_name>
   return new Response(zipSync({ "CORPCODE.xml": strToU8(xml) }));
 }
 
-function fixture(handle: (url: URL, init?: RequestInit) => Response | Promise<Response>, opts: { key?: () => string | undefined; now?: () => number; timeoutMs?: number } = {}) {
+function fixture(handle: (url: URL, init?: RequestInit) => Response | Promise<Response>, opts: { key?: () => string | undefined; now?: () => number; timeoutMs?: number; discovery?: (url: URL, init?: RequestInit) => Response | Promise<Response> } = {}) {
   const urls: URL[] = [];
+  const discoveryUrls: URL[] = [];
   const client = createOpenDartClient({
     fetch: (async (input, init) => {
       const url = new URL(String(input));
+      if (url.origin === "https://dart.fss.or.kr") {
+        assert.equal(url.pathname, "/dsab001/search.ax");
+        assert.equal(init?.method, "POST");
+        assert.equal(url.searchParams.has("crtfc_key"), false);
+        assert.equal(String(init?.body).includes(KEY), false);
+        discoveryUrls.push(url);
+        // Existing archive fixtures deliberately exercise the bulk fallback branch.
+        return opts.discovery?.(url, init) ?? new Response("fixture discovery unavailable", { status: 503 });
+      }
       urls.push(url);
       assert.equal(url.origin, "https://opendart.fss.or.kr");
       assert.equal(init?.redirect, "error");
@@ -32,7 +42,7 @@ function fixture(handle: (url: URL, init?: RequestInit) => Response | Promise<Re
     }) as typeof fetch,
     getApiKey: opts.key ?? (() => KEY), now: opts.now ?? (() => NOW), timeoutMs: opts.timeoutMs,
   });
-  return { ...client, urls };
+  return { ...client, urls, discoveryUrls };
 }
 
 test("missing/invalid keys never make a request or expose a secret", async () => {
@@ -80,6 +90,77 @@ test("company lookups use the exact leading-zero stock/corporation identifiers f
   assert.equal(result.status.state, "ok");
   assert.equal(client.urls.length, 2);
   assert.equal(client.urls[1].searchParams.get("bgn_de"), "20260622");
+});
+
+const discoveryHtml = (codes = ["00126380"]) => new Response(`<table>${codes.map((code) => `<tr><td><a href="javascript:openCorpInfoNew('${code}', '');">삼성전자</a></td></tr>`).join("")}</table>`);
+
+test("code-only official discovery requires exact OpenDART company metadata and avoids the bulk archive", async () => {
+  const client = fixture((url) => {
+    if (url.pathname === "/api/company.json") {
+      assert.equal(url.searchParams.get("corp_code"), "00126380");
+      assert.equal(url.searchParams.get("crtfc_key"), KEY);
+      return json({ status: "000", corp_code: "00126380", stock_code: "005930", corp_name: "삼성전자" });
+    }
+    assert.equal(url.pathname, "/api/list.json");
+    return json({ status: "000", list: [stockRow] });
+  }, { discovery: (_url, init) => {
+    const body = new URLSearchParams(String(init?.body));
+    assert.equal(body.get("textCrpNm"), "005930");
+    assert.equal(body.get("maxResults"), "30");
+    assert.equal(body.get("startDate"), "2026-06-22");
+    assert.equal(body.get("endDate"), "2026-10-20");
+    return discoveryHtml(["00126380", "00126380"]);
+  } });
+  assert.equal((await client.fetchDisclosures({ stockCode: "005930" })).status.state, "ok");
+  assert.equal(client.discoveryUrls.length, 1);
+  assert.equal(client.urls.filter((url) => url.pathname === "/api/company.json").length, 1);
+  assert.equal(client.urls.some((url) => url.pathname === "/api/corpCode.xml"), false);
+});
+
+test("discovery candidates with mismatched ticker or corporation metadata cannot authorize disclosure requests", async () => {
+  for (const metadata of [{ status: "000", corp_code: "00126380", stock_code: "005935" }, { status: "000", corp_code: "99999999", stock_code: "005930" }]) {
+    const client = fixture((url) => url.pathname === "/api/company.json" ? json(metadata) : new Response("bulk fallback unavailable", { status: 503 }), { discovery: () => discoveryHtml() });
+    const result = await client.fetchDisclosures({ stockCode: "005930" });
+    assert.equal(result.status.state, "unavailable");
+    assert.equal(result.status.reasonCode, "CORP_REQUEST_HTTP");
+    assert.equal(result.status.resolutionReasonCode, "COMPANY_IDENTITY_INVALID");
+    assert.equal(client.urls.some((url) => url.pathname === "/api/list.json"), false);
+  }
+});
+
+test("multiple officially verified company matches remain ambiguous without first-match guessing", async () => {
+  const client = fixture((url) => json({ status: "000", corp_code: url.searchParams.get("corp_code"), stock_code: "005930" }), { discovery: () => discoveryHtml(["00126380", "99999999"]) });
+  const result = await client.fetchDisclosures({ stockCode: "005930" });
+  assert.equal(result.status.state, "company-not-found");
+  assert.equal(result.status.reasonCode, "COMPANY_MAPPING_AMBIGUOUS");
+  assert.equal(client.urls.length, 2);
+  assert.equal(client.urls.every((url) => url.pathname === "/api/company.json"), true);
+});
+
+test("lightweight company mapping is singleflight across different list windows and cached for twelve hours", async () => {
+  let time = NOW;
+  const client = fixture(async (url) => {
+    await new Promise((resolve) => setTimeout(resolve, 1));
+    return url.pathname === "/api/company.json" ? json({ status: "000", corp_code: "00126380", stock_code: "005930" }) : json({ status: "000", list: [stockRow] });
+  }, { discovery: () => discoveryHtml(), now: () => time });
+  await Promise.all([client.fetchDisclosures({ stockCode: "005930", days: 120 }), client.fetchDisclosures({ stockCode: "005930", days: 30 })]);
+  assert.equal(client.discoveryUrls.length, 1);
+  assert.equal(client.urls.filter((url) => url.pathname === "/api/company.json").length, 1);
+  time += 90_001;
+  await client.fetchDisclosures({ stockCode: "005930" });
+  assert.equal(client.discoveryUrls.length, 1);
+  time += 12 * 60 * 60 * 1_000;
+  await client.fetchDisclosures({ stockCode: "005930" });
+  assert.equal(client.discoveryUrls.length, 2);
+});
+
+test("an authentication failure in company metadata preserves its safe status and never downloads the archive", async () => {
+  const client = fixture(() => json({ status: "010", message: KEY }), { discovery: () => discoveryHtml() });
+  const result = await client.fetchDisclosures({ stockCode: "005930" });
+  assert.equal(result.status.state, "invalid-key");
+  assert.equal(result.status.reasonCode, "API_INVALID_KEY");
+  assert.equal(client.urls.length, 1);
+  assert.equal(JSON.stringify(result).includes(KEY), false);
 });
 
 test("official alphanumeric KRX stock codes use the same exact corporation mapping", async () => {
@@ -209,11 +290,24 @@ test("fixed diagnostics distinguish corporate fetch, ZIP, UTF-8, XML, and JSON/l
 test("corporate timeout diagnostics survive shared failure-cache and list diagnostics remain separate", async () => {
   const client = fixture(() => new Promise<Response>(() => {}), { timeoutMs: 5 });
   assert.equal((await client.fetchDisclosures({ stockCode: "005930" })).status.reasonCode, "CORP_REQUEST_TIMEOUT");
+  assert.equal((await client.fetchDisclosures({ stockCode: "005930" })).status.resolutionReasonCode, "DISCOVERY_REQUEST_HTTP");
   assert.equal((await client.fetchDisclosures({ stockCode: "000660" })).status.reasonCode, "CORP_REQUEST_TIMEOUT");
   const listTimeout = fixture(() => new Promise<Response>(() => {}), { timeoutMs: 5 });
   assert.equal((await listTimeout.fetchDisclosures()).status.reasonCode, "LIST_REQUEST_TIMEOUT");
   const listHttp = fixture(() => new Response("broken", { status: 500 }));
   assert.equal((await listHttp.fetchDisclosures()).status.reasonCode, "LIST_REQUEST_HTTP");
+});
+
+test("lightweight timeout and archive timeout remain separately diagnosed without raw errors", async () => {
+  const client = fixture(() => new Promise<Response>(() => {}), {
+    timeoutMs: 5,
+    discovery: () => new Promise<Response>(() => {}),
+  });
+  const result = await client.fetchDisclosures({ stockCode: "005930" });
+  assert.equal(result.status.reasonCode, "CORP_REQUEST_TIMEOUT");
+  assert.equal(result.status.resolutionReasonCode, "DISCOVERY_REQUEST_TIMEOUT");
+  assert.equal(JSON.stringify(result).includes(KEY), false);
+  assert.equal((await client.fetchDisclosures({ stockCode: "005930" })).status.resolutionReasonCode, "DISCOVERY_REQUEST_TIMEOUT");
 });
 
 test("forged ZIP sizes cannot truncate or inflate beyond the actual XML size limit", async () => {
