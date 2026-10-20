@@ -27,8 +27,12 @@ company name or substitute a common share code for a preferred share.
 - If the API is unavailable, public DART HTML may supply an explicitly labeled
   fallback. Company fallback rows must independently match the known company
   name and ticker. Unmapped official company identities never use name guessing.
-- Requests have deadlines and response-size limits. The corporate archive and
-  JSON results use bounded in-memory caches and concurrent-request deduplication;
+  Ambiguous historical ticker mappings are quarantined individually so they
+  cannot invalidate unrelated companies. Fixed diagnostic codes distinguish
+  archive, XML, network and response-validation failures without exposing keys.
+- Requests have response-size limits. JSON requests allow 12 seconds; the first
+  full corporate-archive download has a separate 30-second budget. The archive
+  and JSON results use bounded in-memory caches and concurrent-request deduplication;
   secret rotation invalidates old state. No database or filesystem writes are
   required in Vercel. Caches are per server instance, not a global quota store.
 - Combined-feed polling bounds optional source waits to five seconds so slow

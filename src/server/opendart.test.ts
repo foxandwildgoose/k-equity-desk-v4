@@ -40,6 +40,7 @@ test("missing/invalid keys never make a request or expose a secret", async () =>
     const client = fixture(() => { throw new Error("must not fetch"); }, { key: () => key });
     const result = await client.fetchDisclosures();
     assert.equal(result.status.state, key ? "invalid-key" : "missing-key");
+    assert.equal(result.status.reasonCode, key ? "KEY_INVALID_FORMAT" : "KEY_MISSING");
     assert.equal(result.status.configured, !!key);
     assert.equal(client.urls.length, 0);
     assert.equal(JSON.stringify(result).includes("short-fixture-secret"), false);
@@ -57,6 +58,7 @@ test("market requests official KOSPI/KOSDAQ lists and preserves date-only metada
   });
   const result = await client.fetchDisclosures();
   assert.equal(result.status.state, "ok");
+  assert.equal(result.status.reasonCode, "API_OK");
   assert.equal(result.status.fallbackUsed, false);
   assert.equal(result.status.checkedAt, "2026-10-20T00:30:00.000Z");
   assert.equal(result.items[0].receiptDate, "2026-10-20");
@@ -101,6 +103,7 @@ test("status 013 is an authenticated empty result, not a provider failure", asyn
   const client = fixture(() => json({ status: "013" }));
   const result = await client.fetchDisclosures();
   assert.equal(result.status.state, "empty");
+  assert.equal(result.status.reasonCode, "API_EMPTY");
   assert.equal(result.status.configured, true);
   assert.deepEqual(result.items, []);
 });
@@ -148,11 +151,10 @@ test("malformed provider payloads cannot look like successfully empty responses"
   }
 });
 
-test("strict corporation archive validation rejects malformed XML, conflicting identities, and wrong files", async () => {
+test("strict corporation archive validation rejects malformed XML, nested identities, and wrong files", async () => {
   const responses = [
     () => archive("<result><list><corp_code>00126380</corp_code><stock_code>005930</stock_code></result>"),
     () => archive("<!DOCTYPE result [<!ENTITY xxe SYSTEM 'file:///etc/passwd'>]><result><list><corp_code>00126380</corp_code><stock_code>005930</stock_code></list></result>"),
-    () => archive("<result><list><corp_code>00126380</corp_code><stock_code>005930</stock_code></list><list><corp_code>00000001</corp_code><stock_code>005930</stock_code></list></result>"),
     () => archive("<result><list><corp_code>99999999</corp_code><stock_code></stock_code><list><corp_code>00126380</corp_code><stock_code>005930</stock_code></list></list></result>"),
     () => archive("<result><!-- <list><corp_code>99999999</corp_code><stock_code>005930</stock_code></list> --></result>"),
     () => archive("<result><list><corp_code>00126380</corp_code><corp_code>99999999</corp_code><stock_code>005930</stock_code></list></result>"),
@@ -163,6 +165,55 @@ test("strict corporation archive validation rejects malformed XML, conflicting i
     const client = fixture(response);
     assert.equal((await client.fetchDisclosures({ stockCode: "005930" })).status.state, "unavailable");
   }
+});
+
+test("ambiguous historical ticker mappings are quarantined without poisoning unrelated unique companies", async () => {
+  const xml = "<result><list><corp_code>00126380</corp_code><stock_code>005930</stock_code></list><list><corp_code>00000001</corp_code><stock_code>123456</stock_code></list><list><corp_code>00000002</corp_code><stock_code>123456</stock_code></list><list><corp_code>00000001</corp_code><stock_code>123456</stock_code></list></result>";
+  const client = fixture((url) => url.pathname === "/api/corpCode.xml" ? archive(xml) : json({ status: "000", list: [stockRow] }));
+  assert.equal((await client.fetchDisclosures({ stockCode: "005930" })).status.state, "ok");
+  const queries = client.urls.length;
+  const ambiguous = await client.fetchDisclosures({ stockCode: "123456" });
+  assert.equal(ambiguous.status.state, "company-not-found");
+  assert.equal(ambiguous.status.reasonCode, "COMPANY_MAPPING_AMBIGUOUS");
+  assert.equal(client.urls.length, queries);
+});
+
+test("fixed diagnostics distinguish corporate fetch, ZIP, UTF-8, XML, and JSON/list stages", async () => {
+  const cases: [() => Response | Promise<Response>, string][] = [
+    [() => new Response("not forwarded", { status: 503 }), "CORP_REQUEST_HTTP"],
+    [() => { throw new Error(`request=${KEY}`); }, "CORP_REQUEST_NETWORK"],
+    [() => new Response("{}", { headers: { "content-length": String(17 * 1024 * 1024) } }), "CORP_RESPONSE_SIZE"],
+    [() => new Response("not a ZIP"), "CORP_ZIP_FORMAT"],
+    [() => new Response(new Uint8Array([0x50, 0x4b, 0, 0])), "CORP_ZIP_DIRECTORY"],
+    [() => new Response(zipSync({ "wrong.xml": strToU8("<result/>") })), "CORP_ZIP_ENTRY"],
+    [() => new Response(zipSync({ "CORPCODE.xml": new Uint8Array([0xff]) })), "CORP_XML_DECODE"],
+    [() => archive("<result><list></result>"), "CORP_XML_SYNTAX"],
+    [() => archive("<result><!-- only a comment --></result>"), "CORP_XML_ROOT"],
+    [() => archive("<result><list><corp_code>00126380</corp_code><stock_code>005930</stock_code><list>bad</list></list></result>"), "CORP_XML_RECORD"],
+  ];
+  for (const [response, expected] of cases) {
+    const client = fixture(response);
+    const result = await client.fetchDisclosures({ stockCode: "005930" });
+    assert.equal(result.status.state, "unavailable", expected);
+    assert.equal(result.status.reasonCode, expected);
+    assert.equal(JSON.stringify(result).includes(KEY), false);
+  }
+  const invalidJson = fixture(() => new Response("broken JSON"));
+  assert.equal((await invalidJson.fetchDisclosures()).status.reasonCode, "LIST_JSON_INVALID");
+  const invalidPayload = fixture(() => json({ status: "000" }));
+  assert.equal((await invalidPayload.fetchDisclosures()).status.reasonCode, "LIST_PAYLOAD_INVALID");
+  const invalidIdentity = fixture(() => json({ status: "000", list: [{ ...stockRow, corp_code: "invalid" }] }));
+  assert.equal((await invalidIdentity.fetchDisclosures()).status.reasonCode, "LIST_IDENTITY_INVALID");
+});
+
+test("corporate timeout diagnostics survive shared failure-cache and list diagnostics remain separate", async () => {
+  const client = fixture(() => new Promise<Response>(() => {}), { timeoutMs: 5 });
+  assert.equal((await client.fetchDisclosures({ stockCode: "005930" })).status.reasonCode, "CORP_REQUEST_TIMEOUT");
+  assert.equal((await client.fetchDisclosures({ stockCode: "000660" })).status.reasonCode, "CORP_REQUEST_TIMEOUT");
+  const listTimeout = fixture(() => new Promise<Response>(() => {}), { timeoutMs: 5 });
+  assert.equal((await listTimeout.fetchDisclosures()).status.reasonCode, "LIST_REQUEST_TIMEOUT");
+  const listHttp = fixture(() => new Response("broken", { status: 500 }));
+  assert.equal((await listHttp.fetchDisclosures()).status.reasonCode, "LIST_REQUEST_HTTP");
 });
 
 test("forged ZIP sizes cannot truncate or inflate beyond the actual XML size limit", async () => {
