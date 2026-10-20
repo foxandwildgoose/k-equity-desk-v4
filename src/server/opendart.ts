@@ -18,11 +18,13 @@ export interface OpenDartDisclosure {
 export interface OpenDartResult {
   items: OpenDartDisclosure[];
   status: OpenDartStatus;
+  pagination?: { page: number; pageSize: number; totalCount: number; totalPages: number; nextPage: number | null; complete: boolean };
 }
 
 interface DisclosureOptions {
   stockCode?: string;
   days?: number;
+  range?: { begin: string; end: string; page: number; pageSize: number };
 }
 
 interface ClientDependencies {
@@ -271,6 +273,9 @@ export function createOpenDartClient(dependencies: ClientDependencies = {}) {
   // Give its first download a separate, bounded budget; test overrides cover both.
   const archiveTimeoutMs = dependencies.timeoutMs === undefined ? 30_000 : timeoutMs;
   const discoveryTimeoutMs = dependencies.timeoutMs === undefined ? 5_000 : timeoutMs;
+  let pageWindow = 0;
+  let pageRequests = 0;
+  let activePages = 0;
   let activeKey = "";
   let keyGeneration = 0;
   let corporationMap: { key: string; expires: number; map: CorporationMap } | undefined;
@@ -444,15 +449,23 @@ export function createOpenDartClient(dependencies: ClientDependencies = {}) {
     const stockCode = options.stockCode;
     const days = options.days ?? (stockCode ? 120 : 7);
     if ((stockCode !== undefined && (typeof stockCode !== "string" || !/^[0-9A-Z]{6}$/.test(stockCode))) || !Number.isInteger(days) || days < 1 || days > 120) return result("invalid-request", true, [], "REQUEST_INVALID");
-    const range = dateRange(kstDate(now()), days, !!stockCode);
-    const cacheKey = `${fingerprint}:${stockCode ?? "market"}:${range.begin}:${range.end}`;
+    const pageRequest = options.range;
+    if (pageRequest && (!stockCode || !validCompactDate(pageRequest.begin) || !validCompactDate(pageRequest.end) || pageRequest.begin > pageRequest.end || pageRequest.end > kstDate(now()).replaceAll("-", "") || (Date.parse(`${pageRequest.end.slice(0,4)}-${pageRequest.end.slice(4,6)}-${pageRequest.end.slice(6,8)}`) - Date.parse(`${pageRequest.begin.slice(0,4)}-${pageRequest.begin.slice(4,6)}-${pageRequest.begin.slice(6,8)}`)) / DAY_MS > 120 || !Number.isInteger(pageRequest.page) || pageRequest.page < 1 || pageRequest.page > 1000 || !Number.isInteger(pageRequest.pageSize) || pageRequest.pageSize < 1 || pageRequest.pageSize > 100)) return result("invalid-request", true, [], "REQUEST_INVALID");
+    const range = pageRequest ?? dateRange(kstDate(now()), days, !!stockCode);
+    const cacheKey = `${fingerprint}:${stockCode ?? "market"}:${range.begin}:${range.end}:${pageRequest ? `${pageRequest.page}:${pageRequest.pageSize}` : "legacy"}`;
     const existing = cache.get(cacheKey);
     if (existing && existing.expires > now()) return structuredClone(existing.result);
     if (cooldown?.key === fingerprint && cooldown.expires > now()) return result(cooldown.state, true, [], cooldown.reasonCode);
     const inFlight = pending.get(cacheKey);
     if (inFlight) return structuredClone(await inFlight);
     if (pending.size >= MAX_CACHE) return result("unavailable", true, [], "REQUEST_CAPACITY");
+    if (pageRequest) {
+      if (now() - pageWindow >= 60_000) { pageWindow = now(); pageRequests = 0; }
+      if (activePages >= 2 || pageRequests >= 60) return result("rate-limited", true, [], "API_RATE_LIMIT");
+      pageRequests++; activePages++;
+    }
     const operation = (async () => {
+      let pagination: OpenDartResult["pagination"];
       let response: OpenDartResult;
       try {
         let company: string | undefined;
@@ -461,18 +474,29 @@ export function createOpenDartClient(dependencies: ClientDependencies = {}) {
         }
         const list = async (market?: "Y" | "K") => {
           const body = await bytes("/api/list.json", apiKey, {
-            bgn_de: range.begin, end_de: range.end, page_no: "1", page_count: "100", sort: "date", sort_mth: "desc",
+            bgn_de: range.begin, end_de: range.end, page_no: String(pageRequest?.page ?? 1), page_count: String(pageRequest?.pageSize ?? 100), ...(pageRequest ? { last_reprt_at: "N" } : {}), sort: "date", sort_mth: "desc",
             ...(company ? { corp_code: company } : { corp_cls: market! }),
           }, JSON_LIMIT);
           let parsed: unknown;
           try { parsed = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(body)); }
           catch { throw new OpenDartError("unavailable", "LIST_JSON_INVALID"); }
-          return parseList(parsed, range, stockCode, company);
+          const items = parseList(parsed, range, stockCode, company);
+          if (pageRequest) {
+            if (new Set(items.map(item => item.receiptNo)).size !== items.length) throw new OpenDartError("unavailable", "LIST_PAYLOAD_INVALID");
+            const body = parsed as Record<string, unknown>;
+            const empty = body.status === "013";
+            const totalCount = empty ? 0 : Number(body.total_count);
+            const totalPages = empty ? 0 : Number(body.total_page);
+            if ((!empty && (Number(body.page_no) !== pageRequest.page || Number(body.page_count) !== pageRequest.pageSize)) || !Number.isSafeInteger(totalCount) || totalCount < 0 || !Number.isSafeInteger(totalPages) || totalPages !== Math.ceil(totalCount / pageRequest.pageSize) || (!empty && (items.length !== Math.min(pageRequest.pageSize, totalCount - (pageRequest.page - 1) * pageRequest.pageSize))) || (empty && pageRequest.page !== 1)) throw new OpenDartError("unavailable", "LIST_PAYLOAD_INVALID");
+            pagination = { page: pageRequest.page, pageSize: pageRequest.pageSize, totalCount, totalPages, nextPage: pageRequest.page < totalPages ? pageRequest.page + 1 : null, complete: pageRequest.page >= totalPages };
+          }
+          return items;
         };
         const rows = company ? await list() : (await Promise.all([list("Y"), list("K")])).flat();
         const unique = new Map(rows.map((row) => [row.receiptNo, row]));
         const items = [...unique.values()].sort((a, b) => b.receiptNo.localeCompare(a.receiptNo));
         response = result(items.length ? "ok" : "empty", true, items, items.length ? "API_OK" : "API_EMPTY");
+        if (pagination) response.pagination = pagination;
       } catch (error) {
         const state = error instanceof OpenDartError ? error.state : "unavailable";
         const reasonCode = error instanceof OpenDartError ? error.reasonCode : "API_UNAVAILABLE";
@@ -489,7 +513,7 @@ export function createOpenDartClient(dependencies: ClientDependencies = {}) {
     })();
     pending.set(cacheKey, operation);
     try { return structuredClone(await operation); }
-    finally { if (pending.get(cacheKey) === operation) pending.delete(cacheKey); }
+    finally { if (pageRequest) activePages--; if (pending.get(cacheKey) === operation) pending.delete(cacheKey); }
   }
 
   return { fetchDisclosures };

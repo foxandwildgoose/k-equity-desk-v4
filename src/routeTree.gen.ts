@@ -21,6 +21,7 @@ import { Route as RoboticsRouteImport } from './routes/robotics'
 import { Route as UsLinkRouteImport } from './routes/us-link'
 import { Route as UsResearchRouteImport } from './routes/us-research'
 import { Route as WatchlistRouteImport } from './routes/watchlist'
+import { Route as ApiDisclosuresRouteImport } from './routes/api.disclosures'
 import { Route as ApiFeedRouteImport } from './routes/api.feed'
 import { Route as ApiMarketStreamRouteImport } from './routes/api.market-stream'
 import { Route as ApiWireRouteImport } from './routes/api.wire'
@@ -101,6 +102,11 @@ const UsResearchRoute = UsResearchRouteImport.update({
 const WatchlistRoute = WatchlistRouteImport.update({
   id: '/watchlist',
   path: '/watchlist',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDisclosuresRoute = ApiDisclosuresRouteImport.update({
+  id: '/api/disclosures',
+  path: '/api/disclosures',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiFeedRoute = ApiFeedRouteImport.update({
@@ -222,6 +228,7 @@ export interface FileRoutesByFullPath {
   '/us-link': typeof UsLinkRoute
   '/us-research': typeof UsResearchRouteWithChildren
   '/watchlist': typeof WatchlistRoute
+  '/api/disclosures': typeof ApiDisclosuresRoute
   '/api/feed': typeof ApiFeedRoute
   '/api/market-stream': typeof ApiMarketStreamRoute
   '/api/wire': typeof ApiWireRoute
@@ -255,6 +262,7 @@ export interface FileRoutesByTo {
   '/robotics': typeof RoboticsRoute
   '/us-link': typeof UsLinkRoute
   '/watchlist': typeof WatchlistRoute
+  '/api/disclosures': typeof ApiDisclosuresRoute
   '/api/feed': typeof ApiFeedRoute
   '/api/market-stream': typeof ApiMarketStreamRoute
   '/api/wire': typeof ApiWireRoute
@@ -291,6 +299,7 @@ export interface FileRoutesById {
   '/us-link': typeof UsLinkRoute
   '/us-research': typeof UsResearchRouteWithChildren
   '/watchlist': typeof WatchlistRoute
+  '/api/disclosures': typeof ApiDisclosuresRoute
   '/api/feed': typeof ApiFeedRoute
   '/api/market-stream': typeof ApiMarketStreamRoute
   '/api/wire': typeof ApiWireRoute
@@ -328,6 +337,7 @@ export interface FileRouteTypes {
     | '/us-link'
     | '/us-research'
     | '/watchlist'
+    | '/api/disclosures'
     | '/api/feed'
     | '/api/market-stream'
     | '/api/wire'
@@ -361,6 +371,7 @@ export interface FileRouteTypes {
     | '/robotics'
     | '/us-link'
     | '/watchlist'
+    | '/api/disclosures'
     | '/api/feed'
     | '/api/market-stream'
     | '/api/wire'
@@ -396,6 +407,7 @@ export interface FileRouteTypes {
     | '/us-link'
     | '/us-research'
     | '/watchlist'
+    | '/api/disclosures'
     | '/api/feed'
     | '/api/market-stream'
     | '/api/wire'
@@ -432,6 +444,7 @@ export interface RootRouteChildren {
   UsLinkRoute: typeof UsLinkRoute
   UsResearchRoute: typeof UsResearchRouteWithChildren
   WatchlistRoute: typeof WatchlistRoute
+  ApiDisclosuresRoute: typeof ApiDisclosuresRoute
   ApiFeedRoute: typeof ApiFeedRoute
   ApiMarketStreamRoute: typeof ApiMarketStreamRoute
   ApiWireRoute: typeof ApiWireRoute
@@ -535,6 +548,13 @@ declare module '@tanstack/react-router' {
       path: '/watchlist'
       fullPath: '/watchlist'
       preLoaderRoute: typeof WatchlistRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/disclosures': {
+      id: '/api/disclosures'
+      path: '/api/disclosures'
+      fullPath: '/api/disclosures'
+      preLoaderRoute: typeof ApiDisclosuresRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/feed': {
@@ -726,6 +746,7 @@ const rootRouteChildren: RootRouteChildren = {
   UsLinkRoute: UsLinkRoute,
   UsResearchRoute: UsResearchRouteWithChildren,
   WatchlistRoute: WatchlistRoute,
+  ApiDisclosuresRoute: ApiDisclosuresRoute,
   ApiFeedRoute: ApiFeedRoute,
   ApiMarketStreamRoute: ApiMarketStreamRoute,
   ApiWireRoute: ApiWireRoute,

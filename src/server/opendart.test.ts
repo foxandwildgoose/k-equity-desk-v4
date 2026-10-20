@@ -503,3 +503,64 @@ test("market results are deduplicated and sorted by actual official receipt iden
   const result = await client.fetchDisclosures();
   assert.deepEqual(result.items.map((item) => item.receiptNo), ["20261020000001", "20261019000002"]);
 });
+
+test("paged official queries preserve corrections, totals, cache and final-page state", async () => {
+  const client = fixture(url => {
+    if (url.pathname.endsWith("corpCode.xml")) return archive();
+    assert.equal(url.searchParams.get("last_reprt_at"), "N");
+    const page = Number(url.searchParams.get("page_no"));
+    return json({ status: "000", page_no: page, page_count: 1, total_count: 2, total_page: 2,
+      list: [{ ...stockRow, report_nm: page === 2 ? "[기재정정]주요사항보고서" : "주요사항보고서", rcept_no: page === 2 ? "20261020000002" : stockRow.rcept_no }] });
+  });
+  const query = { stockCode: "005930", range: { begin: "20261017", end: "20261020", page: 1, pageSize: 1 } };
+  const first = await client.fetchDisclosures(query);
+  assert.equal(first.pagination?.nextPage, 2);
+  assert.equal(first.pagination?.complete, false);
+  const calls = client.urls.length;
+  assert.deepEqual(await client.fetchDisclosures(query), first);
+  assert.equal(client.urls.length, calls);
+  const last = await client.fetchDisclosures({ ...query, range: { ...query.range, page: 2 } });
+  assert.equal(last.pagination?.complete, true);
+  assert.equal(last.pagination?.nextPage, null);
+  assert.notEqual(last.items[0].receiptNo, first.items[0].receiptNo);
+  assert.match(last.items[0].reportName, /정정/);
+});
+
+test("paged empty and upstream failures never claim false completeness", async () => {
+  for (const upstream of ["013", "010", "020", "999"]) {
+    const client = fixture(url => url.pathname.endsWith("corpCode.xml") ? archive() : json({ status: upstream }));
+    const result = await client.fetchDisclosures({ stockCode: "005930", range: { begin: "20261017", end: "20261020", page: 1, pageSize: 100 } });
+    assert.equal(result.status.state, ({ "013": "empty", "010": "invalid-key", "020": "rate-limited", "999": "unavailable" })[upstream]);
+    assert.equal(result.status.fallbackUsed, false);
+    assert.equal(result.pagination?.complete, upstream === "013" ? true : undefined);
+  }
+});
+
+test("paged mismatched totals and invalid range fail closed", async () => {
+  const client = fixture(url => url.pathname.endsWith("corpCode.xml") ? archive() : json({ status: "000", list: [stockRow], page_no: 1, page_count: 100, total_count: 200, total_page: 1 }));
+  const range = { begin: "20261017", end: "20261020", page: 1, pageSize: 100 };
+  assert.equal((await client.fetchDisclosures({ stockCode: "005930", range })).status.state, "unavailable");
+  assert.equal((await client.fetchDisclosures({ stockCode: "005930", range: { ...range, begin: "20260230" } })).status.state, "invalid-request");
+});
+
+test("paged network errors expose only fixed diagnostics", async () => {
+  const client = fixture(url => {
+    if (url.pathname.endsWith("corpCode.xml")) return archive();
+    throw Error(`network ${url}`);
+  });
+  const result = await client.fetchDisclosures({ stockCode: "005930", range: { begin: "20261017", end: "20261020", page: 1, pageSize: 100 } });
+  assert.equal(result.status.state, "unavailable");
+  assert.equal(result.status.reasonCode, "LIST_REQUEST_NETWORK");
+  assert.equal(JSON.stringify(result).includes(KEY), false);
+  assert.equal(result.pagination, undefined);
+});
+
+test("paged calls have a bounded per-instance request budget", async () => {
+  const client = fixture(url => url.pathname.endsWith("corpCode.xml") ? archive() : json({ status: "013" }));
+  for (let pageSize = 1; pageSize <= 60; pageSize++) {
+    assert.equal((await client.fetchDisclosures({ stockCode: "005930", range: { begin: "20261017", end: "20261020", page: 1, pageSize } })).status.state, "empty");
+  }
+  const calls = client.urls.length;
+  assert.equal((await client.fetchDisclosures({ stockCode: "005930", range: { begin: "20261017", end: "20261020", page: 1, pageSize: 61 } })).status.state, "rate-limited");
+  assert.equal(client.urls.length, calls);
+});
