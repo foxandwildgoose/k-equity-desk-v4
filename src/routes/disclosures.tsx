@@ -3,6 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { getKrxDisclosureDesk } from "@/lib/market-fns";
 import { DisclosureList } from "@/components/stocks/DisclosureViewer";
+import { OpenDartConnectionStatus } from "@/components/stocks/OpenDartStatus";
+import { isOpenDartConnected } from "@/lib/opendart-status";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
@@ -85,7 +87,7 @@ function DisclosuresPage() {
                 <Building2 className="size-3 text-desk-indigo" /> DART (금감원)
               </div>
               <p className="text-muted-foreground mt-0.5">
-                사업보고서·주요사항 등 전자공시. 원문 뷰어 직결.
+                OpenDART 공식 API로 전자공시 조회. 공시 원문 뷰어 직결.
               </p>
             </div>
             <div className="rounded-lg border border-border bg-card/60 p-2.5">
@@ -139,6 +141,8 @@ function DisclosuresPage() {
           </button>
         </div>
       </div>
+
+      <OpenDartConnectionStatus status={data?.openDart} />
 
       {kind && (
         <div
@@ -226,7 +230,11 @@ function DisclosuresPage() {
           tab === "koscom"
             ? "커버리지 종목 기준 KRX/KOSCOM 시세·시장조치 공시"
             : tab === "dart"
-              ? "금융감독원 DART 메인 최근공시 (유가·코스닥 포함)"
+              ? data?.openDart?.fallbackUsed
+                ? "DART 웹 공시 대체 조회 · 유가·코스닥 포함"
+                : data?.openDart && isOpenDartConnected(data.openDart)
+                  ? "금융감독원 OpenDART 공식 API · 유가·코스닥 포함"
+                  : "금융감독원 전자공시 · 위 연결 상태를 확인하세요"
               : tab === "kind"
                 ? "한국거래소 KIND 금일공시 (가용 시)"
                 : "KOSCOM + DART + KIND 병합 · 최신순"

@@ -7,7 +7,7 @@ import { canonicalizeUrl, clampSnippet, stripHtml } from "./text.ts";
 import { clusterItems, clusterTokens, jaccard, normalizeClusterTitle, filterDisabledSources } from "./cluster.ts";
 import { scoreImportance } from "./importance.ts";
 import { themeMomentum, topStories } from "./briefing.ts";
-import { sortReportsNewestFirst, sortDisclosuresNewestFirst } from "./mappers.ts";
+import { sortReportsNewestFirst, sortDisclosuresNewestFirst, disclosureToFeed } from "./mappers.ts";
 import type { FeedItem } from "./types.ts";
 
 const NOW = Date.parse("2026-09-26T03:00:00Z"); // 12:00 KST
@@ -100,6 +100,25 @@ test("AT-01: comparator is total and deterministic (tier, then id)", () => {
 });
 
 // ── AT-02 date-only never shows a time; unknown sinks ───────────────────
+test("official DART date-only receipts sort by receipt number without inventing a time", () => {
+  const older = { id: "dart-20260925000001", datetime: "2026-09-25" };
+  const newer = { id: "dart-20260925000002", datetime: "2026-09-25" };
+  assert.deepEqual(sortDisclosuresNewestFirst([older, newer]), [newer, older]);
+  assert.equal(newer.datetime, "2026-09-25");
+});
+
+test("aggregated disclosure feed retains official receipt ordering after stable ID mapping", () => {
+  const ctx = { sourceId: "krx-disclosures", sourceName: "공시", tier: 1 as const, fetchedAt: "2026-09-26T03:00:00Z" };
+  const items = ["20260925000001", "20260925000002"].map(receipt => disclosureToFeed({
+    id: `dart-${receipt}`, datetime: "2026-09-25", title: "공식 공시", code: "005930", author: "삼성전자",
+    dartUrl: `https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${receipt}`,
+    dartSearchUrl: "https://dart.fss.or.kr/dsab001/main.do",
+    canLoadBody: false,
+  }, ctx)!);
+  assert.equal(sortNewestFirst(items)[0].seq, 20260925000002);
+  assert.equal(items[0].precision, "day");
+});
+
 test("AT-02: date-only items never print a clock time; unknown sinks with 날짜 미상", () => {
   const d = timed("d", "2026.09.25");
   assert.equal(formatItemTime(d, { now: NOW }), "09.25");

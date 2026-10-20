@@ -2,7 +2,8 @@
  * Valuation history.
  * Korea: Yahoo adjusted weekly prices (10y) + Company Guide IFRS annual ratios.
  * United States: Yahoo adjusted weekly prices + SEC EDGAR companyfacts (TTM).
- * OpenDART needs an API key this deployment does not have, so it is not called.
+ * OpenDART powers the separate disclosure feed; these valuation calculations
+ * continue to use the financial-statement sources listed above.
  * Failures become an empty pack. Multiples are never invented.
  */
 import {

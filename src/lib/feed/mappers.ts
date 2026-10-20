@@ -53,9 +53,16 @@ export function reportDay(r: Pick<ResearchReport, "date">): string | null {
 
 type DisclosureLike = { id: string; datetime: string };
 
+function dartReceiptSequence(id: string): number | undefined {
+  const receipt = /^dart-(\d{14})$/.exec(id)?.[1];
+  return receipt ? Number(receipt) : undefined;
+}
+
 export function disclosureSortKey(d: DisclosureLike): SortableItem {
   const t = parseSourceTime(d.datetime, { zone: "Asia/Seoul" });
-  return { id: d.id, publishedAt: t.iso, precision: t.precision, sourceTier: 1 };
+  // The official API only supplies a receipt date. Receipt numbers preserve
+  // order within that day without inventing publication hours or minutes.
+  return { id: d.id, publishedAt: t.iso, precision: t.precision, seq: dartReceiptSequence(d.id), sourceTier: 1 };
 }
 
 /** D1e: disclosure merges newest first across KIND/DART/Naver formats. */
@@ -133,6 +140,7 @@ export function disclosureToFeed(d: DisclosureItem, ctx: MapContext): FeedItem |
     url,
     publishedAt: t.iso,
     precision: t.precision,
+    seq: dartReceiptSequence(d.id),
     fetchedAt: ctx.fetchedAt,
     tickers: d.code && /^[0-9A-Z]{6}$/.test(d.code) ? [{ market: "KR", code: d.code }] : [],
     sectors: [],

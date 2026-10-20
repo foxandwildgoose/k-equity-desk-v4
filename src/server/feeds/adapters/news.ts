@@ -142,9 +142,9 @@ export async function runGoogleNews(id: string, queries: { q: string; locale: "k
 // ── KRX/DART disclosures (existing adapters) ──────────────────────────
 async function runDisclosures(opts: AdapterRunOptions): Promise<AdapterOutput> {
   const { fetchKrxDisclosureDesk } = await import("@/server/krx-disclosures");
-  const desk = await fetchKrxDisclosureDesk();
+  const desk = await fetchKrxDisclosureDesk({ sourceBudgetMs: 5_000 });
   // The legacy desk swallows per-source errors; nothing at all + KIND down = failure, not "0 items".
-  if (!desk.all.length && !desk.kind.available) throw new Error(desk.kind.message || "KRX·DART 공시 응답 없음");
+  if (!desk.all.length && !desk.kind.available && !["ok", "empty"].includes(desk.openDart.state)) throw new Error(desk.kind.message || "KRX·DART 공시 응답 없음");
   const fetchedAt = nowIso(opts);
   const d = def("krx-disclosures");
   const items = desk.all.slice(0, 80).map((x) =>

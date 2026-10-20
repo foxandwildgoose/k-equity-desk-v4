@@ -12,9 +12,10 @@
 import { sortDisclosuresNewestFirst } from "@/lib/feed/mappers";
 import { UNIVERSE } from "@/data/universe";
 import { decodeHtmlEntities } from "@/lib/readable-text";
+import { isOpenDartConnected, type OpenDartStatus } from "@/lib/opendart-status";
+import { fetchOpenDartDisclosures, type OpenDartDisclosure } from "./opendart";
 
-const UA =
-  "Mozilla/5.0 (compatible; KoreaEquityCommand/1.0; +https://x.ai) AppleWebKit/537.36";
+const UA = "Mozilla/5.0 (compatible; KoreaEquityCommand/1.0; +https://x.ai) AppleWebKit/537.36";
 
 function headers(extra?: HeadersInit): HeadersInit {
   return {
@@ -40,11 +41,7 @@ async function getText(url: string, extra?: HeadersInit): Promise<string> {
   }
 }
 
-async function postForm(
-  url: string,
-  body: string,
-  extra?: HeadersInit,
-): Promise<string> {
+async function postForm(url: string, body: string, extra?: HeadersInit): Promise<string> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 22_000);
   try {
@@ -79,14 +76,15 @@ function kstYmd(d = new Date()): string {
 }
 
 function stripTags(s: string): string {
-  return decodeEntities(s.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
+  return decodeEntities(
+    s
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim(),
+  );
 }
 
-export type DisclosureSource =
-  | "kind-krx"
-  | "dart-fss"
-  | "krx-koscom"
-  | "naver-disclosure";
+export type DisclosureSource = "kind-krx" | "dart-fss" | "krx-koscom" | "naver-disclosure";
 
 export interface KrxDisclosureItem {
   id: string;
@@ -159,11 +157,7 @@ export async function fetchKindStatus(): Promise<{
     const html = await getText("https://kind.krx.co.kr/main.do", {
       Referer: "https://kind.krx.co.kr/",
     });
-    if (
-      html.includes("페이지 오류") ||
-      html.includes("잠시 후 다시") ||
-      html.length < 3000
-    ) {
+    if (html.includes("페이지 오류") || html.includes("잠시 후 다시") || html.length < 3000) {
       return {
         available: false,
         message:
@@ -211,11 +205,10 @@ export async function fetchKindTodayDisclosures(): Promise<{
       "chose=S",
       "todayFlag=Y",
     ].join("&");
-    const html = await postForm(
-      "https://kind.krx.co.kr/disclosure/todaydisclosure.do",
-      body,
-      { Referer: kindTodayUrl(), Origin: "https://kind.krx.co.kr" },
-    );
+    const html = await postForm("https://kind.krx.co.kr/disclosure/todaydisclosure.do", body, {
+      Referer: kindTodayUrl(),
+      Origin: "https://kind.krx.co.kr",
+    });
 
     if (html.includes("페이지 오류") || html.length < 2000) {
       return {
@@ -228,8 +221,7 @@ export async function fetchKindTodayDisclosures(): Promise<{
     const items: KrxDisclosureItem[] = [];
     for (const tr of html.match(/<tr[\s\S]*?<\/tr>/gi) ?? []) {
       const acpt =
-        tr.match(/acptno=(\d{14})/i)?.[1] ??
-        tr.match(/openDisclsViewer\(['"]?(\d{14})/i)?.[1];
+        tr.match(/acptno=(\d{14})/i)?.[1] ?? tr.match(/openDisclsViewer\(['"]?(\d{14})/i)?.[1];
       const title =
         stripTags(
           tr.match(/class=['"][^"]*first[^"]*['"][^>]*>([\s\S]*?)<\//i)?.[1] ??
@@ -238,8 +230,7 @@ export async function fetchKindTodayDisclosures(): Promise<{
         ) || "";
       if (!title || title.length < 2) continue;
       const company = stripTags(
-        tr.match(/class=['"][^"]*second[^"]*['"][^>]*>([\s\S]*?)<\//i)?.[1] ??
-          "",
+        tr.match(/class=['"][^"]*second[^"]*['"][^>]*>([\s\S]*?)<\//i)?.[1] ?? "",
       );
       const time = tr.match(/(\d{2}:\d{2}(?::\d{2})?)/)?.[1];
       const today = kstYmd();
@@ -285,15 +276,9 @@ function parseDartTableRows(html: string): KrxDisclosureItem[] {
     if (!rcp || seen.has(rcp)) continue;
     seen.add(rcp);
 
-    const dateM = tr.match(
-      /webOnly">(\d{4}\.\d{2}\.\d{2})<\/span>\s*(\d{2}:\d{2})/,
-    );
-    const market = tr.match(
-      /webOnly">(유가증권시장|코스닥시장|코넥스시장|기타법인)<\/span>/,
-    )?.[1];
-    const corp = tr.match(
-      /openCorpInfoNew\(['"](\d+)['"][\s\S]*?>\s*([^<\n]+)/,
-    );
+    const dateM = tr.match(/webOnly">(\d{4}\.\d{2}\.\d{2})<\/span>\s*(\d{2}:\d{2})/);
+    const market = tr.match(/webOnly">(유가증권시장|코스닥시장|코넥스시장|기타법인)<\/span>/)?.[1];
+    const corp = tr.match(/openCorpInfoNew\(['"](\d+)['"][\s\S]*?>\s*([^<\n]+)/);
     const titleM =
       tr.match(/rcpNo=\d{14}[^"]*"[^>]*>([\s\S]*?)<\/a>/) ??
       tr.match(/openReportViewer(?:Main)?\(['"]\d+['"]\);[^>]*>([\s\S]*?)<\/a>/);
@@ -326,8 +311,8 @@ function parseDartTableRows(html: string): KrxDisclosureItem[] {
   return items;
 }
 
-/** Market-wide latest filings from DART main page (실시간 최근공시). */
-export async function fetchDartRecentMarket(): Promise<KrxDisclosureItem[]> {
+/** Legacy public HTML is only used when the official API is unavailable. */
+async function fetchDartRecentMarketHtml(): Promise<KrxDisclosureItem[]> {
   const html = await getText("https://dart.fss.or.kr/main.do", {
     Referer: "https://dart.fss.or.kr/",
   });
@@ -336,11 +321,8 @@ export async function fetchDartRecentMarket(): Promise<KrxDisclosureItem[]> {
   return parseDartTableRows(chunk).slice(0, 60);
 }
 
-/** Company-level DART search (by Korean name). */
-export async function fetchDartByCompany(
-  nameKo: string,
-  days = 90,
-): Promise<KrxDisclosureItem[]> {
+/** Legacy name search; results are filtered again before use as a fallback. */
+async function fetchDartByCompanyHtml(nameKo: string, days = 90): Promise<KrxDisclosureItem[]> {
   const end = new Date();
   const start = new Date(end.getTime() - days * 86_400_000);
   const fmt = kstYmd;
@@ -355,19 +337,65 @@ export async function fetchDartByCompany(
     endDate: fmt(end),
   }).toString();
 
-  const html = await postForm(
-    "https://dart.fss.or.kr/dsab001/search.ax",
-    body,
-    {
-      Referer: "https://dart.fss.or.kr/dsab001/main.do",
-      Origin: "https://dart.fss.or.kr",
-    },
-  );
-  return parseDartTableRows(html).map((it) => ({
-    ...it,
-    nameKo: it.nameKo ?? nameKo,
-    code: it.code ?? mapNameToCode(nameKo),
-  }));
+  const html = await postForm("https://dart.fss.or.kr/dsab001/search.ax", body, {
+    Referer: "https://dart.fss.or.kr/dsab001/main.do",
+    Origin: "https://dart.fss.or.kr",
+  });
+  return parseDartTableRows(html);
+}
+
+/** Preserve the API's receipt date precision; OpenDART does not supply a time. */
+export function mapOpenDartDisclosure(row: OpenDartDisclosure): KrxDisclosureItem {
+  return {
+    id: `dart-${row.receiptNo}`,
+    title: row.reportName,
+    datetime: row.receiptDate,
+    author: row.submitter || "금융감독원",
+    code: row.stockCode,
+    nameKo: row.corpName,
+    market: { Y: "KOSPI", K: "KOSDAQ", N: "KONEX", E: "기타" }[row.market],
+    rcpNo: row.receiptNo,
+    corpCode: row.corpCode,
+    source: "dart-fss",
+    sourceLabel: "OpenDART(금감원)",
+    dartUrl: dartViewerUrl(row.receiptNo),
+    dartSearchUrl: dartSearchUrl(row.corpName),
+    canLoadBody: false,
+  };
+}
+
+async function fetchDartBundle(opts?: {
+  stockCode?: string;
+  nameKo?: string;
+  days?: number;
+}): Promise<{ items: KrxDisclosureItem[]; status: OpenDartStatus }> {
+  const official = await fetchOpenDartDisclosures({
+    stockCode: opts?.stockCode,
+    days: opts?.days,
+  });
+  // A successful empty response is authoritative. Unknown company identities
+  // must not fall through to a name search that could identify a different firm.
+  if (
+    isOpenDartConnected(official.status) ||
+    official.status.state === "company-not-found" ||
+    official.status.state === "invalid-request"
+  ) {
+    return { items: official.items.map(mapOpenDartDisclosure), status: official.status };
+  }
+  const name = opts?.nameKo;
+  const items = await (
+    opts?.stockCode
+      ? name
+        ? fetchDartByCompanyHtml(name, opts.days ?? 120).then((rows) =>
+            rows.filter((row) => row.code === opts.stockCode && row.nameKo === name),
+          )
+        : Promise.resolve([] as KrxDisclosureItem[])
+      : fetchDartRecentMarketHtml()
+  ).catch(() => [] as KrxDisclosureItem[]);
+  return {
+    items: items.map((row) => ({ ...row, sourceLabel: "DART 웹페이지(대체)" })),
+    status: { ...official.status, fallbackUsed: items.length > 0 },
+  };
 }
 
 // ── KRX/KOSCOM via Naver disclosure API ───────────────────────────────────
@@ -392,6 +420,7 @@ export async function fetchKrxKoscomDisclosures(
         Referer: `https://m.stock.naver.com/domestic/stock/${code}/total`,
         Accept: "application/json",
       }),
+      signal: AbortSignal.timeout(12_000),
     },
   );
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -401,9 +430,7 @@ export async function fetchKrxKoscomDisclosures(
   return (rows ?? []).map((d) => {
     const author = d.author ?? "공시";
     const isKoscom = /KOSCOM|KRX|거래소/i.test(author);
-    const source: DisclosureSource = isKoscom
-      ? "krx-koscom"
-      : "naver-disclosure";
+    const source: DisclosureSource = isKoscom ? "krx-koscom" : "naver-disclosure";
     return {
       id: String(d.disclosureId),
       title: d.title,
@@ -421,8 +448,32 @@ export async function fetchKrxKoscomDisclosures(
 
 // ── Aggregated desk ───────────────────────────────────────────────────────
 
+/** Feed polling has a shorter budget than the full interactive desk. Keep
+ * already available official data when another, optional source is slow. */
+function withinSourceBudget<T>(
+  operation: Promise<T>,
+  budget: number | undefined,
+  fallback: () => T,
+): Promise<T> {
+  if (budget === undefined) return operation;
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(fallback()), budget);
+    operation.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      () => {
+        clearTimeout(timer);
+        resolve(fallback());
+      },
+    );
+  });
+}
+
 export async function fetchKrxDisclosureDesk(opts?: {
   scanCodes?: string[];
+  sourceBudgetMs?: number;
 }): Promise<{
   kind: {
     available: boolean;
@@ -433,31 +484,51 @@ export async function fetchKrxDisclosureDesk(opts?: {
   dart: KrxDisclosureItem[];
   koscom: KrxDisclosureItem[];
   all: KrxDisclosureItem[];
+  openDart: OpenDartStatus;
   fetchedAt: string;
 }> {
-  const scan =
-    opts?.scanCodes ??
-    [
-      "005930",
-      "000660",
-      "373220",
-      "005380",
-      "000270",
-      "034020",
-      "012450",
-      "207940",
-      "035420",
-      "006400",
-    ];
+  const scan = opts?.scanCodes ?? [
+    "005930",
+    "000660",
+    "373220",
+    "005380",
+    "000270",
+    "034020",
+    "012450",
+    "207940",
+    "035420",
+    "006400",
+  ];
+  const budget =
+    opts?.sourceBudgetMs === undefined
+      ? undefined
+      : Math.max(1, Math.min(5_000, opts.sourceBudgetMs));
 
-  const [kindPack, dart, koscomBundles] = await Promise.all([
-    fetchKindTodayDisclosures(),
-    fetchDartRecentMarket().catch(() => [] as KrxDisclosureItem[]),
+  const [kindPack, dartPack, koscomBundles] = await Promise.all([
+    withinSourceBudget(fetchKindTodayDisclosures(), budget, () => ({
+      available: false,
+      items: [] as KrxDisclosureItem[],
+      message: "공시 피드 조회 시간 내 KIND 응답을 확인하지 못했습니다.",
+    })),
+    withinSourceBudget(fetchDartBundle(), budget, () => ({
+      items: [] as KrxDisclosureItem[],
+      status: {
+        configured: Boolean(process.env.OPENDART_API_KEY?.trim()),
+        state: "unavailable" as const,
+        message: "공시 피드 조회 시간 내 OpenDART 응답을 확인하지 못했습니다.",
+        checkedAt: new Date().toISOString(),
+        fallbackUsed: false,
+      },
+    })),
     Promise.all(
       scan.map(async (code) => {
         const name = UNIVERSE.find((u) => u.code === code)?.nameKo;
         try {
-          return await fetchKrxKoscomDisclosures(code, name, 8);
+          return await withinSourceBudget(
+            fetchKrxKoscomDisclosures(code, name, 8),
+            budget,
+            () => [] as KrxDisclosureItem[],
+          );
         } catch {
           return [] as KrxDisclosureItem[];
         }
@@ -466,6 +537,7 @@ export async function fetchKrxDisclosureDesk(opts?: {
   ]);
 
   const koscom = sortDisclosuresNewestFirst(koscomBundles.flat()).slice(0, 80);
+  const dart = dartPack.items;
 
   return {
     kind: {
@@ -476,6 +548,7 @@ export async function fetchKrxDisclosureDesk(opts?: {
     },
     dart,
     koscom,
+    openDart: dartPack.status,
     /** KIND + KOSCOM + DART merged, newest first via the shared kernel (D1e). */
     all: sortDisclosuresNewestFirst([...koscom, ...dart, ...kindPack.items]),
     fetchedAt: new Date().toISOString(),
@@ -491,18 +564,17 @@ export async function fetchStockDisclosureBundle(
   dart: KrxDisclosureItem[];
   koscom: KrxDisclosureItem[];
   kindStatus: Awaited<ReturnType<typeof fetchKindStatus>>;
+  openDart: OpenDartStatus;
 }> {
-  const name =
-    nameKo ?? UNIVERSE.find((u) => u.code === code)?.nameKo ?? code;
-  const [koscom, dart, kindStatus] = await Promise.all([
-    fetchKrxKoscomDisclosures(code, name).catch(
-      () => [] as KrxDisclosureItem[],
-    ),
-    fetchDartByCompany(name, 120).catch(() => [] as KrxDisclosureItem[]),
+  const name = nameKo ?? UNIVERSE.find((u) => u.code === code)?.nameKo ?? code;
+  const [koscom, dartPack, kindStatus] = await Promise.all([
+    fetchKrxKoscomDisclosures(code, name).catch(() => [] as KrxDisclosureItem[]),
+    fetchDartBundle({ stockCode: code, nameKo: name, days: 120 }),
     fetchKindStatus(),
   ]);
 
+  const dart = dartPack.items;
   const items = sortDisclosuresNewestFirst([...koscom, ...dart]);
 
-  return { items, dart, koscom, kindStatus };
+  return { items, dart, koscom, kindStatus, openDart: dartPack.status };
 }

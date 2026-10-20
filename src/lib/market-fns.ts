@@ -10,7 +10,6 @@ import {
   fetchResearchDesk,
   fetchResearchPdf,
   fetchNews,
-  fetchDisclosures,
   fetchDisclosureDetail,
   fetchIndices,
   fetchStockBasic,
@@ -48,7 +47,6 @@ import { fetchEtfListingNews } from "@/server/etf-news";
 import {
   fetchKrxDisclosureDesk,
   fetchStockDisclosureBundle,
-  fetchDartByCompany,
   type KrxDisclosureItem,
 } from "@/server/krx-disclosures";
 
@@ -195,6 +193,7 @@ export const getStockBundle = createServerFn({ method: "GET" })
           items: [],
           dart: [],
           koscom: [],
+          openDart: undefined,
           kindStatus: {
             available: false,
             message: "",
@@ -256,6 +255,7 @@ export const getStockBundle = createServerFn({ method: "GET" })
         kind: discBundle.kindStatus,
         dartCount: discBundle.dart.length,
         koscomCount: discBundle.koscom.length,
+        openDart: discBundle.openDart,
       },
       fetchedAt: new Date().toISOString(),
     };

@@ -8,6 +8,7 @@ import { annotatePrevTargets } from "@/lib/research/naver-v2";
 import { BrokerReports } from "@/components/stocks/BrokerReports";
 import { InvestorFlow } from "@/components/stocks/InvestorFlow";
 import { LiveNews } from "@/components/stocks/LiveNews";
+import { OpenDartConnectionStatus } from "@/components/stocks/OpenDartStatus";
 import { WatchButton } from "@/components/stocks/WatchButton";
 import { TradeDeskStrip } from "@/components/stocks/TradeDeskStrip";
 import { ValuationBandChart } from "@/components/stocks/ValuationBandChart";
@@ -72,6 +73,7 @@ function StockPage() {
   const researchPack = data && "researchPack" in data ? data.researchPack : undefined;
   const news = data && "news" in data ? data.news : [];
   const disclosures = data && "disclosures" in data ? data.disclosures : [];
+  const openDart = data && "disclosureMeta" in data ? data.disclosureMeta?.openDart : undefined;
 
   // Prefer server meta (works for tickers outside app universe)
   const serverMeta = data && "meta" in data ? data.meta : null;
@@ -379,6 +381,7 @@ function StockPage() {
         </div>
 
         <div className="lg:col-span-4">
+          <OpenDartConnectionStatus status={openDart} className="mb-3" />
           <LiveNews
             news={news ?? []}
             disclosures={disclosures ?? []}
