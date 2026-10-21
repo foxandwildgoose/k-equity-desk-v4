@@ -93,17 +93,17 @@ interface ExportDeskState {
   settings: DeskSettings;
   observations: TradeObservation[];
   indexImported: IndexDailyRow[];
+  fxImported: IndexDailyRow[];
   exposures: CompanyExportExposure[];
   snapshots: { date: string; members: TopNMember[] }[];
   logs: IngestionLog[];
-  sourceKeys: Record<string, string>;
   setLang: (v: "ko" | "en") => void;
   patchSettings: (p: Partial<DeskSettings>) => void;
   upsertObservations: (rows: TradeObservation[], log: IngestionLog) => void;
   upsertIndex: (rows: IndexDailyRow[], log: IngestionLog) => void;
+  upsertFx: (rows: IndexDailyRow[], log: IngestionLog) => void;
   upsertExposure: (row: CompanyExportExposure) => { ok: boolean; error?: string };
   removeExposure: (ticker: string, category: string) => void;
-  setSourceKey: (id: string, key: string) => void;
   exportStoreJson: () => string;
   importStoreJson: (raw: string) => { ok: boolean; error?: string };
   resetStore: () => void;
@@ -128,10 +128,10 @@ export const useExportDeskStore = create<ExportDeskState>()(
       settings: defaultSettings,
       observations: [],
       indexImported: [],
+      fxImported: [],
       exposures: loadSeedExposures(),
       snapshots: [],
       logs: [],
-      sourceKeys: {},
       setLang: (v) => set({ lang: v }),
       patchSettings: (p) => set({ settings: { ...get().settings, ...p } }),
       upsertObservations: (rows, log) => {
@@ -150,12 +150,14 @@ export const useExportDeskStore = create<ExportDeskState>()(
       },
       upsertIndex: (rows, log) => {
         assertNoSyntheticLeak(rows);
-        const map = new Map(get().indexImported.map((r) => [r.date, r]));
-        for (const r of rows) map.set(r.date, r);
         set({
-          indexImported: [...map.values()].sort((a, b) => a.date.localeCompare(b.date)), // ked-allow-string-date-sort: single-format time series
+          indexImported: [...rows].sort((a, b) => a.date.localeCompare(b.date)), // ked-allow-string-date-sort: single-format time series
           logs: [log, ...get().logs].slice(0, 80),
         });
+      },
+      upsertFx: (rows, log) => {
+        assertNoSyntheticLeak(rows);
+        set({ fxImported: rows, logs: [log, ...get().logs].slice(0, 80) });
       },
       upsertExposure: (row) => {
         const next = get()
@@ -174,12 +176,12 @@ export const useExportDeskStore = create<ExportDeskState>()(
             (e) => !(e.ticker === ticker && e.exportCategoryId === category),
           ),
         }),
-      setSourceKey: (id, key) => set({ sourceKeys: { ...get().sourceKeys, [id]: key } }),
       exportStoreJson: () =>
         JSON.stringify(
           {
             observations: get().observations,
             indexImported: get().indexImported,
+            fxImported: get().fxImported,
             exposures: get().exposures,
             snapshots: get().snapshots,
             logs: get().logs,
@@ -194,6 +196,7 @@ export const useExportDeskStore = create<ExportDeskState>()(
           set({
             observations: j.observations ?? get().observations,
             indexImported: j.indexImported ?? get().indexImported,
+            fxImported: j.fxImported ?? get().fxImported,
             exposures: j.exposures ?? get().exposures,
             snapshots: j.snapshots ?? get().snapshots,
             logs: j.logs ?? get().logs,
@@ -207,6 +210,7 @@ export const useExportDeskStore = create<ExportDeskState>()(
         set({
           observations: [],
           indexImported: [],
+          fxImported: [],
           exposures: loadSeedExposures(),
           snapshots: [],
           logs: [],
@@ -215,7 +219,9 @@ export const useExportDeskStore = create<ExportDeskState>()(
     }),
     {
       name: "kx-export-desk-v2",
-      version: 1,
+      version: 2,
+      // Credentials are server environment variables. Never retain legacy browser keys.
+      partialize: (state) => sanitizeExportDeskSnapshot(state),
       migrate: (persisted) => sanitizeExportDeskSnapshot(persisted),
       merge: (persisted, current) =>
         ({ ...current, ...sanitizeExportDeskSnapshot(persisted) }) as ExportDeskState,

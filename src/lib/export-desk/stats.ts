@@ -2,10 +2,18 @@
 
 export const MIN_SAMPLE = 24;
 
+const positiveInteger = (n: number) => Number.isInteger(n) && n > 0;
+
+function calendarDate(date: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date.startsWith("0000")) return false;
+  const parsed = new Date(`${date}T00:00:00.000Z`);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === date;
+}
+
 export function normalizeToBase100(values: number[]): number[] {
-  const base = values.find((v) => v > 0);
+  const base = values.find((v) => Number.isFinite(v) && v > 0);
   if (base == null) return values.map(() => NaN);
-  return values.map((v) => (v / base) * 100);
+  return values.map((v) => (Number.isFinite(v) ? (v / base) * 100 : NaN));
 }
 
 export function resampleDailyToMonthEnd(
@@ -13,6 +21,7 @@ export function resampleDailyToMonthEnd(
 ): { period: string; value: number }[] {
   const by: Record<string, { date: string; value: number }> = {};
   for (const r of rows) {
+    if (!calendarDate(r.date) || !Number.isFinite(r.value) || r.value <= 0) continue;
     const p = r.date.slice(0, 7);
     if (!by[p] || r.date > by[p]!.date) by[p] = r;
   }
@@ -22,24 +31,29 @@ export function resampleDailyToMonthEnd(
 }
 
 export function calculateLogReturns(values: number[]): number[] {
+  if (!values.length) return [];
   const out: number[] = [NaN];
   for (let i = 1; i < values.length; i++) {
     const a = values[i - 1]!;
     const b = values[i]!;
-    out.push(a > 0 && b > 0 ? Math.log(b / a) : NaN);
+    out.push(
+      Number.isFinite(a) && Number.isFinite(b) && a > 0 && b > 0 ? Math.log(b) - Math.log(a) : NaN,
+    );
   }
   return out;
 }
 
 export function calculateYoYGrowth(values: number[], periods = 12): number[] {
+  if (!positiveInteger(periods)) return values.map(() => NaN);
   return values.map((v, i) => {
     const prev = values[i - periods];
-    if (prev == null || prev === 0 || !Number.isFinite(v)) return NaN;
+    if (prev == null || prev === 0 || !Number.isFinite(prev) || !Number.isFinite(v)) return NaN;
     return (v / prev - 1) * 100;
   });
 }
 
 export function calculateRolling12MSum(values: number[], window = 12): number[] {
+  if (!positiveInteger(window)) return values.map(() => NaN);
   return values.map((_, i) => {
     if (i < window - 1) return NaN;
     let s = 0;
@@ -48,22 +62,24 @@ export function calculateRolling12MSum(values: number[], window = 12): number[] 
       if (!Number.isFinite(v)) return NaN;
       s += v;
     }
-    return s;
+    return Number.isFinite(s) ? s : NaN;
   });
 }
 
 export function calculateWorkingDayAdjusted(value: number, workingDays: number): number | null {
-  if (!(workingDays > 0) || !Number.isFinite(value)) return null;
+  if (!(workingDays > 0) || !Number.isFinite(workingDays) || !Number.isFinite(value)) return null;
   return value / workingDays;
 }
 
 export function calculateMomentum(values: number[], lookback = 3): number[] {
+  if (!positiveInteger(lookback)) return values.map(() => NaN);
   return values.map((v, i) => {
     const prev = values[i - lookback];
-    if (prev == null || prev === 0) return NaN;
+    if (prev == null || prev === 0 || !Number.isFinite(prev) || !Number.isFinite(v)) return NaN;
     const ratio = v / prev;
     if (!(ratio > 0)) return NaN;
-    return (Math.pow(ratio, 12 / lookback) - 1) * 100;
+    const result = (Math.pow(ratio, 12 / lookback) - 1) * 100;
+    return Number.isFinite(result) ? result : NaN;
   });
 }
 
@@ -85,23 +101,25 @@ function paired(x: number[], y: number[]): [number, number][] {
   return out;
 }
 
+/** Population standardization; rescaling first avoids overflow in level data. */
+function standardized(values: number[]): number[] | null {
+  const scale = values.reduce((largest, v) => Math.max(largest, Math.abs(v)), 0);
+  if (!(scale > 0) || !Number.isFinite(scale)) return null;
+  const scaled = values.map((v) => v / scale);
+  const mean = scaled.reduce((sum, v) => sum + v, 0) / scaled.length;
+  const centered = scaled.map((v) => v - mean);
+  const sd = Math.sqrt(centered.reduce((sum, v) => sum + v * v, 0) / centered.length);
+  return sd > 0 && Number.isFinite(sd) ? centered.map((v) => v / sd) : null;
+}
+
 export function calculatePearson(x: number[], y: number[]): number | null {
   const p = paired(x, y);
   if (p.length < 3) return null;
-  const n = p.length;
-  const mx = p.reduce((s, v) => s + v[0], 0) / n;
-  const my = p.reduce((s, v) => s + v[1], 0) / n;
-  let num = 0;
-  let dx = 0;
-  let dy = 0;
-  for (const [a, b] of p) {
-    num += (a - mx) * (b - my);
-    dx += (a - mx) ** 2;
-    dy += (b - my) ** 2;
-  }
-  const den = Math.sqrt(dx * dy);
-  if (den === 0) return null;
-  return num / den;
+  const u = standardized(p.map(([a]) => a));
+  const v = standardized(p.map(([, b]) => b));
+  if (!u || !v) return null;
+  const r = u.reduce((sum, a, i) => sum + a * v[i]!, 0) / p.length;
+  return Number.isFinite(r) ? Math.max(-1, Math.min(1, r)) : null;
 }
 
 export function calculateSpearman(x: number[], y: number[]): number | null {
@@ -123,13 +141,26 @@ export function calculateSpearman(x: number[], y: number[]): number | null {
 }
 
 export function calculatePartialCorrelation(x: number[], y: number[], z: number[]): number | null {
-  const rxy = calculatePearson(x, y);
-  const rxz = calculatePearson(x, z);
-  const ryz = calculatePearson(y, z);
+  const triples: [number, number, number][] = [];
+  for (let i = 0; i < Math.min(x.length, y.length, z.length); i++) {
+    if (Number.isFinite(x[i]) && Number.isFinite(y[i]) && Number.isFinite(z[i])) {
+      triples.push([x[i]!, y[i]!, z[i]!]);
+    }
+  }
+  if (triples.length < 3) return null;
+  const a = triples.map((row) => row[0]);
+  const b = triples.map((row) => row[1]);
+  const c = triples.map((row) => row[2]);
+  const rxy = calculatePearson(a, b);
+  const rxz = calculatePearson(a, c);
+  const ryz = calculatePearson(b, c);
   if (rxy == null || rxz == null || ryz == null) return null;
-  const den = Math.sqrt((1 - rxz * rxz) * (1 - ryz * ryz));
-  if (den === 0) return null;
-  return (rxy - rxz * ryz) / den;
+  const residualX = 1 - rxz * rxz,
+    residualY = 1 - ryz * ryz;
+  if (residualX <= Number.EPSILON * 16 || residualY <= Number.EPSILON * 16) return null;
+  const den = Math.sqrt(residualX * residualY);
+  const r = (rxy - rxz * ryz) / den;
+  return Number.isFinite(r) ? Math.max(-1, Math.min(1, r)) : null;
 }
 
 export function calculateRollingCorrelation(
@@ -137,9 +168,12 @@ export function calculateRollingCorrelation(
   y: number[],
   window = 24,
 ): (number | null)[] {
+  if (!positiveInteger(window) || window < 3) return x.map(() => null);
   return x.map((_, i) => {
     if (i < window - 1) return null;
-    return calculatePearson(x.slice(i - window + 1, i + 1), y.slice(i - window + 1, i + 1));
+    const a = x.slice(i - window + 1, i + 1);
+    const b = y.slice(i - window + 1, i + 1);
+    return paired(a, b).length === window ? calculatePearson(a, b) : null;
   });
 }
 
@@ -148,47 +182,63 @@ export function calculateCrossCorrelation(
   y: number[],
   maxLag = 6,
 ): { lag: number; corr: number | null }[] {
+  if (!Number.isInteger(maxLag) || maxLag < 0) return [];
   const out: { lag: number; corr: number | null }[] = [];
+  const sufficientCorrelation = (a: number[], b: number[]) =>
+    paired(a, b).length >= MIN_SAMPLE ? calculatePearson(a, b) : null;
+  const n = Math.min(x.length, y.length);
+  const a = x.slice(0, n),
+    b = y.slice(0, n);
   for (let lag = -maxLag; lag <= maxLag; lag++) {
     if (lag < 0) {
-      out.push({ lag, corr: calculatePearson(x.slice(-lag), y.slice(0, y.length + lag)) });
+      out.push({
+        lag,
+        corr: sufficientCorrelation(a.slice(-lag), b.slice(0, Math.max(0, n + lag))),
+      });
     } else if (lag > 0) {
-      out.push({ lag, corr: calculatePearson(x.slice(0, x.length - lag), y.slice(lag)) });
+      out.push({
+        lag,
+        corr: sufficientCorrelation(a.slice(0, Math.max(0, n - lag)), b.slice(lag)),
+      });
     } else {
-      out.push({ lag, corr: calculatePearson(x, y) });
+      out.push({ lag, corr: sufficientCorrelation(a, b) });
     }
   }
   return out;
 }
 
 export function calculateForwardReturn(prices: number[], horizon: number): number[] {
+  if (!positiveInteger(horizon)) return prices.map(() => NaN);
   return prices.map((p, i) => {
     const fut = prices[i + horizon];
-    if (!(p > 0) || fut == null || !(fut > 0)) return NaN;
-    return Math.log(fut / p);
+    if (!(p > 0) || !Number.isFinite(p) || fut == null || !(fut > 0) || !Number.isFinite(fut))
+      return NaN;
+    return Math.log(fut) - Math.log(p);
   });
 }
 
 /** Newey–West HAC variance for mean of series (Bartlett kernel). */
 export function neweyWestStandardError(series: number[], lags = 3): number | null {
-  const x = series.filter(Number.isFinite);
-  const n = x.length;
+  if (!Number.isInteger(lags) || lags < 0) return null;
+  const n = series.filter(Number.isFinite).length;
   if (n < lags + 3) return null;
-  const mean = x.reduce((a, b) => a + b, 0) / n;
-  const u = x.map((v) => v - mean);
+  const mean = series.reduce((sum, v) => sum + (Number.isFinite(v) ? v : 0), 0) / n;
+  // Missing calendar positions have no score contribution. Do not turn observations
+  // separated by a missing month into adjacent observations for the lag covariance.
+  const u = series.map((v) => (Number.isFinite(v) ? v - mean : 0));
   let gamma0 = 0;
   for (const v of u) gamma0 += v * v;
   gamma0 /= n;
   let hac = gamma0;
   for (let j = 1; j <= lags; j++) {
     let g = 0;
-    for (let t = j; t < n; t++) g += u[t]! * u[t - j]!;
+    for (let t = j; t < u.length; t++) g += u[t]! * u[t - j]!;
     g /= n;
     const w = 1 - j / (lags + 1);
     hac += 2 * w * g;
   }
-  if (hac < 0) return null;
-  return Math.sqrt(hac / n);
+  if (!Number.isFinite(hac) || hac < -Number.EPSILON * Math.max(1, gamma0) * 16) return null;
+  return Math.sqrt(Math.max(0, hac) / n);
 }
 
 export function benjaminiHochbergFDR(pValues: number[], q = 0.1): boolean[] {
@@ -203,7 +253,7 @@ export function benjaminiHochbergFDR(pValues: number[], q = 0.1): boolean[] {
   return keep;
 }
 
-/** ADF-lite: reject non-stationarity if |Δ series| mean is large vs level (heuristic + variance ratio). */
+/** Descriptive variance-ratio heuristic, not a statistical unit-root test. */
 export function testStationarity(values: number[]): {
   stationary: boolean;
   method: string;
@@ -223,8 +273,8 @@ export function testStationarity(values: number[]): {
     stationary,
     method: "variance-ratio-diff",
     note: stationary
-      ? "Differenced series dominates — treat as I(0) after transform"
-      : "Level looks I(1) — use YoY / log-return, not raw level",
+      ? "Variance-ratio screen passed; this does not establish stationarity"
+      : "Variance-ratio screen failed; use YoY / log-return instead of raw level",
   };
 }
 
@@ -243,8 +293,9 @@ export function calculateExportSurprise(actual: number, consensus: number | null
 }
 
 export function convertUsdKrw(usd: number, fx: number): number | null {
-  if (!(usd >= 0) || !(fx > 0)) return null;
-  return usd * fx;
+  if (!(usd >= 0) || !(fx > 0) || !Number.isFinite(usd) || !Number.isFinite(fx)) return null;
+  const result = usd * fx;
+  return Number.isFinite(result) ? result : null;
 }
 
 /** Require the same month's observed FX. Missing history remains unknown. */
@@ -256,23 +307,22 @@ export function fxRateForPeriod(
   const ym = period.slice(0, 7);
   if (!/^\d{4}-(?:0[1-9]|1[0-2])$/.test(ym)) return null;
   const sorted = [...series]
-    .filter((r) => Number.isFinite(r.value) && r.value > 0 && r.date)
+    .filter((r) => Number.isFinite(r.value) && r.value > 0 && calendarDate(r.date))
     .sort((a, b) => a.date.localeCompare(b.date)); // ked-allow-string-date-sort: single-format time series
   return sorted.filter((r) => r.date.slice(0, 7) === ym).at(-1)?.value ?? null;
 }
 
 export function alignByReleaseDate<T extends { period: string; releasedAt?: string }>(
   rows: T[],
-  mode: "OBSERVATION" | "RELEASE",
+  _mode: "OBSERVATION" | "RELEASE",
 ): T[] {
-  if (mode === "OBSERVATION") return [...rows].sort((a, b) => a.period.localeCompare(b.period)); // ked-allow-string-date-sort: single-format time series
-  return [...rows].sort(
-    (a, b) => (a.releasedAt ?? a.period).localeCompare(b.releasedAt ?? b.period), // ked-allow-string-date-sort: single-format time series
-  );
+  // Publication-aware analysis needs explicit as-of joins, not a release-date
+  // sort. Reordering calendar months would corrupt YoY, rolling windows and HAC.
+  return [...rows].sort((a, b) => a.period.localeCompare(b.period)); // ked-allow-string-date-sort: single-format time series
 }
 
 export function sufficiencyGate(n: number): { ok: boolean; reason?: string } {
-  if (n < MIN_SAMPLE) return { ok: false, reason: "Insufficient data" };
+  if (!Number.isInteger(n) || n < MIN_SAMPLE) return { ok: false, reason: "Insufficient data" };
   return { ok: true };
 }
 
@@ -294,12 +344,28 @@ export function pearsonWithInference(
       return { r: null, n: 0, se: null, usedHac: false, insufficient: true };
     }
   }
-  const r = calculatePearson(x, y);
-  const n = paired(x, y).length;
+  const sample = paired(x, y);
+  const n = sample.length;
   if (n < MIN_SAMPLE) {
     return { r: null, n, se: null, usedHac: false, insufficient: true };
   }
-  const prod = paired(x, y).map(([a, b]) => a * b);
-  const se = neweyWestStandardError(prod, 3);
-  return { r, n, se, usedHac: true, insufficient: false };
+  const r = calculatePearson(x, y);
+  const u = standardized(sample.map(([a]) => a));
+  const v = standardized(sample.map(([, b]) => b));
+  if (r == null || !u || !v) {
+    return { r: null, n, se: null, usedHac: false, insufficient: true };
+  }
+  // Influence of the Pearson estimator, including its estimated variances.
+  // HAC of raw x*y has different units and is not a correlation standard error.
+  let k = 0;
+  const influence = Array.from({ length: Math.min(x.length, y.length) }, (_, i) => {
+    if (!Number.isFinite(x[i]) || !Number.isFinite(y[i])) return NaN;
+    const a = u[k]!,
+      b = v[k++]!;
+    return a * b - (r / 2) * (a * a + b * b);
+  });
+  // Monthly YoY windows overlap through lag 11; a lag-3 kernel misses that
+  // mechanical dependence. Non-overlapping monthly log returns use lag 3.
+  const se = neweyWestStandardError(influence, transform === "yoy" ? 11 : 3);
+  return { r, n, se, usedHac: se != null, insufficient: se == null };
 }

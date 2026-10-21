@@ -249,7 +249,7 @@ test("T15 FRED parser keeps official monthly USD", () => {
 
 test("T16 HS proxy does not invent missing codes", () => {
   assert.equal(aggregateProxy({ "87": 10 }, ["8542", "8541"]), null);
-  assert.equal(aggregateProxy({ "8542": 5, "87": 9 }, ["8542", "8541"]), 5);
+  assert.equal(aggregateProxy({ "8542": 5, "87": 9 }, ["8542", "8541"]), null);
   assert.equal(aggregateProxy({ "74": 1, "76": 2 }, ["74", "76"]), 3);
 });
 

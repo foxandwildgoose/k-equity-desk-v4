@@ -101,9 +101,30 @@ export const CORE20_HS_PROXY: HsProxy[] = [
   {
     key: "agri_fishery_food",
     codes: [
-      "01", "02", "03", "04", "05", "06", "07", "08", "09", "10",
-      "11", "12", "13", "14", "15", "16", "17", "18", "19", "20",
-      "21", "22", "23", "24",
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
     ],
     label: "HS 01–24",
     note: "농수산식품 합산",
@@ -290,19 +311,19 @@ export function proxyForKey(key: string): HsProxy | undefined {
   return CORE20_HS_PROXY.find((p) => p.key === key);
 }
 
-/** Sum HS values for a proxy. Missing codes contribute 0; returns null if nothing present. */
-export function aggregateProxy(
-  byCode: Record<string, number>,
-  codes: string[],
-): number | null {
+/** Sum a fully observed, non-overlapping HS basket. Missing is never zero. */
+export function aggregateProxy(byCode: Record<string, number>, codes: string[]): number | null {
+  const unique = [...new Set(codes)];
+  if (!unique.length || unique.some((code) => !/^(?:\d{2}|\d{4}|\d{6}|\d{10})$/.test(code)))
+    return null;
+  // A chapter and a heading within it already include the same exports.
+  if (unique.some((code) => unique.some((other) => other !== code && code.startsWith(other))))
+    return null;
   let sum = 0;
-  let hit = 0;
-  for (const c of codes) {
+  for (const c of unique) {
     const v = byCode[c];
-    if (v != null && Number.isFinite(v)) {
-      sum += v;
-      hit += 1;
-    }
+    if (v == null || !Number.isFinite(v) || v < 0) return null;
+    sum += v;
   }
-  return hit ? sum : null;
+  return Number.isFinite(sum) ? sum : null;
 }

@@ -1,12 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LineSeries, type IChartApi, type ISeriesApi, type SeriesType } from "lightweight-charts";
-import { computeSeriesRangePosition, planRangeMarkers, rangeMarkerText, type RangePositionStats } from "@/lib/chart-indicators";
+import {
+  computeSeriesRangePosition,
+  planRangeMarkers,
+  rangeMarkerText,
+  type RangePositionStats,
+} from "@/lib/chart-indicators";
 import { RangeMarkerPrimitive, type RangeMark } from "@/components/charts/pro/primitives";
 import { RangePositionStrip } from "@/components/stocks/RangePositionStrip";
 import { ChartShell } from "@/components/charts/core/ChartShell";
 import { createProChart } from "@/components/charts/core/create-pro-chart";
 import { readChartTheme } from "@/components/charts/core/theme";
-import { exportChartPng, exportRowsCsv, RangePresets, ScaleToggle, useChartChrome } from "@/components/charts/core/chrome";
+import {
+  exportChartPng,
+  exportRowsCsv,
+  RangePresets,
+  ScaleToggle,
+  useChartChrome,
+} from "@/components/charts/core/chrome";
 import { formatChartPercent } from "@/lib/chart-format";
 import { useAppStore } from "@/lib/store";
 import { useStandardSma } from "@/components/charts/core/use-standard-sma";
@@ -24,13 +35,29 @@ function toDay(period: string): string {
   return period.slice(0, 10);
 }
 
-function marksFor(stats: RangePositionStats | null, times: string[], formatValue: (n: number) => string, up: string, down: string): { marks: RangeMark[]; lastTime: string | null; lastPrice: number | null } {
+function marksFor(
+  stats: RangePositionStats | null,
+  times: string[],
+  formatValue: (n: number) => string,
+  up: string,
+  down: string,
+): { marks: RangeMark[]; lastTime: string | null; lastPrice: number | null } {
   if (!stats || !times.length) return { marks: [], lastTime: null, lastPrice: null };
   const marks = planRangeMarkers(stats).flatMap((p) => {
     const time = times[p.idx];
     if (!time) return [];
     const copy = rangeMarkerText(p, formatValue(p.price), formatChartPercent(p.pct));
-    return [{ time, price: p.price, role: p.role, place: copy.place, title: copy.title, pctText: copy.pctText, color: p.role === "high" ? down : up }];
+    return [
+      {
+        time,
+        price: p.price,
+        role: p.role,
+        place: copy.place,
+        title: copy.title,
+        pctText: copy.pctText,
+        color: p.role === "high" ? down : up,
+      },
+    ];
   });
   return { marks, lastTime: times[times.length - 1] ?? null, lastPrice: stats.close };
 }
@@ -43,9 +70,10 @@ export function ExportDualChart({
   bName,
   aColor = "#d4a017",
   bColor = "#3b82f6",
-  source = "FRED/OECD · Yahoo",
+  source = "출처 확인 중",
   asOf = null,
   mode = "월간",
+  sharedScale = false,
 }: {
   data: DualPoint[];
   /** Same transformations/base/scales, before the parent clips its date range. */
@@ -57,12 +85,16 @@ export function ExportDualChart({
   source?: string;
   asOf?: string | null;
   mode?: string;
+  sharedScale?: boolean;
 }) {
   const elRef = useRef<HTMLDivElement>(null);
   const aPrim = useRef(new RangeMarkerPrimitive());
   const bPrim = useRef(new RangeMarkerPrimitive());
   const [chart, setChart] = useState<IChartApi | null>(null);
-  const [series, setSeries] = useState<{ a: ISeriesApi<SeriesType> | null; b: ISeriesApi<SeriesType> | null }>({ a: null, b: null });
+  const [series, setSeries] = useState<{
+    a: ISeriesApi<SeriesType> | null;
+    b: ISeriesApi<SeriesType> | null;
+  }>({ a: null, b: null });
   const [smaFocus, setSmaFocus] = useState<"a" | "b">("a");
   const convention = useAppStore((s) => s.colorConvention);
   const up = convention === "korea" ? "#ef4444" : "#22c55e";
@@ -72,17 +104,40 @@ export function ExportDualChart({
   const aPoints = useMemo(() => rows.filter((d) => d.a != null && Number.isFinite(d.a)), [rows]);
   const bPoints = useMemo(() => rows.filter((d) => d.b != null && Number.isFinite(d.b)), [rows]);
   const fmt = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 2 });
-  const smaPoints = useMemo(() => rows.map(row => ({ time: row.time, value: row[smaFocus] })), [rows, smaFocus]);
-  const smaHistory = useMemo(() => history?.map(row => ({ time: toDay(row.time), value: row[smaFocus] })), [history, smaFocus]);
-  const averages = useStandardSma({ chart, source: series[smaFocus], points: smaPoints,
-    history: smaHistory, scope: `export-dual:${aName}:${bName}:${mode}`, formatValue: fmt, scaleId: smaFocus === "a" ? "left" : "right" });
+  const smaPoints = useMemo(
+    () => rows.map((row) => ({ time: row.time, value: row[smaFocus] })),
+    [rows, smaFocus],
+  );
+  const smaHistory = useMemo(
+    () => history?.map((row) => ({ time: toDay(row.time), value: row[smaFocus] })),
+    [history, smaFocus],
+  );
+  const averages = useStandardSma({
+    chart,
+    source: series[smaFocus],
+    points: smaPoints,
+    history: smaHistory,
+    scope: `export-dual:${aName}:${bName}:${mode}`,
+    formatValue: fmt,
+    scaleId: smaFocus === "a" || sharedScale ? "left" : "right",
+  });
 
   const aStats = useMemo(
-    () => computeSeriesRangePosition(aPoints.map((d) => ({ value: d.a as number, date: d.time })), undefined, { recentSpan: "52W" }),
+    () =>
+      computeSeriesRangePosition(
+        aPoints.map((d) => ({ value: d.a as number, date: d.time })),
+        undefined,
+        { recentSpan: "52W" },
+      ),
     [aPoints],
   );
   const bStats = useMemo(
-    () => computeSeriesRangePosition(bPoints.map((d) => ({ value: d.b as number, date: d.time })), undefined, { recentSpan: "52W" }),
+    () =>
+      computeSeriesRangePosition(
+        bPoints.map((d) => ({ value: d.b as number, date: d.time })),
+        undefined,
+        { recentSpan: "52W" },
+      ),
     [bPoints],
   );
 
@@ -91,14 +146,42 @@ export function ExportDualChart({
     if (!el || !hasData) return;
     const c = createProChart(el, readChartTheme(), "US");
     c.applyOptions({
-      localization: { locale: "ko-KR", priceFormatter: (v: number) => v.toLocaleString("en-US", { maximumFractionDigits: 2 }) },
+      localization: {
+        locale: "ko-KR",
+        priceFormatter: (v: number) => v.toLocaleString("en-US", { maximumFractionDigits: 2 }),
+      },
       leftPriceScale: { visible: true, borderColor: "rgba(148,163,184,0.2)" },
+      rightPriceScale: { visible: !sharedScale },
       timeScale: { timeVisible: false, rightOffset: 2 },
     });
-    const a = c.addSeries(LineSeries, { color: aColor, lineWidth: 2, title: aName, priceLineVisible: false, priceScaleId: "left" });
-    const b = c.addSeries(LineSeries, { color: bColor, lineWidth: 2, title: bName, priceLineVisible: false, priceScaleId: "right" });
-    a.setData(aPoints.map((d) => ({ time: d.time as "2020-01-01", value: d.a as number })));
-    b.setData(bPoints.map((d) => ({ time: d.time as "2020-01-01", value: d.b as number })));
+    const a = c.addSeries(LineSeries, {
+      color: aColor,
+      lineWidth: 2,
+      title: aName,
+      priceLineVisible: false,
+      priceScaleId: "left",
+    });
+    const b = c.addSeries(LineSeries, {
+      color: bColor,
+      lineWidth: 2,
+      title: bName,
+      priceLineVisible: false,
+      priceScaleId: sharedScale ? "left" : "right",
+    });
+    a.setData(
+      rows.map((d) =>
+        d.a != null && Number.isFinite(d.a)
+          ? { time: d.time as "2020-01-01", value: d.a }
+          : { time: d.time as "2020-01-01" },
+      ),
+    );
+    b.setData(
+      rows.map((d) =>
+        d.b != null && Number.isFinite(d.b)
+          ? { time: d.time as "2020-01-01", value: d.b }
+          : { time: d.time as "2020-01-01" },
+      ),
+    );
     a.attachPrimitive(aPrim.current);
     b.attachPrimitive(bPrim.current);
     c.timeScale().fitContent();
@@ -109,42 +192,111 @@ export function ExportDualChart({
       setSeries({ a: null, b: null });
       queueMicrotask(() => c.remove());
     };
-  }, [aPoints, bPoints, aName, bName, aColor, bColor, hasData]);
+  }, [aPoints, bPoints, aName, bName, aColor, bColor, hasData, sharedScale]);
 
   useEffect(() => {
-    const a = marksFor(aStats, aPoints.map((d) => d.time), fmt, up, down);
-    const b = marksFor(bStats, bPoints.map((d) => d.time), fmt, up, down);
+    const a = marksFor(
+      aStats,
+      aPoints.map((d) => d.time),
+      fmt,
+      up,
+      down,
+    );
+    const b = marksFor(
+      bStats,
+      bPoints.map((d) => d.time),
+      fmt,
+      up,
+      down,
+    );
     aPrim.current.set(a.marks, a.lastTime, a.lastPrice);
     bPrim.current.set(b.marks, b.lastTime, b.lastPrice);
   }, [aStats, bStats, aPoints, bPoints, up, down, series.a, series.b]);
 
   const { legend, hud } = useChartChrome(chart, [
-    { id: "a", label: `${aName} (좌)`, color: aColor, api: series.a },
-    { id: "b", label: `${bName} (우)`, color: bColor, api: series.b },
+    { id: "a", label: `${aName} (${sharedScale ? "공통" : "좌"})`, color: aColor, api: series.a },
+    { id: "b", label: `${bName} (${sharedScale ? "공통" : "우"})`, color: bColor, api: series.b },
   ]);
 
   if (!hasData) {
-    return <div className="flex h-[380px] items-center justify-center text-sm text-muted-foreground">그릴 관측값이 없습니다.</div>;
+    return (
+      <div className="flex h-[380px] items-center justify-center text-sm text-muted-foreground">
+        그릴 관측값이 없습니다.
+      </div>
+    );
   }
 
   return (
     <div>
-      <RangePositionStrip stats={aStats} compact caption={`${aName} · 최근 12개월(52W) · 수출 시계열에는 매물대 없음`} formatValue={fmt} />
-      <RangePositionStrip stats={bStats} compact caption={`${bName} · 최근 12개월(52W) · 지수 라인에는 거래량 매물대 없음`} formatValue={fmt} />
+      <RangePositionStrip
+        stats={aStats}
+        compact
+        caption={`${aName} · 최근 12개월(52W) · 수출 시계열에는 매물대 없음`}
+        formatValue={fmt}
+      />
+      <RangePositionStrip
+        stats={bStats}
+        compact
+        caption={`${bName} · 최근 12개월(52W) · 지수 라인에는 거래량 매물대 없음`}
+        formatValue={fmt}
+      />
       <ChartShell
         title={`${aName} × ${bName}`}
-        displayControls={<><label className="flex min-h-11 items-center gap-1 text-xs">SMA 대상<select aria-label="SMA 대상 시계열" value={smaFocus} onChange={event => setSmaFocus(event.target.value === "b" ? "b" : "a")} className="h-9 max-w-40 rounded border border-border bg-background px-1"><option value="a">{aName} (좌)</option><option value="b">{bName} (우)</option></select></label><SmaControls instances={averages.instances} unavailable={averages.unavailable} mode={averages.mode} onToggle={averages.toggle} disabled={!averages.ready} /></>}
+        displayControls={
+          <>
+            <label className="flex min-h-11 items-center gap-1 text-xs">
+              SMA 대상
+              <select
+                aria-label="SMA 대상 시계열"
+                value={smaFocus}
+                onChange={(event) => setSmaFocus(event.target.value === "b" ? "b" : "a")}
+                className="h-9 max-w-40 rounded border border-border bg-background px-1"
+              >
+                <option value="a">{aName} (좌)</option>
+                <option value="b">{bName} (우)</option>
+              </select>
+            </label>
+            <SmaControls
+              instances={averages.instances}
+              unavailable={averages.unavailable}
+              mode={averages.mode}
+              onToggle={averages.toggle}
+              disabled={!averages.ready}
+            />
+          </>
+        }
         toolbar={
           <>
             <RangePresets chart={chart} first={rows[0]?.time} last={rows.at(-1)?.time} />
-            <ScaleToggle chart={chart} allowed={["normal", "log", "percent"]} priceScaleIds={["left", "right"]} />
+            <ScaleToggle
+              chart={chart}
+              allowed={["normal", "log", "percent"]}
+              priceScaleIds={sharedScale ? ["left"] : ["left", "right"]}
+            />
           </>
         }
         hud={hud}
         legend={legend}
-        status={{ source, mode, updatedAt: asOf, note: "고저 마커는 본체에 표시. 수출액 패널에는 매물대를 그리지 않습니다." }}
+        status={{
+          source,
+          mode,
+          updatedAt: asOf,
+          note: "고저 마커는 본체에 표시. 수출액 패널에는 매물대를 그리지 않습니다.",
+        }}
         onExportPng={() => exportChartPng(chart, "KR", "EXPORT", "export-kospi")}
-        onExportCsv={() => exportRowsCsv(chart, rows, [{ name: aName, get: (r) => r.a }, { name: bName, get: (r) => r.b }], "KR", "EXPORT", "export-kospi")}
+        onExportCsv={() =>
+          exportRowsCsv(
+            chart,
+            rows,
+            [
+              { name: aName, get: (r) => r.a },
+              { name: bName, get: (r) => r.b },
+            ],
+            "KR",
+            "EXPORT",
+            "export-kospi",
+          )
+        }
         height={380}
         testId="export-dual-chart"
       >
@@ -164,11 +316,19 @@ export function ExportAmountChart({
   focusId,
   source,
   asOf,
+  title = "주력 품목 수출 (HS 근사, 십억달러)",
+  formatValue = (n: number) => `$${n.toFixed(1)}bn`,
+  mode = "월간 · HS 품목 통계",
+  note = "MOTIE MTI 금액이 아닙니다. 없는 월은 비워 둡니다.",
 }: {
   series: AmountSeries[];
   focusId: string;
   source: string;
   asOf: string | null;
+  title?: string;
+  formatValue?: (n: number) => string;
+  mode?: string;
+  note?: string;
 }) {
   const elRef = useRef<HTMLDivElement>(null);
   const focusPrim = useRef(new RangeMarkerPrimitive());
@@ -177,14 +337,28 @@ export function ExportAmountChart({
   const convention = useAppStore((s) => s.colorConvention);
   const up = convention === "korea" ? "#ef4444" : "#22c55e";
   const down = convention === "korea" ? "#3b82f6" : "#ef4444";
-  const shown = series.slice(0, 6);
-  const key = shown.map((s) => `${s.id}:${s.points.length}:${s.points.at(-1)?.time ?? ""}`).join("|");
+  const shown = useMemo(() => series.slice(0, 6), [series]);
   const focus = shown.find((s) => s.id === focusId) ?? shown[0];
-  const smaPoints = useMemo(() => focus?.points.map(p => ({ time: toDay(p.time), value: p.value })) ?? [], [focus]);
-  const averages = useStandardSma({ chart, source: apis[shown.findIndex(s => s.id === focus?.id)] ?? null,
-    points: smaPoints, scope: `export-amount:${focus?.id ?? "none"}`, formatValue: n => `$${n.toFixed(1)}bn` });
+  const smaPoints = useMemo(
+    () => focus?.points.map((p) => ({ time: toDay(p.time), value: p.value })) ?? [],
+    [focus],
+  );
+  const averages = useStandardSma({
+    chart,
+    source: apis[shown.findIndex((s) => s.id === focus?.id)] ?? null,
+    points: smaPoints,
+    scope: `export-amount:${title}:${focus?.id ?? "none"}`,
+    formatValue,
+  });
   const focusStats = useMemo(
-    () => (focus ? computeSeriesRangePosition(focus.points.map((p) => ({ value: p.value, date: p.time })), undefined, { recentSpan: "52W" }) : null),
+    () =>
+      focus
+        ? computeSeriesRangePosition(
+            focus.points.map((p) => ({ value: p.value, date: p.time })),
+            undefined,
+            { recentSpan: "52W" },
+          )
+        : null,
     [focus],
   );
 
@@ -193,7 +367,7 @@ export function ExportAmountChart({
     if (!el || !shown.length) return;
     const c = createProChart(el, readChartTheme(), "US");
     c.applyOptions({
-      localization: { locale: "ko-KR", priceFormatter: (v: number) => `$${v.toFixed(1)}bn` },
+      localization: { locale: "ko-KR", priceFormatter: formatValue },
       timeScale: { timeVisible: false, rightOffset: 2 },
     });
     const next: ISeriesApi<SeriesType>[] = [];
@@ -205,7 +379,11 @@ export function ExportAmountChart({
         priceLineVisible: false,
         lastValueVisible: s.id === focus?.id,
       });
-      api.setData(s.points.map((p) => ({ time: toDay(p.time) as "2020-01-01", value: p.value })));
+      api.setData(
+        s.points
+          .filter((p) => Number.isFinite(p.value))
+          .map((p) => ({ time: toDay(p.time) as "2020-01-01", value: p.value })),
+      );
       if (s.id === focus?.id) api.attachPrimitive(focusPrim.current);
       next.push(api);
     });
@@ -218,34 +396,67 @@ export function ExportAmountChart({
       queueMicrotask(() => c.remove());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, focusId]);
+  }, [shown, focusId, title]);
 
   useEffect(() => {
     if (!focus) return focusPrim.current.set([], null, null);
     const times = focus.points.map((p) => toDay(p.time));
-    const packed = marksFor(focusStats, times, (n) => `$${n.toFixed(1)}bn`, up, down);
+    const packed = marksFor(focusStats, times, formatValue, up, down);
     focusPrim.current.set(packed.marks, packed.lastTime, packed.lastPrice);
   }, [focus, focusStats, up, down, apis]);
 
   const { legend, hud } = useChartChrome(
     chart,
-    shown.map((s, i) => ({ id: s.id, label: s.name, color: LINE_COLORS[i % LINE_COLORS.length], api: apis[i] ?? null })),
+    shown.map((s, i) => ({
+      id: s.id,
+      label: s.name,
+      color: LINE_COLORS[i % LINE_COLORS.length],
+      api: apis[i] ?? null,
+    })),
   );
 
   if (!shown.length) {
-    return <div className="flex h-[320px] items-center justify-center text-sm text-muted-foreground">선택한 품목에 Comtrade 관측이 없습니다.</div>;
+    return (
+      <div className="flex h-[320px] items-center justify-center text-sm text-muted-foreground">
+        선택한 시계열에 확인된 관측이 없습니다.
+      </div>
+    );
   }
 
   return (
     <div>
-      {focusStats && <RangePositionStrip stats={focusStats} compact caption={`${focus?.name ?? ""} · 최근 12개월 · 수출액 차트에는 매물대 없음`} formatValue={(n) => `$${n.toFixed(1)}bn`} />}
+      {focusStats && (
+        <RangePositionStrip
+          stats={focusStats}
+          compact
+          caption={`${focus?.name ?? ""} · 최근 12개월 · 거래량 매물대 없음`}
+          formatValue={formatValue}
+        />
+      )}
       <ChartShell
-        title="주력 품목 수출 (HS 근사, 십억달러)"
-        displayControls={<><span className="text-xs text-muted-foreground">SMA 대상: {focus?.name}</span><SmaControls instances={averages.instances} unavailable={averages.unavailable} mode={averages.mode} onToggle={averages.toggle} disabled={!averages.ready} /></>}
-        toolbar={<RangePresets chart={chart} first={shown[0]?.points[0] ? toDay(shown[0].points[0].time) : undefined} last={focus?.points.at(-1) ? toDay(focus.points.at(-1)!.time) : undefined} />}
+        title={title}
+        displayControls={
+          <>
+            <span className="text-xs text-muted-foreground">SMA 대상: {focus?.name}</span>
+            <SmaControls
+              instances={averages.instances}
+              unavailable={averages.unavailable}
+              mode={averages.mode}
+              onToggle={averages.toggle}
+              disabled={!averages.ready}
+            />
+          </>
+        }
+        toolbar={
+          <RangePresets
+            chart={chart}
+            first={shown[0]?.points[0] ? toDay(shown[0].points[0].time) : undefined}
+            last={focus?.points.at(-1) ? toDay(focus.points.at(-1)!.time) : undefined}
+          />
+        }
         hud={hud}
         legend={legend}
-        status={{ source, mode: "월간 · HS 공개 프리뷰", updatedAt: asOf, note: "MOTIE MTI 금액이 아닙니다. 없는 월은 비워 둡니다." }}
+        status={{ source, mode, updatedAt: asOf, note }}
         onExportPng={() => exportChartPng(chart, "KR", "EXPORT", "core-items")}
         height={340}
         testId="export-amount-chart"

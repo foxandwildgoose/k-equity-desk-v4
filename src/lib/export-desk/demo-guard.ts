@@ -18,12 +18,21 @@ export function assertNoSyntheticLeak(rows: readonly Provenance[]): void {
 /** Strip retired demo controls and rows while retaining the user's real data. */
 export function sanitizeExportDeskSnapshot(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
-  const { demoMode: _mode, setDemoMode: _setter, ...state } = value as Record<string, unknown>;
+  const {
+    demoMode: _mode,
+    setDemoMode: _setter,
+    sourceKeys: _retiredKeys,
+    setSourceKey: _retiredSetter,
+    ...state
+  } = value as Record<string, unknown>;
   if (Array.isArray(state.observations)) {
     state.observations = state.observations.filter((row) => !isSyntheticTradeRow(row));
   }
   if (Array.isArray(state.indexImported)) {
     state.indexImported = state.indexImported.filter((row) => !isSyntheticTradeRow(row));
+  }
+  if (Array.isArray(state.fxImported)) {
+    state.fxImported = state.fxImported.filter((row) => !isSyntheticTradeRow(row));
   }
   if (Array.isArray(state.exposures)) {
     state.exposures = state.exposures.map((row) => {

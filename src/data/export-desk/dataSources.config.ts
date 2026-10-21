@@ -1,9 +1,4 @@
-export type DataSourceStatus =
-  | "CONFIGURED"
-  | "KEY_MISSING"
-  | "UNVERIFIED"
-  | "FAILING";
-
+/** Source directory only. Connection health comes from real server provider statuses. */
 export interface DataSourceDefinition {
   id: string;
   displayName: string;
@@ -13,16 +8,8 @@ export interface DataSourceDefinition {
   authMode: "SERVICE_KEY_QUERY" | "HEADER_TOKEN" | "NONE";
   classification: "HS" | "HSK" | "MTI" | "NONE";
   geographyLevel:
-    | "NATIONAL"
-    | "SIDO"
-    | "SIGUNGU"
-    | "CUSTOMS_OFFICE"
-    | "COUNTRY"
-    | "ECONOMIC_BLOC"
-    | "MARKET";
+    "NATIONAL" | "SIDO" | "SIGUNGU" | "CUSTOMS_OFFICE" | "COUNTRY" | "ECONOMIC_BLOC" | "MARKET";
   cadence: "DAILY" | "MONTHLY";
-  status: DataSourceStatus;
-  verifiedRequestPath?: string;
 }
 
 export const DATA_SOURCES: DataSourceDefinition[] = [
@@ -30,50 +17,45 @@ export const DATA_SOURCES: DataSourceDefinition[] = [
     id: "customs.total",
     displayName: "수출입총괄",
     operator: "Korea Customs Service",
-    portal: "https://www.data.go.kr",
+    portal: "https://www.data.go.kr/data/15102108/openapi.do",
     baseUrl: "https://apis.data.go.kr",
     authMode: "SERVICE_KEY_QUERY",
     classification: "NONE",
     geographyLevel: "NATIONAL",
     cadence: "MONTHLY",
-    status: "KEY_MISSING",
   },
   {
     id: "customs.item",
     displayName: "품목별 수출입실적",
     operator: "Korea Customs Service",
-    portal: "https://www.data.go.kr",
+    portal: "https://www.data.go.kr/data/15101609/openapi.do",
     baseUrl: "https://apis.data.go.kr",
     authMode: "SERVICE_KEY_QUERY",
     classification: "HS",
     geographyLevel: "NATIONAL",
     cadence: "MONTHLY",
-    status: "KEY_MISSING",
   },
   {
     id: "customs.item_country",
     displayName: "품목별 국가별 수출입실적",
     operator: "Korea Customs Service",
     portal: "https://www.data.go.kr",
-    baseUrl: "http://apis.data.go.kr/1220000/nitemtrade",
+    baseUrl: "https://apis.data.go.kr",
     authMode: "SERVICE_KEY_QUERY",
     classification: "HS",
     geographyLevel: "COUNTRY",
     cadence: "MONTHLY",
-    status: "UNVERIFIED",
-    verifiedRequestPath: "http://apis.data.go.kr/1220000/nitemtrade/getNitemtradeList",
   },
   {
     id: "customs.country",
     displayName: "국가별 수출입실적",
     operator: "Korea Customs Service",
-    portal: "https://www.data.go.kr",
+    portal: "https://www.data.go.kr/data/15101612/openapi.do",
     baseUrl: "https://apis.data.go.kr",
     authMode: "SERVICE_KEY_QUERY",
     classification: "NONE",
     geographyLevel: "COUNTRY",
     cadence: "MONTHLY",
-    status: "KEY_MISSING",
   },
   {
     id: "customs.sido",
@@ -85,7 +67,6 @@ export const DATA_SOURCES: DataSourceDefinition[] = [
     classification: "NONE",
     geographyLevel: "SIDO",
     cadence: "MONTHLY",
-    status: "KEY_MISSING",
   },
   {
     id: "kita.kstat",
@@ -97,7 +78,6 @@ export const DATA_SOURCES: DataSourceDefinition[] = [
     classification: "MTI",
     geographyLevel: "NATIONAL",
     cadence: "MONTHLY",
-    status: "UNVERIFIED",
   },
   {
     id: "motie.release",
@@ -109,7 +89,6 @@ export const DATA_SOURCES: DataSourceDefinition[] = [
     classification: "MTI",
     geographyLevel: "NATIONAL",
     cadence: "MONTHLY",
-    status: "UNVERIFIED",
   },
   {
     id: "krx.datasys",
@@ -121,30 +100,27 @@ export const DATA_SOURCES: DataSourceDefinition[] = [
     classification: "NONE",
     geographyLevel: "MARKET",
     cadence: "DAILY",
-    status: "UNVERIFIED",
   },
   {
     id: "naver.kospi",
     displayName: "KOSPI / 종목 시세 (Naver·Yahoo)",
     operator: "Naver Finance / Yahoo",
-    portal: "https://finance.naver.com",
+    portal: "https://finance.naver.com/sise/sise_index.naver?code=KOSPI",
     baseUrl: "https://query1.finance.yahoo.com",
     authMode: "NONE",
     classification: "NONE",
     geographyLevel: "MARKET",
     cadence: "DAILY",
-    status: "CONFIGURED",
   },
   {
     id: "bok.fx",
-    displayName: "원/달러 (BOK / Naver / Yahoo)",
-    operator: "Bank of Korea",
-    portal: "https://ecos.bok.or.kr",
+    displayName: "원/달러 월별 (Yahoo Finance)",
+    operator: "Yahoo Finance (월별) / Naver (조회값)",
+    portal: "https://finance.yahoo.com/quote/USDKRW=X/history/",
     baseUrl: "https://query1.finance.yahoo.com",
     authMode: "NONE",
     classification: "NONE",
     geographyLevel: "MARKET",
     cadence: "DAILY",
-    status: "CONFIGURED",
   },
 ];

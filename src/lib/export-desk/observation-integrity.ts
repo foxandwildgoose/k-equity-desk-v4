@@ -2,11 +2,29 @@ import type { TradeObservation } from "./parse-import.ts";
 
 /** Calendar gaps stay missing; 12 observed rows must not masquerade as 12 months. */
 export function completeMonthlyObservations(rows: readonly TradeObservation[]): TradeObservation[] {
-  const byPeriod = new Map(
-    rows
-      .filter((row) => /^\d{4}-(?:0[1-9]|1[0-2])$/.test(row.period))
-      .map((row) => [row.period, row]),
-  );
+  const valid = rows.filter((row) => /^(?!0000)\d{4}-(?:0[1-9]|1[0-2])$/.test(row.period));
+  if (!valid.length) return [];
+  const identity = (row: TradeObservation) =>
+    JSON.stringify([row.categoryId, row.classification, row.geo ?? ""]);
+  // Calendar completion is for one series, never a reduction across geographies
+  // or classifications. Callers must select their intended series first.
+  if (valid.some((row) => identity(row) !== identity(valid[0]!))) return [];
+  const byPeriod = new Map<string, TradeObservation>();
+  for (const row of valid) {
+    const normalized =
+      Number.isFinite(row.valueUsd) && row.valueUsd >= 0 ? row : { ...row, valueUsd: Number.NaN };
+    const existing = byPeriod.get(row.period);
+    if (!existing) byPeriod.set(row.period, normalized);
+    else if (!Object.is(existing.valueUsd, normalized.valueUsd)) {
+      // Without an explicit revision decision, neither conflicting value wins.
+      byPeriod.set(row.period, {
+        ...existing,
+        valueUsd: Number.NaN,
+        sourceFile: "상충 관측: 원자료 확인 필요",
+        vintage: "conflict",
+      });
+    }
+  }
   const periods = [...byPeriod.keys()].sort();
   const first = periods[0],
     last = periods.at(-1);
@@ -23,6 +41,7 @@ export function completeMonthlyObservations(rows: readonly TradeObservation[]): 
         categoryId: template.categoryId,
         categoryName: template.categoryName,
         classification: template.classification,
+        geo: template.geo,
         valueUsd: Number.NaN,
         sourceFile: "관측 미확보",
         vintage: "missing",
