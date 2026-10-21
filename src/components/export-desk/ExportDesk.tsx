@@ -80,8 +80,11 @@ function Provenance({
 }) {
   const lang = useExportDeskStore((s) => s.lang);
   return (
-    <div className="mt-2 flex flex-wrap gap-1.5 text-[10px] text-muted-foreground">
-      <Badge variant="outline" className="text-[10px]">
+    <div className="mt-2 flex min-w-0 max-w-full flex-wrap gap-1.5 break-words text-[10px] text-muted-foreground">
+      <Badge
+        variant="outline"
+        className="min-w-0 max-w-full whitespace-normal break-words text-[10px]"
+      >
         {t("export.provenance", lang)} · {source}
       </Badge>
       <span>기간 {period || "N/A"}</span>
@@ -486,7 +489,7 @@ function LiveTape() {
   const macro = useDeskMacro();
   const k = macro.data?.kospi.at(-1);
   return (
-    <div className="mt-3 grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
+    <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-6">
       <Kpi
         label="총수출 (전국 · 월간)"
         value={last ? formatUsdBn(last.valueUsd) : live.isLoading ? "수집 중" : "N/A"}
@@ -694,7 +697,7 @@ function TotalPanel() {
           12M 누적을 선택하세요.
         </p>
       )}
-      <div className="grid gap-2 sm:grid-cols-4">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-4">
         <Kpi
           label="수출 (선택 시계열)"
           value={last?.exp != null ? formatUsdBn(last.exp) : "N/A"}
@@ -784,7 +787,7 @@ function Kpi({
   tone?: "up" | "down";
 }) {
   return (
-    <div className="rounded-lg border border-border bg-card/60 px-3 py-2">
+    <div className="min-w-0 max-w-full rounded-lg border border-border bg-card/60 px-3 py-2">
       <div className="text-[11px] text-muted-foreground">{label}</div>
       <div
         className={cn(
@@ -1485,7 +1488,7 @@ function IndustryPanel({ cat, onCat }: { cat: string; onCat: (c: string) => void
             {p.name} · {PROVIDER_LABELS[p.state]} · {p.message}
           </p>
         ))}
-      <div className="grid gap-2 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
         <Kpi
           label="수출-검증 표본 YoY 상관"
           value={
@@ -1651,7 +1654,7 @@ function CorrPanel() {
           {t("export.insufficient", lang)} (N={pack.inf.n})
         </div>
       ) : (
-        <div className="grid gap-2 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           <Kpi
             label="Pearson YoY · HAC(11)"
             value={pack.inf.r == null ? "N/A" : pack.inf.r.toFixed(3)}

@@ -38,13 +38,15 @@ The user has **not issued a Customs service key**. Missing-key behavior makes no
 
 ## Verification and remaining prerequisites
 
-- Export provider/analysis/persistence/pipeline suite: **97 passed**.
+- Export provider/analysis/persistence/pipeline suite: **98 passed**.
 - Full repository `npm test`: **236 script tests passed, 21 optional tests skipped; 1,030 native tests passed**, followed by passing OpenDART pipeline fixtures. Latest export changes also passed the focused export suite.
 - Latest build and TypeScript checks passed.
 - Desktop/mobile development and built-output checks rendered the page with no application exceptions or horizontal overflow. Nine tabs and main controls were exercised with real application requests; no app/data responses were replaced in that pass.
 - The standard browser smoke check reports external certificate failures for Pretendard, Google Fonts and the Grok extension. A supplemental pass identified those exact origins. The application itself had no HTTP/page errors; a separate interactive pass neutralized only those external presentation resources. Built output did not diverge from the development baseline.
-- This managed cloud environment denies the trade/history upstream origins. Local missing histories are therefore not proof that Vercel can or cannot obtain them. Production provider acceptance must be checked on the updated deployment.
-- GitHub `main` was updated and verified via the GitHub API. Vercel did not create a new deployment after the push or a second deployment-trigger push. The live revision remained **403dba7**, predating this repair. The session has no connected Vercel deployment authority; GitHub integration also refused Actions-secret metadata with HTTP 403. No credentials were read or copied. A new deployment of the latest `main` has been requested from the user; redeploying the old 403dba7 deployment would repeat old code.
+- This managed cloud environment denies the trade/history upstream origins. Local missing histories are therefore not proof of production availability. Production checks below used real application responses, separately from browser test fixtures.
+- GitHub `main` was updated and verified via the GitHub API. A first Vercel production deployment of **5c85bd0** completed at 15:26 UTC after a delay. Both GitHub deployment status and the actual running revision confirmed it. Actual desktop/mobile checks verified 119 completed KOSPI months, 119 FX months and 119 monthly bars for each of four candidate stocks. Total and candidate-stock charts rendered independently despite absent trade data, with no application errors or page overflow. Additional publication-lag, quota-backoff and responsive-layout fixes are on `main`; deployment of that latest version still needs confirmation. The session has no connected Vercel deployment authority; GitHub integration also refused Actions-secret metadata with HTTP 403. No credentials were read or copied.
 - Official MTI bulletins, the regional trade cube, historical release/revision vintages, point-in-time capitalization membership and verified company export weights are not inferred from HS totals. Their absent evidence remains visible rather than simulated.
 
-Do not describe the production repair or authenticated Customs integration as verified until the deployment and provider checks above succeed.
+Production trade providers remained unavailable: Customs has no key, FRED export/import requests timed out, and UN Comtrade returned **HTTP 429**. These states were visible, without invented totals. UN refreshes now respect Retry-After and use a conservative cooldown when the header is absent. The data gap requires approved official API access or provider recovery; a successful market chart is not proof that export observations exist.
+
+Do not describe full trade analysis, the newest follow-up deployment, or authenticated Customs integration as verified until their remaining checks succeed.

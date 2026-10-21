@@ -196,3 +196,24 @@ test("publication lag beyond initial probes still supplies dated HS and country 
   assert.equal(result.destinations.period, "2026-05");
   assert.equal(result.destinations.rows[0]!.share, 0.2);
 });
+
+test("429 Retry-After is honored across category queries instead of repeatedly spending quota", async () => {
+  let time = now(),
+    count = 0;
+  const client = createComtradeClient({
+    now: () => time,
+    fetch: async () => {
+      count++;
+      return new Response("", { status: 429, headers: { "Retry-After": "600" } });
+    },
+  });
+  await client.fetchComtradeTrade({ categoryId: "automobiles", months: 1 });
+  assert.equal(count, 1);
+  time = new Date(time.getTime() + 90_000);
+  const result = await client.fetchComtradeTrade({ categoryId: "semiconductors", months: 1 });
+  assert.equal(count, 1);
+  assert.equal(result.providers[0]!.state, "rate-limited");
+  time = new Date(time.getTime() + 511_000);
+  await client.fetchComtradeTrade({ categoryId: "automobiles", months: 1 });
+  assert.equal(count, 2);
+});

@@ -209,7 +209,18 @@ export function createComtradeClient(options: ClientOptions = {}) {
           signal,
           headers: { Accept: "application/json", "User-Agent": "KoreaExportDesk/2.0" },
         });
-        if (response.status === 429) throw new ProviderFailure("rate-limited", "HTTP_429");
+        if (response.status === 429) {
+          const raw = response.headers.get("retry-after")?.trim() ?? "";
+          const seconds = /^\d+$/.test(raw)
+            ? Number(raw)
+            : (Date.parse(raw) - now().getTime()) / 1_000;
+          const delay =
+            Number.isFinite(seconds) && seconds > 0
+              ? Math.min(86_400, Math.max(60, seconds)) * 1_000
+              : 15 * 60_000;
+          cooldownUntil = Math.max(cooldownUntil, now().getTime() + delay);
+          throw new ProviderFailure("rate-limited", "HTTP_429");
+        }
         if (!response.ok) throw new ProviderFailure("unavailable", `HTTP_${response.status}`);
         const rows = parseComtradeResponse(await readJson(response, signal), {
           period,
@@ -234,7 +245,7 @@ export function createComtradeClient(options: ClientOptions = {}) {
               : "NETWORK_ERROR",
         );
         if (reason === "rate-limited") {
-          cooldownUntil = now().getTime() + 60_000;
+          cooldownUntil = Math.max(cooldownUntil, now().getTime() + 60_000);
           stopped = true;
         }
         // Stop a failed origin quickly instead of making dozens of doomed calls.
