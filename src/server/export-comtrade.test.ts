@@ -168,3 +168,31 @@ test("total exports/imports are raw USD; all-HS and countries retain exact match
   assert.ok(result.observations.some((r) => r.categoryId === "hs2:85"));
   assert.ok(!result.observations.some((r) => r.categoryId === "semiconductors"));
 });
+
+test("publication lag beyond initial probes still supplies dated HS and country summaries", async () => {
+  const client = createComtradeClient({
+    now,
+    fetch: async (input) => {
+      const url = new URL(String(input)),
+        codes = url.searchParams.get("cmdCode")!.split(",");
+      const period = Number(url.searchParams.get("period"));
+      if (period > 202605) return json([]);
+      if (!url.searchParams.has("partnerCode"))
+        return json([
+          row({ period, primaryValue: 100 }),
+          row({ period, partnerCode: 842, primaryValue: 20 }),
+        ]);
+      if (codes.length > 1)
+        return json(codes.map((cmdCode) => row({ period, cmdCode, primaryValue: 1 })));
+      return json([
+        row({ period, primaryValue: 100 }),
+        row({ period, flowCode: "M", primaryValue: 80 }),
+      ]);
+    },
+  });
+  const result = await client.fetchComtradeTrade({ months: 6 });
+  assert.equal(result.latestPeriod, "2026-05");
+  assert.ok(result.observations.some((r) => r.period === "2026-05" && r.categoryId === "hs2:85"));
+  assert.equal(result.destinations.period, "2026-05");
+  assert.equal(result.destinations.rows[0]!.share, 0.2);
+});

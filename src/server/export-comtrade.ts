@@ -300,6 +300,20 @@ export function createComtradeClient(options: ClientOptions = {}) {
         }
       }
       const latestPeriod = (request.categoryId ? observations : exports).at(-1)?.period ?? null;
+      // Publication lags can exceed the first four probes. Use the newest
+      // actually published period found during backfill for summary panels.
+      if (
+        !request.categoryId &&
+        latestPeriod &&
+        !published &&
+        !stopped &&
+        !controller.signal.aborted
+      ) {
+        await Promise.all([
+          query(latestPeriod, Object.keys(HS2_KO)),
+          query(latestPeriod, ["TOTAL"], true),
+        ]);
+      }
       let destinations: ComtradeTrade["destinations"] = {
         period: "",
         rows: [],
