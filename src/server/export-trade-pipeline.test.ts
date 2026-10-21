@@ -42,20 +42,21 @@ const un = {
   monthsCached: 1,
 };
 
-test("configured official totals select the whole Customs dataset without SA/fallback stitching", async () => {
+test("official totals stay whole while a small independent UN snapshot supplies HS tables", async () => {
   let calls = 0;
   const pipeline = createTradePipeline({
     hasCustomsKey: () => true,
     customs: async () => official,
     fred: async () => fred,
-    comtrade: async () => {
+    comtrade: async (request) => {
       calls++;
+      assert.equal(request?.months, 4, "only recent HS tables are needed with official total history");
       return un;
     },
   });
   const result = await pipeline.fetchLiveTradeSnapshot();
   assert.deepEqual(result.exports, points);
-  assert.equal(calls, 0);
+  assert.equal(calls, 1);
   assert.deepEqual(
     result.observations.map((r) => r.period),
     ["2026-08", "2026-09"],

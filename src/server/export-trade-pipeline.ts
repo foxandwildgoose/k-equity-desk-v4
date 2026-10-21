@@ -55,7 +55,7 @@ export function createTradePipeline(dependencies: Dependencies = {}) {
     const un = fallback
       ? await fallback
       : official.exports.length
-        ? null
+        ? await comtrade({ months: 4 })
         : await comtrade({ months: 36 });
     let exports: FredPoint[], imports: FredPoint[], totalsSource: string;
     if (official.exports.length) {
