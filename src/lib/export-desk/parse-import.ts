@@ -416,6 +416,6 @@ export function importIndexCsv(
   }
   const accepted = rows
     .filter((row) => !conflicts.has(row.date))
-    .sort((a, b) => a.date.localeCompare(b.date)); // ked-allow-string-date-sort: validated ISO calendar dates
+    .sort((a, b) => a.date.localeCompare(b.date)); // ked-allow-string-date-sort: single-format time series; validated ISO calendar dates
   return { ok: accepted.length > 0, rows: accepted, issues };
 }

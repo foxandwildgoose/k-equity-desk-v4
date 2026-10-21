@@ -885,7 +885,7 @@ function Core20Panel({ onOpen }: { onOpen: (cat: string) => void }) {
       id: it.key,
       name: lang === "en" ? it.en : it.ko,
       points: all
-        .filter((o) => o.categoryId === it.key && Number.isFinite(o.valueUsd) && o.valueUsd > 0)
+        .filter((o) => o.categoryId === it.key && Number.isFinite(o.valueUsd) && o.valueUsd >= 0)
         .sort((a, b) => a.period.localeCompare(b.period))
         .map((o) => ({ time: o.period, value: o.valueUsd / 1e9 })),
     }))

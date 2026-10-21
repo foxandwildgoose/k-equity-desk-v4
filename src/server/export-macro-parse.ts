@@ -51,7 +51,7 @@ export function completedMonthlyPoints(
     const previous = byMonth.get(month);
     if (!previous || date > previous.date) byMonth.set(month, { date, value });
   }
-  return [...byMonth.values()].sort((a, b) => a.date.localeCompare(b.date));
+  return [...byMonth.values()].sort((a, b) => a.date.localeCompare(b.date)); // ked-allow-string-date-sort: single-format time series; validated ISO calendar dates
 }
 
 function record(value: unknown): Record<string, unknown> | null {
