@@ -250,7 +250,7 @@ export function createTradeCategoryCatalog(dependencies: Dependencies = {}) {
     });
     const pending = new Set(candidates.map((category) => category.id));
     if (options.refresh && candidates.length) {
-      const owner = await store.acquireRefresh(WORKER_SCOPE, 60_000);
+      const owner = await store.acquireRefresh(WORKER_SCOPE, 90_000);
       if (owner) {
         try {
           const hs2 = (id: string) => HS2_SUMMARY_CATEGORIES.some((proxy) => proxy.key === id);

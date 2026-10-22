@@ -300,7 +300,9 @@ export function createHs2CategorySummaryClient(options: {
         summaries: {},
         providers: [status(at, "rate-limited", "SHARED_PROVIDER_COOLDOWN", retryAt)],
       };
-    const owner = await options.store.acquireRefresh(ORIGIN_SCOPE, 45_000);
+    // Metadata plus the observed slow public data response can need 55s. Keep
+    // the same cross-worker origin lease beyond both bounded requests.
+    const owner = await options.store.acquireRefresh(ORIGIN_SCOPE, 75_000);
     if (!owner) return { summaries: {}, providers: [status(at, "partial", "REFRESH_IN_PROGRESS")] };
     const codes = [...new Set(categories.flatMap((p) => p.codes))].sort();
     const evidence: PeriodEvidence[] = [];
@@ -328,20 +330,42 @@ export function createHs2CategorySummaryClient(options: {
       let publication: ReturnType<typeof parseHs2Availability> = null;
       if (request.discoverLatest) {
         const signal = AbortSignal.timeout(options.metadataTimeoutMs ?? 25_000);
+        let stage: "request" | "body" | "dimensions" = "request";
+        let failureCode = "AVAILABILITY_FETCH_FAILED";
         try {
           const response = await fetcher(AVAILABILITY, {
             signal,
             headers: { Accept: "application/json" },
           });
           if (await limited(response)) return { summaries: {}, providers };
-          if (!response.ok) throw new Error("AVAILABILITY_HTTP_ERROR");
-          publication = parseHs2Availability(await readBoundedJson(response, signal), now());
+          if (!response.ok) {
+            failureCode = "AVAILABILITY_HTTP_ERROR";
+            throw new Error("AVAILABILITY_HTTP_ERROR");
+          }
+          stage = "body";
+          const body = await readBoundedJson(response, signal);
+          stage = "dimensions";
+          publication = parseHs2Availability(body, now());
           if (!publication)
             return { summaries: {}, providers: [status(now(), "empty", "NO_PUBLISHED_MONTH")] };
         } catch {
           return {
             summaries: {},
-            providers: [status(now(), "unavailable", "AVAILABILITY_UNVERIFIED")],
+            providers: [
+              status(
+                now(),
+                "unavailable",
+                signal.aborted
+                  ? stage === "request"
+                    ? "AVAILABILITY_REQUEST_TIMEOUT"
+                    : "AVAILABILITY_BODY_TIMEOUT"
+                  : stage === "body"
+                    ? "AVAILABILITY_DECODE_FAILED"
+                    : stage === "dimensions"
+                      ? "AVAILABILITY_UNVERIFIED"
+                      : failureCode,
+              ),
+            ],
           };
         }
       }
@@ -351,7 +375,8 @@ export function createHs2CategorySummaryClient(options: {
       for (const period of publication
         ? [referencePeriod]
         : [referencePeriod, priorYear(referencePeriod)]) {
-        const signal = AbortSignal.timeout(options.timeoutMs ?? 5_000);
+        // The official51-row response was measured at22.9s in production QA.
+        const signal = AbortSignal.timeout(options.timeoutMs ?? 30_000);
         const params = new URLSearchParams({
           reportercode: "410",
           period: period.replace("-", ""),
@@ -365,14 +390,21 @@ export function createHs2CategorySummaryClient(options: {
           format: "JSON",
           includeDesc: "true",
         });
+        let stage: "request" | "body" | "dimensions" = "request";
+        let failureCode = "SUMMARY_FETCH_FAILED";
         try {
           const response = await fetcher(`${ENDPOINT}?${params}`, {
             signal,
             headers: { Accept: "application/json" },
           });
           if (await limited(response)) break;
-          if (!response.ok) throw new Error("PROVIDER_HTTP_ERROR");
+          if (!response.ok) {
+            failureCode = "SUMMARY_HTTP_ERROR";
+            throw new Error("PROVIDER_HTTP_ERROR");
+          }
+          stage = "body";
           const body = await readBoundedJson(response, signal);
+          stage = "dimensions";
           // Inspect raw duplicates before the existing parser deduplicates values:
           // two rows can share a value while carrying conflicting HS editions.
           const rawRows = (body as { data?: unknown[] })?.data;
@@ -424,7 +456,21 @@ export function createHs2CategorySummaryClient(options: {
             })),
           });
         } catch {
-          providers.push(status(now(), "unavailable", "SUMMARY_RESPONSE_UNVERIFIED"));
+          providers.push(
+            status(
+              now(),
+              "unavailable",
+              signal.aborted
+                ? stage === "request"
+                  ? "SUMMARY_REQUEST_TIMEOUT"
+                  : "SUMMARY_BODY_TIMEOUT"
+                : stage === "body"
+                  ? "SUMMARY_DECODE_FAILED"
+                  : stage === "dimensions"
+                    ? "SUMMARY_DIMENSIONS_UNVERIFIED"
+                    : failureCode,
+            ),
+          );
           if (period === referencePeriod) break;
         }
       }

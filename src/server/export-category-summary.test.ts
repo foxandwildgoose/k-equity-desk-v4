@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { setTimeout as delay } from "node:timers/promises";
 import {
   assembleHs2CategorySummaries,
   createHs2CategorySummaryClient,
@@ -442,4 +443,134 @@ test("data edition must match discovered metadata and unpublished data cannot st
     assert.equal(calls, 2);
     assert.deepEqual(result.summaries, {});
   }
+});
+
+test("bounded slow response headers and body both succeed before the configured deadline", async () => {
+  const store = createMemoryExportTradeStore({ now: () => at });
+  let calls = 0;
+  const read = createHs2CategorySummaryClient({
+    store,
+    now: () => at,
+    timeoutMs: 1000,
+    fetch: async (input, init) => {
+      calls++;
+      if (String(input).includes("getDa")) return json([publication()]);
+      await delay(20, undefined, { signal: init?.signal ?? undefined });
+      return new Response(
+        new ReadableStream({
+          async start(controller) {
+            await delay(20);
+            controller.enqueue(
+              new TextEncoder().encode(
+                JSON.stringify({ count: 1, data: [row(202512, "33", 321)] }),
+              ),
+            );
+            controller.close();
+          },
+        }),
+      );
+    },
+  });
+  const result = await read({ categoryIds: ["cosmetics"], discoverLatest: true });
+  assert.equal(calls, 2);
+  assert.equal(result.summaries.cosmetics!.observations[0]!.valueUsd, 321);
+});
+
+test("short overrides distinguish request and body timeouts without exposing upstream text", async () => {
+  for (const bodyTimeout of [false, true]) {
+    const store = createMemoryExportTradeStore({ now: () => at });
+    let cancelled = false;
+    let keepConnected: ReturnType<typeof setTimeout> | undefined;
+    const result = await createHs2CategorySummaryClient({
+      store,
+      now: () => at,
+      timeoutMs: 10,
+      fetch: async (_input, init) => {
+        if (!bodyTimeout) {
+          await delay(100, undefined, { signal: init?.signal ?? undefined });
+          return json([]);
+        }
+        return new Response(
+          new ReadableStream({
+            start(controller) {
+              // Keep the simulated connection alive; AbortSignal's timer is
+              // intentionally unref'ed by Node and cannot keep a test alive.
+              keepConnected = setTimeout(() => controller.close(), 1000);
+            },
+            cancel() {
+              cancelled = true;
+              clearTimeout(keepConnected);
+            },
+          }),
+        );
+      },
+    })({ categoryIds: ["cosmetics"], referencePeriod: "2025-12" });
+    assert.deepEqual(result.summaries, {});
+    assert.equal(
+      result.providers[0]!.reasonCode,
+      bodyTimeout ? "SUMMARY_BODY_TIMEOUT" : "SUMMARY_REQUEST_TIMEOUT",
+    );
+    if (bodyTimeout) assert.equal(cancelled, true);
+  }
+});
+
+test("safe diagnostics distinguish HTTP, decoding, fetch and dimension failures", async () => {
+  for (const [fetcher, expected] of [
+    [async () => new Response("credential=do-not-expose", { status: 503 }), "SUMMARY_HTTP_ERROR"],
+    [async () => new Response("credential=do-not-expose"), "SUMMARY_DECODE_FAILED"],
+    [
+      async () => {
+        throw new Error("credential=do-not-expose");
+      },
+      "SUMMARY_FETCH_FAILED",
+    ],
+    [
+      async () => json([row(202512, "33", 123, { reporterCode: 392 })]),
+      "SUMMARY_DIMENSIONS_UNVERIFIED",
+    ],
+  ] as const) {
+    const store = createMemoryExportTradeStore({ now: () => at });
+    const result = await createHs2CategorySummaryClient({ store, now: () => at, fetch: fetcher })({
+      categoryIds: ["cosmetics"],
+      referencePeriod: "2025-12",
+    });
+    assert.equal(result.providers[0]!.reasonCode, expected);
+    assert.doesNotMatch(JSON.stringify(result), /credential|do-not-expose/);
+  }
+});
+
+test("the shared origin lease covers slow metadata and data without admitting a peer after45seconds", async () => {
+  let now = new Date(at);
+  const store = createMemoryExportTradeStore({ now: () => now });
+  let entered!: () => void, release!: () => void;
+  const started = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const read = createHs2CategorySummaryClient({
+    store,
+    now: () => now,
+    fetch: async (input) => {
+      if (String(input).includes("getDa")) return json([publication()]);
+      now = new Date(at.getTime() + 60_000);
+      entered();
+      await gate;
+      return json([row(202512, "33", 123)]);
+    },
+  });
+  const result = read({ categoryIds: ["cosmetics"], discoverLatest: true });
+  await started;
+  assert.equal(await store.acquireRefresh("comtrade-origin"), null);
+  assert.equal(
+    await store.retryAt("comtrade-origin"),
+    new Date(at.getTime() + 75_000).toISOString(),
+  );
+  release();
+  assert.ok((await result).summaries.cosmetics);
+  assert.ok(
+    await store.acquireRefresh("comtrade-origin"),
+    "fenced release permits the next worker after completion",
+  );
 });

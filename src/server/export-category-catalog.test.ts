@@ -645,3 +645,39 @@ test("World Bank totals never select the UN month; a verified UN provider keeps 
     assert.equal(calls, 1);
   }
 });
+
+test("catalog warming keeps its lease beyond a slow official response instead of duplicating the batch", async () => {
+  let now = new Date(checked);
+  const store = createMemoryExportTradeStore({ now: () => now });
+  let entered!: () => void, release!: () => void;
+  const started = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let calls = 0;
+  const dependencies = {
+    store,
+    now: () => now,
+    categories: categories(["automobiles"]),
+    loadSummaries: async () => {
+      calls++;
+      entered();
+      await gate;
+      return { summaries: {}, providers: unavailable().providers };
+    },
+  };
+  const first = createTradeCategoryCatalog(dependencies)({ refresh: true });
+  await started;
+  now = new Date(checked.getTime() + 70_000);
+  const peer = await createTradeCategoryCatalog(dependencies)({ refresh: true });
+  assert.equal(calls, 1);
+  assert.deepEqual(peer.attempted, []);
+  assert.equal(
+    await store.retryAt("trade:catalog:worker"),
+    new Date(checked.getTime() + 90_000).toISOString(),
+  );
+  release();
+  await first;
+});
