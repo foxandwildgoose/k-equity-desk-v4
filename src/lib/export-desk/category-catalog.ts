@@ -10,7 +10,7 @@ export interface CategoryCatalogItem {
   state: "ok" | "stale" | "pending" | "unavailable";
   count: number;
   source: string | null;
-  classification: "HS" | "HSK" | "MTI" | null;
+  classification: "HS" | "HSK" | "MTI" | "OFFICIAL_ITEM" | null;
   providers: ExportProviderStatus[];
   verifiedAt: string | null;
   freshUntil: string | null;

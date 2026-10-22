@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { CORE20_HS_PROXY } from "../lib/export-desk/hs-map.ts";
+import { CORE20_HS_PROXY, aggregateProxy } from "../lib/export-desk/hs-map.ts";
 import type { ExportProviderStatus } from "../lib/export-desk/provider-status.ts";
 import type { TradeObservation } from "../lib/export-desk/parse-import.ts";
 import type { LiveTradeBundle } from "./export-trade-pipeline.ts";
@@ -8,6 +8,28 @@ export interface TradeCategorySnapshot {
   cacheRevision?: string;
   observations: TradeObservation[];
   providers: ExportProviderStatus[];
+}
+export interface TradeCategorySummaryPeriod {
+  period: string;
+  classificationCode: string | null;
+  reporterCode: "410";
+  partnerCode: "0";
+  partner2Code: "0";
+  flowCode: "X";
+  customsCode: "C00";
+  motCode: "0";
+  unit: "USD";
+  originCheckedAt: string;
+  source: "public-preview" | "main-bundle";
+  components: { code: string; valueUsd: number }[];
+}
+/** Card-only evidence; never a replacement for a complete analytical history. */
+export interface TradeCategorySummarySnapshot extends TradeCategorySnapshot {
+  summaryBasis: {
+    kind: "UN_COMTRADE_HS2_BASKET";
+    /** Strict ascending order: current only, or [exact prior-year, current]. */
+    periods: TradeCategorySummaryPeriod[];
+  };
 }
 export interface CachedTrade<T> {
   value: T;
@@ -20,7 +42,7 @@ export interface CachedTrade<T> {
 interface Sql {
   query<T = Record<string, unknown>>(text: string, params?: unknown[]): Promise<T[]>;
 }
-type Payload = LiveTradeBundle | TradeCategorySnapshot;
+type Payload = LiveTradeBundle | TradeCategorySnapshot | TradeCategorySummarySnapshot;
 interface StoredRow {
   payload: unknown;
   as_of: string;
@@ -64,6 +86,10 @@ const number = (v: unknown): v is number => typeof v === "number" && Number.isFi
 const scopeValid = (v: string) => /^[a-z][a-z0-9:._-]{0,119}$/.test(v);
 const categoryValid = (id: string) =>
   CORE20_HS_PROXY.some((p) => p.key === id) || /^hs2:\d{2}$|^hs4:\d{4}$/.test(id);
+const summaryCategory = (id: string) =>
+  CORE20_HS_PROXY.find(
+    (proxy) => proxy.key === id && proxy.codes.every((code) => /^\d{2}$/.test(code)),
+  );
 const iso = (v: string | Date) => {
   const time = new Date(v).getTime();
   return Number.isFinite(time) ? new Date(time).toISOString() : null;
@@ -163,6 +189,100 @@ function currentMonth(now: Date) {
 function latestCategory(value: TradeCategorySnapshot): string {
   return value.observations.at(-1)?.period ?? "";
 }
+function validCategorySummary(
+  value: Record<string, unknown>,
+  id: string,
+  now: Date,
+  saving: boolean,
+): boolean {
+  const proxy = summaryCategory(id);
+  if (!proxy || !Array.isArray(value.observations) || ![1, 2].includes(value.observations.length))
+    return false;
+  const rows = value.observations as TradeObservation[];
+  const latest = rows.at(-1)!;
+  if (
+    rows.some(
+      (row, index) =>
+        row.categoryId !== id ||
+        row.classification !== "HS" ||
+        row.geo !== "KR" ||
+        row.sourceFile !== latest.sourceFile ||
+        (row.vintage ?? "") !== (latest.vintage ?? "") ||
+        (index > 0 && rows[index - 1]!.period >= row.period),
+    )
+  )
+    return false;
+  if (
+    rows.length === 2 &&
+    rows[0]!.period !==
+      `${String(Number(latest.period.slice(0, 4)) - 1).padStart(4, "0")}${latest.period.slice(4)}`
+  )
+    return false;
+  const basis = value.summaryBasis;
+  if (
+    !object(basis) ||
+    basis.kind !== "UN_COMTRADE_HS2_BASKET" ||
+    !Array.isArray(basis.periods) ||
+    basis.periods.length !== rows.length
+  )
+    return false;
+  for (let index = 0; index < rows.length; index++) {
+    const evidence = basis.periods[index];
+    if (
+      !object(evidence) ||
+      evidence.period !== rows[index]!.period ||
+      evidence.reporterCode !== "410" ||
+      evidence.partnerCode !== "0" ||
+      evidence.partner2Code !== "0" ||
+      evidence.flowCode !== "X" ||
+      evidence.customsCode !== "C00" ||
+      evidence.motCode !== "0" ||
+      evidence.unit !== "USD" ||
+      typeof evidence.originCheckedAt !== "string" ||
+      !Number.isFinite(Date.parse(evidence.originCheckedAt)) ||
+      Date.parse(evidence.originCheckedAt) > now.getTime() + 300_000 ||
+      !["public-preview", "main-bundle"].includes(String(evidence.source)) ||
+      !(
+        evidence.classificationCode === null ||
+        (typeof evidence.classificationCode === "string" &&
+          /^H[0-6]$/.test(evidence.classificationCode))
+      ) ||
+      !Array.isArray(evidence.components) ||
+      evidence.components.length !== proxy.codes.length
+    )
+      return false;
+    if (
+      rows.length === 2 &&
+      (evidence.source !== "public-preview" ||
+        evidence.classificationCode === null ||
+        evidence.classificationCode !== basis.periods[0]?.classificationCode)
+    )
+      return false;
+    const components: Record<string, number> = {};
+    for (const component of evidence.components) {
+      if (
+        !object(component) ||
+        typeof component.code !== "string" ||
+        !proxy.codes.includes(component.code) ||
+        !number(component.valueUsd) ||
+        Object.hasOwn(components, component.code)
+      )
+        return false;
+      components[component.code] = component.valueUsd;
+    }
+    if (aggregateProxy(components, proxy.codes) !== rows[index]!.valueUsd) return false;
+  }
+  const providers = value.providers as ExportProviderStatus[];
+  return providers.some(
+    (provider) =>
+      provider.id === `comtrade.summary.${id}` &&
+      provider.recordCount === rows.length &&
+      /^https:\/\/(?:comtradeapi\.un\.org|comtradeplus\.un\.org)(?:\/|$)/.test(
+        provider.sourceUrl,
+      ) &&
+      providerEvidence([provider], latest.period, saving),
+  );
+}
 function validPayload(value: unknown, key: string, now: Date, saving: boolean): value is Payload {
   if (!object(value) || !validProviders(value.providers, now)) return false;
   const ym = currentMonth(now);
@@ -172,7 +292,10 @@ function validPayload(value: unknown, key: string, now: Date, saving: boolean): 
     !value.observations.every((r) => validObservation(r, ym))
   )
     return false;
+  if (key.startsWith("category-summary:"))
+    return validCategorySummary(value, key.slice(17), now, saving);
   if (key.startsWith("category:")) {
+    if (Object.hasOwn(value, "summaryBasis")) return false;
     const id = key.slice(9);
     if (
       !categoryValid(id) ||
@@ -253,6 +376,12 @@ export const isVerifiedTradeCategory = (
   now = new Date(),
   options: { allowStale?: boolean } = {},
 ): boolean => validPayload(value, `category:${id}`, now, !options.allowStale);
+export const isVerifiedTradeCategorySummary = (
+  id: string,
+  value: unknown,
+  now = new Date(),
+  options: { allowStale?: boolean } = {},
+): boolean => validPayload(value, `category-summary:${id}`, now, !options.allowStale);
 
 /** Preserve independently verified HS/country data when the totals service fails. */
 export function verifiedTradeSupplements(value: unknown, now = new Date()) {
@@ -480,6 +609,49 @@ export function createExportTradeStore(sql?: Sql, options: { now?: () => Date } 
     },
     saveCategory: (id: string, value: TradeCategorySnapshot) =>
       categoryValid(id) ? save(`category:${id}`, value) : Promise.resolve(false),
+    readCategorySummary: (id: string) =>
+      summaryCategory(id)
+        ? read<TradeCategorySummarySnapshot>(`category-summary:${id}`)
+        : Promise.resolve(null),
+    saveCategorySummary: (id: string, value: TradeCategorySummarySnapshot) =>
+      summaryCategory(id) ? save(`category-summary:${id}`, value) : Promise.resolve(false),
+    async readCategorySummaries(
+      ids: string[],
+    ): Promise<Record<string, CachedTrade<TradeCategorySummarySnapshot>>> {
+      if (ids.length > 20) return {};
+      const exact = [...new Set(ids.filter((id) => Boolean(summaryCategory(id))))];
+      if (!exact.length) return {};
+      const keys = exact.map((id) => `category-summary:${id}`);
+      const result: Record<string, CachedTrade<TradeCategorySummarySnapshot>> = {};
+      try {
+        const rows = sql
+          ? await sql.query<StoredRow & { cache_key: string }>(
+              "select cache_key,payload,as_of,verified_at,fresh_until,valid_until from export_trade_snapshots where cache_key=any($1::text[]) and schema_version=1",
+              [keys],
+            )
+          : keys.flatMap((key) => {
+              const row = memory.get(key);
+              return row ? [{ ...row, cache_key: key }] : [];
+            });
+        const allowed = new Set(keys);
+        for (const row of rows) {
+          if (!allowed.has(row.cache_key)) continue;
+          const value = cached<TradeCategorySummarySnapshot>(row, row.cache_key, now());
+          if (value) {
+            result[row.cache_key.slice(17)] = value;
+            memory.set(row.cache_key, row);
+          }
+        }
+        return result;
+      } catch {
+        sql = undefined;
+        for (const key of keys) {
+          const value = cached<TradeCategorySummarySnapshot>(memory.get(key), key, now());
+          if (value) result[key.slice(17)] = value;
+        }
+        return result;
+      }
+    },
     async acquireRefresh(scope: string, leaseMs = 45_000): Promise<string | null> {
       if (!scopeValid(scope) || !Number.isFinite(leaseMs) || leaseMs < 1000 || leaseMs > 120_000)
         return null;

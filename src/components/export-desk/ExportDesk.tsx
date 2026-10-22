@@ -492,10 +492,15 @@ function useAllObservations(categoryId?: string): TradeObservation[] {
   }, [imported, live.data, category.data, categoryId, client, categoryFetchCount]);
 }
 
+type CardClassification = TradeObservation["classification"] | "OFFICIAL_ITEM" | null;
 type CategoryCard = Omit<CategoryCatalogItem, "classification"> & {
-  classification: TradeObservation["classification"] | null;
+  classification: CardClassification;
   imported: boolean;
 };
+
+function categoryClassificationLabel(classification: CardClassification): string {
+  return classification === "OFFICIAL_ITEM" ? "산업부 발표품목" : (classification ?? "미확인");
+}
 
 /** Summaries feed cards only; they are never added to an analytical time series. */
 function useCategoryCards(
@@ -520,7 +525,7 @@ function useCategoryCards(
             o.categoryId === item.categoryId &&
             o.period === motie.release!.period &&
             o.valueUsd === item.valueUsd &&
-            o.classification === "MTI" &&
+            o.classification === "OFFICIAL_ITEM" &&
             Number.isFinite(o.valueUsd) &&
             o.valueUsd >= 0,
         );
@@ -536,7 +541,7 @@ function useCategoryCards(
           state: motie.provider.state === "stale" ? "stale" : "ok",
           count: 1,
           source: row.sourceFile,
-          classification: "MTI",
+          classification: "OFFICIAL_ITEM",
           providers: [motie.provider],
           verifiedAt: motie.provider.checkedAt,
           freshUntil: null,
@@ -1162,10 +1167,10 @@ function Core20Panel({ onOpen }: { onOpen: (cat: string) => void }) {
             품목 정의·출처 개별 표시
           </span>
         </div>
-        각 카드는 실제 자료의 MTI·HS 분류와 기준월을 표시합니다. 산업부 속보에서 수치가 확인된
-        품목만 공식 MTI 관측으로 표시하며, HS 대용 품목과 구분합니다. 목록 토글은 참고 품목만 바꾸며
-        금액을 만들지 않습니다. 조회 대기와 자료 미확보를 구분하고, 부분 품목 합을 총수출 100%로
-        늘려 맞추지 않습니다.
+        각 카드는 실제 자료의 분류와 기준월을 표시합니다. 산업부 속보에서 수치가 확인된 품목은
+        산업부 발표품목으로 표시하며, MTI 자료·HS 대용 품목과 구분합니다. 목록 토글은 참고 품목만
+        바꾸며 금액을 만들지 않습니다. 조회 대기와 자료 미확보를 구분하고, 부분 품목 합을 총수출
+        100%로 늘려 맞추지 않습니다.
       </div>
       <div className="flex flex-wrap gap-1">
         <button
@@ -1252,7 +1257,7 @@ function Core20Panel({ onOpen }: { onOpen: (cat: string) => void }) {
         </div>
       )}
       <p className="text-xs text-muted-foreground">
-        최대 6개 오버레이. 카드는 최신 공식 요약을, 오버레이는 확보한 월별 이력을 표시합니다. MTI
+        최대 6개 오버레이. 카드는 최신 공식 요약을, 오버레이는 확보한 월별 이력을 표시합니다. 산업부
         단월 속보를 HS 이력에 이어 붙이지 않습니다. 카드를 누르면 산업 × 주가 비교로 이동합니다.
         고저 마커는 포커스 품목(마지막에 고른 항목)에만 그립니다.
       </p>
@@ -1324,10 +1329,16 @@ function Core20Panel({ onOpen }: { onOpen: (cat: string) => void }) {
                 </div>
                 <div className="mt-2 flex flex-wrap gap-1">
                   <Badge variant="outline" className="text-[10px]">
-                    {last ? `${card?.classification} · ${stateLabel}` : stateLabel}
+                    {last
+                      ? `${categoryClassificationLabel(card?.classification ?? null)} · ${stateLabel}`
+                      : stateLabel}
                   </Badge>
                   <Badge variant="outline" className="text-[10px]">
-                    {card?.classification === "MTI" ? "MTI 품목" : (proxy?.label ?? "코드 미확인")}
+                    {card?.classification === "OFFICIAL_ITEM"
+                      ? "공식 발표 기준"
+                      : card?.classification === "MTI"
+                        ? "MTI 품목"
+                        : (proxy?.label ?? "코드 미확인")}
                   </Badge>
                   <Badge variant="outline" className="text-[10px]">
                     매핑 {verified.length}/{mapped.length}
@@ -1376,7 +1387,7 @@ function AllIndustriesPanel({ onOpen }: { onOpen: (cat: string) => void }) {
         name: string;
         value: number;
         period: string;
-        classification: TradeObservation["classification"] | null;
+        classification: CardClassification;
       }
     >();
     for (const it of core) {
@@ -1530,7 +1541,7 @@ function AllIndustriesPanel({ onOpen }: { onOpen: (cat: string) => void }) {
                 <td className="whitespace-nowrap text-xs">{c.period || "—"}</td>
                 <td>
                   <Badge variant="outline" className="text-[10px]">
-                    {c.classification ?? "미확인"} ·{" "}
+                    {categoryClassificationLabel(c.classification)} ·{" "}
                     {categoryCardState(cards.get(c.id), catalog.isLoading)}
                   </Badge>
                 </td>
@@ -2127,16 +2138,16 @@ function QaPanel() {
           단위·공표 기준을 적용합니다.
         </li>
         <li>
-          · 품목: {live.data?.source.items ?? "서버 연결 확인 중"}. HS와 MTI는 구분하며 HS 85 전체를
-          반도체로 쓰지 않습니다.
+          · 품목: {live.data?.source.items ?? "서버 연결 확인 중"}. 산업부 발표품목·MTI·HS는
+          구분하며 HS 85 전체를 반도체로 쓰지 않습니다.
         </li>
         <li>
           · 관세청 연결·인증 여부와 오류 사유는 아래 실제 서버 상태를 따릅니다. 산업부 속보:{" "}
           {motie.data?.provider.message ?? "공식 원문과 수치를 확인하고 있습니다."}
         </li>
         <li>
-          · 화면의 참고 품목 목록은 공식 분류 개정 목록이 아닙니다. 개별 금액은 실제 원문의 MTI·HS
-          분류, 기준월과 검증 상태를 따릅니다.
+          · 화면의 참고 품목 목록은 공식 분류 개정 목록이 아닙니다. 개별 금액은 실제 원문의 산업부
+          발표품목·MTI·HS 분류, 기준월과 검증 상태를 따릅니다.
         </li>
         {(live.data?.notes ?? []).map((n) => (
           <li key={n}>· {n}</li>

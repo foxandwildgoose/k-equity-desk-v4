@@ -193,7 +193,7 @@ test("later nonnational or cumulative sections reset inherited monthly export co
   }
 });
 
-test("the client exposes validated MTI observations and the exact official source link", async () => {
+test("the client exposes validated official-item observations and the exact official source link", async () => {
   const { client, calls } = fixture();
   const value = await client();
   assert.equal(calls.length, 2);
@@ -205,11 +205,78 @@ test("the client exposes validated MTI observations and the exact official sourc
   assert.ok(
     value.observations.every(
       (r) =>
-        r.classification === "MTI" &&
+        r.classification === "OFFICIAL_ITEM" &&
         r.releasedAt === "2026-10-01" &&
         r.sourceFile.includes(DETAIL),
     ),
   );
+});
+
+test("a verified official monthly HTML bulletin does not need a literal MTI keyword", async () => {
+  const body = TABLE.replace("MTI 기준 ", "");
+  assert.deepEqual(parseMotieHtmlItems(body, "2026-09"), []);
+  assert.deepEqual(parseMotieHtmlItems(body, "2026-09", { verifiedOfficialBulletin: true }), []);
+  const { client } = fixture(detail(body));
+  const result = await client();
+  assert.equal(result.provider.state, "ok");
+  assert.equal(result.release?.classification, "OFFICIAL_ITEM");
+  assert.equal(result.observations.length, 2);
+  assert.ok(result.observations.every((row) => row.classification === "OFFICIAL_ITEM"));
+  assert.ok(
+    result.observations.every(
+      (row) => row.sourceFile.includes("발표품목") && !row.sourceFile.includes("MTI"),
+    ),
+  );
+});
+
+function pdfBulletinClient(decoded: string) {
+  return createMotieReleaseClient({
+    now: () => NOW,
+    fetch: (async (input) => {
+      const url = String(input);
+      if (url.endsWith("/source.pdf")) return new Response("%PDF-test-only verified source");
+      return new Response(
+        url.includes("/view") ? detail("", '<a href="/source.pdf">보도자료.pdf</a>') : LIST,
+      );
+    }) as typeof fetch,
+    extractPdfText: async () => decoded,
+  });
+}
+
+test("same-identity official PDF amounts remain official-item figures when MTI is absent", async () => {
+  const text = TITLE + "\n주요품목 수출실적\n자동차: 52억 달러";
+  assert.deepEqual(parseMotieTextItems(text, "2026-09"), []);
+  assert.deepEqual(parseMotieTextItems(text, "2026-09", { verifiedOfficialBulletin: true }), []);
+  const result = await pdfBulletinClient(text)();
+  assert.equal(result.provider.state, "ok");
+  assert.equal(result.diagnostics?.pdf?.matchingPeriod, true);
+  assert.equal(result.diagnostics?.pdf?.mtiDefinition, false);
+  assert.equal(result.observations[0]!.valueUsd, 5_200_000_000);
+  assert.equal(result.observations[0]!.classification, "OFFICIAL_ITEM");
+});
+
+test("trusted official context does not bypass national monthly scope, units or reference-period guards", async () => {
+  const texts = [
+    TITLE + "\n주요품목 수출실적\n미국 수출\n자동차: 52억 달러",
+    TITLE + "\n주요품목 수출실적\n누계 수출\n자동차: 52억 달러",
+    TITLE + "\n주요품목 수출실적\n일평균 수출\n자동차: 52억 달러",
+    TITLE + "\n주요품목 수출실적\n2026년 8월\n자동차: 52억 달러",
+    TITLE + "\n주요품목 수출실적\n자동차: 52억원",
+    "2025년 9월 수출입 동향\n주요품목 수출실적\n자동차: 52억 달러",
+  ];
+  for (const text of texts) {
+    const result = await pdfBulletinClient(text)();
+    assert.equal(result.observations.length, 0);
+    assert.equal(result.provider.state, "partial");
+  }
+  for (const body of [
+    TABLE.replace("MTI 기준 ", "").replace("주요 품목별 수출실적", "국가별 수출실적"),
+    TABLE.replace("MTI 기준 ", "").replace("주요 품목별 수출실적", "누계 수출실적"),
+    TABLE.replace("MTI 기준 ", "").replace("2026년 9월", "2026년 8월"),
+  ]) {
+    const result = await fixture(detail(body)).client();
+    assert.equal(result.observations.length, 0);
+  }
 });
 
 test("a real bulletin without verified amounts stays partial and retains its direct link", async () => {

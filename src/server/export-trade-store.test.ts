@@ -5,8 +5,11 @@ import { PGlite } from "@electric-sql/pglite";
 import {
   createExportTradeStore,
   createMemoryExportTradeStore,
+  isVerifiedTradeCategorySummary,
   staleTradeBundle,
+  type TradeCategorySummarySnapshot,
 } from "./export-trade-store.ts";
+import { CORE20_HS_PROXY } from "../lib/export-desk/hs-map.ts";
 import type { LiveTradeBundle } from "./export-trade-pipeline.ts";
 
 const checked = new Date("2026-10-22T03:00:00Z");
@@ -45,6 +48,53 @@ const bundle = (): LiveTradeBundle => ({
     },
   ],
 });
+function categorySummary(
+  id = "automobiles",
+  periods = ["2025-09", "2026-09"],
+): TradeCategorySummarySnapshot {
+  const codes = CORE20_HS_PROXY.find((proxy) => proxy.key === id)!.codes;
+  return {
+    observations: periods.map((period, index) => ({
+      period,
+      categoryId: id,
+      classification: "HS",
+      geo: "KR",
+      valueUsd: codes.reduce((sum, _code, component) => sum + 100 + index * 10 + component, 0),
+      sourceFile: "UN Comtrade · 대한민국/전세계 · HS2 공식 수출 요약",
+      vintage: "UN Comtrade H6",
+    })),
+    providers: [
+      {
+        ...bundle().providers[0]!,
+        id: `comtrade.summary.${id}`,
+        name: "UN Comtrade HS2 품목 요약",
+        sourceUrl: "https://comtradeapi.un.org/public/v1/preview/C/M/HS",
+        asOf: periods.at(-1)!,
+        recordCount: periods.length,
+      },
+    ],
+    summaryBasis: {
+      kind: "UN_COMTRADE_HS2_BASKET",
+      periods: periods.map((period, index) => ({
+        period,
+        classificationCode: "H6",
+        reporterCode: "410",
+        partnerCode: "0",
+        partner2Code: "0",
+        flowCode: "X",
+        customsCode: "C00",
+        motCode: "0",
+        unit: "USD",
+        originCheckedAt: checked.toISOString(),
+        source: "public-preview",
+        components: codes.map((code, component) => ({
+          code,
+          valueUsd: 100 + index * 10 + component,
+        })),
+      })),
+    },
+  };
+}
 const pg = new PGlite();
 await pg.waitReady;
 await pg.exec(
@@ -345,4 +395,210 @@ test("new snapshots require selected totals identity and exact category evidence
     }),
     false,
   );
+});
+
+test("card-only HS2 summaries persist in isolated keys and never enter analytical category histories", async () => {
+  const store = createExportTradeStore(sql, { now: () => checked });
+  const value = categorySummary();
+  assert.equal(await store.saveCategorySummary("automobiles", value), true);
+  const peer = createExportTradeStore(sql, { now: () => checked });
+  assert.deepEqual((await peer.readCategorySummary("automobiles"))?.value, value);
+  assert.equal(await peer.readCategory("automobiles"), null);
+  assert.deepEqual(await peer.readCategories(["automobiles"]), {});
+  assert.equal(await peer.saveCategory("automobiles", value), false);
+  const disguised = structuredClone(value);
+  disguised.providers = [{ ...bundle().providers[0]!, id: "customs.item", recordCount: 2 }];
+  assert.equal(await peer.saveCategory("automobiles", disguised), false);
+  assert.equal(
+    await peer.saveCategorySummary("semiconductors", categorySummary("semiconductors")),
+    false,
+  );
+  assert.equal(await peer.saveCategorySummary("hs2:87", value), false);
+  assert.equal(await peer.saveCategorySummary("ships", value), false);
+});
+
+test("summary cache rechecks exact components, dimensions, edition and period evidence", async () => {
+  const store = createMemoryExportTradeStore({ now: () => checked });
+  const valid = categorySummary("agri_fishery_food");
+  assert.equal(await store.saveCategorySummary("agri_fishery_food", valid), true);
+  const changes: ((value: TradeCategorySummarySnapshot) => void)[] = [
+    (v) => {
+      v.summaryBasis.periods[1]!.components.pop();
+    },
+    (v) => {
+      v.summaryBasis.periods[1]!.components[1]!.code =
+        v.summaryBasis.periods[1]!.components[0]!.code;
+    },
+    (v) => {
+      v.summaryBasis.periods[1]!.components[0]!.code = "99";
+    },
+    (v) => {
+      v.summaryBasis.periods[1]!.components[0]!.valueUsd += 1;
+    },
+    (v) => {
+      v.observations[1]!.valueUsd += 1;
+    },
+    (v) => {
+      v.summaryBasis.periods[1]!.classificationCode = "H5";
+    },
+    (v) => {
+      v.summaryBasis.periods[1]!.classificationCode = null;
+    },
+    (v) => {
+      v.summaryBasis.periods[1]!.classificationCode = "HS";
+    },
+    (v) => {
+      v.summaryBasis.periods[1]!.reporterCode = "156" as "410";
+    },
+    (v) => {
+      v.summaryBasis.periods[1]!.partnerCode = "840" as "0";
+    },
+    (v) => {
+      v.summaryBasis.periods[1]!.partner2Code = "1" as "0";
+    },
+    (v) => {
+      v.summaryBasis.periods[1]!.flowCode = "M" as "X";
+    },
+    (v) => {
+      v.summaryBasis.periods[1]!.customsCode = "C01" as "C00";
+    },
+    (v) => {
+      v.summaryBasis.periods[1]!.motCode = "1" as "0";
+    },
+    (v) => {
+      v.summaryBasis.periods[1]!.unit = "USD_THOUSANDS" as "USD";
+    },
+    (v) => {
+      v.summaryBasis.periods[1]!.source = "main-bundle";
+    },
+    (v) => {
+      v.summaryBasis.periods[1]!.originCheckedAt = new Date(
+        checked.getTime() + 6 * 60_000,
+      ).toISOString();
+    },
+    (v) => {
+      v.observations[0]!.period = "2025-08";
+      v.summaryBasis.periods[0]!.period = "2025-08";
+    },
+    (v) => {
+      v.summaryBasis.periods[0]!.period = "2025-08";
+    },
+    (v) => {
+      v.observations[0]!.sourceFile = "다른 공식 통계 정의";
+    },
+    (v) => {
+      v.observations[0]!.vintage = "UN Comtrade H5";
+    },
+    (v) => {
+      v.observations[0]!.classification = "MTI";
+    },
+    (v) => {
+      v.observations[0]!.geo = "US";
+    },
+    (v) => {
+      v.providers[0]!.id = "comtrade.summary.ships";
+    },
+    (v) => {
+      v.providers[0]!.recordCount = 24;
+    },
+    (v) => {
+      v.providers[0]!.asOf = "2026-08";
+    },
+    (v) => {
+      v.providers[0]!.sourceUrl = "https://www.data.go.kr/data/15101609/openapi.do";
+    },
+    (v) => {
+      v.observations.reverse();
+      v.summaryBasis.periods.reverse();
+    },
+  ];
+  for (const change of changes) {
+    const invalid = structuredClone(valid);
+    change(invalid);
+    assert.equal(
+      isVerifiedTradeCategorySummary("agri_fishery_food", invalid, checked),
+      false,
+      change.toString(),
+    );
+    assert.equal(await store.saveCategorySummary("agri_fishery_food", invalid), false);
+  }
+  assert.deepEqual((await store.readCategorySummary("agri_fishery_food"))!.value, valid);
+});
+
+test("one main-bundle current observation permits unknown edition without implying YoY or a full history", async () => {
+  const store = createMemoryExportTradeStore({ now: () => checked });
+  const value = categorySummary("automobiles", ["2026-09"]);
+  value.summaryBasis.periods[0]!.classificationCode = null;
+  value.summaryBasis.periods[0]!.source = "main-bundle";
+  assert.equal(await store.saveCategorySummary("automobiles", value), true);
+  assert.equal((await store.readCategorySummary("automobiles"))!.value.observations.length, 1);
+  const manufactured = structuredClone(value);
+  manufactured.observations.unshift({ ...manufactured.observations[0]!, period: "2025-09" });
+  manufactured.summaryBasis.periods.unshift({
+    ...manufactured.summaryBasis.periods[0]!,
+    period: "2025-09",
+  });
+  manufactured.providers[0]!.recordCount = 2;
+  assert.equal(await store.saveCategorySummary("automobiles", manufactured), false);
+});
+
+test("summary batches use one bounded exact-key SQL query and reject tampered stored evidence", async () => {
+  let queries = 0;
+  const store = createExportTradeStore(
+    {
+      query: async <T>(query: string, params?: unknown[]) => {
+        queries++;
+        return sql.query<T>(query, params);
+      },
+    },
+    { now: () => checked },
+  );
+  await store.saveCategorySummary("ships", categorySummary("ships"));
+  await store.saveCategorySummary("steel", categorySummary("steel"));
+  queries = 0;
+  const batch = await store.readCategorySummaries([
+    "ships",
+    "steel",
+    "ships",
+    "semiconductors",
+    "bad/unsafe",
+  ]);
+  assert.equal(queries, 1);
+  assert.deepEqual(Object.keys(batch).sort(), ["ships", "steel"]);
+  batch.ships!.value.summaryBasis.periods[1]!.components[0]!.valueUsd = 999;
+  assert.equal(
+    (await store.readCategorySummary("ships"))!.value.summaryBasis.periods[1]!.components[0]!
+      .valueUsd,
+    110,
+  );
+  await sql.query(
+    "update export_trade_snapshots set payload=jsonb_set(payload,'{summaryBasis,periods,1,components,0,valueUsd}',to_jsonb($1::numeric)) where cache_key=$2",
+    [999, "category-summary:steel"],
+  );
+  assert.deepEqual(Object.keys(await store.readCategorySummaries(["ships", "steel"])), ["ships"]);
+  queries = 0;
+  assert.deepEqual(
+    await store.readCategorySummaries(Array.from({ length: 21 }, () => "ships")),
+    {},
+  );
+  assert.equal(queries, 0);
+});
+
+test("summary stale reads retain their original reference dates and reject older, empty or failed replacements", async () => {
+  let time = new Date(checked);
+  const store = createMemoryExportTradeStore({ now: () => time });
+  const value = categorySummary("steel");
+  await store.saveCategorySummary("steel", value);
+  const older = categorySummary("steel", ["2026-08"]);
+  assert.equal(await store.saveCategorySummary("steel", older), false);
+  assert.equal(await store.saveCategorySummary("steel", { ...value, observations: [] }), false);
+  const failed = structuredClone(value);
+  failed.providers[0]!.state = "stale";
+  failed.providers[0]!.reasonCode = "HTTP_429";
+  assert.equal(await store.saveCategorySummary("steel", failed), false);
+  time = new Date(time.getTime() + 7 * 3_600_000);
+  const read = await store.readCategorySummary("steel");
+  assert.equal(read!.stale, true);
+  assert.equal(read!.verifiedAt, checked.toISOString());
+  assert.equal(read!.value.observations.at(-1)!.period, "2026-09");
 });

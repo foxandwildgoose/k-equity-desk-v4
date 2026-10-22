@@ -72,9 +72,12 @@ export function useTradeCategoryCatalog() {
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
     // Ten two-category rounds cover the reference list. The extra rounds allow
-    // for a peer's active refresh without polling a failed provider forever.
+    // for a peer's active refresh and the store's bounded PostgreSQL reconnect.
+    // A cold database can temporarily return memory-only results; settling the
+    // origin queue must not hide durable saved values after it reconnects.
     refetchInterval: (query) =>
-      query.state.data?.pending.length && !query.state.error && query.state.dataUpdateCount < 12
+      (query.state.data?.pending.length || query.state.data?.storage === "memory") &&
+      !query.state.error && query.state.dataUpdateCount < 12
         ? 5_000
         : false,
   });

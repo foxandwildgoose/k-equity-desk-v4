@@ -4,6 +4,13 @@ import type { ExportProviderStatus } from "../lib/export-desk/provider-status.ts
 import type { TradeObservation } from "../lib/export-desk/parse-import.ts";
 import { fetchTradeCategorySnapshot } from "./export-trade-pipeline.ts";
 import {
+  createHs2CategorySummaryClient,
+  hs2SummariesFromBundle,
+  HS2_SUMMARY_CATEGORIES,
+  type CategorySummaryBatch,
+  type CategorySummaryRequest,
+} from "./export-category-summary.ts";
+import {
   getExportTradeStore,
   isVerifiedTradeCategory,
   staleTradeCategory,
@@ -19,6 +26,7 @@ interface CatalogCategory {
 interface Dependencies {
   store?: ExportTradeStore | (() => Promise<ExportTradeStore>);
   loadCategory?: (id: string) => Promise<TradeCategorySnapshot>;
+  loadSummaries?: (request: CategorySummaryRequest) => Promise<CategorySummaryBatch>;
   categories?: CatalogCategory[];
   now?: () => Date;
 }
@@ -186,9 +194,33 @@ export function createTradeCategoryCatalog(dependencies: Dependencies = {}) {
   return async function catalog(options: { refresh?: boolean } = {}): Promise<CategoryCatalog> {
     const store = await getStore();
     const ids = categories.map((category) => category.id);
-    const saved = await store.readCategories(ids);
+    const [saved, savedSummaries, mainBundle] = await Promise.all([
+      store.readCategories(ids),
+      store.readCategorySummaries(ids),
+      store.readBundle(),
+    ]);
     for (const id of ids)
       if (saved[id] && !nationalSnapshot(id, saved[id]!.value, now())) delete saved[id];
+    // Summaries have their own cache keys and must never populate monthly
+    // analytical history. Prefer a complete history when the month is equal.
+    const derived = hs2SummariesFromBundle(mainBundle, ids, now());
+    for (const id of ids) {
+      const entry = savedSummaries[id];
+      if (
+        entry &&
+        (!saved[id] ||
+          entry.value.observations.at(-1)!.period > saved[id]!.value.observations.at(-1)!.period)
+      )
+        saved[id] = entry;
+      const candidate = derived[id];
+      if (
+        candidate &&
+        mainBundle &&
+        (!saved[id] ||
+          candidate.observations.at(-1)!.period > saved[id]!.value.observations.at(-1)!.period)
+      )
+        saved[id] = { ...mainBundle, value: candidate };
+    }
     const cooldowns = await store.retryAts(ids.map(categoryScope), true);
     const items = new Map(
       categories.map((category) => {
@@ -221,106 +253,208 @@ export function createTradeCategoryCatalog(dependencies: Dependencies = {}) {
       const owner = await store.acquireRefresh(WORKER_SCOPE, 60_000);
       if (owner) {
         try {
-          const selected = candidates.slice(0, MAX_WARM);
-          await Promise.all(
-            selected.map(async (category) => {
+          const hs2 = (id: string) => HS2_SUMMARY_CATEGORIES.some((proxy) => proxy.key === id);
+          // One warming round uses either one two-month HS2 batch or at most
+          // two existing detailed HS4 loaders. Never launch both origin paths.
+          if (hs2(candidates[0]!.id)) {
+            const selected = candidates.filter((category) => hs2(category.id));
+            const comtradeMonth = mainBundle?.value.providers.find(
+              (provider) =>
+                provider.id === "comtrade.total" &&
+                provider.configured &&
+                provider.recordCount > 0 &&
+                ["ok", "partial", "stale"].includes(provider.state),
+            )?.asOf;
+            const koreaNow = new Date(now().getTime() + 9 * 3_600_000);
+            const referencePeriod =
+              comtradeMonth ??
+              mainBundle?.value.exports.at(-1)?.period ??
+              new Date(Date.UTC(koreaNow.getUTCFullYear(), koreaNow.getUTCMonth() - 1, 1))
+                .toISOString()
+                .slice(0, 7);
+            let batch: CategorySummaryBatch = { summaries: {}, providers: [] };
+            try {
+              const loadSummaries =
+                dependencies.loadSummaries ?? createHs2CategorySummaryClient({ store, now });
+              const loaded = await loadSummaries({
+                categoryIds: selected.map((category) => category.id),
+                referencePeriod,
+              });
+              if (
+                loaded &&
+                loaded.summaries &&
+                typeof loaded.summaries === "object" &&
+                Array.isArray(loaded.providers)
+              )
+                batch = loaded;
+            } catch {
+              /* Provider exceptions never escape or expose credentials. */
+            }
+            const written = await Promise.all(
+              selected.map(async (category) => {
+                const value = batch.summaries[category.id];
+                const candidate =
+                  value && Array.isArray(value.providers)
+                    ? { ...value, providers: [...value.providers, ...batch.providers] }
+                    : undefined;
+                return candidate && (await store.saveCategorySummary(category.id, candidate))
+                  ? category.id
+                  : null;
+              }),
+            );
+            const storedSummaries = await store.readCategorySummaries(
+              written.filter((id): id is string => id != null),
+            );
+            for (const category of selected) {
               attempted.push(category.id);
               pending.delete(category.id);
-              let candidate: TradeCategorySnapshot | undefined;
-              try {
-                candidate = await load(category.id);
-              } catch {
-                /* Never expose exception/credential text. */
-              }
-              const providers = candidateProviders(candidate);
               const previous = saved[category.id];
-              if (candidate && nationalSnapshot(category.id, candidate, now())) {
-                const regresses =
-                  previous &&
-                  candidate.observations.at(-1)!.period <
-                    previous.value.observations.at(-1)!.period;
-                if (regresses) {
+              const entry = storedSummaries[category.id];
+              if (entry) {
+                if (
+                  entry &&
+                  (!previous ||
+                    entry.value.observations.at(-1)!.period >=
+                      previous.value.observations.at(-1)!.period)
+                ) {
+                  items.set(category.id, savedSummary(category, entry, null));
+                  refreshed.push(category.id);
+                  continue;
+                }
+              }
+              const providers = candidateProviders({
+                observations: [],
+                providers: batch.providers,
+              });
+              if (providers.some((provider) => provider.reasonCode === "REFRESH_IN_PROGRESS")) {
+                pending.add(category.id);
+                if (!previous)
+                  items.set(category.id, { ...emptySummary(category, now(), null), providers });
+                continue;
+              }
+              await store.setCooldown(categoryScope(category.id), failureRetry(providers, now()));
+              const retryAt = await store.retryAt(categoryScope(category.id), true);
+              items.set(
+                category.id,
+                previous
+                  ? {
+                      ...savedSummary(category, { ...previous, stale: true }, retryAt),
+                      providers: [...staleTradeCategory(previous).providers, ...providers],
+                    }
+                  : {
+                      ...emptySummary(category, now(), retryAt),
+                      state: "unavailable",
+                      providers: providers.length
+                        ? providers
+                        : [controlProvider(now(), retryAt, true)],
+                    },
+              );
+            }
+          } else {
+            const selected = candidates.filter((category) => !hs2(category.id)).slice(0, MAX_WARM);
+            await Promise.all(
+              selected.map(async (category) => {
+                attempted.push(category.id);
+                pending.delete(category.id);
+                let candidate: TradeCategorySnapshot | undefined;
+                try {
+                  candidate = await load(category.id);
+                } catch {
+                  /* Never expose exception/credential text. */
+                }
+                const providers = candidateProviders(candidate);
+                const previous = saved[category.id];
+                if (candidate && nationalSnapshot(category.id, candidate, now())) {
+                  const regresses =
+                    previous &&
+                    candidate.observations.at(-1)!.period <
+                      previous.value.observations.at(-1)!.period;
+                  if (regresses) {
+                    await store.setCooldown(
+                      categoryScope(category.id),
+                      failureRetry(providers, now()),
+                    );
+                    const retryAt = await store.retryAt(categoryScope(category.id), true);
+                    items.set(
+                      category.id,
+                      savedSummary(category, { ...previous, stale: true }, retryAt),
+                    );
+                  } else {
+                    const stale = candidate.providers.some(
+                      (provider) => provider.recordCount > 0 && provider.state === "stale",
+                    );
+                    if (stale) await store.setCooldown(categoryScope(category.id), STALE_RETRY_MS);
+                    const retryAt = stale
+                      ? await store.retryAt(categoryScope(category.id), true)
+                      : null;
+                    const source = candidate.providers.find(
+                      (provider) =>
+                        [
+                          "customs.item",
+                          "customs-hs",
+                          "customs.public-item",
+                          `comtrade.hs.${category.id}`,
+                        ].includes(provider.id) &&
+                        provider.recordCount > 0 &&
+                        provider.asOf === candidate!.observations.at(-1)!.period,
+                    );
+                    items.set(
+                      category.id,
+                      summary(
+                        category,
+                        candidate,
+                        {
+                          stale,
+                          verifiedAt: stale
+                            ? (previous?.verifiedAt ?? null)
+                            : (source?.checkedAt ?? null),
+                          freshUntil: null,
+                        },
+                        retryAt,
+                      ),
+                    );
+                    refreshed.push(category.id);
+                  }
+                } else if (
+                  providers.some((provider) => provider.reasonCode === "REFRESH_IN_PROGRESS")
+                ) {
+                  pending.add(category.id);
+                  if (!previous)
+                    items.set(category.id, { ...emptySummary(category, now(), null), providers });
+                } else {
                   await store.setCooldown(
                     categoryScope(category.id),
                     failureRetry(providers, now()),
                   );
                   const retryAt = await store.retryAt(categoryScope(category.id), true);
-                  items.set(
-                    category.id,
-                    savedSummary(category, { ...previous, stale: true }, retryAt),
-                  );
-                } else {
-                  const stale = candidate.providers.some(
-                    (provider) => provider.recordCount > 0 && provider.state === "stale",
-                  );
-                  if (stale) await store.setCooldown(categoryScope(category.id), STALE_RETRY_MS);
-                  const retryAt = stale
-                    ? await store.retryAt(categoryScope(category.id), true)
-                    : null;
-                  const source = candidate.providers.find(
-                    (provider) =>
-                      [
-                        "customs.item",
-                        "customs-hs",
-                        "customs.public-item",
-                        `comtrade.hs.${category.id}`,
-                      ].includes(provider.id) &&
-                      provider.recordCount > 0 &&
-                      provider.asOf === candidate!.observations.at(-1)!.period,
-                  );
-                  items.set(
-                    category.id,
-                    summary(
-                      category,
-                      candidate,
-                      {
-                        stale,
-                        verifiedAt: stale
-                          ? (previous?.verifiedAt ?? null)
-                          : (source?.checkedAt ?? null),
-                        freshUntil: null,
-                      },
-                      retryAt,
-                    ),
-                  );
-                  refreshed.push(category.id);
+                  if (previous)
+                    items.set(category.id, {
+                      ...savedSummary(category, { ...previous, stale: true }, retryAt),
+                      providers: [...staleTradeCategory(previous).providers, ...providers],
+                    });
+                  else
+                    items.set(category.id, {
+                      ...emptySummary(category, now(), retryAt),
+                      state: "unavailable",
+                      providers: providers.length
+                        ? providers
+                        : [controlProvider(now(), retryAt, true)],
+                    });
                 }
-              } else if (
-                providers.some((provider) => provider.reasonCode === "REFRESH_IN_PROGRESS")
-              ) {
-                pending.add(category.id);
-                if (!previous)
-                  items.set(category.id, { ...emptySummary(category, now(), null), providers });
-              } else {
-                await store.setCooldown(categoryScope(category.id), failureRetry(providers, now()));
-                const retryAt = await store.retryAt(categoryScope(category.id), true);
-                if (previous)
-                  items.set(category.id, {
-                    ...savedSummary(category, { ...previous, stale: true }, retryAt),
-                    providers: [...staleTradeCategory(previous).providers, ...providers],
-                  });
-                else
-                  items.set(category.id, {
-                    ...emptySummary(category, now(), retryAt),
-                    state: "unavailable",
-                    providers: providers.length
-                      ? providers
-                      : [controlProvider(now(), retryAt, true)],
-                  });
-              }
-            }),
-          );
-          const stored = await store.readCategories(selected.map((category) => category.id));
-          for (const category of selected) {
-            const entry = stored[category.id],
-              current = items.get(category.id)!;
-            if (
-              entry &&
-              current.current &&
-              entry.value.observations.at(-1)!.period >= current.current.period &&
-              current.state !== "stale"
-            )
-              items.set(category.id, savedSummary(category, entry, current.retryAt));
+              }),
+            );
+            const stored = await store.readCategories(selected.map((category) => category.id));
+            for (const category of selected) {
+              const entry = stored[category.id],
+                current = items.get(category.id)!;
+              if (
+                entry &&
+                current.current &&
+                entry.value.observations.at(-1)!.period >= current.current.period &&
+                current.state !== "stale"
+              )
+                items.set(category.id, savedSummary(category, entry, current.retryAt));
+            }
           }
         } finally {
           await store.releaseRefresh(WORKER_SCOPE, owner);

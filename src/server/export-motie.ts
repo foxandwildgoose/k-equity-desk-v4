@@ -19,13 +19,16 @@ export interface MotieRelease {
   period: string;
   publishedAt: string | null;
   attachmentUrl: string | null;
-  classification: "MTI";
+  classification: "OFFICIAL_ITEM";
   provisional: boolean;
   items: MotieItem[];
 }
+export type MotieObservation = Omit<TradeObservation, "classification"> & {
+  classification: "OFFICIAL_ITEM";
+};
 export interface MotieSnapshot {
   release: MotieRelease | null;
-  observations: TradeObservation[];
+  observations: MotieObservation[];
   provider: ExportProviderStatus;
   diagnostics?: MotieDiagnostics;
 }
@@ -64,6 +67,10 @@ export const MOTIE_RELEASE_LIST_URL =
 const FRESH_MS = 4 * 60 * 60_000;
 const FAILURE_MS = 60_000;
 const RETAIN_MS = 90 * 86_400_000;
+// Identity token is private to the factory, after official source/document checks.
+// An external object with the same fields does not confer source verification.
+const VERIFIED_OFFICIAL_BULLETIN = Object.freeze({ verifiedOfficialBulletin: true as const });
+type BulletinParserContext = Readonly<{ verifiedOfficialBulletin: true }>;
 const LABELS: Record<string, string> = {
   반도체: "semiconductors",
   자동차: "automobiles",
@@ -211,8 +218,12 @@ function outsideNationalMonthlyScope(value: string): boolean {
 }
 
 /** Parse an explicitly labelled monthly export table; column position is never guessed. */
-export function parseMotieHtmlItems(html: string, period: string): MotieItem[] {
-  if (!/\bMTI\b|MTI\s*기준/i.test(plain(html))) return [];
+export function parseMotieHtmlItems(
+  html: string,
+  period: string,
+  context?: BulletinParserContext,
+): MotieItem[] {
+  if (context !== VERIFIED_OFFICIAL_BULLETIN && !/\bMTI\b|MTI\s*기준/i.test(plain(html))) return [];
   const items = new Map<string, MotieItem>();
   const rejected = new Set<string>();
   for (const table of html.matchAll(/<table\b[^>]*>[\s\S]*?<\/table>/gi)) {
@@ -286,12 +297,20 @@ export function parseMotieHtmlItems(html: string, period: string): MotieItem[] {
 }
 
 /** Conservative inline form found in monthly official bulletin summaries/PDF text. */
-export function parseMotieTextItems(text: string, period: string): MotieItem[] {
+export function parseMotieTextItems(
+  text: string,
+  period: string,
+  context?: BulletinParserContext,
+): MotieItem[] {
   const items = new Map<string, MotieItem>();
   const rejected = new Set<string>();
   const names = Object.keys(LABELS).sort((a, b) => b.length - a.length);
   const identity = period.slice(0, 4) + "년" + Number(period.slice(5)) + "월수출입동향";
-  if (!compact(text).includes(identity) || !/\bMTI\b|MTI\s*기준/i.test(text)) return [];
+  if (
+    !compact(text).includes(identity) ||
+    (context !== VERIFIED_OFFICIAL_BULLETIN && !/\bMTI\b|MTI\s*기준/i.test(text))
+  )
+    return [];
   let current = false;
   let exportSection = false;
   for (const line of text.split(/[\r\n]+/)) {
@@ -406,15 +425,15 @@ function attachment(html: string, url: string): string | null {
   }
   return null;
 }
-function observations(release: MotieRelease): TradeObservation[] {
+function observations(release: MotieRelease): MotieObservation[] {
   return release.items.map((item) => ({
     period: release.period,
     categoryId: item.categoryId,
     categoryName: item.label,
-    classification: "MTI",
+    classification: "OFFICIAL_ITEM",
     geo: "KR",
     valueUsd: item.valueUsd,
-    sourceFile: "산업부 공식 월간 수출입동향 · MTI 주요품목 · 명목 USD · " + release.url,
+    sourceFile: "산업부 공식 월간 수출입동향 · 발표품목 · 명목 USD · " + release.url,
     ...(release.publishedAt ? { releasedAt: release.publishedAt } : {}),
     vintage: release.url,
   }));
@@ -726,7 +745,7 @@ export function createMotieReleaseClient(deps: Dependencies = {}) {
         ...article,
         publishedAt: null,
         attachmentUrl: null,
-        classification: "MTI",
+        classification: "OFFICIAL_ITEM",
         provisional: false,
         items: [],
       };
@@ -748,11 +767,14 @@ export function createMotieReleaseClient(deps: Dependencies = {}) {
         throw new MotieFailure("PUBLICATION_BEFORE_REFERENCE_PERIOD_END");
       const attachmentUrl = attachment(html, article.url);
       const content = articleBody(html, article.title);
-      let items = content ? parseMotieHtmlItems(content, article.period) : [];
+      let items = content
+        ? parseMotieHtmlItems(content, article.period, VERIFIED_OFFICIAL_BULLETIN)
+        : [];
       if (!items.length && content)
         items = parseMotieTextItems(
           article.title + "\n" + plain(content.replace(/<\/(?:p|div|li|tr)>|<br\s*\/?>/gi, "\n")),
           article.period,
+          VERIFIED_OFFICIAL_BULLETIN,
         );
       let attachmentReason = "";
       if (!items.length && attachmentUrl) {
@@ -772,7 +794,7 @@ export function createMotieReleaseClient(deps: Dependencies = {}) {
           if (!compact(decoded).includes(compact(article.title)))
             throw new MotieFailure("ATTACHMENT_PERIOD_IDENTITY");
           diagnostics.stage = "numeric-parse";
-          items = parseMotieTextItems(decoded, article.period);
+          items = parseMotieTextItems(decoded, article.period, VERIFIED_OFFICIAL_BULLETIN);
         } catch (error) {
           attachmentReason =
             error instanceof MotieFailure
@@ -786,7 +808,7 @@ export function createMotieReleaseClient(deps: Dependencies = {}) {
         ...article,
         publishedAt,
         attachmentUrl,
-        classification: "MTI",
+        classification: "OFFICIAL_ITEM",
         provisional: /잠정/.test(plain(html)),
         items,
       };

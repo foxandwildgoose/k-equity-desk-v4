@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
-import { createTradeCategoryCatalog } from "./export-category-catalog.ts";
+import { createTradeCategoryCatalog as createCatalog } from "./export-category-catalog.ts";
+import { assembleHs2CategorySummaries, HS2_SUMMARY_CATEGORIES } from "./export-category-summary.ts";
 import { createMemoryExportTradeStore, type TradeCategorySnapshot } from "./export-trade-store.ts";
 
 const checked = new Date("2026-10-22T03:00:00Z");
@@ -49,6 +50,12 @@ const unavailable = (): TradeCategorySnapshot => ({
     },
   ],
 });
+// Each test supplies its origins explicitly; HS2 tests must never reach a live API.
+const createTradeCategoryCatalog = (dependencies: Parameters<typeof createCatalog>[0] = {}) =>
+  createCatalog({
+    loadSummaries: async () => ({ summaries: {}, providers: unavailable().providers }),
+    ...dependencies,
+  });
 
 test("cache-only catalog exposes every stored category to a new browser without origin requests", async () => {
   const store = createMemoryExportTradeStore({ now: () => checked });
@@ -187,7 +194,7 @@ test("persistent failure cooldown settles unavailable rows, advances the queue a
   const dependencies = {
     store,
     now: () => time,
-    categories: categories(["semiconductors", "auto_parts", "computers", "automobiles"]),
+    categories: categories(["semiconductors", "auto_parts", "computers", "wireless_devices"]),
     loadCategory: async () => {
       calls++;
       return unavailable();
@@ -319,7 +326,7 @@ test("negative admission respects a longer provider-directed retry time across v
   const dependencies = {
     store,
     now: () => checked,
-    categories: categories(["automobiles"]),
+    categories: categories(["semiconductors"]),
     loadCategory: async () => value,
   };
   const first = await createTradeCategoryCatalog(dependencies)({ refresh: true });
@@ -358,4 +365,193 @@ test("an unrelated positive provider cannot replace the category verification ti
     loadCategory: async () => value,
   })({ refresh: true });
   assert.equal(result.items[0]!.verifiedAt, checked.toISOString());
+});
+
+function hs2SummaryFixtures(ids: string[], period = "2026-09") {
+  const codes = [...new Set(HS2_SUMMARY_CATEGORIES.flatMap((proxy) => proxy.codes))];
+  return assembleHs2CategorySummaries(
+    ids,
+    [`${Number(period.slice(0, 4)) - 1}${period.slice(4)}`, period].map((month) => ({
+      period: month,
+      classificationCode: "H6",
+      reporterCode: "410" as const,
+      partnerCode: "0" as const,
+      partner2Code: "0" as const,
+      flowCode: "X" as const,
+      customsCode: "C00" as const,
+      motCode: "0" as const,
+      unit: "USD" as const,
+      source: "public-preview" as const,
+      originCheckedAt: checked.toISOString(),
+      components: codes.map((code) => ({ code, valueUsd: month === period ? 150 : 100 })),
+    })),
+    checked,
+  );
+}
+
+test("one HS2 summary batch fills all thirteen cards while preserving seven full analytical histories", async () => {
+  const store = createMemoryExportTradeStore({ now: () => checked });
+  const hs4 = [
+    "semiconductors",
+    "auto_parts",
+    "computers",
+    "wireless_devices",
+    "secondary_batteries",
+    "home_appliances",
+    "displays",
+  ];
+  for (const id of hs4) assert.equal(await store.saveCategory(id, snapshot(id)), true);
+  let batchCalls = 0,
+    detailedCalls = 0;
+  const ids = HS2_SUMMARY_CATEGORIES.map((proxy) => proxy.key);
+  const read = createTradeCategoryCatalog({
+    store,
+    now: () => checked,
+    loadCategory: async () => {
+      detailedCalls++;
+      return unavailable();
+    },
+    loadSummaries: async ({ categoryIds, referencePeriod }) => {
+      batchCalls++;
+      assert.equal(referencePeriod, "2026-09");
+      assert.deepEqual(new Set(categoryIds), new Set(ids));
+      return { summaries: hs2SummaryFixtures(categoryIds), providers: [] };
+    },
+  });
+  assert.equal((await read()).items.filter((item) => item.current).length, 7);
+  assert.equal(batchCalls, 0, "initial catalog is cache-only");
+  const result = await read({ refresh: true });
+  assert.equal(batchCalls, 1);
+  assert.equal(detailedCalls, 0);
+  assert.equal(result.items.filter((item) => item.current).length, 20);
+  assert.equal(result.refreshed.length, 13);
+  assert.deepEqual(result.pending, []);
+  for (const id of ids)
+    assert.equal(
+      await store.readCategory(id),
+      null,
+      "two-point summary is not a monthly analytical series",
+    );
+  const food = result.items.find((item) => item.id === "agri_fishery_food")!;
+  assert.equal(food.current!.valueUsd, 3600);
+  assert.equal(food.previousYoY!.valueUsd, 2400);
+  assert.equal(food.yoyPct, 50);
+  const visitor = await createTradeCategoryCatalog({ store, now: () => checked })();
+  assert.equal(visitor.items.filter((item) => item.current).length, 20);
+  assert.equal(visitor.items.find((item) => item.id === "semiconductors")!.count, 36);
+});
+
+test("shared HS2 cooldown settles all missing cards without losing the seven verified HS4 cards", async () => {
+  const store = createMemoryExportTradeStore({ now: () => checked });
+  const hs4 = [
+    "semiconductors",
+    "auto_parts",
+    "computers",
+    "wireless_devices",
+    "secondary_batteries",
+    "home_appliances",
+    "displays",
+  ];
+  for (const id of hs4) await store.saveCategory(id, snapshot(id));
+  const retryAt = "2026-10-22T03:15:00.000Z";
+  let detailedCalls = 0,
+    batchCalls = 0;
+  const dependencies = {
+    store,
+    now: () => checked,
+    loadCategory: async () => {
+      detailedCalls++;
+      return unavailable();
+    },
+    loadSummaries: async () => {
+      batchCalls++;
+      return {
+        summaries: {},
+        providers: [
+          {
+            ...unavailable().providers[0]!,
+            id: "comtrade.summary",
+            configured: true,
+            state: "rate-limited" as const,
+            sourceUrl: "https://comtradeplus.un.org/",
+            reasonCode: "SHARED_PROVIDER_COOLDOWN",
+            retryAt,
+          },
+        ],
+      };
+    },
+  };
+  const result = await createTradeCategoryCatalog(dependencies)({ refresh: true });
+  assert.equal(result.items.filter((item) => item.current).length, 7);
+  assert.equal(
+    result.items.filter((item) => item.state === "unavailable" && item.retryAt === retryAt).length,
+    13,
+  );
+  assert.deepEqual(result.pending, []);
+  await createTradeCategoryCatalog(dependencies)({ refresh: true });
+  assert.equal(batchCalls, 1);
+  assert.equal(detailedCalls, 0);
+});
+
+test("equal-month full histories retain priority; a newer isolated summary changes the card only", async () => {
+  const store = createMemoryExportTradeStore({ now: () => checked });
+  const full = snapshot("automobiles");
+  await store.saveCategory("automobiles", full);
+  await store.saveCategorySummary("automobiles", hs2SummaryFixtures(["automobiles"]).automobiles!);
+  const read = createTradeCategoryCatalog({
+    store,
+    now: () => checked,
+    categories: categories(["automobiles"]),
+  });
+  assert.equal((await read()).items[0]!.count, 36);
+  full.observations.pop();
+  full.providers[0]!.asOf = "2026-08";
+  const other = createMemoryExportTradeStore({ now: () => checked });
+  await other.saveCategory("automobiles", full);
+  await other.saveCategorySummary("automobiles", hs2SummaryFixtures(["automobiles"]).automobiles!);
+  const result = await createTradeCategoryCatalog({
+    store: other,
+    now: () => checked,
+    categories: categories(["automobiles"]),
+  })();
+  assert.equal(result.items[0]!.count, 2);
+  assert.equal(result.items[0]!.current?.period, "2026-09");
+  assert.equal((await other.readCategory("automobiles"))!.value.observations.length, 35);
+});
+
+test("HS2 origin busy remains pending without launching detailed history or failure cooldown", async () => {
+  const store = createMemoryExportTradeStore({ now: () => checked });
+  const result = await createTradeCategoryCatalog({
+    store,
+    now: () => checked,
+    categories: categories(["automobiles"]),
+    loadCategory: async () => {
+      throw new Error("Detailed HS2 acquisition is forbidden in catalog");
+    },
+    loadSummaries: async () => ({
+      summaries: {},
+      providers: [
+        { ...unavailable().providers[0]!, state: "partial", reasonCode: "REFRESH_IN_PROGRESS" },
+      ],
+    }),
+  })({ refresh: true });
+  assert.deepEqual(result.pending, ["automobiles"]);
+  assert.equal(result.items[0]!.state, "pending");
+  assert.equal(await store.retryAt("trade:catalog:category:automobiles", true), null);
+});
+
+test("fallback request month follows the last completed Korean calendar month", async () => {
+  const koreanOctober = new Date("2026-09-30T16:00:00Z");
+  const store = createMemoryExportTradeStore({ now: () => koreanOctober });
+  let queried: string | null = null;
+  await createTradeCategoryCatalog({
+    store,
+    now: () => koreanOctober,
+    categories: categories(["automobiles"]),
+    loadSummaries: async ({ referencePeriod }) => {
+      queried = referencePeriod;
+      return { summaries: {}, providers: unavailable().providers };
+    },
+  })({ refresh: true });
+  assert.equal(queried, "2026-09");
 });
