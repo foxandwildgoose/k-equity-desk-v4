@@ -441,6 +441,43 @@ export function createExportTradeStore(sql?: Sql, options: { now?: () => Date } 
     saveBundle: (value: LiveTradeBundle) => save("bundle", value),
     readCategory: (id: string) =>
       categoryValid(id) ? read<TradeCategorySnapshot>(`category:${id}`) : Promise.resolve(null),
+    async readCategories(
+      ids: string[],
+    ): Promise<Record<string, CachedTrade<TradeCategorySnapshot>>> {
+      if (ids.length > 64) return {};
+      const exact = [...new Set(ids.filter(categoryValid))];
+      if (!exact.length) return {};
+      const keys = exact.map((id) => `category:${id}`);
+      const result: Record<string, CachedTrade<TradeCategorySnapshot>> = {};
+      try {
+        const rows = sql
+          ? await sql.query<StoredRow & { cache_key: string }>(
+              "select cache_key,payload,as_of,verified_at,fresh_until,valid_until from export_trade_snapshots where cache_key=any($1::text[]) and schema_version=1",
+              [keys],
+            )
+          : keys.flatMap((key) => {
+              const row = memory.get(key);
+              return row ? [{ ...row, cache_key: key }] : [];
+            });
+        const allowed = new Set(keys);
+        for (const row of rows) {
+          if (!allowed.has(row.cache_key)) continue;
+          const value = cached<TradeCategorySnapshot>(row, row.cache_key, now());
+          if (value) {
+            result[row.cache_key.slice(9)] = value;
+            memory.set(row.cache_key, row);
+          }
+        }
+        return result;
+      } catch {
+        sql = undefined;
+        for (const key of keys) {
+          const value = cached<TradeCategorySnapshot>(memory.get(key), key, now());
+          if (value) result[key.slice(9)] = value;
+        }
+        return result;
+      }
+    },
     saveCategory: (id: string, value: TradeCategorySnapshot) =>
       categoryValid(id) ? save(`category:${id}`, value) : Promise.resolve(false),
     async acquireRefresh(scope: string, leaseMs = 45_000): Promise<string | null> {
@@ -539,6 +576,40 @@ export function createExportTradeStore(sql?: Sql, options: { now?: () => Date } 
       } catch {
         sql = undefined;
         return this.retryAt(scope, cooldownOnly);
+      }
+    },
+    async retryAts(scopes: string[], cooldownOnly = false): Promise<Record<string, string>> {
+      if (scopes.length > 64) return {};
+      const exact = [...new Set(scopes.filter(scopeValid))];
+      if (!exact.length) return {};
+      const result: Record<string, string> = {};
+      try {
+        if (sql) {
+          const field = cooldownOnly ? "cooldown_until" : "greatest(lease_until,cooldown_until)";
+          const rows = await sql.query<{ scope: string; retry_at: string | Date | null }>(
+            `select scope,${field}::text as retry_at from export_trade_refresh_state where scope=any($1::text[]) and ${field}>clock_timestamp()`,
+            [exact],
+          );
+          const allowed = new Set(exact);
+          for (const row of rows) {
+            const value = row.retry_at ? iso(row.retry_at) : null;
+            if (allowed.has(row.scope) && value && Date.parse(value) > now().getTime())
+              result[row.scope] = value;
+          }
+        } else {
+          for (const scope of exact) {
+            const row = leases.get(scope);
+            const time = Math.max(
+              cooldownOnly ? 0 : (row?.leaseUntil ?? 0),
+              row?.cooldownUntil ?? 0,
+            );
+            if (time > now().getTime()) result[scope] = new Date(time).toISOString();
+          }
+        }
+        return result;
+      } catch {
+        sql = undefined;
+        return this.retryAts(exact, cooldownOnly);
       }
     },
   };

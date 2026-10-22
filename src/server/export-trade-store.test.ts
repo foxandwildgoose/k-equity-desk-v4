@@ -177,6 +177,124 @@ test("category snapshots require exact identity, complete valid values and trust
   assert.equal((await store.readCategory("semiconductors"))?.value.observations[0]?.valueUsd, 10);
 });
 
+test("category catalog batches are bounded to exact requested identities and validate each SQL payload", async () => {
+  const queries: string[] = [];
+  const store = createExportTradeStore(
+    {
+      query: async <T>(query: string, params?: unknown[]) => {
+        queries.push(query);
+        return sql.query<T>(query, params);
+      },
+    },
+    { now: () => checked },
+  );
+  const category = (id: string) => ({
+    observations: [
+      {
+        period: "2026-09",
+        categoryId: id,
+        classification: "HS" as const,
+        sourceFile: "관세청 공식",
+        valueUsd: 10,
+      },
+    ],
+    providers: [{ ...bundle().providers[0]!, id: "customs.item", recordCount: 1 }],
+  });
+  await store.saveCategory("computers", category("computers"));
+  await store.saveCategory("auto_parts", category("auto_parts"));
+  queries.length = 0;
+  const values = await store.readCategories([
+    "computers",
+    "auto_parts",
+    "computers",
+    "bundle",
+    "not-a-category",
+  ]);
+  assert.deepEqual(Object.keys(values).sort(), ["auto_parts", "computers"]);
+  assert.equal(queries.length, 1);
+  assert.match(queries[0]!, /cache_key=any\(\$1::text\[\]\)/);
+  values.computers!.value.observations[0]!.valueUsd = 999;
+  assert.equal(
+    (await store.readCategories(["computers"])).computers!.value.observations[0]!.valueUsd,
+    10,
+  );
+  await sql.query(
+    "update export_trade_snapshots set payload=jsonb_set(payload,'{observations,0,categoryId}',to_jsonb($1::text)) where cache_key=$2",
+    ["ships", "category:auto_parts"],
+  );
+  assert.deepEqual(Object.keys(await store.readCategories(["auto_parts", "computers"])), [
+    "computers",
+  ]);
+  queries.length = 0;
+  assert.deepEqual(await store.readCategories(Array.from({ length: 65 }, () => "computers")), {});
+  assert.equal(queries.length, 0);
+});
+
+test("batch category reads retain verified mirrors during a database outage", async () => {
+  let offline = false;
+  const store = createExportTradeStore(
+    {
+      query: async <T>(query: string, params?: unknown[]) => {
+        if (offline) throw new Error("private database detail");
+        return sql.query<T>(query, params);
+      },
+    },
+    { now: () => checked },
+  );
+  await store.saveCategory("wireless_devices", {
+    observations: [
+      {
+        period: "2026-09",
+        categoryId: "wireless_devices",
+        classification: "HS",
+        sourceFile: "관세청 공식",
+        valueUsd: 15,
+      },
+    ],
+    providers: [{ ...bundle().providers[0]!, id: "customs.item", recordCount: 1 }],
+  });
+  const first = await store.readCategories(["wireless_devices"]);
+  assert.equal(first.wireless_devices!.value.observations[0]!.valueUsd, 15);
+  offline = true;
+  const retained = await store.readCategories(["wireless_devices"]);
+  assert.equal(store.storage, "memory");
+  assert.equal(retained.wireless_devices!.value.observations[0]!.valueUsd, 15);
+});
+
+test("batch refresh-state reads use one bounded query and distinguish cooldown from an active lease", async () => {
+  let queries = 0;
+  const store = createExportTradeStore({
+    query: async <T>(query: string, params?: unknown[]) => {
+      queries++;
+      return sql.query<T>(query, params);
+    },
+  });
+  const owner = await store.acquireRefresh("test:catalog-batch-lease");
+  assert.ok(owner);
+  await store.setCooldown("test:catalog-batch-cooldown", 60_000);
+  queries = 0;
+  const both = await store.retryAts([
+    "test:catalog-batch-lease",
+    "test:catalog-batch-cooldown",
+    "bad/unsafe",
+  ]);
+  assert.equal(queries, 1);
+  assert.deepEqual(Object.keys(both).sort(), [
+    "test:catalog-batch-cooldown",
+    "test:catalog-batch-lease",
+  ]);
+  const cooldown = await store.retryAts(
+    ["test:catalog-batch-lease", "test:catalog-batch-cooldown"],
+    true,
+  );
+  assert.deepEqual(Object.keys(cooldown), ["test:catalog-batch-cooldown"]);
+  assert.deepEqual(
+    await store.retryAts(Array.from({ length: 65 }, () => "test:catalog-batch-lease")),
+    {},
+  );
+  await store.releaseRefresh("test:catalog-batch-lease", owner!);
+});
+
 test("absent or unavailable database has an explicit bounded memory fallback without fake durability", async () => {
   const memory = createMemoryExportTradeStore({ now: () => checked });
   assert.equal(memory.storage, "memory");

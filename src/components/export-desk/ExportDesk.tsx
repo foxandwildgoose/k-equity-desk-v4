@@ -43,7 +43,15 @@ import {
   useIndustryMonthlyPrices,
   useKospiCapQuotes,
 } from "@/lib/export-desk/use-macro";
-import { useLiveTrade, useTradeCategory, useTradeNews } from "@/lib/export-desk/use-live";
+import {
+  useLiveTrade,
+  useTradeCategory,
+  useTradeCategoryCatalog,
+  useMotieRelease,
+  useTradeNews,
+} from "@/lib/export-desk/use-live";
+import type { CategoryCatalog, CategoryCatalogItem } from "@/lib/export-desk/category-catalog";
+import type { MotieSnapshot } from "@/server/export-motie";
 import { ExportAmountChart, ExportDualChart } from "@/components/export-desk/ExportDualChart";
 import { ChartFrame } from "@/components/charts/core/ChartFrame";
 import { chartExportName } from "@/lib/charts/tools";
@@ -231,6 +239,12 @@ const PROVIDER_LABELS: Record<ExportProviderStatus["state"], string> = {
   unavailable: "연결 실패",
   unverified: "미검증",
 };
+const PROVIDER_QUERY_KINDS = [
+  "export-category",
+  "export-industry-px",
+  "export-category-catalog",
+  "export-motie-release",
+];
 
 function useDeskMacro() {
   const macro = useServerExportMacro();
@@ -269,14 +283,32 @@ function useProviderStatuses(): ExportProviderStatus[] {
   const macro = useDeskMacro();
   const client = useQueryClient();
   const categoryFetchCount = useIsFetching({
-    predicate: (q) => ["export-category", "export-industry-px"].includes(String(q.queryKey[0])),
+    predicate: (q) => PROVIDER_QUERY_KINDS.includes(String(q.queryKey[0])),
   });
   return useMemo(() => {
     const category = client
-      .getQueriesData<{ providers: ExportProviderStatus[] }>({
-        predicate: (q) => ["export-category", "export-industry-px"].includes(String(q.queryKey[0])),
+      .getQueriesData<{
+        providers?: ExportProviderStatus[];
+        provider?: ExportProviderStatus;
+        items?: CategoryCatalogItem[];
+      }>({
+        predicate: (q) => PROVIDER_QUERY_KINDS.includes(String(q.queryKey[0])),
       })
-      .flatMap(([, value]) => value?.providers ?? []);
+      .flatMap(([, value]) => {
+        if (value?.provider) return [value.provider];
+        if (!value?.items) return value?.providers ?? [];
+        const providers = new Map<string, ExportProviderStatus>();
+        for (const item of value.items) {
+          for (const provider of item.providers) {
+            const previous = providers.get(provider.id);
+            // A connected HS4 source must not become "disconnected" merely
+            // because another category requests a different unsupported level.
+            if (!previous || provider.recordCount > 0 || previous.recordCount === 0)
+              providers.set(provider.id, provider);
+          }
+        }
+        return [...providers.values()];
+      });
     return [
       ...new Map(
         [...(trade.data?.providers ?? []), ...(macro.data?.providers ?? []), ...category].map(
@@ -458,6 +490,180 @@ function useAllObservations(categoryId?: string): TradeObservation[] {
     }
     return chosen.map((o) => ({ ...o, geo: undefined }));
   }, [imported, live.data, category.data, categoryId, client, categoryFetchCount]);
+}
+
+type CategoryCard = Omit<CategoryCatalogItem, "classification"> & {
+  classification: TradeObservation["classification"] | null;
+  imported: boolean;
+};
+
+/** Summaries feed cards only; they are never added to an analytical time series. */
+function useCategoryCards(
+  observations: TradeObservation[],
+  catalog?: CategoryCatalog,
+  motie?: MotieSnapshot,
+) {
+  const imported = useExportDeskStore((s) => s.observations);
+  return useMemo(() => {
+    const cards = new Map<string, CategoryCard>(
+      (catalog?.items ?? []).map((item) => [item.id, { ...item, imported: false }]),
+    );
+    if (
+      motie?.release &&
+      motie.provider.configured &&
+      motie.provider.recordCount > 0 &&
+      ["ok", "partial", "stale"].includes(motie.provider.state)
+    ) {
+      for (const item of motie.release.items) {
+        const row = motie.observations.find(
+          (o) =>
+            o.categoryId === item.categoryId &&
+            o.period === motie.release!.period &&
+            o.valueUsd === item.valueUsd &&
+            o.classification === "MTI" &&
+            Number.isFinite(o.valueUsd) &&
+            o.valueUsd >= 0,
+        );
+        if (!row) continue;
+        const saved = cards.get(item.categoryId);
+        if (saved?.current && saved.current.period > row.period) continue;
+        cards.set(item.categoryId, {
+          id: item.categoryId,
+          label: item.label,
+          current: { period: row.period, valueUsd: row.valueUsd },
+          previousYoY: null,
+          yoyPct: item.yoyPct != null && Number.isFinite(item.yoyPct) ? item.yoyPct : null,
+          state: motie.provider.state === "stale" ? "stale" : "ok",
+          count: 1,
+          source: row.sourceFile,
+          classification: "MTI",
+          providers: [motie.provider],
+          verifiedAt: motie.provider.checkedAt,
+          freshUntil: null,
+          retryAt: motie.provider.retryAt ?? null,
+          imported: false,
+        });
+      }
+    }
+    const importedIds = new Set(
+      imported
+        .filter(isNationalObservation)
+        .map((o) =>
+          (o.classification === "HS" || o.classification === "HSK") &&
+          /^(?:\d{2}|\d{4}|\d{6}|\d{10})$/.test(o.categoryId)
+            ? `hs${o.categoryId.length}:${o.categoryId}`
+            : o.categoryId,
+        ),
+    );
+    for (const proxy of CORE20_HS_PROXY) {
+      if (proxy.codes.some((code) => importedIds.has(`hs${code.length}:${code}`)))
+        importedIds.add(proxy.key);
+    }
+    const byCategory = new Map<string, TradeObservation[]>();
+    for (const row of observations) {
+      if (!isNationalObservation(row) || !Number.isFinite(row.valueUsd) || row.valueUsd < 0)
+        continue;
+      const rows = byCategory.get(row.categoryId) ?? [];
+      rows.push(row);
+      byCategory.set(row.categoryId, rows);
+    }
+    for (const id of new Set([...byCategory.keys(), ...importedIds])) {
+      const rows = (byCategory.get(id) ?? []).sort((a, b) => a.period.localeCompare(b.period));
+      const last = rows.at(-1);
+      const saved = cards.get(id);
+      const isImported = importedIds.has(id);
+      // A chosen import owns its entire category, including missing months.
+      // Otherwise select one complete source dataset by its newest month.
+      if (!isImported && saved?.current && (!last || saved.current.period >= last.period)) continue;
+      const sameDataset = last
+        ? rows.filter(
+            (row) =>
+              row.sourceFile === last.sourceFile &&
+              row.classification === last.classification &&
+              (row.vintage ?? "") === (last.vintage ?? ""),
+          )
+        : [];
+      const previous = sameDataset.find((row) => row.period === addMonths(last?.period, -12));
+      cards.set(id, {
+        id,
+        label: last?.categoryName ?? saved?.label ?? id,
+        current: last ? { period: last.period, valueUsd: last.valueUsd } : null,
+        previousYoY: previous ? { period: previous.period, valueUsd: previous.valueUsd } : null,
+        yoyPct:
+          last && previous && previous.valueUsd > 0
+            ? (last.valueUsd / previous.valueUsd - 1) * 100
+            : null,
+        state: last ? "ok" : "unavailable",
+        count: sameDataset.length,
+        source: last?.sourceFile ?? null,
+        classification: last?.classification ?? null,
+        providers: isImported ? [] : (saved?.providers ?? []),
+        verifiedAt: isImported ? null : (saved?.verifiedAt ?? null),
+        freshUntil: isImported ? null : (saved?.freshUntil ?? null),
+        retryAt: isImported ? null : (saved?.retryAt ?? null),
+        imported: isImported,
+      });
+    }
+    return cards;
+  }, [observations, catalog, motie, imported]);
+}
+
+function categoryCardState(card: CategoryCard | undefined, loading: boolean): string {
+  if (card?.current) return card.state === "stale" ? "이전 공식 자료" : "관측 확보";
+  if (loading || !card || card.state === "pending") return "조회 대기";
+  return "자료 미확보";
+}
+
+function categoryCardReason(card: CategoryCard | undefined): string {
+  if (card?.imported) return "가져온 파일의 전국 관측을 사용합니다.";
+  return (
+    card?.providers
+      .filter((p) => p.id !== "trade.cache")
+      .map((p) => `${p.name}: ${p.message}`)
+      .join(" · ") || "공식 저장 자료를 확인하고 있습니다."
+  );
+}
+
+function MotieReleaseBadge({ query }: { query: ReturnType<typeof useMotieRelease> }) {
+  const snapshot = query.data;
+  const release = snapshot?.release;
+  const provider = snapshot?.provider;
+  const verified = Boolean(
+    release &&
+    provider?.configured &&
+    provider.recordCount > 0 &&
+    snapshot?.observations.length &&
+    ["ok", "partial", "stale"].includes(provider.state),
+  );
+  const label = query.isLoading
+    ? "산업부 공식 속보 확인 중"
+    : release
+      ? verified
+        ? `산업부 공식 속보 · ${provider?.state === "stale" ? "이전 자료" : "연결 정상"} · ${release.period}${release.provisional ? " · 잠정" : ""}`
+        : `산업부 속보 원문 연결 · 수치 미검증 · ${release.period}`
+      : `산업부 공식 속보 · ${provider ? PROVIDER_LABELS[provider.state] : "연결 실패"}`;
+  const className = cn(
+    "rounded px-1.5 py-0.5 font-medium",
+    verified && provider?.state !== "stale"
+      ? "bg-emerald-500/15 text-emerald-300"
+      : "bg-amber-500/15 text-amber-200",
+  );
+  return release ? (
+    <a
+      className={cn(className, "min-h-11 inline-flex items-center hover:underline")}
+      href={release.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={`${release.title} · ${provider?.message ?? "공식 원문"}`}
+      data-testid="export-motie-release-status"
+    >
+      {label}
+    </a>
+  ) : (
+    <span className={className} title={provider?.message} data-testid="export-motie-release-status">
+      {label}
+    </span>
+  );
 }
 
 function useExportSeries(categoryId = "TOTAL") {
@@ -885,6 +1091,9 @@ function Core20Panel({ onOpen }: { onOpen: (cat: string) => void }) {
   const exposures = useExportDeskStore((s) => s.exposures);
   const settings = useExportDeskStore((s) => s.settings);
   const live = useLiveTrade();
+  const catalog = useTradeCategoryCatalog();
+  const motie = useMotieRelease();
+  const cards = useCategoryCards(all, catalog.data, motie.data);
   const totals = all.filter((o) => o.categoryId === "TOTAL");
   const observed = all.filter((o) => Number.isFinite(o.valueUsd) && o.valueUsd >= 0);
   const focusedRows = observed.filter((o) => o.categoryId === focus);
@@ -892,8 +1101,7 @@ function Core20Panel({ onOpen }: { onOpen: (cat: string) => void }) {
   const focusedItem = allItems.find((it) => it.key === focus);
   const focusedLabel = focusedItem ? (lang === "en" ? focusedItem.en : focusedItem.ko) : focus;
   const focusedSource = [...new Set(focusedRows.map((o) => o.sourceFile))].join(" · ");
-  const observedCategories = new Set(observed.map((o) => o.categoryId));
-  const observedItemCount = items.filter((it) => observedCategories.has(it.key)).length;
+  const observedItemCount = items.filter((it) => cards.get(it.key)?.current).length;
   const customsProviders = (category.data?.providers ?? live.data?.providers ?? []).filter(
     (p) => p.id === "customs.item" || p.id === "customs.public-item",
   );
@@ -933,9 +1141,7 @@ function Core20Panel({ onOpen }: { onOpen: (cat: string) => void }) {
             {focusedSource ||
               (category.isFetching ? "선택 품목 출처 확인 중" : "선택 품목 관측 미확보")}
           </span>
-          <span className="rounded bg-amber-500/15 px-1.5 py-0.5 font-medium text-amber-200">
-            MOTIE 속보 미연결
-          </span>
+          <MotieReleaseBadge query={motie} />
           <span
             className={cn(
               "rounded px-1.5 py-0.5 font-medium",
@@ -953,13 +1159,13 @@ function Core20Panel({ onOpen }: { onOpen: (cat: string) => void }) {
                   : "관세청 품목 · 조회 결과 없음"}
           </span>
           <span className="rounded border border-border px-1.5 py-0.5">
-            참고 분류 · 공식 개정 근거 미확인
+            품목 정의·출처 개별 표시
           </span>
         </div>
-        품목 목록은 미검증 참고 설정입니다. 공식 MTI 개정 사실·시행일은 확인되지 않았습니다. 목록
-        토글은 참고 품목만 바꾸며 금액을 만들지 않습니다. 표시 금액은 HS 근사이며 MOTIE MTI 잠정치가
-        아닙니다. HS 85를 반도체로 대체하지 않습니다. 매핑이 없거나 관측이 없으면 N/A. 부분 품목
-        합을 총수출 100%로 늘려 맞추지 않습니다.
+        각 카드는 실제 자료의 MTI·HS 분류와 기준월을 표시합니다. 산업부 속보에서 수치가 확인된
+        품목만 공식 MTI 관측으로 표시하며, HS 대용 품목과 구분합니다. 목록 토글은 참고 품목만 바꾸며
+        금액을 만들지 않습니다. 조회 대기와 자료 미확보를 구분하고, 부분 품목 합을 총수출 100%로
+        늘려 맞추지 않습니다.
       </div>
       <div className="flex flex-wrap gap-1">
         <button
@@ -987,7 +1193,7 @@ function Core20Panel({ onOpen }: { onOpen: (cat: string) => void }) {
           role="status"
           aria-live="polite"
         >
-          참고 목록 {items.length}개 · 관측 확보 {observedItemCount}/{items.length}개 · 선택{" "}
+          참고 목록 {items.length}개 · 관측 확보 {observedItemCount}/{items.length}개 · 선택 이력{" "}
           {focusedLabel}
           {focusedPeriods.length
             ? ` · 최신 ${focusedPeriods.at(-1)} · ${focusedPeriods.length}개월`
@@ -996,6 +1202,21 @@ function Core20Panel({ onOpen }: { onOpen: (cat: string) => void }) {
               : " · 관측 미확보"}
         </span>
       </div>
+      <p
+        role="status"
+        className="text-xs text-muted-foreground"
+        data-testid="export-category-catalog-status"
+      >
+        {catalog.isLoading
+          ? "전체 품목의 공식 저장 자료를 불러오고 있습니다. 품목별로 클릭하지 않아도 자동 조회합니다."
+          : catalog.isError
+            ? "전체 품목 요약 조회에 실패했습니다. 확보한 자료는 유지하며 자료 새로고침으로 다시 확인할 수 있습니다."
+            : catalog.warmingPaused
+              ? "일부 품목이 조회 대기 중입니다. 자료 새로고침으로 남은 품목을 다시 확인할 수 있습니다."
+              : catalog.data?.pending.length
+                ? `공식 자료 자동 확인 중 · 남은 품목 ${catalog.data.pending.length}개. 확보한 값부터 표시합니다.`
+                : "전체 품목의 공식 자료 확인을 마쳤습니다. 미확보 품목은 카드에서 사유를 확인할 수 있습니다."}
+      </p>
       {category.isFetching && (
         <p role="status" className="text-xs text-muted-foreground">
           선택 품목의 월별 이력을 확인하고 있습니다.
@@ -1031,25 +1252,25 @@ function Core20Panel({ onOpen }: { onOpen: (cat: string) => void }) {
         </div>
       )}
       <p className="text-xs text-muted-foreground">
-        최대 6개 오버레이. 카드를 누르면 산업 × 주가 비교로 이동합니다. 고저 마커는 포커스
-        품목(마지막에 고른 항목)에만 그립니다.
+        최대 6개 오버레이. 카드는 최신 공식 요약을, 오버레이는 확보한 월별 이력을 표시합니다. MTI
+        단월 속보를 HS 이력에 이어 붙이지 않습니다. 카드를 누르면 산업 × 주가 비교로 이동합니다.
+        고저 마커는 포커스 품목(마지막에 고른 항목)에만 그립니다.
       </p>
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
         {items.map((it) => {
-          const series = all
-            .filter(
-              (o) => o.categoryId === it.key && Number.isFinite(o.valueUsd) && o.valueUsd >= 0,
-            )
-            .sort((a, b) => a.period.localeCompare(b.period));
-          const last = series.at(-1);
-          const prev = series.find((s) => s.period === addMonths(last?.period, -12));
-          const yoy =
-            last && prev && prev.valueUsd
-              ? ((last.valueUsd / prev.valueUsd - 1) * 100).toFixed(1)
-              : "N/A";
+          const card = cards.get(it.key);
+          const last = card?.current;
+          const yoy = card?.yoyPct != null ? `${card.yoyPct.toFixed(1)}%` : "동월 관측 미확보";
           const total = last ? totals.find((t) => t.period === last.period) : undefined;
           const share =
-            last && total && total.valueUsd > 0 ? (last.valueUsd / total.valueUsd) * 100 : null;
+            last && total && card?.source === total.sourceFile && total.valueUsd > 0
+              ? (last.valueUsd / total.valueUsd) * 100
+              : null;
+          const stateLabel = categoryCardState(card, catalog.isLoading);
+          const reason = categoryCardReason(card);
+          const provider = card?.providers.find(
+            (p) => p.recordCount > 0 && p.asOf === last?.period && p.id !== "trade.cache",
+          );
           const mapped = exposures.filter(
             (e) => e.exportCategoryId === it.key && e.active !== false,
           );
@@ -1061,12 +1282,18 @@ function Core20Panel({ onOpen }: { onOpen: (cat: string) => void }) {
           return (
             <div
               key={it.key}
+              data-testid={`export-category-card-${it.key}`}
+              data-catalog-state={card?.state ?? "pending"}
               className={cn(
-                "desk-card desk-card-teal p-3 text-left",
+                "desk-card desk-card-teal min-w-0 max-w-full p-3 text-left",
                 on && "ring-1 ring-desk-gold/50",
               )}
             >
-              <button type="button" onClick={() => onOpen(it.key)} className="w-full text-left">
+              <button
+                type="button"
+                onClick={() => onOpen(it.key)}
+                className="w-full min-w-0 max-w-full text-left"
+              >
                 <div className="flex items-start justify-between gap-2">
                   <div className="text-sm font-semibold">{lang === "en" ? it.en : it.ko}</div>
                   {it.addedIn2026Revision && (
@@ -1074,23 +1301,33 @@ function Core20Panel({ onOpen }: { onOpen: (cat: string) => void }) {
                   )}
                 </div>
                 <div className="mt-1 text-lg tabular font-semibold">
-                  {last ? formatUsdBn(last.valueUsd) : proxy ? "N/A" : "HS 없음"}
+                  {last ? formatUsdBn(last.valueUsd) : stateLabel}
                 </div>
                 {last && (
                   <div className="text-[10px] text-muted-foreground">기준 {last.period}</div>
                 )}
                 <div className="text-[11px] text-muted-foreground">
-                  YoY {yoy}
+                  {last ? `YoY ${yoy}` : "공식 관측 확인 필요"}
                   {share != null
-                    ? ` · 총수출 참고 비율 ${share.toFixed(1)}% (출처·정의 확인 필요)`
-                    : " · 비중 N/A"}
+                    ? ` · 동일 출처 총수출 대비 ${share.toFixed(1)}%`
+                    : last
+                      ? " · 동일 기준 총수출 미확보"
+                      : ""}
+                </div>
+                <div
+                  className="mt-1 min-w-0 max-w-full truncate text-[10px] text-muted-foreground"
+                  title={card?.source ?? reason}
+                >
+                  {last
+                    ? (provider?.name ?? (card?.imported ? "가져온 전국 자료" : card?.source))
+                    : reason}
                 </div>
                 <div className="mt-2 flex flex-wrap gap-1">
                   <Badge variant="outline" className="text-[10px]">
-                    {last ? `${last.classification} 관측` : proxy ? "HS 관측 대기" : "HS 없음"}
+                    {last ? `${card?.classification} · ${stateLabel}` : stateLabel}
                   </Badge>
                   <Badge variant="outline" className="text-[10px]">
-                    {proxy ? proxy.label : "N/A"}
+                    {card?.classification === "MTI" ? "MTI 품목" : (proxy?.label ?? "코드 미확인")}
                   </Badge>
                   <Badge variant="outline" className="text-[10px]">
                     매핑 {verified.length}/{mapped.length}
@@ -1124,26 +1361,35 @@ function Core20Panel({ onOpen }: { onOpen: (cat: string) => void }) {
 
 function AllIndustriesPanel({ onOpen }: { onOpen: (cat: string) => void }) {
   const observations = useAllObservations();
+  const catalog = useTradeCategoryCatalog();
+  const motie = useMotieRelease();
+  const cards = useCategoryCards(observations, catalog.data, motie.data);
   const [q, setQ] = useState("");
   const [onlyMapped, setOnlyMapped] = useState(false);
   const exposures = useExportDeskStore((s) => s.exposures);
   const core = getCore20().items as { key: string; ko: string }[];
   const cats = useMemo(() => {
-    const map = new Map<string, { id: string; name: string; value: number; period: string }>();
-    for (const it of core) {
-      map.set(it.key, { id: it.key, name: it.ko, value: 0, period: "" });
-    }
-    for (const o of observations) {
-      if (!Number.isFinite(o.valueUsd) || o.valueUsd < 0) continue;
-      const prev = map.get(o.categoryId);
-      if (!prev || o.period >= prev.period) {
-        map.set(o.categoryId, {
-          id: o.categoryId,
-          name: o.categoryName ?? o.categoryId,
-          value: o.valueUsd,
-          period: o.period,
-        });
+    const map = new Map<
+      string,
+      {
+        id: string;
+        name: string;
+        value: number;
+        period: string;
+        classification: TradeObservation["classification"] | null;
       }
+    >();
+    for (const it of core) {
+      map.set(it.key, { id: it.key, name: it.ko, value: 0, period: "", classification: null });
+    }
+    for (const card of cards.values()) {
+      map.set(card.id, {
+        id: card.id,
+        name: core.find((it) => it.key === card.id)?.ko ?? card.label,
+        value: card.current?.valueUsd ?? 0,
+        period: card.current?.period ?? "",
+        classification: card.classification,
+      });
     }
     let rows = [...map.values()].filter((r) => r.period || core.some((c) => c.key === r.id));
     if (q.trim()) {
@@ -1157,7 +1403,7 @@ function AllIndustriesPanel({ onOpen }: { onOpen: (cat: string) => void }) {
       rows = rows.filter((r) => ids.has(r.id));
     }
     return rows.sort((a, b) => b.value - a.value);
-  }, [observations, q, onlyMapped, exposures, core]);
+  }, [cards, q, onlyMapped, exposures, core]);
 
   const barRows = cats.filter((c) => c.id.startsWith("hs2:") && c.value > 0).slice(0, 15);
   const bar = barRows.map((c) => ({
@@ -1191,7 +1437,19 @@ function AllIndustriesPanel({ onOpen }: { onOpen: (cat: string) => void }) {
           <Switch checked={onlyMapped} onCheckedChange={setOnlyMapped} />
           매핑 후보가 있는 품목만
         </label>
+        <MotieReleaseBadge query={motie} />
       </div>
+      <p role="status" className="mb-3 text-xs text-muted-foreground">
+        {catalog.isLoading
+          ? "전체 품목의 공식 저장 자료를 자동으로 불러오고 있습니다."
+          : catalog.isError
+            ? "품목 요약 조회에 실패했습니다. 확보한 관측은 유지합니다."
+            : catalog.warmingPaused
+              ? "일부 품목이 조회 대기 중입니다. 자료 새로고침으로 다시 진행할 수 있습니다."
+              : catalog.data?.pending.length
+                ? `공식 자료 자동 확인 중 · 남은 품목 ${catalog.data.pending.length}개`
+                : "확인된 품목별 최신 기준월과 실제 분류를 표시합니다."}
+      </p>
       {bar.length > 0 && (
         <div className="mb-4">
           <ChartFrame
@@ -1248,7 +1506,7 @@ function AllIndustriesPanel({ onOpen }: { onOpen: (cat: string) => void }) {
               <th>코드</th>
               <th className="text-right">최신 수출</th>
               <th>기준월</th>
-              <th>분류</th>
+              <th>분류·상태</th>
             </tr>
           </thead>
           <tbody>
@@ -1264,13 +1522,16 @@ function AllIndustriesPanel({ onOpen }: { onOpen: (cat: string) => void }) {
                   </button>
                 </td>
                 <td className="tabular text-xs">{c.id}</td>
-                <td className="text-right tabular">
-                  {c.period && Number.isFinite(c.value) ? formatUsdBn(c.value) : "N/A"}
+                <td className="text-right tabular" title={categoryCardReason(cards.get(c.id))}>
+                  {c.period && Number.isFinite(c.value)
+                    ? formatUsdBn(c.value)
+                    : categoryCardState(cards.get(c.id), catalog.isLoading)}
                 </td>
                 <td className="whitespace-nowrap text-xs">{c.period || "—"}</td>
                 <td>
                   <Badge variant="outline" className="text-[10px]">
-                    {core.some((x) => x.key === c.id) ? "T1" : "T3"}
+                    {c.classification ?? "미확인"} ·{" "}
+                    {categoryCardState(cards.get(c.id), catalog.isLoading)}
                   </Badge>
                 </td>
               </tr>
@@ -1774,7 +2035,7 @@ function RegionPanel() {
         <div className="text-sm text-muted-foreground">
           {live.isLoading
             ? "상대국 집계 수집 중"
-            : "상대국 스냅샷이 아직 없습니다. 자료 새로고침으로 제공처 상태를 다시 확인할 수 있습니다. 서버별 임시 캐시 보존은 보장되지 않습니다."}
+            : "상대국 관측을 확보하지 못했습니다. 데이터 품질 / 출처에서 국가별 서비스의 인증·요청 제한 사유를 확인하고 자료 새로고침으로 다시 조회할 수 있습니다."}
         </div>
       )}
       <Provenance
@@ -1845,6 +2106,7 @@ function QaPanel() {
   const observations = useAllObservations();
   const logs = useExportDeskStore((s) => s.logs);
   const live = useLiveTrade();
+  const motie = useMotieRelease();
   const totals = observations.filter((o) => o.categoryId === "TOTAL");
   const parts = observations.filter((o) => o.categoryId.startsWith("hs2:"));
   const lastP = [...new Set(parts.map((p) => p.period))].sort().at(-1);
@@ -1869,12 +2131,12 @@ function QaPanel() {
           반도체로 쓰지 않습니다.
         </li>
         <li>
-          · 관세청 연결·인증 여부와 오류 사유는 아래 실제 서버 상태를 따릅니다. 산업부 MTI 속보는
-          별도 연결되지 않았습니다.
+          · 관세청 연결·인증 여부와 오류 사유는 아래 실제 서버 상태를 따릅니다. 산업부 속보:{" "}
+          {motie.data?.provider.message ?? "공식 원문과 수치를 확인하고 있습니다."}
         </li>
         <li>
-          · 품목 분류는 UNVERIFIED_SEED 참고 설정입니다. 공식 MTI 개정 여부·시행일을 확인한 목록이
-          아닙니다.
+          · 화면의 참고 품목 목록은 공식 분류 개정 목록이 아닙니다. 개별 금액은 실제 원문의 MTI·HS
+          분류, 기준월과 검증 상태를 따릅니다.
         </li>
         {(live.data?.notes ?? []).map((n) => (
           <li key={n}>· {n}</li>
@@ -1884,6 +2146,9 @@ function QaPanel() {
           {live.data?.comtradeMonthsCached ?? 0}개월
         </li>
       </ul>
+      <div className="text-xs">
+        <MotieReleaseBadge query={motie} />
+      </div>
       <SourceHealth />
       <div className="text-sm">
         HS2 합과 선택 총수출의 참고 대조 {recon ? (recon.pass ? "허용 범위" : "차이 있음") : "N/A"}

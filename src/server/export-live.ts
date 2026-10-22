@@ -3,6 +3,8 @@ import { z } from "zod";
 import { CORE20_HS_PROXY } from "@/lib/export-desk/hs-map";
 import { fetchLiveTradeSnapshot, fetchTradeCategorySnapshot } from "./export-trade-pipeline";
 import { fetchGoogleNewsRss } from "./us-link-feed";
+import { fetchTradeCategoryCatalog } from "./export-category-catalog.ts";
+import { fetchMotieRelease } from "./export-motie.ts";
 
 export type { FredPoint } from "@/lib/export-desk/parse-fred";
 export type { DestinationRow } from "@/lib/export-desk/destinations";
@@ -10,6 +12,15 @@ export type { LiveTradeBundle } from "./export-trade-pipeline";
 
 export const getLiveTradeBundle = createServerFn({ method: "GET" }).handler(async () =>
   fetchLiveTradeSnapshot(),
+);
+
+// One shared catalog hydrates the cards; detailed histories remain separate.
+export const getTradeCategoryCatalog = createServerFn({ method: "GET" })
+  .validator(z.object({ refresh: z.boolean().optional() }))
+  .handler(async ({ data }) => fetchTradeCategoryCatalog(data));
+
+export const getMotieRelease = createServerFn({ method: "GET" }).handler(async () =>
+  fetchMotieRelease(),
 );
 
 // Headlines have their own query: an optional RSS failure cannot delay statistics.

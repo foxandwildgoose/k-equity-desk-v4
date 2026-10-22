@@ -1,9 +1,12 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CORE20_HS_PROXY } from "./hs-map";
+import type { CategoryCatalog } from "./category-catalog";
 import {
   getExportTradeNews,
   getLiveTradeBundle,
   getTradeCategorySeries,
+  getTradeCategoryCatalog,
+  getMotieRelease,
 } from "@/server/export-live";
 
 export function useLiveTrade() {
@@ -43,6 +46,56 @@ export function useTradeCategory(categoryId?: string) {
       query.state.data.providers.some((p) => p.reasonCode === "REFRESH_IN_PROGRESS")
         ? 5_000
         : false,
+  });
+}
+
+/** One shared catalog request hydrates every card without per-card origin queries. */
+export function useTradeCategoryCatalog() {
+  const client = useQueryClient();
+  const query = useQuery({
+    queryKey: ["export-category-catalog"],
+    queryFn: () => {
+      const refresh = Boolean(
+        client.getQueryData<CategoryCatalog>(["export-category-catalog"])?.pending.length,
+      );
+      return getTradeCategoryCatalog({
+        data: {
+          // Show shared saved summaries first; only subsequent polls warm the
+          // bounded server queue. Summaries never populate history query keys.
+          refresh,
+        },
+      });
+    },
+    staleTime: 60_000,
+    retry: 1,
+    retryDelay: 1500,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true,
+    // Ten two-category rounds cover the reference list. The extra rounds allow
+    // for a peer's active refresh without polling a failed provider forever.
+    refetchInterval: (query) =>
+      query.state.data?.pending.length && !query.state.error && query.state.dataUpdateCount < 12
+        ? 5_000
+        : false,
+  });
+  return {
+    ...query,
+    warmingPaused: Boolean(
+      query.data?.pending.length &&
+      (client.getQueryState(["export-category-catalog"])?.dataUpdateCount ?? 0) >= 12,
+    ),
+  };
+}
+
+/** Official monthly release acquisition has its own state and cannot delay HS cards. */
+export function useMotieRelease() {
+  return useQuery({
+    queryKey: ["export-motie-release"],
+    queryFn: () => getMotieRelease(),
+    staleTime: 30 * 60_000,
+    retry: 0,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true,
   });
 }
 
