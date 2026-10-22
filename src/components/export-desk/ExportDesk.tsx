@@ -118,8 +118,8 @@ export function ExportDesk() {
           {t("export.desk.title", lang)}
         </h1>
         <p className="page-lead">
-          관세청·OECD·World Bank 수출입 통계와 실제 시장 시세를 비교합니다. 품목은 HS 기준이며, 출처별
-          공표 시차와 연결 상태를 함께 표시합니다.
+          관세청·OECD·World Bank 수출입 통계와 실제 시장 시세를 비교합니다. 품목은 HS 기준이며,
+          출처별 공표 시차와 연결 상태를 함께 표시합니다.
         </p>
         <LiveTape />
         <div className="mt-3 flex flex-wrap items-center gap-3 text-xs">
@@ -886,6 +886,23 @@ function Core20Panel({ onOpen }: { onOpen: (cat: string) => void }) {
   const settings = useExportDeskStore((s) => s.settings);
   const live = useLiveTrade();
   const totals = all.filter((o) => o.categoryId === "TOTAL");
+  const observed = all.filter((o) => Number.isFinite(o.valueUsd) && o.valueUsd >= 0);
+  const focusedRows = observed.filter((o) => o.categoryId === focus);
+  const focusedPeriods = [...new Set(focusedRows.map((o) => o.period))].sort();
+  const focusedItem = allItems.find((it) => it.key === focus);
+  const focusedLabel = focusedItem ? (lang === "en" ? focusedItem.en : focusedItem.ko) : focus;
+  const focusedSource = [...new Set(focusedRows.map((o) => o.sourceFile))].join(" · ");
+  const observedCategories = new Set(observed.map((o) => o.categoryId));
+  const observedItemCount = items.filter((it) => observedCategories.has(it.key)).length;
+  const customsProviders = (category.data?.providers ?? live.data?.providers ?? []).filter(
+    (p) => p.id === "customs.item" || p.id === "customs.public-item",
+  );
+  const customsProvider =
+    customsProviders.find(
+      (p) => p.recordCount > 0 && ["ok", "partial", "stale"].includes(p.state),
+    ) ??
+    customsProviders.find((p) => p.id === "customs.public-item") ??
+    customsProviders[0];
   const amountSeries = items
     .filter((it) => picked.includes(it.key))
     .map((it) => ({
@@ -913,16 +930,27 @@ function Core20Panel({ onOpen }: { onOpen: (cat: string) => void }) {
       <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
         <div className="mb-1 flex flex-wrap items-center gap-1.5">
           <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 font-medium text-emerald-300">
-            {live.data?.source.items ?? "HS 품목 연결 확인 중"}
+            {focusedSource ||
+              (category.isFetching ? "선택 품목 출처 확인 중" : "선택 품목 관측 미확보")}
           </span>
           <span className="rounded bg-amber-500/15 px-1.5 py-0.5 font-medium text-amber-200">
             MOTIE 속보 미연결
           </span>
-          <span className="rounded bg-amber-500/15 px-1.5 py-0.5 font-medium text-amber-200">
-            {(() => {
-              const p = live.data?.providers?.find((p) => p.id === "customs.item");
-              return p ? `관세청 품목 · ${PROVIDER_LABELS[p.state]}` : "관세청 품목 · 상태 확인 중";
-            })()}
+          <span
+            className={cn(
+              "rounded px-1.5 py-0.5 font-medium",
+              customsProvider?.recordCount && customsProvider.state === "ok"
+                ? "bg-emerald-500/15 text-emerald-300"
+                : "bg-amber-500/15 text-amber-200",
+            )}
+          >
+            {customsProvider
+              ? `${customsProvider.name} · ${PROVIDER_LABELS[customsProvider.state]}${customsProvider.asOf ? ` · ${customsProvider.asOf}` : ""}`
+              : category.isFetching
+                ? "관세청 품목 · 조회 중"
+                : category.isError
+                  ? "관세청 품목 · 연결 실패"
+                  : "관세청 품목 · 조회 결과 없음"}
           </span>
           <span className="rounded border border-border px-1.5 py-0.5">
             참고 분류 · 공식 개정 근거 미확인
@@ -954,9 +982,18 @@ function Core20Panel({ onOpen }: { onOpen: (cat: string) => void }) {
         >
           참고 15개
         </button>
-        <span className="self-center text-[11px] text-muted-foreground">
-          표시 {items.length} · 품목 최신 {live.data?.comtradeLatestPeriod ?? "N/A"} · Comtrade 캐시{" "}
-          {live.data?.comtradeMonthsCached ?? 0}개월
+        <span
+          className="self-center text-[11px] text-muted-foreground"
+          role="status"
+          aria-live="polite"
+        >
+          참고 목록 {items.length}개 · 관측 확보 {observedItemCount}/{items.length}개 · 선택{" "}
+          {focusedLabel}
+          {focusedPeriods.length
+            ? ` · 최신 ${focusedPeriods.at(-1)} · ${focusedPeriods.length}개월`
+            : category.isFetching
+              ? " · 이력 조회 중"
+              : " · 관측 미확보"}
         </span>
       </div>
       {category.isFetching && (
@@ -988,7 +1025,7 @@ function Core20Panel({ onOpen }: { onOpen: (cat: string) => void }) {
         />
       ) : (
         <div className="rounded-lg border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
-          {live.isLoading
+          {category.isFetching || live.isLoading
             ? "HS 품목 시계열 수집 중"
             : "선택한 품목은 비교 가능한 월별 관측이 2개 미만입니다. 아래 카드에서 확인된 단월 금액과 출처를 볼 수 있습니다."}
         </div>
@@ -1000,7 +1037,9 @@ function Core20Panel({ onOpen }: { onOpen: (cat: string) => void }) {
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         {items.map((it) => {
           const series = all
-            .filter((o) => o.categoryId === it.key)
+            .filter(
+              (o) => o.categoryId === it.key && Number.isFinite(o.valueUsd) && o.valueUsd >= 0,
+            )
             .sort((a, b) => a.period.localeCompare(b.period));
           const last = series.at(-1);
           const prev = series.find((s) => s.period === addMonths(last?.period, -12));
@@ -1037,6 +1076,9 @@ function Core20Panel({ onOpen }: { onOpen: (cat: string) => void }) {
                 <div className="mt-1 text-lg tabular font-semibold">
                   {last ? formatUsdBn(last.valueUsd) : proxy ? "N/A" : "HS 없음"}
                 </div>
+                {last && (
+                  <div className="text-[10px] text-muted-foreground">기준 {last.period}</div>
+                )}
                 <div className="text-[11px] text-muted-foreground">
                   YoY {yoy}
                   {share != null
@@ -1045,7 +1087,7 @@ function Core20Panel({ onOpen }: { onOpen: (cat: string) => void }) {
                 </div>
                 <div className="mt-2 flex flex-wrap gap-1">
                   <Badge variant="outline" className="text-[10px]">
-                    {proxy ? "HS 프리뷰" : "HS 없음"}
+                    {last ? `${last.classification} 관측` : proxy ? "HS 관측 대기" : "HS 없음"}
                   </Badge>
                   <Badge variant="outline" className="text-[10px]">
                     {proxy ? proxy.label : "N/A"}
@@ -1092,6 +1134,7 @@ function AllIndustriesPanel({ onOpen }: { onOpen: (cat: string) => void }) {
       map.set(it.key, { id: it.key, name: it.ko, value: 0, period: "" });
     }
     for (const o of observations) {
+      if (!Number.isFinite(o.valueUsd) || o.valueUsd < 0) continue;
       const prev = map.get(o.categoryId);
       if (!prev || o.period >= prev.period) {
         map.set(o.categoryId, {
