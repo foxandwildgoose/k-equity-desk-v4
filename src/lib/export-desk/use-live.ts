@@ -15,6 +15,13 @@ export function useLiveTrade() {
     retryDelay: 1500,
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
+    // A cold worker that lost the shared refresh lease waits for its peer's
+    // result instead of caching an empty in-progress response for 30 minutes.
+    refetchInterval: (query) =>
+      query.state.data?.exports.length === 0 &&
+      query.state.data.providers.some((p) => p.reasonCode === "REFRESH_IN_PROGRESS")
+        ? 5_000
+        : false,
   });
 }
 
@@ -31,6 +38,11 @@ export function useTradeCategory(categoryId?: string) {
     staleTime: 30 * 60_000,
     retry: 0,
     refetchOnWindowFocus: false,
+    refetchInterval: (query) =>
+      query.state.data?.observations.length === 0 &&
+      query.state.data.providers.some((p) => p.reasonCode === "REFRESH_IN_PROGRESS")
+        ? 5_000
+        : false,
   });
 }
 

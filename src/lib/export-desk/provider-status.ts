@@ -20,4 +20,6 @@ export interface ExportProviderStatus {
   sourceUrl: string;
   provisional?: boolean;
   reasonCode?: string;
+  /** Provider-directed retry time, shared across serverless workers. */
+  retryAt?: string;
 }

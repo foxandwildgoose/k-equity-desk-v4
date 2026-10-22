@@ -398,6 +398,7 @@ export function createComtradeClient(options: ClientOptions = {}) {
         recordCount: count,
         sourceUrl: SOURCE,
         reasonCode: reasonCodes[0] ?? reason,
+        ...(now().getTime() < cooldownUntil ? { retryAt: new Date(cooldownUntil).toISOString() } : {}),
         message: `${count}/${months.length}개월 원자료 확보. ${request.categoryId ? "모든 HS 구성코드가 확인된 월만 집계합니다." : "보고국 한국·상대국 전세계·HS TOTAL·미 달러 명목금액입니다."} ${reason ? "조회 제한 또는 연결 실패가 있으며 누락 월은 0으로 채우지 않습니다." : "미공표 월은 제외합니다."}`,
       };
       const providers = [provider];

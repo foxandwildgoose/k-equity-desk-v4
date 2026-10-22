@@ -118,7 +118,7 @@ export function ExportDesk() {
           {t("export.desk.title", lang)}
         </h1>
         <p className="page-lead">
-          관세청·FRED/OECD 수출입 통계와 실제 시장 시세를 비교합니다. 품목은 HS 기준이며, 출처별
+          관세청·OECD·World Bank 수출입 통계와 실제 시장 시세를 비교합니다. 품목은 HS 기준이며, 출처별
           공표 시차와 연결 상태를 함께 표시합니다.
         </p>
         <LiveTape />
@@ -342,8 +342,12 @@ function ConnectionSummary() {
             [
               "customs.total",
               "customs.item",
+              "customs.public-item",
               "customs.country",
               "fred.exports",
+              "oecd.exports",
+              "worldbank-exports",
+              "trade.cache",
               "comtrade.total",
               "naver.kospi",
               "bok.fx",
