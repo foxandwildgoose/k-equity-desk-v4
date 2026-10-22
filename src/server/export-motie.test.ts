@@ -6,6 +6,9 @@ import {
   parseMotieArticles,
   parseMotieHtmlItems,
   parseMotieTextItems,
+  motiePdfFailureReason,
+  motieTextDiagnostics,
+  resolveMotiePdfAssets,
   MOTIE_RELEASE_LIST_URL,
 } from "./export-motie.ts";
 
@@ -139,6 +142,55 @@ test("a named export paragraph needs exactly one current amount with an explicit
     parseMotieTextItems(prefix + "(자동차) 수출 52억 달러, 50억 달러보다 늘었다.", "2026-09"),
     [],
   );
+});
+
+test("regional, country, quarterly and cumulative tables cannot fill national monthly cards", () => {
+  for (const scope of [
+    "국가별 수출실적",
+    "미국 주요품목 수출",
+    "2026년 3분기 수출",
+    "수출 누계",
+    "상반기 수출",
+    "일평균 수출",
+    "2026년 1~9월 수출",
+  ]) {
+    assert.deepEqual(
+      parseMotieHtmlItems(TABLE.replace("주요 품목별 수출실적", scope), "2026-09"),
+      [],
+    );
+  }
+});
+
+test("later nonnational or cumulative sections reset inherited monthly export context", () => {
+  const prefix = TITLE + "\nMTI 주요품목 수출실적\n반도체(100억 달러)\n";
+  for (const scope of [
+    "국가별 수출실적",
+    "미국 수출",
+    "2026년 3분기 수출",
+    "누계 수출",
+    "상반기 수출",
+    "일평균 수출",
+    "2026년 1~9월 수출",
+  ]) {
+    const text = prefix + scope + "\n자동차: 12억 달러\n";
+    const rows = parseMotieTextItems(text, "2026-09");
+    assert.deepEqual(
+      rows.map((r) => r.categoryId),
+      ["semiconductors"],
+    );
+    const restored = parseMotieTextItems(
+      text + "2026년 9월 주요품목 수출실적\n가전: 3억 달러",
+      "2026-09",
+    );
+    assert.equal(
+      restored.some((r) => r.categoryId === "home_appliances"),
+      true,
+    );
+    assert.equal(
+      restored.some((r) => r.categoryId === "automobiles"),
+      false,
+    );
+  }
 });
 
 test("the client exposes validated MTI observations and the exact official source link", async () => {
@@ -340,4 +392,116 @@ test("the PDF extractor rejects format and size before loading document code", a
     extractMotiePdfText(new Uint8Array(8_000_001), AbortSignal.timeout(1000)),
     /검증/,
   );
+});
+
+test("public PDF failure categories identify known runtime stages without exposing exception text", () => {
+  const cases: [Error, string][] = [
+    [new ReferenceError("DOMMatrix is not defined"), "PDF_DOM_POLYFILL_MISSING"],
+    [new Error("Cannot find package private-package"), "PDF_RUNTIME_DEPENDENCY_MISSING"],
+    [new Error("Setting up fake worker failed"), "PDF_WORKER_INIT_FAILED"],
+    [
+      new Error('The API version "4" does not match the Worker version "5"'),
+      "PDF_WORKER_VERSION_MISMATCH",
+    ],
+    [
+      new Error("Ensure that the standardFontDataUrl API parameter is provided"),
+      "PDF_FONT_RESOURCE_UNAVAILABLE",
+    ],
+    [new Error("Unable to read CMap"), "PDF_FONT_RESOURCE_UNAVAILABLE"],
+    [new Error("WebAssembly module was not loaded"), "PDF_WASM_RESOURCE_UNAVAILABLE"],
+    [new Error("Promise.withResolvers is not a function"), "PDF_NODE_API_UNAVAILABLE"],
+    [new DOMException("private upstream text", "TimeoutError"), "PDF_DECODE_TIMEOUT"],
+    [new Error("secret fixture text must never be public"), "PDF_TEXT_FAILED"],
+  ];
+  for (const [error, expected] of cases)
+    assert.equal(motiePdfFailureReason(error, "TEXT"), expected);
+});
+
+test("normal source-health diagnostics return only bounded semantic booleans, counts and scale enums", () => {
+  const diagnostics = motieTextDiagnostics(
+    TITLE +
+      "\nMTI 주요품목 수출실적\n자동차부품(10억 달러)\n반도체: 100억 달러\nprivate unrelated fixture",
+    "2026-09",
+  );
+  assert.deepEqual(diagnostics, {
+    matchingPeriod: true,
+    mtiDefinition: true,
+    exportSection: true,
+    knownCategoryCount: 2,
+    explicitCurrencyAmountCount: 2,
+    usdScales: ["USD_100M"],
+  });
+  assert.equal(JSON.stringify(diagnostics).includes("private"), false);
+});
+
+test("a PDF fetch timeout is distinct from decoder failure and retains the official article link", async () => {
+  const client = createMotieReleaseClient({
+    now: () => NOW,
+    fetch: (async (input) => {
+      const url = String(input);
+      if (url.endsWith("/source.pdf"))
+        throw new DOMException("private request context", "TimeoutError");
+      return new Response(
+        url.includes("/view") ? detail("", '<a href="/source.pdf">보도자료.pdf</a>') : LIST,
+      );
+    }) as typeof fetch,
+  });
+  const result = await client();
+  assert.equal(result.provider.reasonCode, "ATTACHMENT_REQUEST_TIMEOUT");
+  assert.equal(result.provider.state, "partial");
+  assert.equal(result.release?.url, DETAIL);
+  assert.equal(result.diagnostics?.stage, "attachment-request");
+  assert.equal(JSON.stringify(result).includes("private request context"), false);
+});
+
+test("an interrupted attachment body is reported separately from decode and font errors", async () => {
+  const client = createMotieReleaseClient({
+    now: () => NOW,
+    fetch: (async (input) => {
+      const url = String(input);
+      if (url.endsWith("/source.pdf"))
+        return new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.error(new TypeError("private transport failure"));
+            },
+          }),
+        );
+      return new Response(
+        url.includes("/view") ? detail("", '<a href="/source.pdf">보도자료.pdf</a>') : LIST,
+      );
+    }) as typeof fetch,
+  });
+  const result = await client();
+  assert.equal(result.provider.reasonCode, "ATTACHMENT_BODY_READ_FAILED");
+  assert.equal(result.diagnostics?.stage, "attachment-request");
+  assert.equal(result.observations.length, 0);
+  assert.equal(JSON.stringify(result).includes("private transport failure"), false);
+});
+
+// Test-only generated ReportLab CID document, not ministry observations.
+const KOREAN_CID_PDF_FIXTURE_BASE64 =
+  "JVBERi0xLjMKJZOMi54gUmVwb3J0TGFiIEdlbmVyYXRlZCBQREYgZG9jdW1lbnQgKG9wZW5zb3VyY2UpCjEgMCBvYmoKPDwKL0YxIDIgMCBSIC9GMiAzIDAgUgo+PgplbmRvYmoKMiAwIG9iago8PAovQmFzZUZvbnQgL0hlbHZldGljYSAvRW5jb2RpbmcgL1dpbkFuc2lFbmNvZGluZyAvTmFtZSAvRjEgL1N1YnR5cGUgL1R5cGUxIC9UeXBlIC9Gb250Cj4+CmVuZG9iagozIDAgb2JqCjw8Ci9CYXNlRm9udCAvSFlTTXllb25nSm8tTWVkaXVtIC9EZXNjZW5kYW50Rm9udHMgWyA8PAovQmFzZUZvbnQgL0hZU015ZW9uZ0pvLU1lZGl1bSAvQ0lEU3lzdGVtSW5mbyA8PAovT3JkZXJpbmcgKEtvcmVhMSkgL1JlZ2lzdHJ5IChBZG9iZSkgL1N1cHBsZW1lbnQgMQo+PiAvRFcgMTAwMCAvRm9udERlc2NyaXB0b3IgPDwKL0FzY2VudCA3NTIgL0F2Z1dpZHRoIDUwMCAvQ2FwSGVpZ2h0IDczNyAvRGVzY2VudCAtMjcxIC9GbGFncyA2IC9Gb250QkJveCBbIDAgLTE0OCAxMDAxIDg4MCBdIAogIC9Gb250TmFtZSAvSFlTTXllb25nSm8tTWVkaXVtIC9JdGFsaWNBbmdsZSAwIC9MZWFkaW5nIDE0OCAvTWF4V2lkdGggMTAwMCAvTWlzc2luZ1dpZHRoIDUwMCAvU3RlbUggOTEgCiAgL1N0ZW1WIDU4IC9UeXBlIC9Gb250RGVzY3JpcHRvciAvWEhlaWdodCA1NTMKPj4gL1N1YnR5cGUgL0NJREZvbnRUeXBlMiAvVHlwZSAvRm9udCAKICAvVyBbIDEgWyAzMzMgNDE2IF0gMyBbIDQxNiA4MzMgNjI1IDkxNiA4MzMgMjUwIDUwMCBdIDEwIDExIDUwMCAxMiBbIDgzMyAyOTEgODMzIDI5MSAzNzUgNjI1IF0gMTggCiAgMjYgNjI1IDI3IDI4IDMzMyAyOSAzMCA4MzMgMzEgWyA5MTYgNTAwIDEwMDAgNzkxIDcwOCBdIAogIDM2IFsgNzA4IDc1MCA3MDggNjY2IDc1MCA3OTEgMzc1IDUwMCA3OTEgNjY2IAogIDkxNiA3OTEgNzUwIDY2NiA3NTAgNzA4IDY2NiA3OTEgXSA1NCBbIDc5MSA3NTAgMTAwMCA3MDggXSA1OCBbIDcwOCA2NjYgNTAwIDM3NSA1MDAgXSA2MyA2NCA1MDAgNjUgCiAgWyAzMzMgNTQxIDU4MyA1NDEgNTgzIF0gNzAgWyA1ODMgMzc1IDU4MyBdIDczIFsgNTgzIDI5MSAzMzMgNTgzIDI5MSA4NzUgNTgzIF0gODAgODIgNTgzIDgzIFsgNDU4IDU0MSAzNzUgNTgzIF0gCiAgODcgWyA1ODMgODMzIDYyNSBdIDkwIFsgNjI1IDUwMCA1ODMgXSA5MyA5NCA1ODMgOTUgWyA3NTAgXSBdCj4+IF0gL0VuY29kaW5nIC9VbmlLUy1VQ1MyLUggL05hbWUgL0YyIC9TdWJ0eXBlIC9UeXBlMCAvVHlwZSAvRm9udAo+PgplbmRvYmoKNCAwIG9iago8PAovQ29udGVudHMgOCAwIFIgL01lZGlhQm94IFsgMCAwIDU5NS4yNzU2IDg0MS44ODk4IF0gL1BhcmVudCA3IDAgUiAvUmVzb3VyY2VzIDw8Ci9Gb250IDEgMCBSIC9Qcm9jU2V0IFsgL1BERiAvVGV4dCAvSW1hZ2VCIC9JbWFnZUMgL0ltYWdlSSBdCj4+IC9Sb3RhdGUgMCAvVHJhbnMgPDwKCj4+IAogIC9UeXBlIC9QYWdlCj4+CmVuZG9iago1IDAgb2JqCjw8Ci9QYWdlTW9kZSAvVXNlTm9uZSAvUGFnZXMgNyAwIFIgL1R5cGUgL0NhdGFsb2cKPj4KZW5kb2JqCjYgMCBvYmoKPDwKL0F1dGhvciAoYW5vbnltb3VzKSAvQ3JlYXRpb25EYXRlIChEOjIwMjYxMDIyMDkxMDQ4KzAwJzAwJykgL0NyZWF0b3IgKGFub255bW91cykgL0tleXdvcmRzICgpIC9Nb2REYXRlIChEOjIwMjYxMDIyMDkxMDQ4KzAwJzAwJykgL1Byb2R1Y2VyIChSZXBvcnRMYWIgUERGIExpYnJhcnkgLSBcKG9wZW5zb3VyY2VcKSkgCiAgL1N1YmplY3QgKHVuc3BlY2lmaWVkKSAvVGl0bGUgKHVudGl0bGVkKSAvVHJhcHBlZCAvRmFsc2UKPj4KZW5kb2JqCjcgMCBvYmoKPDwKL0NvdW50IDEgL0tpZHMgWyA0IDAgUiBdIC9UeXBlIC9QYWdlcwo+PgplbmRvYmoKOCAwIG9iago8PAovRmlsdGVyIFsgL0FTQ0lJODVEZWNvZGUgL0ZsYXRlRGVjb2RlIF0gL0xlbmd0aCAxNzIKPj4Kc3RyZWFtCkdhclcyXSsyXDMkcTlvPmA+c0wxcigoIicsYV1FM0g6KFg1Vz0oMGdUOSVmP1hRI2MvcHRAS1VpcGpuKyJDKUE1KWhTO1BLJDFGN21eUUgwR2hNYEU8WF1VMFlcPj5tRi1aJVk7TDlkY3IsPFBHbHE2Vz9BTWsnZ1MjSXU8TWI9SSxaVippYzRyZ2NOXm1LP21JWWcpVDltZFQiNG1XVj5qSkQpPlM/aygqfj5lbmRzdHJlYW0KZW5kb2JqCnhyZWYKMCA5CjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDA2MSAwMDAwMCBuIAowMDAwMDAwMTAyIDAwMDAwIG4gCjAwMDAwMDAyMDkgMDAwMDAgbiAKMDAwMDAwMTI0OCAwMDAwMCBuIAowMDAwMDAxNDUxIDAwMDAwIG4gCjAwMDAwMDE1MTkgMDAwMDAgbiAKMDAwMDAwMTc4MCAwMDAwMCBuIAowMDAwMDAxODM5IDAwMDAwIG4gCnRyYWlsZXIKPDwKL0lEIApbPDQzODlkNGY1YzhiNzYxZGNjNzA2NjlmMmI3NDgzZDBjPjw0Mzg5ZDRmNWM4Yjc2MWRjYzcwNjY5ZjJiNzQ4M2QwYz5dCiUgUmVwb3J0TGFiIGdlbmVyYXRlZCBQREYgZG9jdW1lbnQgLS0gZGlnZXN0IChvcGVuc291cmNlKQoKL0luZm8gNiAwIFIKL1Jvb3QgNSAwIFIKL1NpemUgOQo+PgpzdGFydHhyZWYKMjEwMQolJUVPRgo=";
+
+test("the actual decoder resolves Korean CID text with trusted local CMaps and no network fetch", async () => {
+  const resources = resolveMotiePdfAssets();
+  assert.equal(/^https?:/i.test(resources.cMapUrl), false);
+  assert.equal(/^https?:/i.test(resources.standardFontDataUrl), false);
+  const beforeFetch = globalThis.fetch;
+  let remoteCalls = 0;
+  globalThis.fetch = async () => {
+    remoteCalls++;
+    throw new Error("PDF resource network fetch is prohibited");
+  };
+  try {
+    const bytes = new Uint8Array(Buffer.from(KOREAN_CID_PDF_FIXTURE_BASE64, "base64"));
+    const text = await extractMotiePdfText(bytes, AbortSignal.timeout(7000));
+    assert.ok(
+      text.includes("한글 문서 해석 검증용"),
+      "Korean CID text must not silently disappear",
+    );
+    assert.equal(remoteCalls, 0);
+  } finally {
+    globalThis.fetch = beforeFetch;
+  }
 });

@@ -21,6 +21,10 @@ Catalog/store tests cover cross-visitor cache visibility, exact prior-year ident
 
 Actual production responses, automatic card counts, source identity, reference month, cache backend and desktop/mobile interactions remain the release acceptance gate. Parser fixtures alone do not establish a live ministry connection or coverage of all 20 reference categories.
 
+Production revision `dbe07e8` passed desktop/mobile interaction checks on all nine tabs with no application HTTP/JavaScript errors or horizontal overflow. Seven previously verified HS4 categories appeared automatically from PostgreSQL without clicking each card. National exports/imports contained 118 observations and KOSPI/FX contained 119. These are provider-specific monthly observations, not same-day statistics.
+
+The production ministry response identified the actual September 2026 bulletin, its October 1 publication date and its official PDF download link. Numeric coverage remained zero because the attachment path failed. That response established an official article connection only. A subsequent isolated Korean CID-font PDF reproduced a missing local CMap defect even though the ASCII PDF fixture passed; deployment must include and verify these non-JavaScript resources before claiming Korean PDF extraction works.
+
 The current ministry host `www.motir.go.kr`, separate official reference host `www.korea.kr`, and the user-supplied deployment host were added to the existing cloud network draft without removing prior domains. Saving the draft does not apply it: environment-settings review/save and publication are still required. The development executor's direct MOTIR request was denied by network policy. The public Customs site returned HTTP 503 locally; no unverified HS2 parameter was introduced to hide that problem.
 
 Future releases are checked at the stable production alias `https://k-equity-desk-v4.vercel.app/export-desk`. Generated deployment URLs remain tied to their own revision and do not automatically receive later commits.

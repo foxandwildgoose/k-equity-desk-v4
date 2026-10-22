@@ -1,4 +1,5 @@
 import { readdirSync } from "node:fs";
+import { cp, mkdir, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import type { Plugin } from "vite";
@@ -180,6 +181,37 @@ export default defineConfig(({ command, isPreview }) => ({
       ? [
           nitro({
             preset: "vercel",
+            modules: [{
+              name: "pdfjs-local-assets",
+              setup(nitro) {
+                // Register after the preset; replacing hooks.compiled would
+                // suppress Vercel's config.json and function generation.
+                nitro.hooks.hook("compiled", async () => {
+                  // Non-JavaScript CMaps/fonts are omitted by dependency tracing.
+                  // Include them in each actual function; symlinks inherit them.
+                  async function copyToFunctions(directory: string): Promise<void> {
+                    if (directory.endsWith(".func")) {
+                      const assets = join(directory, "pdfjs-assets");
+                      await mkdir(assets, { recursive: true });
+                      await Promise.all(
+                        ["cmaps", "standard_fonts", "LICENSE"].map((name) =>
+                          cp(
+                            join(nitro.options.rootDir, "node_modules/pdfjs-dist", name),
+                            join(assets, name),
+                            { recursive: true },
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+                    for (const entry of await readdir(directory, { withFileTypes: true })) {
+                      if (entry.isDirectory()) await copyToFunctions(join(directory, entry.name));
+                    }
+                  }
+                  await copyToFunctions(join(nitro.options.output.dir, "functions"));
+                });
+              },
+            }],
             // Only the protected collector gets the platform's allowed maximum. Other routes retain their settings.
             // Jobs keep a shorter checkpointed budget and never run during build.
             // Vercel merges vercel.json crons with Build Output API crons.

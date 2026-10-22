@@ -1,4 +1,8 @@
 /** Official MOTIR/MOTIE monthly bulletins. A reachable directory is not numeric evidence. */
+import { existsSync } from "node:fs";
+import { createRequire } from "node:module";
+import { dirname, join, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 import { parseKoreanNumber } from "../lib/export-desk/parse-import.ts";
 import type { TradeObservation } from "../lib/export-desk/parse-import.ts";
 import type { ExportProviderStatus } from "../lib/export-desk/provider-status.ts";
@@ -23,6 +27,18 @@ export interface MotieSnapshot {
   release: MotieRelease | null;
   observations: TradeObservation[];
   provider: ExportProviderStatus;
+  diagnostics?: MotieDiagnostics;
+}
+export interface MotieDiagnostics {
+  stage: "list" | "detail" | "attachment-request" | "pdf-decode" | "numeric-parse" | "complete";
+  pdf?: {
+    matchingPeriod: boolean;
+    mtiDefinition: boolean;
+    exportSection: boolean;
+    knownCategoryCount: number;
+    explicitCurrencyAmountCount: number;
+    usdScales: ("USD" | "USD_THOUSAND" | "USD_MILLION" | "USD_100M")[];
+  };
 }
 interface Dependencies {
   fetch?: typeof globalThis.fetch;
@@ -184,6 +200,12 @@ function mergeItem(items: Map<string, MotieItem>, item: MotieItem, rejected: Set
     rejected.add(item.categoryId);
   } else if (!prior) items.set(item.categoryId, item);
 }
+function outsideNationalMonthlyScope(value: string): boolean {
+  const normalized = compact(value);
+  return /수입|누계|누적|전망|예상|목표|분기|상반기|하반기|연간|연도별|일평균|월평균|일일|조업일당|하루평균|\d{1,2}[~〜∼–-]\d{1,2}월|지역별|국가별|권역별|대상국|주요시장|미국|중국|일본|아세안|베트남|유럽연합|중동|중남미|대미|대중|대일|대EU|대인도|인도(?:시장|향|주요품목|수출)|\b(?:EU|CIS|YTD)\b/i.test(
+    normalized,
+  );
+}
 
 /** Parse an explicitly labelled monthly export table; column position is never guessed. */
 export function parseMotieHtmlItems(html: string, period: string): MotieItem[] {
@@ -194,8 +216,7 @@ export function parseMotieHtmlItems(html: string, period: string): MotieItem[] {
     const before = html.slice(Math.max(0, table.index! - 350), table.index);
     const context = before + " " + table[0];
     const unit = tableUnit(context);
-    if (!unit || !/수출/.test(plain(context)) || /누계|누적|전망|예상|수입/.test(plain(context)))
-      continue;
+    if (!unit || !/수출/.test(plain(context)) || outsideNationalMonthlyScope(context)) continue;
     const rows = [...table[0].matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)].map((row) =>
       [...row[1]!.matchAll(/<t[hd]\b[^>]*>([\s\S]*?)<\/t[hd]>/gi)].map((c) => plain(c[1]!)),
     );
@@ -281,7 +302,13 @@ export function parseMotieTextItems(text: string, period: string): MotieItem[] {
       continue;
     }
     if (dates.length && dates.every((date) => date === period)) current = true;
-    if (/수입(?:동향|현황|실적)/.test(normalized)) exportSection = false;
+    // Never inherit national monthly scope through later country/quarterly,
+    // cumulative, forecast or import sections. A new unambiguous major-item
+    // export heading is required before any further figures can be accepted.
+    if (outsideNationalMonthlyScope(line)) {
+      exportSection = false;
+      continue;
+    }
     if (/(?:품목별|주요품목|대품목).*수출|수출.*(?:품목별|주요품목|대품목)/.test(normalized))
       exportSection = true;
     const withoutGrowth = line.replace(/전년\s*(?:동월\s*)?대비/g, "");
@@ -397,6 +424,93 @@ function abortable<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
     promise.then(resolve, reject).finally(() => signal.removeEventListener("abort", stop));
   });
 }
+type PdfStage = "IMPORT" | "WORKER_IMPORT" | "DOCUMENT_LOAD" | "PAGE_LOAD" | "TEXT";
+/** Bounded public categories only; upstream exception messages are never returned. */
+export function motiePdfFailureReason(error: unknown, stage: PdfStage): string {
+  const candidate =
+    error != null && typeof error === "object"
+      ? (error as { name?: unknown; message?: unknown })
+      : {};
+  const name = typeof candidate.name === "string" ? candidate.name.slice(0, 80) : "";
+  const message = typeof candidate.message === "string" ? candidate.message.slice(0, 2000) : "";
+  if (
+    /DOMMatrix|ImageData|Path2D/.test(message) &&
+    /not defined|not a constructor|polyfill/i.test(message)
+  )
+    return "PDF_DOM_POLYFILL_MISSING";
+  if (/Cannot find (?:module|package)|ERR_MODULE_NOT_FOUND|MODULE_NOT_FOUND/i.test(message))
+    return "PDF_RUNTIME_DEPENDENCY_MISSING";
+  if (/API version.*(?:does not match|Worker version)/i.test(message))
+    return "PDF_WORKER_VERSION_MISMATCH";
+  if (/fake worker|WorkerMessageHandler|pdf\.worker/i.test(message))
+    return "PDF_WORKER_INIT_FAILED";
+  if (/standardFontDataUrl|cMapUrl|CMap|font data|ToUnicode/i.test(message))
+    return "PDF_FONT_RESOURCE_UNAVAILABLE";
+  if (/wasm|WebAssembly/i.test(message)) return "PDF_WASM_RESOURCE_UNAVAILABLE";
+  if (/Promise\.withResolvers|process\.getBuiltinModule/i.test(message))
+    return "PDF_NODE_API_UNAVAILABLE";
+  if (name === "PasswordException") return "PDF_PASSWORD_PROTECTED";
+  if (name === "InvalidPDFException") return "PDF_INVALID_DOCUMENT";
+  if (name === "MissingPDFException") return "PDF_MISSING_DOCUMENT";
+  if (name === "UnexpectedResponseException") return "PDF_UNEXPECTED_RESPONSE";
+  if (name === "TimeoutError" || name === "AbortError") return "PDF_DECODE_TIMEOUT";
+  return "PDF_" + stage + "_FAILED";
+}
+export function motieTextDiagnostics(
+  text: string,
+  period: string,
+): NonNullable<MotieDiagnostics["pdf"]> {
+  const normalized = compact(text);
+  const identity = period.slice(0, 4) + "년" + Number(period.slice(5)) + "월수출입동향";
+  const categoryNames = new RegExp(
+    Object.keys(LABELS)
+      .sort((a, b) => b.length - a.length)
+      .join("|"),
+    "g",
+  );
+  const scales = [
+    ["USD", /(?:단위[:：]?)달러/],
+    ["USD_THOUSAND", /천(?:미)?(?:달러|불|USD)/i],
+    ["USD_MILLION", /백만(?:미)?(?:달러|불|USD)/i],
+    ["USD_100M", /억(?:미)?(?:달러|불|USD)/i],
+  ] as const;
+  return {
+    matchingPeriod: normalized.includes(identity),
+    mtiDefinition: /\bMTI\b|MTI\s*기준/i.test(text),
+    exportSection: /(?:품목별|주요품목|대품목).*수출|수출.*(?:품목별|주요품목|대품목)/.test(
+      normalized,
+    ),
+    knownCategoryCount: new Set(
+      [...normalized.matchAll(categoryNames)].map((match) => LABELS[match[0]]),
+    ).size,
+    explicitCurrencyAmountCount: Math.min(
+      5000,
+      [...text.matchAll(/[\d,]+(?:\.\d+)?\s*(?:백만|천|억)\s*(?:미\s*)?(?:달러|불|USD)/gi)].length,
+    ),
+    usdScales: scales.filter(([, pattern]) => pattern.test(normalized)).map(([label]) => label),
+  };
+}
+/** Fixed local, trusted package resources. No path or resource URL comes from a PDF. */
+export function resolveMotiePdfAssets(): { cMapUrl: string; standardFontDataUrl: string } {
+  const roots = [fileURLToPath(new URL("./pdfjs-assets/", import.meta.url))];
+  try {
+    roots.push(dirname(createRequire(import.meta.url).resolve("pdfjs-dist/package.json")));
+  } catch {
+    // Vercel uses the explicitly copied resources rather than an installed package.
+  }
+  for (const root of roots) {
+    if (
+      existsSync(join(root, "cmaps", "UniKS-UCS2-H.bcmap")) &&
+      existsSync(join(root, "cmaps", "Adobe-Korea1-UCS2.bcmap")) &&
+      existsSync(join(root, "standard_fonts", "LiberationSans-Regular.ttf"))
+    )
+      return {
+        cMapUrl: join(root, "cmaps") + sep,
+        standardFontDataUrl: join(root, "standard_fonts") + sep,
+      };
+  }
+  throw new MotieFailure("PDF_LOCAL_RESOURCES_MISSING", "unavailable");
+}
 
 /** Text only: no document scripts, network resources, rendering or arbitrary URL input. */
 export async function extractMotiePdfText(bytes: Uint8Array, signal: AbortSignal): Promise<string> {
@@ -404,23 +518,32 @@ export async function extractMotiePdfText(bytes: Uint8Array, signal: AbortSignal
   if (bytes.length > 8_000_000) throw new MotieFailure("ATTACHMENT_BODY_LIMIT");
   if (new TextDecoder().decode(bytes.slice(0, 5)) !== "%PDF-")
     throw new MotieFailure("ATTACHMENT_FORMAT");
-  const pdfjs = await abortable(import("pdfjs-dist/legacy/build/pdf.mjs"), signal);
-  // PDF.js exposes this supported fake-worker hook in its Node implementation.
-  // A literal import keeps Nitro's dependency tracer from losing the worker.
-  // @ts-expect-error PDF.js does not ship declarations for its worker-only entry.
-  const worker = await abortable(import("pdfjs-dist/legacy/build/pdf.worker.mjs"), signal);
-  (globalThis as typeof globalThis & { pdfjsWorker?: unknown }).pdfjsWorker = worker;
-  const task = pdfjs.getDocument({
-    data: bytes.slice(),
-    isEvalSupported: false,
-    useSystemFonts: false,
-    disableFontFace: true,
-    useWorkerFetch: false,
-    disableAutoFetch: true,
-    disableStream: true,
-    stopAtErrors: true,
-  });
+  let stage: PdfStage = "IMPORT";
+  let task:
+    ReturnType<(typeof import("pdfjs-dist/legacy/build/pdf.mjs"))["getDocument"]> | undefined;
   try {
+    const pdfjs = await abortable(import("pdfjs-dist/legacy/build/pdf.mjs"), signal);
+    stage = "WORKER_IMPORT";
+    // PDF.js exposes this supported fake-worker hook in its Node implementation.
+    // A literal import keeps Nitro's dependency tracer from losing the worker.
+    // @ts-expect-error PDF.js does not ship declarations for its worker-only entry.
+    const worker = await abortable(import("pdfjs-dist/legacy/build/pdf.worker.mjs"), signal);
+    (globalThis as typeof globalThis & { pdfjsWorker?: unknown }).pdfjsWorker = worker;
+    stage = "DOCUMENT_LOAD";
+    const resources = resolveMotiePdfAssets();
+    task = pdfjs.getDocument({
+      data: bytes.slice(),
+      isEvalSupported: false,
+      useSystemFonts: false,
+      disableFontFace: true,
+      useWorkerFetch: false,
+      disableAutoFetch: true,
+      disableStream: true,
+      stopAtErrors: true,
+      cMapUrl: resources.cMapUrl,
+      cMapPacked: true,
+      standardFontDataUrl: resources.standardFontDataUrl,
+    });
     const document = await abortable(task.promise, signal);
     if (document.numPages < 1 || document.numPages > 64)
       throw new MotieFailure("ATTACHMENT_PAGE_LIMIT");
@@ -428,7 +551,9 @@ export async function extractMotiePdfText(bytes: Uint8Array, signal: AbortSignal
     let size = 0;
     for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber++) {
       signal.throwIfAborted();
+      stage = "PAGE_LOAD";
       const page = await abortable(document.getPage(pageNumber), signal);
+      stage = "TEXT";
       const content = await abortable(page.getTextContent(), signal);
       if (content.items.length > 50_000) throw new MotieFailure("ATTACHMENT_TEXT_LIMIT");
       let previousY: number | undefined;
@@ -454,8 +579,11 @@ export async function extractMotiePdfText(bytes: Uint8Array, signal: AbortSignal
       page.cleanup();
     }
     return lines.join("\n");
+  } catch (error) {
+    if (error instanceof MotieFailure) throw error;
+    throw new MotieFailure(motiePdfFailureReason(error, stage), "unavailable");
   } finally {
-    await task.destroy();
+    if (task) await abortable(task.destroy(), AbortSignal.timeout(1000)).catch(() => {});
   }
 }
 export function createMotieReleaseClient(deps: Dependencies = {}) {
@@ -471,6 +599,7 @@ export function createMotieReleaseClient(deps: Dependencies = {}) {
     const started = now();
     const budget = AbortSignal.timeout(deps.budgetMs ?? 18_000);
     let identifiedRelease: MotieRelease | null = null;
+    const diagnostics: MotieDiagnostics = { stage: "list" };
     const status = (
       state: ExportProviderStatus["state"],
       reasonCode: string,
@@ -494,16 +623,27 @@ export function createMotieReleaseClient(deps: Dependencies = {}) {
       if (!current) throw new MotieFailure("SOURCE_IDENTITY");
       for (let redirect = 0; redirect < 3; redirect++) {
         const signal = AbortSignal.any([budget, AbortSignal.timeout(deps.timeoutMs ?? 7_000)]);
-        const response = await request(current, {
-          method: "GET",
-          redirect: "manual",
-          cache: "no-store",
-          headers: {
-            accept: binary ? "application/pdf" : "text/html",
-            "user-agent": "KoreaEquityDesk/1.0 (official public statistics)",
-          },
-          signal,
-        });
+        let response: Response;
+        try {
+          response = await request(current, {
+            method: "GET",
+            redirect: "manual",
+            cache: "no-store",
+            headers: {
+              accept: binary ? "application/pdf" : "text/html",
+              "user-agent": "KoreaEquityDesk/1.0 (official public statistics)",
+            },
+            signal,
+          });
+        } catch (error) {
+          const timeout =
+            signal.aborted ||
+            (error instanceof Error && /^(?:Abort|Timeout)Error$/.test(error.name));
+          throw new MotieFailure(
+            (binary ? "ATTACHMENT_" : "HTML_") + (timeout ? "REQUEST_TIMEOUT" : "FETCH_FAILED"),
+            "unavailable",
+          );
+        }
         if ([301, 302, 303, 307, 308].includes(response.status)) {
           const target = officialUrl(response.headers.get("location") ?? "", current);
           if (!target) throw new MotieFailure("REDIRECT_SOURCE_IDENTITY");
@@ -522,7 +662,16 @@ export function createMotieReleaseClient(deps: Dependencies = {}) {
         let total = 0;
         try {
           while (true) {
-            const part = await abortable(reader.read(), signal);
+            let part: ReadableStreamReadResult<Uint8Array>;
+            try {
+              part = await abortable(reader.read(), signal);
+            } catch {
+              throw new MotieFailure(
+                (binary ? "ATTACHMENT_" : "HTML_") +
+                  (signal.aborted ? "BODY_TIMEOUT" : "BODY_READ_FAILED"),
+                "unavailable",
+              );
+            }
             signal.throwIfAborted();
             if (part.done) break;
             total += part.value.length;
@@ -563,6 +712,7 @@ export function createMotieReleaseClient(deps: Dependencies = {}) {
       }
       if (!links.length) throw lastError ?? new MotieFailure("MONTHLY_RELEASE_NOT_FOUND", "empty");
       const article = links[0]!;
+      diagnostics.stage = "detail";
       identifiedRelease = {
         ...article,
         publishedAt: null,
@@ -598,17 +748,21 @@ export function createMotieReleaseClient(deps: Dependencies = {}) {
       let attachmentReason = "";
       if (!items.length && attachmentUrl) {
         try {
+          diagnostics.stage = "attachment-request";
           const bytes = await read(attachmentUrl, true);
           if (new TextDecoder().decode(bytes.slice(0, 5)) !== "%PDF-")
             throw new MotieFailure("ATTACHMENT_FORMAT");
+          diagnostics.stage = "pdf-decode";
           const decoded = await abortable(
             (deps.extractPdfText ?? extractMotiePdfText)(bytes, budget),
             budget,
           );
           budget.throwIfAborted();
           if (decoded.length > 2_000_000) throw new MotieFailure("DECODED_BODY_LIMIT");
+          diagnostics.pdf = motieTextDiagnostics(decoded, article.period);
           if (!compact(decoded).includes(compact(article.title)))
             throw new MotieFailure("ATTACHMENT_PERIOD_IDENTITY");
+          diagnostics.stage = "numeric-parse";
           items = parseMotieTextItems(decoded, article.period);
         } catch (error) {
           attachmentReason =
@@ -647,6 +801,7 @@ export function createMotieReleaseClient(deps: Dependencies = {}) {
       const output: MotieSnapshot = {
         release,
         observations: observations(release),
+        diagnostics: { ...diagnostics, stage: attachmentReason ? diagnostics.stage : "complete" },
         provider: status(
           items.length ? "ok" : "partial",
           items.length
@@ -688,6 +843,7 @@ export function createMotieReleaseClient(deps: Dependencies = {}) {
       return {
         release: identifiedRelease,
         observations: [],
+        diagnostics,
         provider: status(
           state,
           reason,
