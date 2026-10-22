@@ -5,6 +5,7 @@ import {
   createHs2CategorySummaryClient,
   HS2_SUMMARY_CATEGORIES,
   hs2SummariesFromBundle,
+  parseHs2Availability,
 } from "./export-category-summary.ts";
 import {
   createMemoryExportTradeStore,
@@ -298,4 +299,147 @@ test("reversed decimal constituent order uses the same canonical sum as strict c
     (await store.readCategorySummary("agri_fishery_food"))!.value.observations[0]!.valueUsd,
     0.1 + 0.2 + 0.3,
   );
+});
+
+const publication = (period = 202512, extra: Record<string, unknown> = {}) => ({
+  typeCode: "C",
+  freqCode: "M",
+  reporterCode: 410,
+  period,
+  classificationCode: "H6",
+  classificationSearchCode: "HS",
+  isOriginalClassification: true,
+  totalRecords: 218160,
+  lastReleased: "2026-05-21T01:05:13.8366667",
+  ...extra,
+});
+
+test("complete official availability chooses the actual latest published monthly dataset", () => {
+  const body = { count: 3, data: [publication(202509), publication(202512), publication(202511)] };
+  assert.deepEqual(parseHs2Availability(body, at), {
+    period: "2025-12",
+    classificationCode: "H6",
+    releasedAt: "2026-05-21T01:05:13.836Z",
+  });
+  for (const invalid of [
+    { ...body, count: 4 },
+    { ...body, error: "provider failure" },
+    { count: 2, data: [publication(), publication()] },
+    ...[
+      { reporterCode: 392 },
+      { freqCode: "A" },
+      { typeCode: "S" },
+      { classificationSearchCode: "SITC" },
+      { classificationCode: "HS" },
+      { isOriginalClassification: false },
+      { period: 202610 },
+      { period: 202613 },
+      { period: 202699 },
+      { totalRecords: 0 },
+      { totalRecords: Infinity },
+      { lastReleased: "2027-01-01T00:00:00Z" },
+      { lastReleased: "invalid" },
+      { lastReleased: "2026-02-31T01:00:00" },
+    ].map((change) => ({ count: 1, data: [publication(202512, change)] })),
+  ])
+    assert.throws(() => parseHs2Availability(invalid, at));
+  assert.equal(parseHs2Availability({ count: 0, data: [] }, at), null);
+});
+
+test("availability plus one current query fills thirteen baskets in two requests and preserves old published dates", async () => {
+  const store = createMemoryExportTradeStore({ now: () => at });
+  const urls: URL[] = [];
+  const client = createHs2CategorySummaryClient({
+    store,
+    now: () => at,
+    fetch: async (input) => {
+      const url = new URL(String(input));
+      urls.push(url);
+      if (url.pathname.includes("getDa")) {
+        assert.equal(url.searchParams.get("reportercode"), "410");
+        assert.equal(url.searchParams.has("period"), false);
+        return json([publication(202511), publication()]);
+      }
+      assert.equal(url.searchParams.get("period"), "202512");
+      return json(allCodes.map((code) => row(202512, code, 123)));
+    },
+  });
+  const result = await client({
+    categoryIds: allIds,
+    discoverLatest: true,
+    referencePeriod: "2026-07",
+  });
+  assert.equal(urls.length, 2);
+  assert.equal(Object.keys(result.summaries).length, 13);
+  for (const [id, value] of Object.entries(result.summaries)) {
+    assert.equal(value.observations.length, 1);
+    assert.equal(value.observations[0]!.period, "2025-12");
+    assert.equal(value.observations[0]!.releasedAt, "2026-05-21T01:05:13.836Z");
+    assert.equal(value.providers[0]!.state, "stale");
+    assert.equal(value.providers[0]!.reasonCode, undefined);
+    assert.match(value.providers[0]!.message, /2025-12/);
+    assert.match(value.providers[0]!.message, /2026-05-21/);
+    assert.equal(await store.saveCategorySummary(id, value), true);
+    assert.equal((await store.readCategorySummary(id))!.stale, false);
+  }
+});
+
+test("unverified or empty availability never triggers a guessed month query", async () => {
+  for (const body of [
+    { count: 0, data: [] },
+    { count: 2, data: [publication()] },
+    { count: 1, data: [publication(202512, { reporterCode: 842 })] },
+  ]) {
+    let calls = 0;
+    const store = createMemoryExportTradeStore({ now: () => at });
+    const result = await createHs2CategorySummaryClient({
+      store,
+      now: () => at,
+      fetch: async () => {
+        calls++;
+        return new Response(JSON.stringify(body));
+      },
+    })({ categoryIds: allIds, discoverLatest: true });
+    assert.equal(calls, 1);
+    assert.deepEqual(result.summaries, {});
+    assert.ok(
+      ["NO_PUBLISHED_MONTH", "AVAILABILITY_UNVERIFIED"].includes(result.providers[0]!.reasonCode!),
+    );
+  }
+});
+
+test("availability HTTP429 shares cooldown and stops before a data request", async () => {
+  const store = createMemoryExportTradeStore({ now: () => at });
+  let calls = 0;
+  const read = createHs2CategorySummaryClient({
+    store,
+    now: () => at,
+    fetch: async () => {
+      calls++;
+      return new Response("", { status: 429, headers: { "retry-after": "900" } });
+    },
+  });
+  const result = await read({ categoryIds: allIds, discoverLatest: true });
+  assert.equal(calls, 1);
+  assert.equal(result.providers[0]!.reasonCode, "HTTP_429");
+  assert.equal(await store.retryAt("comtrade-origin", true), "2026-10-22T03:15:00.000Z");
+  await read({ categoryIds: allIds, discoverLatest: true });
+  assert.equal(calls, 1);
+});
+
+test("data edition must match discovered metadata and unpublished data cannot start a third request", async () => {
+  for (const data of [[], [row(202512, "33", 123, { classificationCode: "H5" })]]) {
+    let calls = 0;
+    const store = createMemoryExportTradeStore({ now: () => at });
+    const result = await createHs2CategorySummaryClient({
+      store,
+      now: () => at,
+      fetch: async () => {
+        calls++;
+        return calls === 1 ? json([publication()]) : json(data);
+      },
+    })({ categoryIds: ["cosmetics"], discoverLatest: true });
+    assert.equal(calls, 2);
+    assert.deepEqual(result.summaries, {});
+  }
 });

@@ -4,6 +4,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { createTradeCategoryCatalog as createCatalog } from "./export-category-catalog.ts";
 import { assembleHs2CategorySummaries, HS2_SUMMARY_CATEGORIES } from "./export-category-summary.ts";
 import { createMemoryExportTradeStore, type TradeCategorySnapshot } from "./export-trade-store.ts";
+import type { LiveTradeBundle } from "./export-trade-pipeline.ts";
 
 const checked = new Date("2026-10-22T03:00:00Z");
 const categories = (ids: string[]) => ids.map((id) => ({ id, label: id }));
@@ -411,9 +412,10 @@ test("one HS2 summary batch fills all thirteen cards while preserving seven full
       detailedCalls++;
       return unavailable();
     },
-    loadSummaries: async ({ categoryIds, referencePeriod }) => {
+    loadSummaries: async ({ categoryIds, referencePeriod, discoverLatest }) => {
       batchCalls++;
-      assert.equal(referencePeriod, "2026-09");
+      assert.equal(referencePeriod, undefined);
+      assert.equal(discoverLatest, true);
       assert.deepEqual(new Set(categoryIds), new Set(ids));
       return { summaries: hs2SummaryFixtures(categoryIds), providers: [] };
     },
@@ -540,18 +542,106 @@ test("HS2 origin busy remains pending without launching detailed history or fail
   assert.equal(await store.retryAt("trade:catalog:category:automobiles", true), null);
 });
 
-test("fallback request month follows the last completed Korean calendar month", async () => {
+test("an unknown UN month requires official discovery instead of a calendar-derived month", async () => {
   const koreanOctober = new Date("2026-09-30T16:00:00Z");
   const store = createMemoryExportTradeStore({ now: () => koreanOctober });
-  let queried: string | null = null;
+  let discovered = false;
   await createTradeCategoryCatalog({
     store,
     now: () => koreanOctober,
     categories: categories(["automobiles"]),
-    loadSummaries: async ({ referencePeriod }) => {
-      queried = referencePeriod;
+    loadSummaries: async ({ referencePeriod, discoverLatest }) => {
+      assert.equal(referencePeriod, undefined);
+      discovered = discoverLatest === true;
       return { summaries: {}, providers: unavailable().providers };
     },
   })({ refresh: true });
-  assert.equal(queried, "2026-09");
+  assert.equal(discovered, true);
+});
+
+test("a fresh stored publication-lag summary is visible without requeueing or changing its source month", async () => {
+  const store = createMemoryExportTradeStore({ now: () => checked });
+  const value = hs2SummaryFixtures(["automobiles"], "2025-12").automobiles!;
+  value.observations = value.observations.slice(-1);
+  value.summaryBasis.periods = value.summaryBasis.periods.slice(-1);
+  value.observations[0]!.releasedAt = "2026-05-21T01:05:13.836Z";
+  value.providers[0]!.state = "stale";
+  value.providers[0]!.recordCount = 1;
+  value.providers[0]!.message = "UN 최신 공개 기준월2025-12, 공표2026-05-21";
+  assert.equal(await store.saveCategorySummary("automobiles", value), true);
+  let calls = 0;
+  const result = await createTradeCategoryCatalog({
+    store,
+    now: () => checked,
+    categories: categories(["automobiles"]),
+    loadSummaries: async () => {
+      calls++;
+      throw new Error("A fresh publication lag is not a refresh failure");
+    },
+  })({ refresh: true });
+  assert.equal(calls, 0);
+  assert.equal(result.items[0]!.current?.period, "2025-12");
+  assert.equal(result.items[0]!.state, "stale");
+  assert.equal(result.items[0]!.yoyPct, null);
+  assert.deepEqual(result.pending, []);
+  assert.equal(
+    (await store.readCategorySummary("automobiles"))!.value.observations[0]!.releasedAt,
+    "2026-05-21T01:05:13.836Z",
+  );
+});
+
+test("World Bank totals never select the UN month; a verified UN provider keeps the known-month path", async () => {
+  for (const knownUN of [false, true]) {
+    const store = createMemoryExportTradeStore({ now: () => checked });
+    const value: LiveTradeBundle = {
+      exports: [{ period: "2026-07", valueUsd: 100 }],
+      imports: [],
+      observations: [],
+      destinations: { period: "", rows: [], source: "자료 미확보" },
+      news: [],
+      notes: [],
+      comtradeLatestPeriod: knownUN ? "2025-12" : null,
+      comtradeMonthsCached: knownUN ? 1 : 0,
+      source: {
+        totals: "World Bank 공식 월별 수출",
+        items: "자료 미확보",
+        fetchedAt: checked.toISOString(),
+        totalsProviderId: "worldbank-exports",
+      },
+      providers: [
+        {
+          ...snapshot("automobiles").providers[0]!,
+          id: "worldbank-exports",
+          asOf: "2026-07",
+          recordCount: 1,
+          sourceUrl: "https://api.worldbank.org/",
+        },
+        ...(knownUN
+          ? [
+              {
+                ...snapshot("automobiles").providers[0]!,
+                id: "comtrade.total",
+                asOf: "2025-12",
+                recordCount: 1,
+                sourceUrl: "https://comtradeplus.un.org/",
+              },
+            ]
+          : []),
+      ],
+    };
+    assert.equal(await store.saveBundle(value), true);
+    let calls = 0;
+    await createTradeCategoryCatalog({
+      store,
+      now: () => checked,
+      categories: categories(["automobiles"]),
+      loadSummaries: async ({ referencePeriod, discoverLatest }) => {
+        calls++;
+        assert.equal(referencePeriod, knownUN ? "2025-12" : undefined);
+        assert.equal(discoverLatest, knownUN ? undefined : true);
+        return { summaries: {}, providers: unavailable().providers };
+      },
+    })({ refresh: true });
+    assert.equal(calls, 1);
+  }
 });

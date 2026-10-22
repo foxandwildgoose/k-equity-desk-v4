@@ -265,20 +265,13 @@ export function createTradeCategoryCatalog(dependencies: Dependencies = {}) {
                 provider.recordCount > 0 &&
                 ["ok", "partial", "stale"].includes(provider.state),
             )?.asOf;
-            const koreaNow = new Date(now().getTime() + 9 * 3_600_000);
-            const referencePeriod =
-              comtradeMonth ??
-              mainBundle?.value.exports.at(-1)?.period ??
-              new Date(Date.UTC(koreaNow.getUTCFullYear(), koreaNow.getUTCMonth() - 1, 1))
-                .toISOString()
-                .slice(0, 7);
             let batch: CategorySummaryBatch = { summaries: {}, providers: [] };
             try {
               const loadSummaries =
                 dependencies.loadSummaries ?? createHs2CategorySummaryClient({ store, now });
               const loaded = await loadSummaries({
                 categoryIds: selected.map((category) => category.id),
-                referencePeriod,
+                ...(comtradeMonth ? { referencePeriod: comtradeMonth } : { discoverLatest: true }),
               });
               if (
                 loaded &&

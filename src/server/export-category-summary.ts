@@ -9,12 +9,16 @@ import type {
 } from "./export-trade-store.ts";
 
 const ENDPOINT = "https://comtradeapi.un.org/public/v1/preview/C/M/HS";
+// UN's own DataAvailability.py uses this public endpoint when no key is supplied.
+const AVAILABILITY = "https://comtradeapi.un.org/public/v1/getDa/C/M/HS?reportercode=410";
 const SOURCE = "https://comtradeplus.un.org/";
 const ORIGIN_SCOPE = "comtrade-origin";
 export const HS2_SUMMARY_CATEGORIES = CORE20_HS_PROXY.filter((p) =>
   p.codes.every((code) => /^\d{2}$/.test(code)),
 );
-type PeriodEvidence = TradeCategorySummarySnapshot["summaryBasis"]["periods"][number];
+type PeriodEvidence = TradeCategorySummarySnapshot["summaryBasis"]["periods"][number] & {
+  releasedAt?: string;
+};
 export interface CategorySummaryBatch {
   summaries: Record<string, TradeCategorySummarySnapshot>;
   providers: ExportProviderStatus[];
@@ -22,7 +26,9 @@ export interface CategorySummaryBatch {
 export interface CategorySummaryRequest {
   categoryIds: string[];
   /** Query selection only: the actual response must identify this exact month. */
-  referencePeriod: string;
+  referencePeriod?: string;
+  /** Discover the actual published UN month; another provider's month is not a proxy. */
+  discoverLatest?: boolean;
 }
 const priorYear = (month: string) => `${Number(month.slice(0, 4)) - 1}${month.slice(4)}`;
 const completedMonth = (period: string, now: Date) =>
@@ -108,6 +114,7 @@ export function assembleHs2CategorySummaries(
         geo: "KR",
         sourceFile,
         vintage,
+        ...(period.releasedAt ? { releasedAt: period.releasedAt } : {}),
       })),
       summaryBasis: { kind: "UN_COMTRADE_HS2_BASKET", periods: selected.map((p) => p.evidence) },
       providers: [
@@ -127,6 +134,63 @@ export function assembleHs2CategorySummaries(
     };
   }
   return result;
+}
+
+/** A complete first-party availability list establishes the latest published month. */
+export function parseHs2Availability(
+  body: unknown,
+  now: Date,
+): {
+  period: string;
+  classificationCode: string;
+  releasedAt: string;
+} | null {
+  if (!body || typeof body !== "object") throw new Error("INVALID_AVAILABILITY");
+  const payload = body as Record<string, unknown>;
+  if (
+    !Array.isArray(payload.data) ||
+    payload.data.length > 2400 ||
+    payload.count !== payload.data.length ||
+    payload.error ||
+    payload.errorMessage
+  )
+    throw new Error("INCOMPLETE_AVAILABILITY");
+  const periods = new Set<string>();
+  const available = payload.data.map((raw) => {
+    if (!raw || typeof raw !== "object") throw new Error("INVALID_AVAILABILITY");
+    const row = raw as Record<string, unknown>;
+    const digits = String(row.period ?? "");
+    const period = `${digits.slice(0, 4)}-${digits.slice(4)}`;
+    const releasedAt = typeof row.lastReleased === "string" ? row.lastReleased : "";
+    // UN emits UTC timestamps without a suffix in its official metadata.
+    const release = /(?:Z|[+-]\d{2}:\d{2})$/.test(releasedAt) ? releasedAt : `${releasedAt}Z`;
+    const releaseTime = Date.parse(release);
+    if (
+      row.typeCode !== "C" ||
+      row.freqCode !== "M" ||
+      Number(row.reporterCode) !== 410 ||
+      row.classificationSearchCode !== "HS" ||
+      row.isOriginalClassification !== true ||
+      !/^H[0-6]$/.test(String(row.classificationCode ?? "")) ||
+      !/^\d{6}$/.test(digits) ||
+      !completedMonth(period, now) ||
+      periods.has(period) ||
+      !Number.isInteger(row.totalRecords) ||
+      Number(row.totalRecords) <= 0 ||
+      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,7})?Z?$/.test(releasedAt) ||
+      !Number.isFinite(releaseTime) ||
+      releaseTime > now.getTime() + 300_000 ||
+      new Date(releaseTime).toISOString().slice(0, 19) !== releasedAt.slice(0, 19)
+    )
+      throw new Error("INVALID_AVAILABILITY_SCOPE");
+    periods.add(period);
+    return {
+      period,
+      classificationCode: String(row.classificationCode),
+      releasedAt: new Date(releaseTime).toISOString(),
+    };
+  });
+  return available.sort((a, b) => b.period.localeCompare(a.period))[0] ?? null;
 }
 
 /** Old main bundles did not retain the actual HS edition, so reuse current values only. */
@@ -216,6 +280,7 @@ export function createHs2CategorySummaryClient(options: {
   fetch?: typeof fetch;
   now?: () => Date;
   timeoutMs?: number;
+  metadataTimeoutMs?: number;
 }) {
   const fetcher = options.fetch ?? fetch;
   const now = options.now ?? (() => new Date());
@@ -224,7 +289,10 @@ export function createHs2CategorySummaryClient(options: {
   ): Promise<CategorySummaryBatch> {
     const at = now();
     const categories = HS2_SUMMARY_CATEGORIES.filter((p) => request.categoryIds.includes(p.key));
-    if (!categories.length || !completedMonth(request.referencePeriod, at))
+    if (
+      !categories.length ||
+      (!request.discoverLatest && !completedMonth(request.referencePeriod ?? "", at))
+    )
       return { summaries: {}, providers: [status(at, "unavailable", "INVALID_REFERENCE_PERIOD")] };
     const retryAt = await options.store.retryAt(ORIGIN_SCOPE, true);
     if (retryAt)
@@ -237,13 +305,55 @@ export function createHs2CategorySummaryClient(options: {
     const codes = [...new Set(categories.flatMap((p) => p.codes))].sort();
     const evidence: PeriodEvidence[] = [];
     const providers: ExportProviderStatus[] = [];
+    async function limited(response: Response): Promise<boolean> {
+      if (response.status !== 429) return false;
+      const raw = response.headers.get("retry-after")?.trim() ?? "";
+      const delay = /^\d+$/.test(raw) ? Number(raw) * 1000 : Date.parse(raw) - now().getTime();
+      const bounded =
+        Number.isFinite(delay) && delay > 0
+          ? Math.min(86_400_000, Math.max(60_000, delay))
+          : 15 * 60_000;
+      await options.store.setCooldown(ORIGIN_SCOPE, bounded);
+      providers.push(
+        status(
+          now(),
+          "rate-limited",
+          "HTTP_429",
+          (await options.store.retryAt(ORIGIN_SCOPE, true)) ?? undefined,
+        ),
+      );
+      return true;
+    }
     try {
+      let publication: ReturnType<typeof parseHs2Availability> = null;
+      if (request.discoverLatest) {
+        const signal = AbortSignal.timeout(options.metadataTimeoutMs ?? 25_000);
+        try {
+          const response = await fetcher(AVAILABILITY, {
+            signal,
+            headers: { Accept: "application/json" },
+          });
+          if (await limited(response)) return { summaries: {}, providers };
+          if (!response.ok) throw new Error("AVAILABILITY_HTTP_ERROR");
+          publication = parseHs2Availability(await readBoundedJson(response, signal), now());
+          if (!publication)
+            return { summaries: {}, providers: [status(now(), "empty", "NO_PUBLISHED_MONTH")] };
+        } catch {
+          return {
+            summaries: {},
+            providers: [status(now(), "unavailable", "AVAILABILITY_UNVERIFIED")],
+          };
+        }
+      }
+      const referencePeriod = publication?.period ?? request.referencePeriod!;
       // The current month comes first: an empty/limited response cannot trigger
       // a full-history scan. At most two real origin requests are ever awaited.
-      for (const period of [request.referencePeriod, priorYear(request.referencePeriod)]) {
+      for (const period of publication
+        ? [referencePeriod]
+        : [referencePeriod, priorYear(referencePeriod)]) {
         const signal = AbortSignal.timeout(options.timeoutMs ?? 5_000);
         const params = new URLSearchParams({
-          reporterCode: "410",
+          reportercode: "410",
           period: period.replace("-", ""),
           cmdCode: codes.join(","),
           flowCode: "X",
@@ -260,26 +370,7 @@ export function createHs2CategorySummaryClient(options: {
             signal,
             headers: { Accept: "application/json" },
           });
-          if (response.status === 429) {
-            const raw = response.headers.get("retry-after")?.trim() ?? "";
-            const delay = /^\d+$/.test(raw)
-              ? Number(raw) * 1000
-              : Date.parse(raw) - now().getTime();
-            const bounded =
-              Number.isFinite(delay) && delay > 0
-                ? Math.min(86_400_000, Math.max(60_000, delay))
-                : 15 * 60_000;
-            await options.store.setCooldown(ORIGIN_SCOPE, bounded);
-            providers.push(
-              status(
-                now(),
-                "rate-limited",
-                "HTTP_429",
-                (await options.store.retryAt(ORIGIN_SCOPE, true)) ?? undefined,
-              ),
-            );
-            break;
-          }
+          if (await limited(response)) break;
           if (!response.ok) throw new Error("PROVIDER_HTTP_ERROR");
           const body = await readBoundedJson(response, signal);
           // Inspect raw duplicates before the existing parser deduplicates values:
@@ -306,10 +397,12 @@ export function createHs2CategorySummaryClient(options: {
             editions.add(String(row.classificationCode));
           }
           if (editions.size > 1) throw new Error("MIXED_HS_EDITION");
+          if (publication && rawRows.length && [...editions][0] !== publication.classificationCode)
+            throw new Error("AVAILABILITY_EDITION_MISMATCH");
           const rows = parseComtradeResponse(body, { period, codes });
           if (!rows.length) {
             providers.push(status(now(), "empty", "REFERENCE_MONTH_UNPUBLISHED"));
-            if (period === request.referencePeriod) break;
+            if (period === referencePeriod) break;
             continue;
           }
           evidence.push({
@@ -324,6 +417,7 @@ export function createHs2CategorySummaryClient(options: {
             unit: "USD",
             source: "public-preview",
             originCheckedAt: now().toISOString(),
+            ...(publication ? { releasedAt: publication.releasedAt } : {}),
             components: rows.map((row) => ({
               code: String(row.cmdCode),
               valueUsd: Number(row.primaryValue),
@@ -331,13 +425,27 @@ export function createHs2CategorySummaryClient(options: {
           });
         } catch {
           providers.push(status(now(), "unavailable", "SUMMARY_RESPONSE_UNVERIFIED"));
-          if (period === request.referencePeriod) break;
+          if (period === referencePeriod) break;
         }
       }
       evidence.sort((a, b) => a.period.localeCompare(b.period));
-      const summaries = evidence.some((row) => row.period === request.referencePeriod)
+      const summaries = evidence.some((row) => row.period === referencePeriod)
         ? assembleHs2CategorySummaries(request.categoryIds, evidence, now())
         : {};
+      if (publication) {
+        const currentMonth = new Date(now().getTime() + 9 * 3_600_000).toISOString().slice(0, 7);
+        const age =
+          (Number(currentMonth.slice(0, 4)) - Number(publication.period.slice(0, 4))) * 12 +
+          Number(currentMonth.slice(5)) -
+          Number(publication.period.slice(5));
+        for (const value of Object.values(summaries))
+          for (const provider of value.providers) {
+            if (age > 2) provider.state = "stale";
+            provider.message += ` UN 공식 가용성 목록의 최신 공개 기준월은 ${publication.period}, 공표일은 ${publication.releasedAt}입니다. 현재 월의 수출액으로 바꾸지 않습니다.`;
+            // A newly checked source publication lag is distinct from replaying a
+            // failed cached response; no VERIFIED_CACHE reason is attached here.
+          }
+      }
       if (!Object.keys(summaries).length && !providers.length)
         providers.push(status(now(), "unavailable", "INCOMPLETE_HS_BASKET"));
       return { summaries, providers };
