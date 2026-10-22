@@ -44,7 +44,10 @@ interface Dependencies {
   fetch?: typeof globalThis.fetch;
   now?: () => Date;
   budgetMs?: number;
+  /** Explicit legacy override applies to every HTML and attachment request. */
   timeoutMs?: number;
+  htmlTimeoutMs?: number;
+  attachmentTimeoutMs?: number;
   /** Production PDF decoder; tests inject bounded text fixtures, never remote URLs. */
   extractPdfText?: (bytes: Uint8Array, signal: AbortSignal) => Promise<string>;
 }
@@ -597,7 +600,7 @@ export function createMotieReleaseClient(deps: Dependencies = {}) {
 
   async function load(): Promise<MotieSnapshot> {
     const started = now();
-    const budget = AbortSignal.timeout(deps.budgetMs ?? 18_000);
+    const budget = AbortSignal.timeout(deps.budgetMs ?? 35_000);
     let identifiedRelease: MotieRelease | null = null;
     const diagnostics: MotieDiagnostics = { stage: "list" };
     const status = (
@@ -622,7 +625,10 @@ export function createMotieReleaseClient(deps: Dependencies = {}) {
       let current = officialUrl(url);
       if (!current) throw new MotieFailure("SOURCE_IDENTITY");
       for (let redirect = 0; redirect < 3; redirect++) {
-        const signal = AbortSignal.any([budget, AbortSignal.timeout(deps.timeoutMs ?? 7_000)]);
+        const timeoutMs =
+          deps.timeoutMs ??
+          (binary ? (deps.attachmentTimeoutMs ?? 25_000) : (deps.htmlTimeoutMs ?? 7_000));
+        const signal = AbortSignal.any([budget, AbortSignal.timeout(timeoutMs)]);
         let response: Response;
         try {
           response = await request(current, {
@@ -679,7 +685,10 @@ export function createMotieReleaseClient(deps: Dependencies = {}) {
             chunks.push(part.value);
           }
         } finally {
-          await reader.cancel().catch(() => {});
+          await abortable(
+            Promise.resolve().then(() => reader.cancel()),
+            AbortSignal.timeout(1000),
+          ).catch(() => {});
         }
         const bytes = new Uint8Array(total);
         let offset = 0;

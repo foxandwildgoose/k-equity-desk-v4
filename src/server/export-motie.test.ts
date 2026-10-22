@@ -479,6 +479,94 @@ test("an interrupted attachment body is reported separately from decode and font
   assert.equal(JSON.stringify(result).includes("private transport failure"), false);
 });
 
+function delayedAttachmentClient(
+  config: Parameters<typeof createMotieReleaseClient>[0],
+  delayMs: number,
+  stallCancel = false,
+) {
+  let cancelled = false;
+  const client = createMotieReleaseClient({
+    now: () => NOW,
+    budgetMs: 5000,
+    ...config,
+    fetch: (async (input) => {
+      const url = String(input);
+      if (url.endsWith("/source.pdf")) {
+        let timer: ReturnType<typeof setTimeout>;
+        return new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              timer = setTimeout(() => {
+                controller.enqueue(new TextEncoder().encode("%PDF-test-only delayed body"));
+                controller.close();
+              }, delayMs);
+            },
+            cancel() {
+              cancelled = true;
+              clearTimeout(timer);
+              if (stallCancel) return new Promise<void>(() => {});
+            },
+          }),
+        );
+      }
+      return new Response(
+        url.includes("/view") ? detail("", '<a href="/source.pdf">보도자료.pdf</a>') : LIST,
+      );
+    }) as typeof fetch,
+    extractPdfText: async () => TITLE + "\nMTI 주요품목 수출실적\n자동차: 52억 달러",
+  });
+  return { client, wasCancelled: () => cancelled };
+}
+
+test("fast HTML and a slower PDF body use independent bounded request windows", async () => {
+  // Scaled equivalent of the 7-second HTML vs 25-second PDF policy:
+  // a 60ms body cannot fit the 20ms HTML window but fits the PDF's 200ms window.
+  const { client } = delayedAttachmentClient({ htmlTimeoutMs: 20, attachmentTimeoutMs: 200 }, 60);
+  const start = Date.now();
+  const result = await client();
+  assert.equal(result.provider.state, "ok");
+  assert.equal(result.provider.reasonCode, "OFFICIAL_RELEASE_VERIFIED");
+  assert.equal(result.observations[0]!.valueUsd, 5_200_000_000);
+  assert.ok(Date.now() - start < 1000);
+});
+
+test("a PDF body exceeding its separate window times out and cancels the stream", async () => {
+  const { client, wasCancelled } = delayedAttachmentClient(
+    { htmlTimeoutMs: 200, attachmentTimeoutMs: 20 },
+    60,
+  );
+  const result = await client();
+  assert.equal(result.provider.reasonCode, "ATTACHMENT_BODY_TIMEOUT");
+  assert.equal(result.provider.state, "partial");
+  assert.equal(result.diagnostics?.stage, "attachment-request");
+  assert.equal(result.observations.length, 0);
+  assert.equal(wasCancelled(), true);
+});
+
+test("an explicit timeoutMs keeps its legacy override across HTML and attachments", async () => {
+  const { client } = delayedAttachmentClient(
+    { timeoutMs: 20, htmlTimeoutMs: 200, attachmentTimeoutMs: 200 },
+    60,
+  );
+  const result = await client();
+  assert.equal(result.provider.reasonCode, "ATTACHMENT_BODY_TIMEOUT");
+  assert.equal(result.observations.length, 0);
+});
+
+test("an unresponsive stream cancellation has a bounded cleanup deadline", async () => {
+  const keepAlive = setTimeout(() => {}, 2000);
+  try {
+    const { client, wasCancelled } = delayedAttachmentClient({ attachmentTimeoutMs: 20 }, 60, true);
+    const start = Date.now();
+    const result = await client();
+    assert.equal(result.provider.reasonCode, "ATTACHMENT_BODY_TIMEOUT");
+    assert.equal(wasCancelled(), true);
+    assert.ok(Date.now() - start < 1800);
+  } finally {
+    clearTimeout(keepAlive);
+  }
+});
+
 // Test-only generated ReportLab CID document, not ministry observations.
 const KOREAN_CID_PDF_FIXTURE_BASE64 =
   "JVBERi0xLjMKJZOMi54gUmVwb3J0TGFiIEdlbmVyYXRlZCBQREYgZG9jdW1lbnQgKG9wZW5zb3VyY2UpCjEgMCBvYmoKPDwKL0YxIDIgMCBSIC9GMiAzIDAgUgo+PgplbmRvYmoKMiAwIG9iago8PAovQmFzZUZvbnQgL0hlbHZldGljYSAvRW5jb2RpbmcgL1dpbkFuc2lFbmNvZGluZyAvTmFtZSAvRjEgL1N1YnR5cGUgL1R5cGUxIC9UeXBlIC9Gb250Cj4+CmVuZG9iagozIDAgb2JqCjw8Ci9CYXNlRm9udCAvSFlTTXllb25nSm8tTWVkaXVtIC9EZXNjZW5kYW50Rm9udHMgWyA8PAovQmFzZUZvbnQgL0hZU015ZW9uZ0pvLU1lZGl1bSAvQ0lEU3lzdGVtSW5mbyA8PAovT3JkZXJpbmcgKEtvcmVhMSkgL1JlZ2lzdHJ5IChBZG9iZSkgL1N1cHBsZW1lbnQgMQo+PiAvRFcgMTAwMCAvRm9udERlc2NyaXB0b3IgPDwKL0FzY2VudCA3NTIgL0F2Z1dpZHRoIDUwMCAvQ2FwSGVpZ2h0IDczNyAvRGVzY2VudCAtMjcxIC9GbGFncyA2IC9Gb250QkJveCBbIDAgLTE0OCAxMDAxIDg4MCBdIAogIC9Gb250TmFtZSAvSFlTTXllb25nSm8tTWVkaXVtIC9JdGFsaWNBbmdsZSAwIC9MZWFkaW5nIDE0OCAvTWF4V2lkdGggMTAwMCAvTWlzc2luZ1dpZHRoIDUwMCAvU3RlbUggOTEgCiAgL1N0ZW1WIDU4IC9UeXBlIC9Gb250RGVzY3JpcHRvciAvWEhlaWdodCA1NTMKPj4gL1N1YnR5cGUgL0NJREZvbnRUeXBlMiAvVHlwZSAvRm9udCAKICAvVyBbIDEgWyAzMzMgNDE2IF0gMyBbIDQxNiA4MzMgNjI1IDkxNiA4MzMgMjUwIDUwMCBdIDEwIDExIDUwMCAxMiBbIDgzMyAyOTEgODMzIDI5MSAzNzUgNjI1IF0gMTggCiAgMjYgNjI1IDI3IDI4IDMzMyAyOSAzMCA4MzMgMzEgWyA5MTYgNTAwIDEwMDAgNzkxIDcwOCBdIAogIDM2IFsgNzA4IDc1MCA3MDggNjY2IDc1MCA3OTEgMzc1IDUwMCA3OTEgNjY2IAogIDkxNiA3OTEgNzUwIDY2NiA3NTAgNzA4IDY2NiA3OTEgXSA1NCBbIDc5MSA3NTAgMTAwMCA3MDggXSA1OCBbIDcwOCA2NjYgNTAwIDM3NSA1MDAgXSA2MyA2NCA1MDAgNjUgCiAgWyAzMzMgNTQxIDU4MyA1NDEgNTgzIF0gNzAgWyA1ODMgMzc1IDU4MyBdIDczIFsgNTgzIDI5MSAzMzMgNTgzIDI5MSA4NzUgNTgzIF0gODAgODIgNTgzIDgzIFsgNDU4IDU0MSAzNzUgNTgzIF0gCiAgODcgWyA1ODMgODMzIDYyNSBdIDkwIFsgNjI1IDUwMCA1ODMgXSA5MyA5NCA1ODMgOTUgWyA3NTAgXSBdCj4+IF0gL0VuY29kaW5nIC9VbmlLUy1VQ1MyLUggL05hbWUgL0YyIC9TdWJ0eXBlIC9UeXBlMCAvVHlwZSAvRm9udAo+PgplbmRvYmoKNCAwIG9iago8PAovQ29udGVudHMgOCAwIFIgL01lZGlhQm94IFsgMCAwIDU5NS4yNzU2IDg0MS44ODk4IF0gL1BhcmVudCA3IDAgUiAvUmVzb3VyY2VzIDw8Ci9Gb250IDEgMCBSIC9Qcm9jU2V0IFsgL1BERiAvVGV4dCAvSW1hZ2VCIC9JbWFnZUMgL0ltYWdlSSBdCj4+IC9Sb3RhdGUgMCAvVHJhbnMgPDwKCj4+IAogIC9UeXBlIC9QYWdlCj4+CmVuZG9iago1IDAgb2JqCjw8Ci9QYWdlTW9kZSAvVXNlTm9uZSAvUGFnZXMgNyAwIFIgL1R5cGUgL0NhdGFsb2cKPj4KZW5kb2JqCjYgMCBvYmoKPDwKL0F1dGhvciAoYW5vbnltb3VzKSAvQ3JlYXRpb25EYXRlIChEOjIwMjYxMDIyMDkxMDQ4KzAwJzAwJykgL0NyZWF0b3IgKGFub255bW91cykgL0tleXdvcmRzICgpIC9Nb2REYXRlIChEOjIwMjYxMDIyMDkxMDQ4KzAwJzAwJykgL1Byb2R1Y2VyIChSZXBvcnRMYWIgUERGIExpYnJhcnkgLSBcKG9wZW5zb3VyY2VcKSkgCiAgL1N1YmplY3QgKHVuc3BlY2lmaWVkKSAvVGl0bGUgKHVudGl0bGVkKSAvVHJhcHBlZCAvRmFsc2UKPj4KZW5kb2JqCjcgMCBvYmoKPDwKL0NvdW50IDEgL0tpZHMgWyA0IDAgUiBdIC9UeXBlIC9QYWdlcwo+PgplbmRvYmoKOCAwIG9iago8PAovRmlsdGVyIFsgL0FTQ0lJODVEZWNvZGUgL0ZsYXRlRGVjb2RlIF0gL0xlbmd0aCAxNzIKPj4Kc3RyZWFtCkdhclcyXSsyXDMkcTlvPmA+c0wxcigoIicsYV1FM0g6KFg1Vz0oMGdUOSVmP1hRI2MvcHRAS1VpcGpuKyJDKUE1KWhTO1BLJDFGN21eUUgwR2hNYEU8WF1VMFlcPj5tRi1aJVk7TDlkY3IsPFBHbHE2Vz9BTWsnZ1MjSXU8TWI9SSxaVippYzRyZ2NOXm1LP21JWWcpVDltZFQiNG1XVj5qSkQpPlM/aygqfj5lbmRzdHJlYW0KZW5kb2JqCnhyZWYKMCA5CjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDA2MSAwMDAwMCBuIAowMDAwMDAwMTAyIDAwMDAwIG4gCjAwMDAwMDAyMDkgMDAwMDAgbiAKMDAwMDAwMTI0OCAwMDAwMCBuIAowMDAwMDAxNDUxIDAwMDAwIG4gCjAwMDAwMDE1MTkgMDAwMDAgbiAKMDAwMDAwMTc4MCAwMDAwMCBuIAowMDAwMDAxODM5IDAwMDAwIG4gCnRyYWlsZXIKPDwKL0lEIApbPDQzODlkNGY1YzhiNzYxZGNjNzA2NjlmMmI3NDgzZDBjPjw0Mzg5ZDRmNWM4Yjc2MWRjYzcwNjY5ZjJiNzQ4M2QwYz5dCiUgUmVwb3J0TGFiIGdlbmVyYXRlZCBQREYgZG9jdW1lbnQgLS0gZGlnZXN0IChvcGVuc291cmNlKQoKL0luZm8gNiAwIFIKL1Jvb3QgNSAwIFIKL1NpemUgOQo+PgpzdGFydHhyZWYKMjEwMQolJUVPRgo=";

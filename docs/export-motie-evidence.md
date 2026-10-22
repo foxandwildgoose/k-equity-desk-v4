@@ -19,6 +19,8 @@ Korean CID extraction additionally requires trusted local CMaps and standard-fon
 
 The source link, source statistical month, publication date when present, provisional marker and original provider verification time stay separate. A failed or unverified refresh retains the older verified snapshot with a stale state; it does not renew its verification time or fabricate missing item amounts.
 
+HTML metadata requests keep a seven-second complete-body deadline. A discovered PDF attachment has a separate 25-second complete-body deadline, while list, detail, attachment and decoding share a 35-second whole-acquisition budget. This distinction follows a production ATTACHMENT_BODY_TIMEOUT observed under the earlier shared seven-second limit; it does not enlarge body/page limits. Explicit timeoutMs remains an override for every request. Stream cancellation and PDF task destruction each have bounded one-second cleanup.
+
 ## Evidence limits
 
 On October 22, 2026, direct local requests to the old official MOTIE root and corroborated board returned HTTP 503 connection timeouts. The current official MOTIR origin and the separate Korea Policy Briefing RSS origin were denied at CONNECT by this cloud environment's runtime network policy. No attempt bypassed the proxy or TLS validation. These are local reachability observations, not proof of production availability or nonavailability.
