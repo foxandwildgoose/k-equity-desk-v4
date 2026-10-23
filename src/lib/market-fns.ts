@@ -1,5 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { withEtfDeadline } from "@/server/etf-request";
+import { createSnapshotCache } from "@/server/snapshot-cache";
+import { retainMarketQuoteCoverage } from "@/server/market-snapshot-cache";
 import { z } from "zod";
 import {
   fetchAllUniverseQuotes,
@@ -50,11 +52,12 @@ import {
   type KrxDisclosureItem,
 } from "@/server/krx-disclosures";
 
-const quoteCache: { at: number; data: LiveQuote[] | null } = {
-  at: 0,
-  data: null,
-};
-const QUOTE_TTL_MS = 30_000;
+const marketQuoteSnapshot = /* @__PURE__ */ createSnapshotCache({
+  load: fetchAllUniverseQuotes,
+  usable: (quotes) => quotes.length > 0,
+  reconcile: (previous, next) => retainMarketQuoteCoverage(previous ?? [], next, UNIVERSE.map(row => row.code)),
+  ttlMs: 30_000,
+});
 
 const indexCache: {
   at: number;
@@ -120,24 +123,13 @@ export const getQuotesByCodes = createServerFn({ method: "GET" })
 
 export const getMarketQuotes = createServerFn({ method: "GET" }).handler(
   async () => {
-    const now = Date.now();
-    if (quoteCache.data && now - quoteCache.at < QUOTE_TTL_MS) {
-      return {
-        quotes: quoteCache.data,
-        fetchedAt: new Date(quoteCache.at).toISOString(),
-        source: "naver-finance-snapshot" as const,
-        cached: true,
-        live: false,
-      };
-    }
-    const quotes = await fetchAllUniverseQuotes();
-    quoteCache.data = quotes;
-    quoteCache.at = Date.now();
+    const snapshot = await marketQuoteSnapshot();
     return {
-      quotes,
-      fetchedAt: new Date(quoteCache.at).toISOString(),
+      quotes: snapshot.data,
+      fetchedAt: snapshot.fetchedAt,
       source: "naver-finance-snapshot" as const,
-      cached: false,
+      cached: snapshot.cached,
+      stale: snapshot.stale,
       live: false,
     };
   },

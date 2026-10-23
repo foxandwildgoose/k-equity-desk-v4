@@ -34,7 +34,7 @@ async function getText(url: string, init?: RequestInit): Promise<string> {
     const res = await fetch(url, {
       ...init,
       headers: { ...headers(), ...(init?.headers as object) },
-      signal: ctrl.signal,
+      signal: init?.signal ? AbortSignal.any([ctrl.signal, init.signal]) : ctrl.signal,
     });
     if (!res.ok) throw new Error(`HTTP ${res.status} ${url}`);
     return await res.text();
@@ -43,8 +43,8 @@ async function getText(url: string, init?: RequestInit): Promise<string> {
   }
 }
 
-async function getJson<T>(url: string): Promise<T> {
-  return JSON.parse(await getText(url)) as T;
+async function getJson<T>(url: string, signal?: AbortSignal): Promise<T> {
+  return JSON.parse(await getText(url, signal ? { signal } : undefined)) as T;
 }
 
 async function getEucKr(url: string): Promise<string> {
@@ -376,7 +376,27 @@ type DatedSnapshot = NormalizedNaverSnapshot & { fetchedAt: string; sourceUrl?: 
 type ListingState = { at: number; rows: Map<string, DatedSnapshot>; nextPage: number; done: boolean; pending?: Promise<void> };
 const listingCache = new Map<UniverseItem["market"], ListingState>();
 
-async function datedListingRows(market: UniverseItem["market"], requested: Set<string> | null, maxPages: number): Promise<DatedSnapshot[]> {
+async function withQuoteBudget<T>(timeoutMs: number, run: (signal: AbortSignal) => Promise<T>, parent?: AbortSignal): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const signal = parent ? AbortSignal.any([controller.signal, parent]) : controller.signal;
+  try { return await run(signal); } finally { clearTimeout(timer); }
+}
+
+/** A waiter may stop waiting without cancelling another request's bounded owner. */
+async function awaitListingOwner(work: Promise<void>, signal: AbortSignal): Promise<void> {
+  if (signal.aborted) return;
+  await new Promise<void>((resolve, reject) => {
+    const abort = () => { signal.removeEventListener("abort", abort); resolve(); };
+    signal.addEventListener("abort", abort, { once: true });
+    work.then(
+      () => { signal.removeEventListener("abort", abort); resolve(); },
+      error => { signal.removeEventListener("abort", abort); reject(error); },
+    );
+  });
+}
+
+async function datedListingRows(market: UniverseItem["market"], requested: Set<string> | null, maxPages: number, signal: AbortSignal): Promise<DatedSnapshot[]> {
   const now = Date.now();
   let state = listingCache.get(market);
   if (!state || now - state.at >= 40_000) {
@@ -385,23 +405,23 @@ async function datedListingRows(market: UniverseItem["market"], requested: Set<s
   }
   // A waiter may start a wider scan as another waiter wakes. Recheck the lock
   // before assigning the next pending operation so page windows never overlap.
-  while (state.pending) await state.pending;
+  while (state.pending && !signal.aborted) await awaitListingOwner(state.pending, signal);
   const complete = () => requested != null && [...requested].every(code => state!.rows.has(code));
-  if (!complete() && !state.done && state.nextPage <= maxPages) {
+  if (!signal.aborted && !complete() && !state.done && state.nextPage <= maxPages) {
     const current = state;
     current.pending = (async () => {
-      while (!complete() && !current.done && current.nextPage <= maxPages) {
+      while (!signal.aborted && !complete() && !current.done && current.nextPage <= maxPages) {
         const pages = [current.nextPage, current.nextPage + 1].filter(page => page <= maxPages);
         const packs = await Promise.all(pages.map(async page => {
           const sourceUrl = `https://m.stock.naver.com/api/stocks/marketValue/${market}?page=${page}&pageSize=100`;
           try {
-            const body = await getJson<{ stocks?: unknown[]; totalCount?: number; page?: number }>(sourceUrl);
+            const body = await getJson<{ stocks?: unknown[]; totalCount?: number; page?: number }>(sourceUrl, signal);
             if (!Array.isArray(body.stocks) || body.page != null && body.page !== page) return null;
             return { ...body, stocks: body.stocks, fetchedAt: new Date().toISOString(), page, sourceUrl };
           } catch { return null; }
         }));
         for (const pack of packs) {
-          if (!pack) { current.done = true; continue; }
+          if (!pack) { if (!signal.aborted) current.done = true; continue; }
           for (const raw of pack.stocks) {
             const quote = normalizeNaverListingQuote(raw);
             if (!quote) continue;
@@ -411,10 +431,13 @@ async function datedListingRows(market: UniverseItem["market"], requested: Set<s
           }
           if (pack.stocks.length < 100 || typeof pack.totalCount === "number" && pack.page * 100 >= pack.totalCount) current.done = true;
         }
-        current.nextPage += pages.length;
+        // Keep the incomplete window retryable after a timeout. Completed rows
+        // remain dated cache observations, not a fabricated complete market.
+        if (!signal.aborted) current.nextPage += pages.length;
       }
     })();
-    try { await current.pending; } finally { current.pending = undefined; }
+    const owned = current.pending;
+    try { await owned; } finally { if (current.pending === owned) current.pending = undefined; }
   }
   return [...state.rows.values()].filter(row => (row.listingPage ?? 0) <= maxPages);
 }
@@ -422,71 +445,77 @@ async function datedListingRows(market: UniverseItem["market"], requested: Set<s
 /** Dated, same-row domestic capitalisation/volume snapshots; no HTML time borrowing. */
 export async function fetchDatedNaverMarketListing(market: "KOSPI" | "KOSDAQ", maxPages = 2): Promise<LiveQuote[]> {
   const bound = Math.max(1, Math.min(16, Math.floor(maxPages)));
-  return liveQuotesFromSnapshots(await datedListingRows(market, null, bound));
+  return withQuoteBudget(4_000, async signal => liveQuotesFromSnapshots(await datedListingRows(market, null, bound, signal)));
 }
 
 export async function fetchRealtimeQuotes(
   codes: string[],
   metaByCode?: QuoteMetaByCode,
+  options: { timeoutMs?: number; phaseTimeoutMs?: number } = {},
 ): Promise<LiveQuote[]> {
   const unique = [
     ...new Set(
       codes.map((c) => normalizeKrTicker(c)).filter((c) => isKrTicker(c)),
     ),
   ];
-  const listed = new Map<string, DatedSnapshot>();
-  // Bulk pages restore volume/capitalisation with the SAME published row/date.
-  // A cold single-security lookup stays cheap and honest about auxiliary gaps.
-  if (unique.length >= 8) {
-    const markets = ["KOSPI", "KOSDAQ"] as const;
-    await Promise.all(markets.map(async market => {
-      const wanted = new Set(unique.filter(code => {
-        const knownMarket = metaByCode?.[code]?.market ?? UNIVERSE.find(item => item.code === code)?.market;
-        return knownMarket === market;
-      }));
-      if (!wanted.size) return;
-      for (const row of await datedListingRows(market, wanted, market === "KOSPI" ? 16 : 8)) {
-        // Published exchange membership outranks a stale curated routing hint.
-        if (unique.includes(row.code)) listed.set(row.code, row);
-      }
-    }));
-  } else {
-    for (const state of listingCache.values()) {
-      if (Date.now() - state.at >= 40_000) continue;
-      for (const code of unique) { const row = state.rows.get(code); if (row) listed.set(code, row); }
-    }
-  }
-  const remaining = unique.filter(code => !listed.has(code));
-  const batches: string[][] = [];
-  for (let i = 0; i < remaining.length; i += 40) batches.push(remaining.slice(i, i + 40));
-
-  // Fallback also covers missing rows, malformed payloads and undated polling
-  // rows. Never attach a basic timestamp to a different polling price.
-  const batchResults = await Promise.all(batches.map(async (batch) => {
-    const byCode = new Map<string, DatedSnapshot>();
-    try {
-      const url = `https://polling.finance.naver.com/api/realtime?query=SERVICE_ITEM:${batch.join(",")}`;
-      const data = await getJson<{ result?: { areas?: { datas?: unknown[] }[] } }>(url);
-      const fetchedAt = new Date().toISOString();
-      for (const area of data.result?.areas ?? []) {
-        if (!Array.isArray(area.datas)) continue;
-        for (const raw of area.datas) {
-          const parsed = normalizeNaverPollingQuote(raw);
-          if (parsed && batch.includes(parsed.code)) byCode.set(parsed.code, { ...parsed, fetchedAt });
+  if (!unique.length) return [];
+  const phaseMs = Math.max(1, options.phaseTimeoutMs ?? 4_000);
+  return withQuoteBudget(Math.max(1, options.timeoutMs ?? 12_000), async requestSignal => {
+    const listed = new Map<string, DatedSnapshot>();
+    // Bulk pages restore volume/capitalisation with the SAME published row/date.
+    // A cold single-security lookup stays cheap and honest about auxiliary gaps.
+    if (unique.length >= 8) {
+      const markets = ["KOSPI", "KOSDAQ"] as const;
+      await withQuoteBudget(phaseMs, signal => Promise.all(markets.map(async market => {
+        const wanted = new Set(unique.filter(code => {
+          const knownMarket = metaByCode?.[code]?.market ?? UNIVERSE.find(item => item.code === code)?.market;
+          return knownMarket === market;
+        }));
+        if (!wanted.size) return;
+        for (const row of await datedListingRows(market, wanted, market === "KOSPI" ? 16 : 8, signal)) {
+          // Published exchange membership outranks a stale curated routing hint.
+          if (unique.includes(row.code)) listed.set(row.code, row);
         }
+      })), requestSignal);
+    } else {
+      for (const state of listingCache.values()) {
+        if (Date.now() - state.at >= 40_000) continue;
+        for (const code of unique) { const row = state.rows.get(code); if (row) listed.set(code, row); }
       }
-    } catch { /* mobile basic is an independent provider endpoint */ }
-    await Promise.all(batch.filter(code => !byCode.get(code)?.tradedAt).map(async code => {
-      try {
-        const basic = await getJson<unknown>(`https://m.stock.naver.com/api/stock/${code}/basic`);
-        const parsed = normalizeNaverBasicQuote(basic, code);
-        if (parsed) byCode.set(code, { ...parsed, fetchedAt: new Date().toISOString(), sourceUrl: `https://m.stock.naver.com/api/stock/${code}/basic` });
-      } catch { /* retain a valid but explicitly undated polling row, if any */ }
-    }));
-    return [...byCode.values()];
-  }));
+    }
+    const remaining = unique.filter(code => !listed.has(code));
+    const batches: string[][] = [];
+    for (let i = 0; i < remaining.length; i += 40) batches.push(remaining.slice(i, i + 40));
 
-  return liveQuotesFromSnapshots([...listed.values(), ...batchResults.flat()], metaByCode);
+    // Fallback also covers missing rows, malformed payloads and undated polling
+    // rows. Never attach a basic timestamp to a different polling price.
+    const byCode = new Map<string, DatedSnapshot>();
+    await withQuoteBudget(phaseMs, signal => Promise.all(batches.map(async (batch) => {
+      if (signal.aborted) return;
+      try {
+        const url = `https://polling.finance.naver.com/api/realtime?query=SERVICE_ITEM:${batch.join(",")}`;
+        const data = await getJson<{ result?: { areas?: { datas?: unknown[] }[] } }>(url, signal);
+        const fetchedAt = new Date().toISOString();
+        for (const area of data.result?.areas ?? []) {
+          if (!Array.isArray(area.datas)) continue;
+          for (const raw of area.datas) {
+            const parsed = normalizeNaverPollingQuote(raw);
+            if (parsed && batch.includes(parsed.code)) byCode.set(parsed.code, { ...parsed, fetchedAt });
+          }
+        }
+      } catch { /* mobile basic is an independent provider endpoint */ }
+    })), requestSignal);
+    await withQuoteBudget(phaseMs, signal => Promise.all(remaining.filter(code => !byCode.get(code)?.tradedAt).map(async code => {
+        if (signal.aborted) return;
+        try {
+          const basic = await getJson<unknown>(`https://m.stock.naver.com/api/stock/${code}/basic`, signal);
+          const parsed = normalizeNaverBasicQuote(basic, code);
+          if (parsed) byCode.set(code, { ...parsed, fetchedAt: new Date().toISOString(), sourceUrl: `https://m.stock.naver.com/api/stock/${code}/basic` });
+        } catch { /* retain a valid but explicitly undated polling row, if any */ }
+      })), requestSignal);
+
+    return liveQuotesFromSnapshots([...listed.values(), ...byCode.values()], metaByCode);
+  });
 }
 
 function liveQuotesFromSnapshots(rows: DatedSnapshot[], metaByCode?: QuoteMetaByCode): LiveQuote[] {

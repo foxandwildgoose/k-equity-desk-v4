@@ -6,6 +6,9 @@ import { FilterBar } from "@/components/feed/FilterBar";
 import { FeedList } from "@/components/feed/FeedList";
 import { useWatchContext } from "@/lib/use-feed";
 import { UNIVERSE } from "@/data/universe";
+import { Button } from "@/components/ui/button";
+import { AlertTriangle, RefreshCw } from "lucide-react";
+import { feedEmptyReason, FeedRequestError } from "@/lib/feed-client";
 
 const NAME_BY_CODE = new Map(UNIVERSE.map((u) => [u.code, u.nameKo]));
 
@@ -15,15 +18,7 @@ export function krTickerLabel(t: FeedItem["tickers"][number]): string | undefine
 
 /** Explain an empty list honestly (A3.1): which sources failed and why. */
 export function emptyReasonFor(sources: FeedSourceResult[], loading: boolean, filtered: boolean): string {
-  if (loading) return "수신 중…";
-  if (filtered) return "현재 필터에 맞는 항목이 없습니다. 필터를 줄여 보세요.";
-  const active = sources.filter((s) => s.state !== "disabled");
-  if (!active.length) return "이 화면에 연결된 소스가 모두 비활성 상태입니다.";
-  const failed = active.filter((s) => !s.ok);
-  if (failed.length === active.length) {
-    return `소스 ${active.length}곳 모두 응답하지 않았습니다(소스 미검증·네트워크 차단·서킷 등). 데이터를 채워 넣지 않습니다.`;
-  }
-  return "응답한 소스에 표시할 기사가 없습니다.";
+  return feedEmptyReason(sources, loading, filtered);
 }
 
 /** Filterable newest-first feed with 더 보기 (B0.7). */
@@ -39,6 +34,10 @@ export function NewsDesk({
   kinds,
   header,
   translations,
+  error,
+  retrying = false,
+  paused = false,
+  onRetry,
 }: {
   items: FeedItem[];
   sources: FeedSourceResult[];
@@ -51,6 +50,10 @@ export function NewsDesk({
   kinds?: { id: string; label: string }[];
   header?: ReactNode;
   translations?: Record<string, string>;
+  error?: unknown;
+  retrying?: boolean;
+  paused?: boolean;
+  onRetry?: () => void;
 }) {
   const [filters, setFilters] = useState<FeedFilterState>(EMPTY_FILTERS);
   const watch = useWatchContext();
@@ -62,20 +65,32 @@ export function NewsDesk({
     <section className="space-y-2" aria-label="뉴스 목록">
       {header}
       <FilterBar value={filters} onChange={setFilters} sources={facetsS} topics={facetsT} kinds={kinds} />
-      <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+      {Boolean(error || paused) && (
+        <div role="alert" className="flex items-start gap-2 rounded-lg border border-desk-gold/40 bg-desk-gold/5 p-3 text-sm text-foreground" data-testid="news-request-error">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-desk-gold" aria-hidden="true" />
+          <span>{paused ? "인터넷 연결을 기다리고 있습니다. 연결 상태를 확인해 주세요." : error instanceof FeedRequestError ? error.message : "뉴스를 불러오지 못했습니다. 다시 불러오기를 눌러 주세요."}{items.length > 0 ? " 이전에 받은 뉴스는 계속 표시합니다." : ""}</span>
+        </div>
+      )}
+      <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] text-muted-foreground">
         <span>
           표시 {visible.length}건{filtered ? ` / 전체 ${items.length}건` : ""} · 최신순
         </span>
+        {onRetry && (
+          <Button type="button" variant="outline" size="lg" className="text-xs" onClick={onRetry} disabled={retrying} data-testid="news-retry">
+            <RefreshCw className={retrying ? "animate-spin" : ""} aria-hidden="true" />
+            {retrying ? "뉴스 불러오는 중…" : "뉴스 다시 불러오기"}
+          </Button>
+        )}
       </div>
       <FeedList
         items={visible}
         tz={tz}
         withEt={withEt}
-        loading={loading}
+        loading={loading && !error && !paused}
         hasMore={hasMore}
         loadingMore={loadingMore}
         onLoadMore={onLoadMore}
-        emptyReason={emptyReasonFor(sources, loading, filtered)}
+        emptyReason={feedEmptyReason(sources, loading, filtered, { failed: !!error, paused })}
         labelFor={krTickerLabel}
         translations={translations}
       />

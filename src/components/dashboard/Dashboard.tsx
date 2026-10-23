@@ -18,13 +18,14 @@ import { DecisionSnapshot } from "@/components/dashboard/DecisionSnapshot";
 import { DashboardBriefCards } from "@/components/dashboard/BriefCards";
 import { Panel } from "@/components/layout/DeskLayout";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import type { LiveQuote } from "@/server/naver-market";
 import { inferSectorId } from "@/lib/infer-sector";
 import { DATA_LABEL, DATA_DELAY_NOTE } from "@/data/market";
 import { cn } from "@/lib/utils";
 import { useMarketClock } from "@/lib/use-market-clock";
 import { selectMarketQuotes } from "@/lib/market-freshness";
-import { coverageLabel, formatMarketAsOf } from "@/lib/market-presentation";
+import { coverageLabel, formatMarketAsOf, preopenMarketSnapshot } from "@/lib/market-presentation";
 import {
   ArrowRight,
   Star,
@@ -77,7 +78,7 @@ function SectorTile({
       <span className="text-[10px] text-muted-foreground line-clamp-1">
         {nameEn} · 커버리지 단순평균
       </span>
-      <span className="text-[10px] text-muted-foreground">{coverageLabel(stats)}</span>
+      <span className="text-[10px] text-muted-foreground">{coverageLabel(stats, now)}</span>
       {(stats.topGainer || stats.topLoser) && (
         <div className="mt-1 flex flex-col gap-0.5 text-[11px]">
           {stats.topGainer && (
@@ -111,7 +112,7 @@ export function Dashboard() {
   const watchlist = useAppStore((s) => s.watchlist);
   const focusMode = useAppStore((s) => s.focusMode);
   const colors = usePriceColors();
-  const { data, isLoading, isError } = useMarketQuotes();
+  const { data, isLoading, isError, isFetching, fetchStatus, refetch } = useMarketQuotes();
   const now = useMarketClock();
   // Secondary desks load after first paint so quote tape wins the race
   const [deferSecondary, setDeferSecondary] = useState(false);
@@ -155,6 +156,9 @@ export function Dashboard() {
   }, [mounted, data?.quotes, extra.data?.quotes]);
   const { gainers, losers } = marketMoversFromQuotes(quotes, 6, now);
   const marketQuotes = selectMarketQuotes(quotes, now);
+  const preopen = marketQuotes.count === 0 ? preopenMarketSnapshot(marketQuotes.all, now) : null;
+  const requestIssue = mounted && (isError || fetchStatus === "paused");
+  const retainedAsOf = requestIssue ? marketQuotes.newestObservedAsOf : null;
 
   const watched = watchlist
     .map((c) => {
@@ -186,16 +190,16 @@ export function Dashboard() {
   // Only evaluate session status after mount to avoid SSR/client quote race.
   const marketOpen =
     mounted &&
-    marketQuotes.quotes.some(
-      (q) => q.marketStatus === "OPEN" || q.marketStatus === "PREOPEN",
-    );
+    marketQuotes.quotes.some((q) => q.marketStatus === "OPEN");
   const sessionLabel = !mounted
     ? "세션 확인 중"
-    : !marketQuotes.count
-      ? "현재 시세 확인 불가"
-      : marketOpen
-      ? "정규장 개장"
-      : "최근 거래일 시세";
+    : preopen
+      ? "장전 · 정규장 시세 대기"
+      : !marketQuotes.count
+        ? "현재 시세 확인 불가"
+        : marketOpen
+          ? "정규장 개장"
+          : "최근 거래일 시세";
 
   return (
     <div className="dash-layout">
@@ -210,6 +214,7 @@ export function Dashboard() {
         <div className="flex flex-col items-end gap-1">
           <div className="flex items-center gap-1.5">
             <span
+              data-testid="market-session-status"
               className={cn(
                 "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold",
                 marketOpen
@@ -233,20 +238,44 @@ export function Dashboard() {
               </span>
             )}
           </div>
-          {mounted && isError && (
-            <span className="text-[11px] text-price-down">
-              시세 조회 실패 — 자동 재시도
-            </span>
+          {requestIssue && (
+            <div className="flex max-w-xs flex-col items-end gap-2" data-testid="market-request-error">
+              <p className="text-xs text-muted-foreground" role="status">
+                {fetchStatus === "paused"
+                  ? "네트워크 연결을 기다리고 있습니다. 연결 후 시세를 다시 요청할 수 있습니다."
+                  : "시세를 불러오지 못했습니다. 아래 버튼으로 다시 요청할 수 있습니다."}
+                {quotes.length > 0 && " 마지막으로 받은 가격은 기준 시각과 함께 유지됩니다."}
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                disabled={isFetching}
+                onClick={() => void refetch()}
+                data-testid="market-retry"
+              >
+                {isFetching && <Loader2 className="animate-spin" aria-hidden="true" />}
+                {isFetching ? "불러오는 중…" : "시세 다시 불러오기"}
+              </Button>
+            </div>
           )}
           {mounted && (
             <span className="text-[10px] text-muted-foreground tabular">
-              거래 기준 {formatMarketAsOf(marketQuotes.asOf)}
+              {preopen ? "장전 스냅샷" : marketQuotes.asOf ? "거래 기준" : retainedAsOf ? "이전 관측" : "거래 기준"} {formatMarketAsOf(preopen?.asOf ?? marketQuotes.asOf ?? retainedAsOf)}
             </span>
           )}
           <Badge variant="outline" className="text-[10px] font-normal">
             {DATA_LABEL}
           </Badge>
-          <p className="text-xs text-muted-foreground max-w-xs">{DATA_DELAY_NOTE}</p>
+          <p
+            className="max-w-xs text-xs text-muted-foreground"
+            role={preopen ? "status" : undefined}
+            data-testid={preopen ? "market-preopen-notice" : undefined}
+          >
+            {preopen
+              ? "장전 가격을 수신했습니다. 시장 폭·업종 등락은 정규장 시세를 확인한 뒤 집계합니다."
+              : DATA_DELAY_NOTE}
+          </p>
         </div>
       </div>
 

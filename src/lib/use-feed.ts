@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import type { FeedItem, FeedPage, ItemKind, Region } from "@/lib/feed/types";
+import type { FeedItem } from "@/lib/feed/types";
+import { fetchFeedPage, type FeedPageRequestOptions } from "@/lib/feed-client";
 import { filterDisabledSources } from "@/lib/feed/cluster";
 import { scoreImportance } from "@/lib/feed/importance";
 import { sortNewestFirst } from "@/lib/feed/sort";
@@ -12,30 +13,11 @@ import { UNIVERSE } from "@/data/universe";
 
 export type FeedGroupId = "etf" | "robotics-market" | "robotics-policy";
 
-export interface UseFeedOptions {
-  region: Region;
-  /** Theme group (`/api/feed?group=`): ETF news, robotics market/policy. */
-  group?: FeedGroupId;
-  kinds?: ItemKind[];
-  topics?: string[];
-  tickers?: string[];
-  limit?: number;
+export interface UseFeedOptions extends FeedPageRequestOptions {
   enabled?: boolean;
   refetchMs?: number;
   /** Override the endpoint (e.g. `/api/wire`). */
   endpoint?: string;
-}
-
-async function fetchFeedPage(opts: UseFeedOptions, cursor: string | null): Promise<FeedPage> {
-  const params = new URLSearchParams({ region: opts.region, limit: String(opts.limit ?? 50) });
-  if (opts.group) params.set("group", opts.group);
-  if (opts.kinds?.length) params.set("kinds", opts.kinds.join(","));
-  if (opts.topics?.length) params.set("topics", opts.topics.join(","));
-  if (opts.tickers?.length) params.set("tickers", opts.tickers.join(","));
-  if (cursor) params.set("cursor", cursor);
-  const res = await fetch(`${opts.endpoint ?? "/api/feed"}?${params}`, { headers: { accept: "application/json" } });
-  if (!res.ok) throw new Error(`feed HTTP ${res.status}`);
-  return (await res.json()) as FeedPage;
 }
 
 /** User watch context (KR + US watchlists and keywords) for scoring/filters. */
@@ -78,13 +60,16 @@ export function useFeed(opts: UseFeedOptions) {
   const watch = useWatchContext();
   const q = useInfiniteQuery({
     queryKey: ["feed", opts.endpoint ?? "/api/feed", opts.region, opts.group ?? "", opts.kinds?.join(",") ?? "", opts.topics?.join(",") ?? "", opts.tickers?.join(",") ?? "", opts.limit ?? 50],
-    queryFn: ({ pageParam }) => fetchFeedPage(opts, pageParam),
+    queryFn: ({ pageParam, signal }) => fetchFeedPage(opts, pageParam, signal),
     initialPageParam: null as string | null,
     getNextPageParam: (last) => last.nextCursor ?? undefined,
     enabled: opts.enabled ?? true,
     staleTime: 25_000,
     refetchInterval: opts.refetchMs ?? 90_000,
     refetchOnWindowFocus: false,
+    // A failed 15s request must become a visible error rather than a second
+    // automatic request extending the initial loading state to 30s or more.
+    retry: false,
   });
   const pages = q.data?.pages ?? [];
   const items = useMemo(

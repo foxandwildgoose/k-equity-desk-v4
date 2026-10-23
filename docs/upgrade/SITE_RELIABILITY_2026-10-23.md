@@ -1,0 +1,35 @@
+# Public-site reliability — 2026-10-23
+
+The dashboard could return HTTP 200 while visitors still experienced stalled data, an unresponsive page or a shared-shell error. This change addresses concrete acquisition, state and browser-dependency failures. It does not establish that every upstream provider is available or that every device has been tested.
+
+## Failures and resulting behavior
+
+| Failure | Change |
+| --- | --- |
+| Cold quote acquisition scanned listing pages and fallback requests without one practical end-to-end limit. Concurrent callers could duplicate work. | Domestic quote acquisition has a 12-second server budget with bounded phases and shared listing ownership. The critical browser query has a 20-second complete-call deadline, propagates cancellation and exits loading on failure. |
+| Any nonempty refresh could replace a substantially more complete market snapshot. Errors or empty responses could erase useful coverage. | A per-worker, single-flight cache reconciles validated observations by security and provider timestamp. Missing rows retain their original observations; partial coverage remains explicitly stale, including on subsequent TTL hits. The 145-row-to-one-row regression fixture retains all 145 rows while replacing only the genuinely updated row. Older-only, invalid and empty responses do not renew the last successful receipt timestamp. |
+| News requests could wait indefinitely or leave an empty panel with no recovery explanation. | Feed HTTP acquisition has a 15-second headers/body deadline, cancellation, a response-size bound and structural validation. News surfaces distinguish loading, paused networking, failed requests, filtered results and genuinely empty sources, with retry controls. |
+| The shared shell depended on successful BroadcastChannel construction and Web Locks admission. Denied APIs or a silent leader could disable news or throw during mounting. | Cross-tab coordination is optional. Constructor, listener, messaging and lock failures fall back to heartbeat or independent polling. An initial follower watchdog bounds waiting; valid shared pages renew the follower window. Cleanup fences late lock grants, cancels active requests and clears owned timers/listeners. |
+| A malformed HTTP or cross-tab feed page could commit `sources: null` or invalid item structures before a later React render crashed. | HTTP and BroadcastChannel paths share `isFeedPage` validation. `commitWireFeedPage` validates before any shared-store write; invalid messages cannot poison the last usable feed. |
+| Zustand bypassed migration for current-version snapshots, and the merge accepted null lists, invalid nested arrays and arbitrary persisted fields. | Both migration and every rehydration use field-level validation. Valid preferences, custom templates, empty user lists and alert deduplication keys survive. Invalid fields fall back individually, and persisted data cannot replace runtime actions or transient sidebar state. |
+| Dated preopen prices were excluded from regular-session return aggregation, making an otherwise connected dashboard resemble a data outage. | Presentation now identifies a same-day preopen snapshot and shows received coverage while regular-session aggregation is pending. This does not manufacture zero returns, treat preopen values as completed closes or relax normal trading-date validation. |
+| A deployment update could leave an older document requesting removed route chunks with no recovery action. | Chunk-specific failures receive at most one automatic reload per path and tab, guarded by verified session storage. Blocked storage uses manual recovery. Ordinary API failures never trigger automatic reloads. The error boundary exposes retry, reload and home controls while retaining the actual error message. |
+| External font stylesheets were part of the initial document dependency chain. | Pretendard Variable and IBM Plex Mono are bundled with their licenses and served from the app origin using `font-display: swap`. System text remains readable while font bytes load. Platform branding and the preview bridge remain intact. |
+
+## Data and deployment boundaries
+
+Provider trading time, per-row retrieval time and cache receipt time remain distinct. Retaining a quote after a partial refresh does not make its observation current. Snapshot storage described here is per Vercel worker, not a new durable market database. Preopen presentation is evidence of received prices, not evidence of a regular-session daily return.
+
+Font source locations and licenses are recorded in `public/fonts/SOURCES.md`. No public route acquires a new sign-in requirement, and these changes do not require visitors to share browser storage or an existing session.
+
+## Verification
+
+Targeted regression coverage includes quote deadlines/cancellation, shared acquisition, partial-cache retention and timestamps, malformed feed envelopes and nested rows, denied browser coordination APIs, watchdog/cleanup behavior, same-version preference repair, preopen labels and bounded chunk recovery. Synthetic fixtures establish those behaviors; they do not establish live-provider connectivity.
+
+Before deployment, the production build, TypeScript check, Vercel output guard and changed-file ESLint completed successfully (zero lint errors; six existing warnings). The full application test phase passed 1,247 tests. The script-test phase reported 236 passes and 21 skips, with no failures. The final OpenDART pipeline wall-clock assertion exceeded its 180 ms fixture threshold during the combined run; its isolated rerun passed without source changes. This is recorded separately rather than describing the combined npm command as successful.
+
+Functional browser checks used Chromium desktop/mobile emulation, fresh storage, denied storage/BroadcastChannel/Web Locks, and corrupted current-version preferences. Development and newly built output showed working navigation and news retry controls without application HTTP failures, uncaught page errors or horizontal overflow. Deliberately stalled requests exited loading after 20.093 seconds for prices and 15.240 seconds for news; each made one initial request and recovered with HTTP 200 through the retry button. These transport faults supplied no synthetic market or news observations.
+
+The generic render smoke captured visible desktop/mobile content but reports the managed environment's external branding-script certificate error. The script remains in the product. Functional checks distinguish that external resource failure from application HTTP/runtime errors; they do not suppress application errors.
+
+Actual pre-deployment production responses contained 100 Live Wire articles and 60 articles in each KR/US feed, and all passed the new shared validator. Some upstream sources were unavailable; valid partial pages remained accepted. The final production gate is to verify the deployed commit and repeat actual homepage/news checks in fresh desktop/mobile sessions. Physical devices and every browser version are not claimed to have been tested.

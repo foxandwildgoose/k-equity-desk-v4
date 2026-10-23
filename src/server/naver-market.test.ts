@@ -25,9 +25,9 @@ const stamp = "2026-10-15T15:30:00+09:00";
 const polling = { cd: "005930", nm: "삼성전자", nv: 207500, cv: 24500, cr: 10.56, rf: "5", pcv: 232000, aq: 1234, aa: 950000000000, ms: "CLOSE" };
 const basic = (code = "005930") => ({ itemCode: code, stockName: code, closePrice: "207,500", compareToPreviousClosePrice: "-24,500", compareToPreviousPrice: { code: "5" }, fluctuationsRatio: "-10.56", localTradedAt: stamp, marketStatus: "CLOSE", marketSessionType: "regularMarket" });
 
-async function withFetch<T>(fetcher: (url: URL) => Response | Promise<Response>, run: () => Promise<T>): Promise<T> {
+async function withFetch<T>(fetcher: (url: URL, init?: RequestInit) => Response | Promise<Response>, run: () => Promise<T>): Promise<T> {
   const original = globalThis.fetch;
-  globalThis.fetch = (async input => fetcher(new URL(String(input)))) as typeof fetch;
+  globalThis.fetch = (async (input, init) => fetcher(new URL(String(input)), init)) as typeof fetch;
   try { return await run(); } finally { globalThis.fetch = original; }
 }
 
@@ -224,5 +224,102 @@ test("concurrent listing callers share page windows and keep the newer provider 
     for (const result of rows) assert.equal(result.find(row => row.code === "940000")!.tradedAt, latest);
     assert.ok(rows[0]!.length <= 200);
     assert.ok(rows[2]!.length <= 300);
+  });
+});
+
+function blockedUntilAbort(signal: AbortSignal | null | undefined, active: { count: number; aborted: number }): Promise<Response> {
+  assert.ok(signal, "every bounded origin fetch receives its acquisition signal");
+  active.count++;
+  return new Promise((_, reject) => {
+    const abort = () => { active.count--; active.aborted++; reject(new Error("fixture transport aborted")); };
+    if (signal.aborted) abort(); else signal.addEventListener("abort", abort, { once: true });
+  });
+}
+
+test("a slow listing window is aborted, verified partial rows survive, and polling fills missing codes", async t => {
+  const now = Date.now() + 240_000;
+  t.mock.method(Date, "now", () => now);
+  const codes = Array.from({ length: 8 }, (_, i) => String(950000 + i));
+  const meta = Object.fromEntries(codes.map(code => [code, { nameKo: code, nameEn: code, sectorId: "semiconductors" as const, market: "KOSPI" as const }]));
+  const active = { count: 0, aborted: 0 };
+  await withFetch((url, init) => {
+    if (url.pathname.includes("/stocks/marketValue/")) {
+      if (url.searchParams.get("page") === "2") return blockedUntilAbort(init?.signal, active);
+      return json({ page: 1, totalCount: 500, stocks: [{ ...basic(codes[0]), stockEndType: "stock", accumulatedTradingVolume: 321, marketValue: 1000 }] });
+    }
+    if (url.hostname === "polling.finance.naver.com") return json({ result: { areas: [{ datas: codes.slice(1).map(code => ({ ...polling, cd: code, localTradedAt: stamp })) }] } });
+    throw new Error("dated polling rows do not require independent basic calls");
+  }, async () => {
+    const rows = await fetchRealtimeQuotes(codes, meta, { phaseTimeoutMs: 20, timeoutMs: 100 });
+    assert.equal(rows.length, 8);
+    assert.equal(rows.find(row => row.code === codes[0])!.volume, 321);
+    assert.ok(rows.every(row => row.tradedAt === stamp));
+    assert.equal(active.aborted, 1);
+    assert.equal(active.count, 0, "no listing request is abandoned after returning partial data");
+  });
+});
+
+test("polling and basic deadlines abort actual origin requests without manufacturing missing quotes", async () => {
+  const active = { count: 0, aborted: 0 };
+  const started = performance.now();
+  await withFetch((url, init) => {
+    if (url.pathname.includes("/stock/960000/basic")) return json(basic("960000"));
+    return blockedUntilAbort(init?.signal, active);
+  }, async () => {
+    const rows = await fetchRealtimeQuotes(["960000", "960001"], undefined, { phaseTimeoutMs: 15, timeoutMs: 100 });
+    assert.deepEqual(rows.map(row => row.code), ["960000"]);
+    assert.equal(rows[0]!.tradedAt, stamp);
+    assert.equal(rows[0]!.changePct, -10.56);
+    assert.equal(active.aborted, 2);
+    assert.equal(active.count, 0, "the public response waits for aborted work to settle");
+    assert.ok(performance.now() - started < 1000, "phase budgets replace the former repeated ten-second waits");
+  });
+});
+
+test("the whole acquisition deadline prevents starting later fallback phases", async () => {
+  const active = { count: 0, aborted: 0 };
+  const paths: string[] = [];
+  await withFetch((url, init) => {
+    paths.push(url.pathname);
+    return blockedUntilAbort(init?.signal, active);
+  }, async () => {
+    const rows = await fetchRealtimeQuotes(["970000"], undefined, { timeoutMs: 15, phaseTimeoutMs: 100 });
+    assert.deepEqual(rows, []);
+    assert.equal(paths.length, 1);
+    assert.equal(active.aborted, 1);
+    assert.equal(active.count, 0);
+  });
+});
+
+test("a short-budget listing waiter does not cancel or wait indefinitely for another caller's owner", async t => {
+  const now = Date.now() + 360_000;
+  t.mock.method(Date, "now", () => now);
+  const codes = Array.from({ length: 8 }, (_, i) => String(980000 + i));
+  const meta = Object.fromEntries(codes.map(code => [code, { nameKo: code, nameEn: code, sectorId: "semiconductors" as const, market: "KOSPI" as const }]));
+  let release!: () => void;
+  let ownerAborted = false;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  await withFetch(async (url, init) => {
+    if (url.pathname.includes("/stocks/marketValue/")) {
+      init?.signal?.addEventListener("abort", () => { ownerAborted = true; }, { once: true });
+      await held;
+      return json({ page: Number(url.searchParams.get("page")), totalCount: 0, stocks: [] });
+    }
+    return json({ result: { areas: [{ datas: codes.map(code => ({ ...polling, cd: code, localTradedAt: stamp })) }] } });
+  }, async () => {
+    const owner = fetchDatedNaverMarketListing("KOSPI", 2);
+    let watchdog: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const follower = fetchRealtimeQuotes(codes, meta, { timeoutMs: 100, phaseTimeoutMs: 15 });
+      const rows = await Promise.race([follower, new Promise<never>((_, reject) => {
+        watchdog = setTimeout(() => { release(); reject(new Error("the waiter ignored its own acquisition budget")); }, 500);
+      })]);
+      assert.equal(rows.length, 8);
+      assert.equal(ownerAborted, false, "follower deadlines do not abort the independent listing owner");
+    } finally {
+      if (watchdog) clearTimeout(watchdog);
+      release();
+      await owner;
+    }
   });
 });

@@ -6,6 +6,8 @@ import { filterDisabledSources } from "@/lib/feed/cluster";
 import { sortNewestFirst } from "@/lib/feed/sort";
 import { useAppStore, useDisabledSources } from "@/lib/store";
 import { personalize, useWatchContext } from "@/lib/use-feed";
+import { commitWireFeedPage, startWireCoordination, withWireRequestDeadline } from "./browser-runtime";
+import { isFeedPage } from "../feed-client";
 import {
   canonicalRegions,
   diffNewItems,
@@ -185,41 +187,41 @@ export function useLiveWireEngine() {
     let leader = false;
     let stopped = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
-    let heartbeat: ReturnType<typeof setInterval> | undefined;
-    const lockAbort = new AbortController();
-    let releaseLock: (() => void) | null = null;
-    const channel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel(CHANNEL) : null;
-    let lastPage: FeedPage | null = null;
+    let polling = false;
+    let activeRequest: AbortController | null = null;
+    let coordination: ReturnType<typeof startWireCoordination<FeedPage>> | null = null;
 
-    const apply = (page: FeedPage) => {
-      lastPage = page;
-      const { settings: s, disabled: d, watch: w } = latest.current;
-      const now = Date.now();
-      const items = sortNewestFirst(personalize(filterDisabledSources(page.items, d), w, now));
-      const { fresh, next } = diffNewItems(items, seen, now);
-      const counted = fresh.filter((it) => passesToggles(it, s)).length;
-      const drawerOpen = useWireStore.getState().drawerOpen;
-      seen = { ...next, unread: drawerOpen ? 0 : next.unread + counted };
-      saveSeen(seen);
-      useWireStore.setState({ items, sources: page.sources, generatedAt: page.generatedAt, partial: page.partial, unread: seen.unread });
-      if (!fresh.length) return;
-      const plan = planNotifications(
-        fresh,
-        s,
-        { now, watch: w, osPermission: notificationPermission(), visible: document.visibilityState === "visible", leader },
-        notify.current,
-      );
-      notify.current = plan.next;
-      for (const it of plan.toasts.slice(0, 5)) showToast(it);
-      for (const it of plan.os) showOs(it);
-      if (plan.digest) {
-        toast(`새 주요 뉴스 ${plan.digest.count}건 더`, {
-          id: `wire-digest:${now}`,
-          description: "알림이 많아 묶었습니다 (10분에 최대 5건). Live Wire에서 확인하세요.",
-          action: { label: "열기", onClick: () => useWireStore.getState().setDrawerOpen(true) },
-        });
-      }
-      if (plan.sound) beep();
+    const apply = (value: unknown) => {
+      if (stopped) return null;
+      return commitWireFeedPage(value, (page) => {
+        const { settings: s, disabled: d, watch: w } = latest.current;
+        const now = Date.now();
+        const items = sortNewestFirst(personalize(filterDisabledSources(page.items, d), w, now));
+        const { fresh, next } = diffNewItems(items, seen, now);
+        const counted = fresh.filter((it) => passesToggles(it, s)).length;
+        const drawerOpen = useWireStore.getState().drawerOpen;
+        seen = { ...next, unread: drawerOpen ? 0 : next.unread + counted };
+        saveSeen(seen);
+        useWireStore.setState({ items, sources: page.sources, generatedAt: page.generatedAt, partial: page.partial, unread: seen.unread });
+        if (!fresh.length) return;
+        const plan = planNotifications(
+          fresh,
+          s,
+          { now, watch: w, osPermission: notificationPermission(), visible: document.visibilityState === "visible", leader },
+          notify.current,
+        );
+        notify.current = plan.next;
+        for (const it of plan.toasts.slice(0, 5)) showToast(it);
+        for (const it of plan.os) showOs(it);
+        if (plan.digest) {
+          toast(`새 주요 뉴스 ${plan.digest.count}건 더`, {
+            id: `wire-digest:${now}`,
+            description: "알림이 많아 묶었습니다 (10분에 최대 5건). Live Wire에서 확인하세요.",
+            action: { label: "열기", onClick: () => useWireStore.getState().setDrawerOpen(true) },
+          });
+        }
+        if (plan.sound) beep();
+      });
     };
 
     const schedule = () => {
@@ -230,64 +232,57 @@ export function useLiveWireEngine() {
     };
 
     const poll = async () => {
-      if (stopped || !leader) return;
+      if (stopped || !leader || polling) return;
       if (latest.current.settings.paused) return schedule();
+      polling = true;
+      const request = new AbortController();
+      activeRequest = request;
       const { regions } = latest.current.settings;
       const list = [regions.KR ? "KR" : "", regions.US ? "US" : ""].filter(Boolean);
       try {
-        const res = await fetch(`/api/wire?regions=${canonicalRegions(list)}`, { headers: { accept: "application/json" } });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const page = (await res.json()) as FeedPage;
+        const page = await withWireRequestDeadline(async (signal) => {
+          const res = await fetch(`/api/wire?regions=${canonicalRegions(list)}`, {
+            headers: { accept: "application/json" }, signal,
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return await res.json() as unknown;
+        }, request.signal);
+        if (stopped || request.signal.aborted) return;
+        const verified = apply(page);
+        if (!verified) return;
         useWireStore.setState({ errorCount: 0, lastError: null, lastFetchAt: Date.now() });
-        apply(page);
-        channel?.postMessage({ type: "page", page });
+        coordination?.publish(verified);
       } catch (err) {
-        useWireStore.setState((st) => ({ errorCount: st.errorCount + 1, lastError: err instanceof Error ? err.message : "error" }));
+        if (!stopped && !request.signal.aborted)
+          useWireStore.setState((st) => ({ errorCount: st.errorCount + 1, lastError: err instanceof Error ? err.message : "error" }));
+      } finally {
+        polling = false;
+        if (activeRequest === request) activeRequest = null;
+        schedule();
       }
-      schedule();
     };
 
-    const becomeLeader = () => {
-      if (leader || stopped) return;
-      leader = true;
-      useWireStore.setState({ role: "leader" });
-      void poll();
-    };
-
-    channel?.addEventListener("message", (ev: MessageEvent<{ type: string; page?: FeedPage }>) => {
-      if (ev.data?.type === "page" && ev.data.page && !leader) apply(ev.data.page);
-      if (ev.data?.type === "hello" && leader && lastPage) channel.postMessage({ type: "page", page: lastPage });
+    coordination = startWireCoordination<FeedPage>({
+      id: tabId, lockName: LOCK_NAME, heartbeatKey: HEARTBEAT_KEY,
+      channel: () => typeof BroadcastChannel === "undefined" ? null : new BroadcastChannel(CHANNEL),
+      locks: () => typeof navigator === "undefined" ? undefined : navigator.locks,
+      storage: () => window.localStorage,
+      validatePage: isFeedPage,
+      onLeader: () => {
+        if (stopped) return;
+        leader = true;
+        useWireStore.setState({ role: "leader" });
+        void poll();
+      },
+      onFollower: () => {
+        if (!stopped) useWireStore.setState({ role: "follower" });
+      },
+      onPage: (page) => {
+        if (stopped) return;
+        apply(page);
+        useWireStore.setState({ errorCount: 0, lastError: null, lastFetchAt: Date.now() });
+      },
     });
-
-    const locks = typeof navigator !== "undefined" ? (navigator as Navigator & { locks?: LockManager }).locks : undefined;
-    if (locks?.request) {
-      useWireStore.setState({ role: "follower" });
-      locks
-        .request(LOCK_NAME, { signal: lockAbort.signal }, () =>
-          new Promise<void>((resolve) => {
-            releaseLock = resolve;
-            becomeLeader();
-          }),
-        )
-        .catch(() => undefined);
-    } else {
-      // Fallback: localStorage heartbeat (leader refreshes every 5 s; stale after 15 s).
-      const tick = () => {
-        try {
-          const raw = localStorage.getItem(HEARTBEAT_KEY);
-          const cur = raw ? (JSON.parse(raw) as { id: string; at: number }) : null;
-          if (!cur || cur.id === tabId || Date.now() - cur.at > 15_000) {
-            localStorage.setItem(HEARTBEAT_KEY, JSON.stringify({ id: tabId, at: Date.now() }));
-            becomeLeader();
-          } else if (!leader) useWireStore.setState({ role: "follower" });
-        } catch {
-          becomeLeader();
-        }
-      };
-      tick();
-      heartbeat = setInterval(tick, 5_000);
-    }
-    channel?.postMessage({ type: "hello" });
 
     const onVisibility = () => schedule();
     document.addEventListener("visibilitychange", onVisibility);
@@ -295,17 +290,9 @@ export function useLiveWireEngine() {
     return () => {
       stopped = true;
       if (timer) clearTimeout(timer);
-      if (heartbeat) clearInterval(heartbeat);
+      activeRequest?.abort();
       document.removeEventListener("visibilitychange", onVisibility);
-      lockAbort.abort();
-      releaseLock?.();
-      channel?.close();
-      try {
-        const raw = localStorage.getItem(HEARTBEAT_KEY);
-        if (raw && (JSON.parse(raw) as { id: string }).id === tabId) localStorage.removeItem(HEARTBEAT_KEY);
-      } catch {
-        /* ignore */
-      }
+      coordination?.stop();
     };
   }, []);
 }

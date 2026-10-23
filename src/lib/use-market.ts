@@ -32,13 +32,15 @@ import type { EtfMarketBucket } from "@/server/etf-market";
 import { UNIVERSE } from "@/data/universe";
 import { mergeQuoteSnapshots } from "@/lib/market-quote-state";
 import { US_LINKED_CODES } from "@/data/us-link";
+import { withQueryDeadline } from "@/lib/query-request";
 
 /** Coverage-universe snapshot quotes (Naver). KIS ticks overlay via useMarketStream. */
 export function useMarketQuotes(refetchMs = 45_000) {
   return useQuery({
     queryKey: ["market-quotes"],
     structuralSharing: mergeQuoteSnapshots,
-    queryFn: () => getMarketQuotes(),
+    queryFn: ({ signal }) => withQueryDeadline(requestSignal => getMarketQuotes({ signal: requestSignal }), { signal }),
+    retry: false,
     staleTime: 40_000,
     refetchInterval: refetchMs,
     refetchOnWindowFocus: false,
@@ -149,7 +151,8 @@ export function useValuationSeries(code: string, enabled = true) {
 export function useMarketIndices() {
   return useQuery({
     queryKey: ["market-indices"],
-    queryFn: () => getMarketIndices(),
+    queryFn: ({ signal }) => withQueryDeadline(requestSignal => getMarketIndices({ signal: requestSignal }), { signal }),
+    retry: false,
     staleTime: 20_000,
     refetchInterval: 30_000,
     refetchOnWindowFocus: false,
@@ -326,7 +329,8 @@ export function useQuotesByCodes(codes: string[]) {
   return useQuery({
     queryKey: ["quotes-by-codes", key],
     structuralSharing: mergeQuoteSnapshots,
-    queryFn: () => getQuotesByCodes({ data: { codes } }),
+    queryFn: ({ signal }) => withQueryDeadline(requestSignal => getQuotesByCodes({ data: { codes }, signal: requestSignal }), { signal }),
+    retry: false,
     enabled: codes.length > 0,
     staleTime: 30_000,
   });

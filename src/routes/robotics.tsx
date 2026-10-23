@@ -276,7 +276,7 @@ function RoboticsPage() {
 
       {tab === "market" && (
         <SectionCard title="시장 동향" note="The Robot Report · 로봇신문 · Google 뉴스(KR·EN) · 한국경제 IT(로봇 키워드). 주제 칩은 기사 제목·요약의 로봇 용어로 분류합니다." testId="robotics-market">
-          <NewsDesk items={market.items} sources={market.sources} loading={market.isLoading} hasMore={Boolean(market.hasNextPage)} loadingMore={market.isFetchingNextPage} onLoadMore={() => void market.fetchNextPage()} />
+          <NewsDesk items={market.items} sources={market.sources} loading={market.isLoading} error={market.error} paused={market.fetchStatus === "paused"} retrying={market.isFetching} onRetry={() => void market.refetch()} hasMore={Boolean(market.hasNextPage)} loadingMore={market.isFetchingNextPage} onLoadMore={() => void market.fetchNextPage()} />
         </SectionCard>
       )}
 
@@ -286,7 +286,7 @@ function RoboticsPage() {
           note="미국: Federal Register(로봇 용어가 제목·초록에 있는 문서만, 합병 사전신고·조기종료 공고 제외) · Google News. 국내: Google 뉴스 · 로봇신문(정책 기사). 상태 칩(발표·입법예고·시행·조사/검토·기타)은 원문에 있는 표현으로만 표시하며 현재 정책 상태를 단정하지 않습니다."
           testId="robotics-policy"
         >
-          <NewsDesk items={policy.items} sources={policy.sources} loading={policy.isLoading} hasMore={Boolean(policy.hasNextPage)} loadingMore={policy.isFetchingNextPage} onLoadMore={() => void policy.fetchNextPage()} />
+          <NewsDesk items={policy.items} sources={policy.sources} loading={policy.isLoading} error={policy.error} paused={policy.fetchStatus === "paused"} retrying={policy.isFetching} onRetry={() => void policy.refetch()} hasMore={Boolean(policy.hasNextPage)} loadingMore={policy.isFetchingNextPage} onLoadMore={() => void policy.fetchNextPage()} />
         </SectionCard>
       )}
 

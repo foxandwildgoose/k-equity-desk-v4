@@ -9,7 +9,7 @@ import { usePriceColors } from "@/lib/store";
 import { Activity, FileSearch, Gauge, Radio } from "lucide-react";
 import { selectMarketQuotes } from "@/lib/market-freshness";
 import { isFreshKisQuote } from "@/lib/market-quote-state";
-import { coverageLabel } from "@/lib/market-presentation";
+import { coverageLabel, preopenMarketSnapshot } from "@/lib/market-presentation";
 import { UNIVERSE_BY_CODE } from "@/data/universe";
 
 export function DecisionSnapshot({
@@ -36,6 +36,7 @@ export function DecisionSnapshot({
   const liveQuotes = ready ? quotes : [];
   const selected = selectMarketQuotes(liveQuotes.filter((q) => Boolean(UNIVERSE_BY_CODE[q.code])), now);
   const valid = selected.quotes;
+  const preopen = valid.length === 0 ? preopenMarketSnapshot(selected.all, now) : null;
   const liveCount = liveConnected ? valid.filter((q) => isFreshKisQuote(q, now)).length : 0;
   const adv = valid.filter((q) => q.changePct > 0).length;
   const dec = valid.filter((q) => q.changePct < 0).length;
@@ -64,10 +65,10 @@ export function DecisionSnapshot({
       </div>
 
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-        <Metric icon={Gauge} label="시장 폭 (커버리지 기준)" value={valid.length ? `${adv}↑ / ${dec}↓ / ${unchanged}→` : "—"} sub={valid.length ? `${valid.length}종목 · Breadth ${breadth >= 0 ? "+" : ""}${breadth.toFixed(0)}` : "유효한 동일 거래일 시세 없음"} className={!valid.length || breadth === 0 ? "text-muted-foreground" : breadth > 0 ? colors.up : colors.down} />
-        <Metric icon={Activity} label="주도 / 부진 산업" value={leader?.stats.avgChangePct != null ? `${leader.sector.nameKo} ${formatPct(leader.stats.avgChangePct)}` : "—"} sub={laggard?.stats.avgChangePct != null ? `${laggard.sector.nameKo} ${formatPct(laggard.stats.avgChangePct)}` : "—"} />
+        <Metric icon={Gauge} label="시장 폭 (커버리지 기준)" value={valid.length ? `${adv}↑ / ${dec}↓ / ${unchanged}→` : "—"} sub={valid.length ? `${valid.length}종목 · Breadth ${breadth >= 0 ? "+" : ""}${breadth.toFixed(0)}` : preopen ? "장전 · 정규장 시세 확인 후 집계" : "유효한 동일 거래일 시세 없음"} className={!valid.length || breadth === 0 ? "text-muted-foreground" : breadth > 0 ? colors.up : colors.down} />
+        <Metric icon={Activity} label="주도 / 부진 산업" value={leader?.stats.avgChangePct != null ? `${leader.sector.nameKo} ${formatPct(leader.stats.avgChangePct)}` : "—"} sub={laggard?.stats.avgChangePct != null ? `${laggard.sector.nameKo} ${formatPct(laggard.stats.avgChangePct)}` : preopen ? "장전 집계 대기" : "—"} />
         <Metric icon={FileSearch} label="신규 산업 리서치" value={`${research.length}건`} sub={research[0]?.summary || research[0]?.title || "최근 리포트 대기"} />
-        <Metric icon={Radio} label="데이터 상태" value={liveCount ? `최근 KIS 체결 ${liveCount}종목` : "45초 간격 스냅샷 조회"} sub={coverageLabel(selected)} />
+        <Metric icon={Radio} label="데이터 상태" value={liveCount ? `최근 KIS 체결 ${liveCount}종목` : preopen ? "장전 스냅샷 수신" : "45초 간격 스냅샷 조회"} sub={coverageLabel(selected, now)} />
       </div>
 
       <p className="mt-3 text-[10px] leading-relaxed text-muted-foreground border-t border-border pt-2">

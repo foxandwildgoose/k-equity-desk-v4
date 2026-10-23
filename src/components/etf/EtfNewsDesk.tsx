@@ -215,6 +215,10 @@ export function EtfNewsDesk({ embedded = false }: { embedded?: boolean }) {
         items={visible}
         sources={feed.sources}
         loading={feed.isLoading}
+        error={feed.error}
+        paused={feed.fetchStatus === "paused"}
+        retrying={feed.isFetching}
+        onRetry={() => void feed.refetch()}
         hasMore={Boolean(feed.hasNextPage)}
         loadingMore={feed.isFetchingNextPage}
         onLoadMore={() => void feed.fetchNextPage()}

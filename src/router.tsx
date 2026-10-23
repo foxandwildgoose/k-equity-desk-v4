@@ -1,8 +1,10 @@
 import { createRouter } from "@tanstack/react-router";
 import { AppErrorComponent } from "@/lib/error-component";
+import { installClientRecovery } from "@/lib/client-recovery";
 import { routeTree } from "./routeTree.gen";
 
 export function getRouter() {
+  installClientRecovery();
   return createRouter({
     routeTree,
     defaultErrorComponent: AppErrorComponent,
